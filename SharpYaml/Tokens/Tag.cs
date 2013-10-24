@@ -20,39 +20,63 @@
 //  SOFTWARE.
 
 using System;
-using SharpYaml;
-using System.IO;
-using SharpYaml.Events;
 
-namespace Dumper
+namespace SharpYaml.Tokens
 {
-	class Program
+	/// <summary>
+	/// Represents a tag token.
+	/// </summary>
+	public class Tag : Token
 	{
-		static void Main(string[] args)
+		private readonly string handle;
+		private readonly string suffix;
+
+		/// <summary>
+		/// Gets the handle.
+		/// </summary>
+		/// <value>The handle.</value>
+		public string Handle
 		{
-			using (TextReader input = File.OpenText(args[0]))
+			get
 			{
-				int indent = 0;
-				var parser = new Parser(input);
-				while(parser.MoveNext())
-				{
-					if (parser.Current is StreamEnd || parser.Current is DocumentEnd || parser.Current is SequenceEnd || parser.Current is SequenceEnd || parser.Current is MappingEnd)
-					{
-						--indent;
-					}
-					for(int i = 0; i < indent; ++i)
-					{
-						Console.Write("  ");
-					}
-
-					Console.WriteLine(parser.Current.ToString());
-
-					if (parser.Current is StreamStart || parser.Current is DocumentStart || parser.Current is SequenceStart || parser.Current is MappingStart)
-					{
-						++indent;
-					}
-				}
+				return handle;
 			}
+		}
+
+		/// <summary>
+		/// Gets the suffix.
+		/// </summary>
+		/// <value>The suffix.</value>
+		public string Suffix
+		{
+			get
+			{
+				return suffix;
+			}
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="Tag"/> class.
+		/// </summary>
+		/// <param name="handle">The handle.</param>
+		/// <param name="suffix">The suffix.</param>
+		public Tag(string handle, string suffix)
+			: this(handle, suffix, Mark.Empty, Mark.Empty)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="Tag"/> class.
+		/// </summary>
+		/// <param name="handle">The handle.</param>
+		/// <param name="suffix">The suffix.</param>
+		/// <param name="start">The start position of the token.</param>
+		/// <param name="end">The end position of the token.</param>
+		public Tag(string handle, string suffix, Mark start, Mark end)
+			: base(start, end)
+		{
+			this.handle = handle;
+			this.suffix = suffix;
 		}
 	}
 }

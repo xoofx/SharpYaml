@@ -20,39 +20,47 @@
 //  SOFTWARE.
 
 using System;
-using SharpYaml;
-using System.IO;
-using SharpYaml.Events;
+using System.Runtime.Serialization;
 
-namespace Dumper
+namespace SharpYaml
 {
-	class Program
+	/// <summary>
+	/// Exception that is thrown when a syntax error is detected on a YAML stream.
+	/// </summary>
+	public class SyntaxErrorException : YamlException
 	{
-		static void Main(string[] args)
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SyntaxErrorException"/> class.
+		/// </summary>
+		public SyntaxErrorException()
 		{
-			using (TextReader input = File.OpenText(args[0]))
-			{
-				int indent = 0;
-				var parser = new Parser(input);
-				while(parser.MoveNext())
-				{
-					if (parser.Current is StreamEnd || parser.Current is DocumentEnd || parser.Current is SequenceEnd || parser.Current is SequenceEnd || parser.Current is MappingEnd)
-					{
-						--indent;
-					}
-					for(int i = 0; i < indent; ++i)
-					{
-						Console.Write("  ");
-					}
+		}
 
-					Console.WriteLine(parser.Current.ToString());
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SyntaxErrorException"/> class.
+		/// </summary>
+		/// <param name="message">The message.</param>
+		public SyntaxErrorException(string message)
+			: base(message)
+		{
+		}
 
-					if (parser.Current is StreamStart || parser.Current is DocumentStart || parser.Current is SequenceStart || parser.Current is MappingStart)
-					{
-						++indent;
-					}
-				}
-			}
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SyntaxErrorException"/> class.
+		/// </summary>
+		public SyntaxErrorException(Mark start, Mark end, string message)
+			: base(start, end, message)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SyntaxErrorException"/> class.
+		/// </summary>
+		/// <param name="message">The message.</param>
+		/// <param name="inner">The inner.</param>
+		public SyntaxErrorException(string message, Exception inner)
+			: base(message, inner)
+		{
 		}
 	}
 }

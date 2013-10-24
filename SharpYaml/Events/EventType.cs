@@ -20,39 +20,67 @@
 //  SOFTWARE.
 
 using System;
-using SharpYaml;
-using System.IO;
-using SharpYaml.Events;
 
-namespace Dumper
+namespace SharpYaml.Events
 {
-	class Program
+	/// <summary>
+	/// Defines the event types. This allows for simpler type comparisons.
+	/// </summary>
+	internal enum EventType
 	{
-		static void Main(string[] args)
-		{
-			using (TextReader input = File.OpenText(args[0]))
-			{
-				int indent = 0;
-				var parser = new Parser(input);
-				while(parser.MoveNext())
-				{
-					if (parser.Current is StreamEnd || parser.Current is DocumentEnd || parser.Current is SequenceEnd || parser.Current is SequenceEnd || parser.Current is MappingEnd)
-					{
-						--indent;
-					}
-					for(int i = 0; i < indent; ++i)
-					{
-						Console.Write("  ");
-					}
+		/// <summary>
+		/// An empty event.
+		/// </summary>
+		YAML_NO_EVENT,
 
-					Console.WriteLine(parser.Current.ToString());
+		/// <summary>
+		/// A STREAM-START event.
+		/// </summary>
+		YAML_STREAM_START_EVENT,
 
-					if (parser.Current is StreamStart || parser.Current is DocumentStart || parser.Current is SequenceStart || parser.Current is MappingStart)
-					{
-						++indent;
-					}
-				}
-			}
-		}
+		/// <summary>
+		/// A STREAM-END event.
+		/// </summary>
+		YAML_STREAM_END_EVENT,
+
+		/// <summary>
+		/// A DOCUMENT-START event.
+		/// </summary>
+		YAML_DOCUMENT_START_EVENT,
+
+		/// <summary>
+		/// A DOCUMENT-END event.
+		/// </summary>
+		YAML_DOCUMENT_END_EVENT,
+
+		/// <summary>
+		/// An ALIAS event.
+		/// </summary>
+		YAML_ALIAS_EVENT,
+
+		/// <summary>
+		/// A SCALAR event.
+		/// </summary>
+		YAML_SCALAR_EVENT,
+
+		/// <summary>
+		/// A SEQUENCE-START event.
+		/// </summary>
+		YAML_SEQUENCE_START_EVENT,
+
+		/// <summary>
+		/// A SEQUENCE-END event.
+		/// </summary>
+		YAML_SEQUENCE_END_EVENT,
+
+		/// <summary>
+		/// A MAPPING-START event.
+		/// </summary>
+		YAML_MAPPING_START_EVENT,
+
+		/// <summary>
+		/// A MAPPING-END event.
+		/// </summary>
+		YAML_MAPPING_END_EVENT,
 	}
 }

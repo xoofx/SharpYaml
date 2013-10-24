@@ -20,39 +20,47 @@
 //  SOFTWARE.
 
 using System;
-using SharpYaml;
-using System.IO;
-using SharpYaml.Events;
+using System.Runtime.Serialization;
 
-namespace Dumper
+namespace SharpYaml
 {
-	class Program
+	/// <summary>
+	/// Exception that is thrown when a semantic error is detected on a YAML stream.
+	/// </summary>
+	public class SemanticErrorException : YamlException
 	{
-		static void Main(string[] args)
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SemanticErrorException"/> class.
+		/// </summary>
+		public SemanticErrorException()
 		{
-			using (TextReader input = File.OpenText(args[0]))
-			{
-				int indent = 0;
-				var parser = new Parser(input);
-				while(parser.MoveNext())
-				{
-					if (parser.Current is StreamEnd || parser.Current is DocumentEnd || parser.Current is SequenceEnd || parser.Current is SequenceEnd || parser.Current is MappingEnd)
-					{
-						--indent;
-					}
-					for(int i = 0; i < indent; ++i)
-					{
-						Console.Write("  ");
-					}
+		}
 
-					Console.WriteLine(parser.Current.ToString());
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SemanticErrorException"/> class.
+		/// </summary>
+		/// <param name="message">The message.</param>
+		public SemanticErrorException(string message)
+			: base(message)
+		{
+		}
 
-					if (parser.Current is StreamStart || parser.Current is DocumentStart || parser.Current is SequenceStart || parser.Current is MappingStart)
-					{
-						++indent;
-					}
-				}
-			}
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SemanticErrorException"/> class.
+		/// </summary>
+		public SemanticErrorException(Mark start, Mark end, string message)
+			: base(start, end, message)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SemanticErrorException"/> class.
+		/// </summary>
+		/// <param name="message">The message.</param>
+		/// <param name="inner">The inner.</param>
+		public SemanticErrorException(string message, Exception inner)
+			: base(message, inner)
+		{
 		}
 	}
 }

@@ -20,39 +20,46 @@
 //  SOFTWARE.
 
 using System;
-using SharpYaml;
-using System.IO;
-using SharpYaml.Events;
 
-namespace Dumper
+namespace SharpYaml.Serialization
 {
-	class Program
+	/// <summary>
+	/// The exception that is thrown when a duplicate anchor is detected.
+	/// </summary>
+	public class DuplicateAnchorException : YamlException
 	{
-		static void Main(string[] args)
+		/// <summary>
+		/// Initializes a new instance of the <see cref="DuplicateAnchorException"/> class.
+		/// </summary>
+		public DuplicateAnchorException()
 		{
-			using (TextReader input = File.OpenText(args[0]))
-			{
-				int indent = 0;
-				var parser = new Parser(input);
-				while(parser.MoveNext())
-				{
-					if (parser.Current is StreamEnd || parser.Current is DocumentEnd || parser.Current is SequenceEnd || parser.Current is SequenceEnd || parser.Current is MappingEnd)
-					{
-						--indent;
-					}
-					for(int i = 0; i < indent; ++i)
-					{
-						Console.Write("  ");
-					}
+		}
 
-					Console.WriteLine(parser.Current.ToString());
+		/// <summary>
+		/// Initializes a new instance of the <see cref="DuplicateAnchorException"/> class.
+		/// </summary>
+		/// <param name="message">The message.</param>
+		public DuplicateAnchorException(string message)
+			: base(message)
+		{
+		}
 
-					if (parser.Current is StreamStart || parser.Current is DocumentStart || parser.Current is SequenceStart || parser.Current is MappingStart)
-					{
-						++indent;
-					}
-				}
-			}
+		/// <summary>
+		/// Initializes a new instance of the <see cref="DuplicateAnchorException"/> class.
+		/// </summary>
+		public DuplicateAnchorException(Mark start, Mark end, string message)
+			: base(start, end, message)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="DuplicateAnchorException"/> class.
+		/// </summary>
+		/// <param name="message">The message.</param>
+		/// <param name="inner">The inner.</param>
+		public DuplicateAnchorException(string message, Exception inner)
+			: base(message, inner)
+		{
 		}
 	}
 }

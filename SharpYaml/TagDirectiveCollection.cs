@@ -20,39 +20,47 @@
 //  SOFTWARE.
 
 using System;
-using SharpYaml;
-using System.IO;
-using SharpYaml.Events;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using SharpYaml.Tokens;
 
-namespace Dumper
+namespace SharpYaml
 {
-	class Program
+	/// <summary>
+	/// Collection of <see cref="TagDirective"/>.
+	/// </summary>
+	public class TagDirectiveCollection : KeyedCollection<string, TagDirective>
 	{
-		static void Main(string[] args)
+		/// <summary>
+		/// Initializes a new instance of the <see cref="TagDirectiveCollection"/> class.
+		/// </summary>
+		public TagDirectiveCollection()
 		{
-			using (TextReader input = File.OpenText(args[0]))
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="TagDirectiveCollection"/> class.
+		/// </summary>
+		/// <param name="tagDirectives">Initial content of the collection.</param>
+		public TagDirectiveCollection(IEnumerable<TagDirective> tagDirectives)
+		{
+			foreach(var tagDirective in tagDirectives)
 			{
-				int indent = 0;
-				var parser = new Parser(input);
-				while(parser.MoveNext())
-				{
-					if (parser.Current is StreamEnd || parser.Current is DocumentEnd || parser.Current is SequenceEnd || parser.Current is SequenceEnd || parser.Current is MappingEnd)
-					{
-						--indent;
-					}
-					for(int i = 0; i < indent; ++i)
-					{
-						Console.Write("  ");
-					}
-
-					Console.WriteLine(parser.Current.ToString());
-
-					if (parser.Current is StreamStart || parser.Current is DocumentStart || parser.Current is SequenceStart || parser.Current is MappingStart)
-					{
-						++indent;
-					}
-				}
+				Add(tagDirective);
 			}
+		}
+
+		/// <summary/>
+		protected override string GetKeyForItem(TagDirective item)
+		{
+			return item.Handle;
+		}
+		
+		/// <summary>
+		/// Gets a value indicating whether the collection contains a directive with the same handle
+		/// </summary>
+		public new bool Contains(TagDirective directive) {
+			return Contains(GetKeyForItem(directive));
 		}
 	}
 }

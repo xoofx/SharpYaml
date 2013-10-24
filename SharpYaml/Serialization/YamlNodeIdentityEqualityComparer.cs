@@ -1,5 +1,5 @@
 //  This file is part of YamlDotNet - A .NET library for YAML.
-//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2013, 2013, 2013 Antoine Aubry
+//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013 Antoine Aubry
     
 //  Permission is hereby granted, free of charge, to any person obtaining a copy of
 //  this software and associated documentation files (the "Software"), to deal in
@@ -19,34 +19,29 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System;
+using System.Collections.Generic;
 
-// General Information about an assembly is controlled through the following
-// set of attributes. Change these attribute values to modify the information
-// associated with an assembly.
-#if DEBUG
-[assembly: AssemblyConfiguration("Debug")]
-#else
-[assembly: AssemblyConfiguration("Release")]
-#endif
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("SharpYaml")]
-[assembly: AssemblyCopyright("Copyright © Antoine Aubry 2008, 2009, 2010, 2011, 2012, 2013")]
-[assembly: AssemblyTrademark("")]
-[assembly: AssemblyCulture("")]
+namespace SharpYaml.Serialization
+{
+	/// <summary>
+	/// Comparer that is based on identity comparisons.
+	/// </summary>
+	public sealed class YamlNodeIdentityEqualityComparer : IEqualityComparer<YamlNode>
+	{
+		#region IEqualityComparer<YamlNode> Members
 
-// Version information for an assembly consists of the following four values:
-//
-//      Major Version
-//      Minor Version
-//      Build Number
-//      Revision
-//
-// You can specify all the values or you can default the Revision and Build Numbers
-// by using the '*' as shown below:
-[assembly: AssemblyVersion("2.0.1.*")]
-[assembly: AssemblyFileVersion("2.0.1")]
+		/// <summary />
+		public bool Equals(YamlNode x, YamlNode y)
+		{
+			return ReferenceEquals(x, y);
+		}
 
-[assembly: CLSCompliant(true)]
+		/// <summary />
+		public int GetHashCode(YamlNode obj)
+		{
+			return obj.GetHashCode();
+		}
+
+		#endregion
+	}
+}

@@ -1,5 +1,5 @@
 //  This file is part of YamlDotNet - A .NET library for YAML.
-//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2013, 2013, 2013 Antoine Aubry
+//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013 Antoine Aubry
     
 //  Permission is hereby granted, free of charge, to any person obtaining a copy of
 //  this software and associated documentation files (the "Software"), to deal in
@@ -19,34 +19,42 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //  SOFTWARE.
 
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System;
+using SharpYaml.Tokens;
 
-// General Information about an assembly is controlled through the following
-// set of attributes. Change these attribute values to modify the information
-// associated with an assembly.
-#if DEBUG
-[assembly: AssemblyConfiguration("Debug")]
-#else
-[assembly: AssemblyConfiguration("Release")]
-#endif
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("SharpYaml")]
-[assembly: AssemblyCopyright("Copyright © Antoine Aubry 2008, 2009, 2010, 2011, 2012, 2013")]
-[assembly: AssemblyTrademark("")]
-[assembly: AssemblyCulture("")]
+namespace SharpYaml.Events
+{
+	/// <summary>
+	/// Represents a document start event.
+	/// </summary>
+	public interface IDocumentStart : IParsingEvent
+	{
+		/// <summary>
+		/// Gets the tags.
+		/// </summary>
+		/// <value>The tags.</value>
+		TagDirectiveCollection Tags
+		{
+			get;
+		}
 
-// Version information for an assembly consists of the following four values:
-//
-//      Major Version
-//      Minor Version
-//      Build Number
-//      Revision
-//
-// You can specify all the values or you can default the Revision and Build Numbers
-// by using the '*' as shown below:
-[assembly: AssemblyVersion("2.0.1.*")]
-[assembly: AssemblyFileVersion("2.0.1")]
+		/// <summary>
+		/// Gets the version.
+		/// </summary>
+		/// <value>The version.</value>
+		VersionDirective Version
+		{
+			get;
+		}
 
-[assembly: CLSCompliant(true)]
+		/// <summary>
+		/// Gets a value indicating whether this instance is implicit.
+		/// </summary>
+		/// <value>
+		/// 	<c>true</c> if this instance is implicit; otherwise, <c>false</c>.
+		/// </value>
+		bool IsImplicit
+		{
+			get;
+		}
+	}
+}
