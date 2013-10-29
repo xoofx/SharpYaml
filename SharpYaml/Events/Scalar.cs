@@ -29,7 +29,9 @@ namespace SharpYaml.Events
 	/// </summary>
 	public class Scalar : NodeEvent, IScalar
 	{
-		/// <summary>
+        private string value;
+        
+        /// <summary>
 		/// Gets a value indicating the variation of depth caused by this event.
 		/// The value can be either -1, 0 or 1. For start events, it will be 1,
 		/// for end events, it will be -1, and for the remaining events, it will be 0.
@@ -49,8 +51,6 @@ namespace SharpYaml.Events
 			}
 		}
 
-		private readonly string value;
-
 		/// <summary>
 		/// Gets the value.
 		/// </summary>
@@ -61,6 +61,11 @@ namespace SharpYaml.Events
 			{
 				return value;
 			}
+
+		    set
+		    {
+		        this.value = value;
+		    }
 		}
 
 		private readonly ScalarStyle style;

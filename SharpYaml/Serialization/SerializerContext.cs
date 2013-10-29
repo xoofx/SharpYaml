@@ -17,6 +17,8 @@ namespace SharpYaml.Serialization
 		private readonly ITagTypeRegistry tagTypeRegistry;
 		private readonly ITypeDescriptorFactory typeDescriptorFactory;
 		private readonly List<AnchorLateBinding> anchorLateBindings;
+	    private readonly IMappingKeyTransform keyTransform;
+	    private IEmitter emitter;
 		internal readonly Stack<string> Anchors = new Stack<string>();
 		internal readonly Stack<YamlStyle> styles = new Stack<YamlStyle>(); 
 		internal int AnchorCount;
@@ -29,6 +31,7 @@ namespace SharpYaml.Serialization
 		{
 			Serializer = serializer;
 			settings = serializer.Settings;
+		    keyTransform = settings.KeyTransform;
 			tagTypeRegistry = settings.tagTypeRegistry;
 			ObjectFactory = settings.ObjectFactory;
 			Schema = Settings.Schema;
@@ -108,7 +111,17 @@ namespace SharpYaml.Serialization
 		/// <value>The writer.</value>
 		public IEventEmitter Writer { get; internal set; }
 
-		/// <summary>
+        /// <summary>
+        /// Gets the emitter.
+        /// </summary>
+        /// <value>The emitter.</value>
+	    public IEmitter Emitter
+	    {
+	        get { return emitter; }
+	        internal set { emitter = value; }
+	    }
+
+	    /// <summary>
 		/// The default function to write an object to Yaml
 		/// </summary>
 		public void WriteYaml(object value, Type expectedType)
@@ -168,8 +181,34 @@ namespace SharpYaml.Serialization
 			return Settings.Schema.TryParse(scalar, true, out defaultTag, out value);
 		}
 
+	    public IMappingKeyTransform KeyTransform
+	    {
+	        get { return keyTransform; }
+	    }
 
-		private struct AnchorLateBinding
+        
+        public bool DecodeKeyPre(object thisObject, ITypeDescriptor descriptor, string keyIn, out string keyOut)
+        {
+            keyOut = keyIn;
+            return keyTransform != null && keyTransform.DecodePre(this, thisObject, descriptor, keyIn, out keyOut);
+        }
+
+        public void DecodeKeyPost(object thisObject, ITypeDescriptor descriptor, object key, string decodedKeyText)
+        {
+            if (keyTransform != null)
+            {
+                keyTransform.DecodePost(this, thisObject, descriptor, key, decodedKeyText);   
+            }
+        }
+
+        public string EncodeKey(object thisObject, ITypeDescriptor descriptor, object key, string keyText)
+        {
+            return keyTransform == null ? keyText : keyTransform.Encode(this, thisObject, descriptor, key, keyText);
+        }
+
+        public Func<object, string, string> EncodeScalarKey { get; set; }
+
+        private struct AnchorLateBinding
 		{
 			public AnchorLateBinding(AnchorAlias anchorAlias, Action<object> setter)
 			{

@@ -3,7 +3,7 @@ using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization.Serializers
 {
-	/// <summary>
+    /// <summary>
 	/// Base class for serializing an object that can be a Yaml !!map or !!seq.
 	/// </summary>
 	public class ObjectSerializer : IYamlSerializable, IYamlSerializableFactory
@@ -79,8 +79,14 @@ namespace SharpYaml.Serialization.Serializers
 			var reader = context.Reader;
 
 			// For a regular object, the key is expected to be a simple scalar
-			var propertyName = reader.Expect<Scalar>().Value;
+		    string propertyName;
+            var isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, reader.Expect<Scalar>().Value, out propertyName);
 			var memberAccessor = typeDescriptor[propertyName];
+
+		    if (isKeyDecoded)
+		    {
+                context.DecodeKeyPost(thisObject, typeDescriptor, memberAccessor, propertyName);
+            }
 
 			// Read the value according to the type
 			var propertyType = memberAccessor.Type;
@@ -139,8 +145,8 @@ namespace SharpYaml.Serialization.Serializers
 				// Skip any member that we won't serialize
 				if (!member.ShouldSerialize(thisObject)) continue;
 
-				// Emit the key name
-				WriteKey(context, member.Name);
+                // Emit the key name
+                WriteKey(context, context.EncodeKey(thisObject, typeDescriptor, member.Name, member.Name));
 
 				var memberValue = member.Get(thisObject);
 				var memberType = member.Type;

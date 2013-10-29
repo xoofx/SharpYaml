@@ -40,7 +40,15 @@ namespace SharpYaml.Serialization.Serializers
 
 			scalar.RenderedValue =  ConvertTo(context, value, typeDescriptor);
 
-			// Emit the scalar
+            // If we are encoding a key, 
+		    if (context.EncodeScalarKey != null)
+		    {
+                // Set it back to null, as the key is encoded.
+                scalar.RenderedValue = context.EncodeScalarKey(value, scalar.RenderedValue);
+                context.EncodeScalarKey = null;
+		    }
+
+		    // Emit the scalar
 			context.Writer.Emit(scalar);
 		}
 

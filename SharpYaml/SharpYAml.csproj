@@ -69,6 +69,7 @@
     <Compile Include="Events\SequenceEnd.cs" />
     <Compile Include="Events\SequenceStart.cs" />
     <Compile Include="Serialization\IDynamicStyleFormat.cs" />
+    <Compile Include="Serialization\IMappingKeyTransform.cs" />
     <Compile Include="YamlStyle.cs" />
     <Compile Include="Events\StreamEnd.cs" />
     <Compile Include="Events\StreamStart.cs" />

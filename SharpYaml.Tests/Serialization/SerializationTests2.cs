@@ -3,11 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Xunit;
+using SharpYaml.Serialization.Serializers;
 using SharpYaml.Serialization;
+using NUnit.Framework;
 
 namespace SharpYaml.Test.Serialization
 {
+    [TestFixture]
 	public class SerializationTests2
 	{
 		public enum MyEnum
@@ -60,7 +62,7 @@ namespace SharpYaml.Test.Serialization
 			public int[] ArrayContent { get; private set; }
 		}
 
-		[Fact]
+		[Test]
 		public void TestSimpleObjectAndPrimitive()
 		{
 			var text = @"!MyObject
@@ -105,7 +107,7 @@ UInt64: 8
 		/// <summary>
 		/// Tests the serialization of an object that contains a property with list
 		/// </summary>
-		[Fact]
+		[Test]
 		public void TestObjectWithCollection()
 		{
 			var text = @"!MyObjectAndCollection
@@ -132,7 +134,7 @@ Values: [a, b, c]
 		/// to store the usual propertis and using the special member '~Items' to serialzie 
 		/// the real content of the list
 		/// </summary>
-		[Fact]
+		[Test]
 		public void TestCustomCollectionWithProperties()
 		{
 			var text = @"!MyCustomCollectionWithProperties
@@ -165,7 +167,7 @@ Value: 1
 		/// to store the usual propertis and using the special member '~Items' to serialize 
 		/// the real content of the dictionary as a sub YAML !!map
 		/// </summary>
-		[Fact]
+		[Test]
 		public void TestCustomDictionaryWithProperties()
 		{
 			var text = @"!MyCustomDictionaryWithProperties
@@ -249,7 +251,7 @@ Value: 1
 		/// to store the usual propertis and using the special member '~Items' to serialize 
 		/// the real content of the dictionary as a sub YAML !!map
 		/// </summary>
-		[Fact]
+		[Test]
 		public void TestMyCustomClassWithSpecialMembers()
 		{
 			var text = @"!MyCustomClassWithSpecialMembers
@@ -333,7 +335,7 @@ Value: 0
 		/// <summary>
 		/// Tests the serialization of ordered members in the class <see cref="ClassMemberOrder"/>.
 		/// </summary>
-		[Fact]
+		[Test]
 		public void TestClassMemberOrder()
 		{
 			var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
@@ -349,7 +351,7 @@ Value: 0
 			}
 		}
 
-		[Fact]
+		[Test]
 		public void TestIEnumerable()
 		{
 			var serializer = new Serializer();
@@ -362,13 +364,13 @@ Value: 0
 			Assert.True(dictionary.ContainsKey("Keys"));
 			Assert.True( dictionary["Keys"] is IList<object>);
 			var list = (IList<object>) dictionary["Keys"];
-			Assert.Equal(list.OfType<int>(), new ClassWithMemberIEnumerable().Keys);
+			Assert.AreEqual(list.OfType<int>(), new ClassWithMemberIEnumerable().Keys);
 
 			// Test simple IEnumerable
 			var iterator = Enumerable.Range(0, 10);
 			var values = serializer.Deserialize(serializer.Serialize(iterator, iterator.GetType()));
 			Assert.True(value is IEnumerable);
-			Assert.Equal(((IEnumerable<object>)values).OfType<int>(), iterator);
+			Assert.AreEqual(((IEnumerable<object>)values).OfType<int>(), iterator);
 		}
 
 		public class ClassWithObjectAndScalar
@@ -390,7 +392,7 @@ Value: 0
 			public object Value4;
 		}
 
-		[Fact]
+		[Test]
 		public void TestClassWithObjectAndScalar()
 		{
 			var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
@@ -398,7 +400,7 @@ Value: 0
 			SerialRoundTrip(settings, new ClassWithObjectAndScalar());
 		}
 
-		[Fact]
+		[Test]
 		public void TestImplicitDictionaryAndList()
 		{
 			var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
@@ -546,7 +548,7 @@ Value: 0
 			}
 		}
 
-		[Fact]
+		[Test]
 		public void TestClassMemberWithInheritance()
 		{
 			var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
@@ -556,10 +558,10 @@ Value: 0
 			var original = new ClassMemberWithInheritance();
 			var obj = SerialRoundTrip(settings, original);
 			Assert.True(obj is ClassMemberWithInheritance);
-			Assert.Equal(original, obj);
+			Assert.AreEqual(original, obj);
 		}
 
-		[Fact]
+		[Test]
 		public void TestEmitShortTypeName()
 		{
 			var settings = new SerializerSettings() { EmitShortTypeName = true };
@@ -573,7 +575,7 @@ Value: 0
 			public char End;
 		}
 
-		[Fact]
+		[Test]
 		public void TestClassWithChars()
 		{
 			var settings = new SerializerSettings() { EmitShortTypeName = true };
@@ -642,7 +644,7 @@ Value: 0
 		/// <summary>
 		/// Tests formatting styles.
 		/// </summary>
-		[Fact]
+		[Test]
 		public void TestStyles()
 		{
 			var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 4};
@@ -697,8 +699,91 @@ F_ListClassWithStyleDefaultFormat:
   - {Name: name3, Value: 3}
 G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
-			Assert.Equal(textReference, text);
+			Assert.AreEqual(textReference, text);
 		}
+
+
+	    public class ClassWithKeyTransform
+	    {
+	        public ClassWithKeyTransform()
+	        {
+                KeyValues = new Dictionary<string, object>();
+	        }
+
+            [YamlMember(0)]
+	        public string Name { get; set; }
+
+            [YamlMember(1)]
+            public Dictionary<string, object> KeyValues { get; set; }
+	    }
+
+	    class MyMappingKeyTransform : IMappingKeyTransform
+	    {
+	        public MyMappingKeyTransform()
+	        {
+                SpecialKeys = new List<Tuple<object, object>>();
+	        }
+
+            public List<Tuple<object, object>> SpecialKeys { get; private set; }
+
+	        public string Encode(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string keyText)
+	        {
+	            return (keyText.Contains("Name") || keyText.Contains("Test")) ? keyText + "!" : keyText;
+	        }
+
+	        public bool DecodePre(SerializerContext context, object thisObject, ITypeDescriptor descriptor, string keyIn, out string keyOut)
+	        {
+	            keyOut = keyIn;
+                if (keyIn.EndsWith("!"))
+	            {
+                    keyOut = keyIn.Substring(0, keyIn.Length - 1);
+	                return true;
+	            }
+	            return false;
+	        }
+
+	        public void DecodePost(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string decodedKeyText)
+	        {
+                SpecialKeys.Add(new Tuple<object, object>(thisObject, key));
+            }
+	    }
+
+        /// <summary>
+        /// Tests the key transform capabilities.
+        /// </summary>
+	    [Test]
+	    public void TestKeyTransform()
+        {
+            var specialTransform = new MyMappingKeyTransform();
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 4 };
+            settings.KeyTransform = specialTransform;
+            settings.RegisterTagMapping("ClassWithKeyTransform", typeof(ClassWithKeyTransform));
+
+            var myCustomObject = new ClassWithKeyTransform();
+            myCustomObject.Name = "Yes";
+            myCustomObject.KeyValues.Add("Test1", 1);
+            myCustomObject.KeyValues.Add("Test2", 2);
+            myCustomObject.KeyValues.Add("KeyNotModified1", 1);
+            myCustomObject.KeyValues.Add("KeyNotModified2", 2);
+
+            var serializer = new Serializer(settings);
+            var myCustomObjectText = serializer.Serialize(myCustomObject);
+
+            var myCustomObject2 = (ClassWithKeyTransform)serializer.Deserialize(myCustomObjectText);
+
+            Assert.AreEqual(3, specialTransform.SpecialKeys.Count);
+
+            Assert.AreEqual(myCustomObject2.KeyValues, specialTransform.SpecialKeys[1].Item1);
+            Assert.AreEqual(myCustomObject2.KeyValues, specialTransform.SpecialKeys[2].Item1);
+
+            Assert.AreEqual("Test1", specialTransform.SpecialKeys[1].Item2);
+            Assert.AreEqual("Test2", specialTransform.SpecialKeys[2].Item2);
+
+            Assert.AreEqual(myCustomObject2, specialTransform.SpecialKeys[0].Item1);
+            Assert.IsInstanceOf<IMemberDescriptor>(specialTransform.SpecialKeys[0].Item2);
+
+            Assert.AreEqual("Name", ((IMemberDescriptor)specialTransform.SpecialKeys[0].Item2).Name);
+        }
 		
 		private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
 		{
@@ -716,7 +801,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 			Console.WriteLine("------------------");
 			Console.WriteLine(text2);
 
-			Assert.Equal(text, text2);
+			Assert.AreEqual(text, text2);
 		}
 
 		private object SerialRoundTrip(SerializerSettings settings, object value, Type expectedType = null)
@@ -735,7 +820,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 			var text2 = serializer.Serialize(valueDeserialized);
 			Console.WriteLine(text2);
 
-			Assert.Equal(text, text2);
+			Assert.AreEqual(text, text2);
 
 			return valueDeserialized;
 		}

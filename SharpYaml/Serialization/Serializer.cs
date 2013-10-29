@@ -186,6 +186,7 @@ namespace SharpYaml.Serialization
 				ObjectSerializer = CreateProcessor(),
 			};
 
+		    context.Emitter = emitter;
 			context.Writer = CreateEmitter(emitter);
 
 			// Serialize the document

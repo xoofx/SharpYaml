@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using SharpYaml.Schemas;
+using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Serialization
 {
@@ -176,6 +177,12 @@ namespace SharpYaml.Serialization
 				specialCollectionMember = value;
 			}
 		}
+
+        /// <summary>
+        /// Gets or sets the key transform.
+        /// </summary>
+        /// <value>The key transform.</value>
+        public IMappingKeyTransform KeyTransform { get; set; }
 
 		/// <summary>
 		/// Gets the attribute registry.

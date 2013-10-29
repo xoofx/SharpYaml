@@ -83,7 +83,24 @@ namespace SharpYaml.Serialization.Serializers
 			var reader = context.Reader;
 			while (!reader.Accept<MappingEnd>())
 			{
+                // Give a chance to pre-process keys and replace them on the fly
+                // Pre-processing is only working on pure scalar keys (string, integers...etc)
+			    var keyDecode = context.Reader.Peek<Scalar>();
+			    bool isKeyDecoded = false;
+			    if (keyDecode != null)
+			    {
+			        string newKey;
+                    isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, keyDecode.Value, out newKey);
+			        keyDecode.Value = newKey;
+			    }
+
+                // Read key and value
 				var keyResult = context.ReadYaml(null, dictionaryDescriptor.KeyType);
+			    if (isKeyDecoded)
+			    {
+			        context.DecodeKeyPost(thisObject, typeDescriptor, keyResult.Value, keyDecode.Value);
+			    }
+
 				var valueResult = context.ReadYaml(null, dictionaryDescriptor.ValueType);
 
 				// Handle aliasing
@@ -132,8 +149,13 @@ namespace SharpYaml.Serialization.Serializers
 
 			var keyType = dictionaryDescriptor.KeyType;
 			var valueType = dictionaryDescriptor.ValueType;
+
+            // Allow to encode dictionary key before emitting them
+		    Func<object, string, string> encodeScalarKey = context.KeyTransform != null ? (key, keyText) => context.EncodeKey(thisObject, typeDescriptor, key, keyText) : (Func<object, string,string>)null;
+
 			foreach (var keyValue in keyValues)
 			{
+			    context.EncodeScalarKey = encodeScalarKey;
 				context.WriteYaml(keyValue.Key, keyType);
 				context.WriteYaml(keyValue.Value, valueType);
 			}
