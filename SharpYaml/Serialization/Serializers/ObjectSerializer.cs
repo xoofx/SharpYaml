@@ -146,7 +146,7 @@ namespace SharpYaml.Serialization.Serializers
 				if (!member.ShouldSerialize(thisObject)) continue;
 
                 // Emit the key name
-                WriteKey(context, context.EncodeKey(thisObject, typeDescriptor, member.Name, member.Name));
+                WriteKey(context, context.EncodeKey(thisObject, typeDescriptor, member, member.Name));
 
 				var memberValue = member.Get(thisObject);
 				var memberType = member.Type;
