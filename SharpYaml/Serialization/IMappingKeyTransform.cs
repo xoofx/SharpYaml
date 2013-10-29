@@ -34,7 +34,7 @@
         /// <param name="thisObject">The this object.</param>
         /// <param name="descriptor">The descriptor.</param>
         /// <param name="key">The key object (will be a <see cref="IMemberDescriptor"/> for an object or the key object of a dictionary).</param>
-        /// <param name="decodedKeyText">The decoded key text from a previous call to <see cref="DecodePre"/>.</param>
-        void DecodePost(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string decodedKeyText);
+        /// <param name="keyIn">The same keyIn from a previous call to <see cref="DecodePre"/>.</param>
+        void DecodePost(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string keyIn);
     }
 }

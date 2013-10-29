@@ -80,12 +80,13 @@ namespace SharpYaml.Serialization.Serializers
 
 			// For a regular object, the key is expected to be a simple scalar
 		    string propertyName;
-            var isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, reader.Expect<Scalar>().Value, out propertyName);
+		    var keyName = reader.Expect<Scalar>().Value;
+            var isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, keyName, out propertyName);
 			var memberAccessor = typeDescriptor[propertyName];
 
 		    if (isKeyDecoded)
 		    {
-                context.DecodeKeyPost(thisObject, typeDescriptor, memberAccessor, propertyName);
+                context.DecodeKeyPost(thisObject, typeDescriptor, memberAccessor, keyName);
             }
 
 			// Read the value according to the type

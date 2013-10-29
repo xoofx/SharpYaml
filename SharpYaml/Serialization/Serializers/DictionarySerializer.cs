@@ -87,9 +87,11 @@ namespace SharpYaml.Serialization.Serializers
                 // Pre-processing is only working on pure scalar keys (string, integers...etc)
 			    var keyDecode = context.Reader.Peek<Scalar>();
 			    bool isKeyDecoded = false;
+			    string preKey = null;
 			    if (keyDecode != null)
 			    {
 			        string newKey;
+			        preKey = keyDecode.Value;
                     isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, keyDecode.Value, out newKey);
 			        keyDecode.Value = newKey;
 			    }
@@ -98,7 +100,7 @@ namespace SharpYaml.Serialization.Serializers
 				var keyResult = context.ReadYaml(null, dictionaryDescriptor.KeyType);
 			    if (isKeyDecoded)
 			    {
-			        context.DecodeKeyPost(thisObject, typeDescriptor, keyResult.Value, keyDecode.Value);
+			        context.DecodeKeyPost(thisObject, typeDescriptor, keyResult.Value, preKey);
 			    }
 
 				var valueResult = context.ReadYaml(null, dictionaryDescriptor.ValueType);
