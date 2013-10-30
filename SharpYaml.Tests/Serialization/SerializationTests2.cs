@@ -742,7 +742,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 	            return false;
 	        }
 
-	        public void DecodePost(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string decodedKeyText)
+	        public void DecodePost(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string keyIn)
 	        {
                 SpecialKeys.Add(new Tuple<object, object>(thisObject, key));
             }
