@@ -25,7 +25,7 @@ namespace SharpYaml.Serialization
 		/// based on the name of this property.
 		/// </summary>
 		/// <value>The order.</value>
-		int Order { get; }
+		int? Order { get; }
 
 		/// <summary>
 		/// Gets the mode of serialization for this member.

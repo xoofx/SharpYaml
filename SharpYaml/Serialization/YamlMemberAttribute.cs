@@ -27,7 +27,6 @@ namespace SharpYaml.Serialization
 		public YamlMemberAttribute(string name)
 		{
 			this.name = name;
-			Order = -1;
 		}
 
 		/// <summary>
@@ -39,7 +38,6 @@ namespace SharpYaml.Serialization
 		{
 			this.name = name;
 			this.serializeMethod = serializeMethod;
-			Order = -1;
 		}
 
 		/// <summary>
@@ -49,7 +47,6 @@ namespace SharpYaml.Serialization
 		public YamlMemberAttribute(SerializeMemberMode serializeMethod)
 		{
 			this.serializeMethod = serializeMethod;
-			Order = -1;
 		}
 
 		/// <summary>
@@ -70,11 +67,10 @@ namespace SharpYaml.Serialization
 			get { return serializeMethod; }
 		}
 
-
 		/// <summary>
 		/// Gets or sets the order. Default is -1 (default to alphabetical)
 		/// </summary>
 		/// <value>The order.</value>
-		public int Order { get; set; }
+		public int? Order { get; set; }
 	}
 }

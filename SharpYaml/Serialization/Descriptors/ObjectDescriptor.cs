@@ -94,10 +94,10 @@ namespace SharpYaml.Serialization.Descriptors
 		private int SortMembers(IMemberDescriptor left, IMemberDescriptor right)
 		{
 			// If order is defined, first order by order
-			if (left.Order >= 0 || right.Order >= 0)
+			if (left.Order.HasValue | right.Order.HasValue)
 			{
-				var leftOrder = left.Order < 0 ? int.MaxValue : left.Order;
-				var rightOrder = right.Order < 0 ? int.MaxValue : right.Order;
+				var leftOrder = left.Order.HasValue ? left.Order.Value : int.MaxValue;
+				var rightOrder = right.Order.HasValue ? right.Order.Value : int.MaxValue;
 				return leftOrder.CompareTo(rightOrder);
 			}
 			
