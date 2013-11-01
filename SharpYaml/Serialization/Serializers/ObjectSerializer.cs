@@ -1,4 +1,5 @@
-﻿using SharpYaml.Events;
+﻿using System;
+using SharpYaml.Events;
 using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization.Serializers
@@ -80,8 +81,16 @@ namespace SharpYaml.Serialization.Serializers
 
 			// For a regular object, the key is expected to be a simple scalar
 		    string propertyName;
-		    var keyName = reader.Expect<Scalar>().Value;
+		    var propertyNode = reader.Expect<Scalar>();
+		    var keyName = propertyNode.Value;
             var isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, keyName, out propertyName);
+
+            // Check that property exist before trying to access the descriptor
+		    if (!typeDescriptor.Contains(propertyName))
+		    {
+		        throw new YamlException(propertyNode.Start, propertyNode.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(propertyName, typeDescriptor));
+		    }
+
 			var memberAccessor = typeDescriptor[propertyName];
 
 		    if (isKeyDecoded)
