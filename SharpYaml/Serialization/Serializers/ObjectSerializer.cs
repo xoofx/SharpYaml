@@ -40,16 +40,10 @@ namespace SharpYaml.Serialization.Serializers
 
 		public virtual ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
 		{
-			var type = typeDescriptor.Type;
-
 			// When the node is not scalar, we need to instantiate the type directly
 			if (value == null && !(typeDescriptor is PrimitiveDescriptor))
 			{
-				value = context.ObjectFactory.Create(type);
-				//if (value == null)
-				//{
-				//	throw new YamlException(node.Start, node.End, "Unexpected null value");
-				//}
+			    value = CreateObject(context, typeDescriptor);
 			}
 
 			// Get the object accessor for the corresponding class
@@ -60,6 +54,18 @@ namespace SharpYaml.Serialization.Serializers
 						? ReadItems<SequenceStart, SequenceEnd>(context, value, typeDescriptor)
 						: ReadItems<MappingStart, MappingEnd>(context, value, typeDescriptor));
 		}
+
+        /// <summary>
+        /// Overrides this method when deserializing an object that needs special instantiation. By default, this is calling
+        /// <see cref="IObjectFactory.Create"/>.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="typeDescriptor">The type descriptor of the object to create.</param>
+        /// <returns>A new instance of the object</returns>
+	    protected virtual object CreateObject(SerializerContext context, ITypeDescriptor typeDescriptor)
+	    {
+            return context.ObjectFactory.Create(typeDescriptor.Type);
+	    }
 
 		protected virtual object ReadItems<TStart, TEnd>(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor) 
 			where TStart : NodeEvent
