@@ -263,5 +263,9 @@ namespace SharpYaml.Serialization.Descriptors
 			return true;
 		}
 
+	    public override string ToString()
+	    {
+	        return type.ToString();
+	    }
 	}
 }
