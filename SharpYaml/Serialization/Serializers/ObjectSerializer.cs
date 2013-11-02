@@ -67,6 +67,15 @@ namespace SharpYaml.Serialization.Serializers
             return context.ObjectFactory.Create(typeDescriptor.Type);
 	    }
 
+        /// <summary>
+        /// Reads the members from the current stream.
+        /// </summary>
+        /// <typeparam name="TStart">The type of the t start.</typeparam>
+        /// <typeparam name="TEnd">The type of the t end.</typeparam>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <returns>Return the object being read, by default thisObject passed by argument.</returns>
 		protected virtual object ReadItems<TStart, TEnd>(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor) 
 			where TStart : NodeEvent
 			where TEnd : ParsingEvent
@@ -81,7 +90,7 @@ namespace SharpYaml.Serialization.Serializers
 			return thisObject;
 		}
 
-		public virtual void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
+		protected virtual void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
 		{
 			var reader = context.Reader;
 
@@ -91,44 +100,61 @@ namespace SharpYaml.Serialization.Serializers
 		    var keyName = propertyNode.Value;
             var isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, keyName, out propertyName);
 
-            // Check that property exist before trying to access the descriptor
-		    if (!typeDescriptor.Contains(propertyName))
-		    {
-		        throw new YamlException(propertyNode.Start, propertyNode.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(propertyName, typeDescriptor));
-		    }
-
-			var memberAccessor = typeDescriptor[propertyName];
+            var memberAccessor = typeDescriptor[propertyName];
 
 		    if (isKeyDecoded)
 		    {
                 context.DecodeKeyPost(thisObject, typeDescriptor, memberAccessor, keyName);
             }
 
-			// Read the value according to the type
-			var propertyType = memberAccessor.Type;
-
-			object value = null;
-			if (memberAccessor.SerializeMemberMode == SerializeMemberMode.Content)
-			{
-				value = memberAccessor.Get(thisObject);
-			}
-
-			var valueResult = context.ReadYaml(value, propertyType);
-
-			// Handle late binding
-			if (memberAccessor.HasSet && memberAccessor.SerializeMemberMode != SerializeMemberMode.Content)
-			{
-				// If result value is a late binding, register it.
-				if (valueResult.IsAlias)
-				{
-					context.AddAliasBinding(valueResult.Alias, lateValue => memberAccessor.Set(thisObject, lateValue));
-				}
-				else
-				{
-					memberAccessor.Set(thisObject, valueResult.Value);
-				}
-			}
+		    if (!ReadMemberByName(context, thisObject, propertyName, memberAccessor, typeDescriptor))
+                throw new YamlException(propertyNode.Start, propertyNode.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(propertyName, typeDescriptor));
 		}
+
+        /// <summary>
+        /// Reads a member by its name.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object where the member to read applies.</param>
+        /// <param name="memberName">Name of the member.</param>
+        /// <param name="memberAccessor">The member accessor. May be null if member acecssor was not found</param>
+        /// <param name="typeDescriptor">The type descriptor of the this object.</param>
+        /// <returns><c>true</c> if reading the member was successfull, <c>false</c> otherwise.</returns>
+        protected virtual bool ReadMemberByName(SerializerContext context, object thisObject, string memberName, IMemberDescriptor memberAccessor, ITypeDescriptor typeDescriptor)
+        {
+            // Check that property exist before trying to access the descriptor
+            if (memberAccessor == null)
+            {
+                return false;
+            }
+
+            // Read the value according to the type
+            var propertyType = memberAccessor.Type;
+
+            object value = null;
+            if (memberAccessor.SerializeMemberMode == SerializeMemberMode.Content)
+            {
+                value = memberAccessor.Get(thisObject);
+            }
+
+            var valueResult = context.ReadYaml(value, propertyType);
+
+            // Handle late binding
+            if (memberAccessor.HasSet && memberAccessor.SerializeMemberMode != SerializeMemberMode.Content)
+            {
+                // If result value is a late binding, register it.
+                if (valueResult.IsAlias)
+                {
+                    context.AddAliasBinding(valueResult.Alias, lateValue => memberAccessor.Set(thisObject, lateValue));
+                }
+                else
+                {
+                    memberAccessor.Set(thisObject, valueResult.Value);
+                }
+            }
+
+            return true;
+        }
 
 		public virtual void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
 		{
@@ -154,7 +180,7 @@ namespace SharpYaml.Serialization.Serializers
 			}
 		}
 
-		public virtual void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
+		protected virtual void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
 		{
 			foreach (var member in typeDescriptor.Members)
 			{
@@ -162,7 +188,7 @@ namespace SharpYaml.Serialization.Serializers
 				if (!member.ShouldSerialize(thisObject)) continue;
 
                 // Emit the key name
-                WriteKey(context, context.EncodeKey(thisObject, typeDescriptor, member, member.Name));
+                WriteMemberName(context, context.EncodeKey(thisObject, typeDescriptor, member, member.Name));
 
 				var memberValue = member.Get(thisObject);
 				var memberType = member.Type;
@@ -184,7 +210,7 @@ namespace SharpYaml.Serialization.Serializers
 			}
 		}
 
-		protected void WriteKey(SerializerContext context, string name)
+		protected void WriteMemberName(SerializerContext context, string name)
 		{
 			// Emit the key name
 			context.Writer.Emit(new ScalarEventInfo(name, typeof(string))

@@ -24,7 +24,7 @@ namespace SharpYaml.Serialization.Serializers
 			return collectionDescriptor.IsPureCollection || collectionDescriptor.HasOnlyCapacity;
 		}
 
-		public override void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
+		protected override void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
 		{
 			var collectionDescriptor = (CollectionDescriptor)typeDescriptor;
 
@@ -50,7 +50,7 @@ namespace SharpYaml.Serialization.Serializers
 					}
 				}
 
-				base.ReadItem(context, thisObject, typeDescriptor);
+                base.ReadItem(context, thisObject, typeDescriptor);
 			}
 		}
 
@@ -88,7 +88,7 @@ namespace SharpYaml.Serialization.Serializers
 			return style;
 		}
 
-		public override void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
+		protected override void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
 		{
 			var collectionDescriptor = (CollectionDescriptor)typeDescriptor;
 			if (CheckIsSequence(collectionDescriptor))
@@ -106,7 +106,7 @@ namespace SharpYaml.Serialization.Serializers
 					}
 
 					// Emit the key name
-					WriteKey(context, member.Name);
+					WriteMemberName(context, member.Name);
 
 					var memberValue = member.Get(thisObject);
 					var memberType = member.Type;
@@ -115,7 +115,7 @@ namespace SharpYaml.Serialization.Serializers
 					context.WriteYaml(memberValue, memberType);
 				}
 
-				WriteKey(context, context.Settings.SpecialCollectionMember);
+                WriteMemberName(context, context.Settings.SpecialCollectionMember);
 
 				context.Writer.Emit(new SequenceStartEventInfo(thisObject, thisObject.GetType()) { Style = style });
 				WritePureCollectionItems(context, thisObject, typeDescriptor);

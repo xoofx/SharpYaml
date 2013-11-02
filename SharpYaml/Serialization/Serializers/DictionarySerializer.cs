@@ -17,7 +17,7 @@ namespace SharpYaml.Serialization.Serializers
 			return typeDescriptor is DictionaryDescriptor ? this : null;
 		}
 
-		public override void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
+		protected override void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
 		{
 			var dictionaryDescriptor = (DictionaryDescriptor) typeDescriptor;
 
@@ -42,11 +42,11 @@ namespace SharpYaml.Serialization.Serializers
 					}
 				}
 
-				base.ReadItem(context, thisObject, typeDescriptor);	
+                base.ReadItem(context, thisObject, typeDescriptor);	
 			}
 		}
 
-		public override void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
+		protected override void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
 		{
 			var dictionaryDescriptor = (DictionaryDescriptor)typeDescriptor;
 			if (dictionaryDescriptor.IsPureDictionary)
@@ -59,7 +59,7 @@ namespace SharpYaml.Serialization.Serializers
 				foreach (var member in typeDescriptor.Members)
 				{
 					// Emit the key name
-					WriteKey(context, member.Name);
+					WriteMemberName(context, member.Name);
 
 					var memberValue = member.Get(thisObject);
 					var memberType = member.Type;
@@ -68,7 +68,7 @@ namespace SharpYaml.Serialization.Serializers
 					context.WriteYaml(memberValue, memberType);
 				}
 
-				WriteKey(context, context.Settings.SpecialCollectionMember);
+                WriteMemberName(context, context.Settings.SpecialCollectionMember);
 
 				context.Writer.Emit(new MappingStartEventInfo(thisObject, thisObject.GetType()) { Style = style });
 				WritePureDictionaryItems(context, thisObject, typeDescriptor);
