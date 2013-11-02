@@ -40,11 +40,9 @@ namespace SharpYaml.Serialization.Serializers
 
 		public virtual ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
 		{
-			// When the node is not scalar, we need to instantiate the type directly
-			if (value == null && !(typeDescriptor is PrimitiveDescriptor))
-			{
-			    value = CreateObject(context, typeDescriptor);
-			}
+            // Create or transform the value to deserialize
+            // If the new value to serialize is not the same as the one we were expecting to serialize
+            CreateOrTransformObjectInternal(context, ref value, ref typeDescriptor);
 
 			// Get the object accessor for the corresponding class
 			var isSequence = CheckIsSequence(typeDescriptor);
@@ -55,17 +53,49 @@ namespace SharpYaml.Serialization.Serializers
 						: ReadItems<MappingStart, MappingEnd>(context, value, typeDescriptor));
 		}
 
+
+        private void CreateOrTransformObjectInternal(SerializerContext context, ref object value,
+            ref ITypeDescriptor typeDescriptor)
+        {
+            var newValue = CreateOrTransformObject(context, value, typeDescriptor);
+            if (!ReferenceEquals(newValue, value) && newValue != null && newValue.GetType() != typeDescriptor.Type)
+            {
+                typeDescriptor = context.FindTypeDescriptor(newValue.GetType());
+            }
+            value = newValue;
+        }
+
         /// <summary>
-        /// Overrides this method when deserializing an object that needs special instantiation. By default, this is calling
-        /// <see cref="IObjectFactory.Create"/>.
+        /// Overrides this method when deserializing/serializing an object that needs a special instantiation or transformation. By default, this is calling
+        /// <see cref="IObjectFactory.Create" /> if the <see cref="currentObject"/> is null or returning <see cref="currentObject"/>.
         /// </summary>
         /// <param name="context">The context.</param>
+        /// <param name="currentObject">The current object, may be null. (in case the object is an instance in a member that is not settable).</param>
         /// <param name="typeDescriptor">The type descriptor of the object to create.</param>
-        /// <returns>A new instance of the object</returns>
-	    protected virtual object CreateObject(SerializerContext context, ITypeDescriptor typeDescriptor)
+        /// <returns>A new instance of the object or <see cref="currentObject"/> if not null</returns>
+	    protected virtual object CreateOrTransformObject(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
 	    {
-            return context.ObjectFactory.Create(typeDescriptor.Type);
+            return currentObject ?? context.ObjectFactory.Create(typeDescriptor.Type);
 	    }
+
+        /// <summary>
+        /// Transforms the object after it has been read. This method is called after an object has been read and before returning the object to
+        /// the deserialization process. See remarks for usage.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="currentObject">The current object that has been deserialized..</param>
+        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <returns>The actual object deserialized. By default same as <see cref="currentObject"/>.</returns>
+        /// <remarks>
+        /// This method is usefull in conjunction with <see cref="CreateOrTransformObject"/>.
+        /// For example, in the case of deserializing to an immutable member, where we need to call the constructor of a type instead of setting each of 
+        /// its member, we can instantiate a mutable object in <see cref="CreateOrTransformObject"/>, receive the mutable object filled in 
+        /// <see cref="TransformObjectAfterRead"/> and transform it back to an immutable object.
+        /// </remarks>
+        protected virtual object TransformObjectAfterRead(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
+        {
+            return currentObject;
+        }
 
         /// <summary>
         /// Reads the members from the current stream.
@@ -81,15 +111,30 @@ namespace SharpYaml.Serialization.Serializers
 			where TEnd : ParsingEvent
 		{
 			var reader = context.Reader;
-			reader.Expect<TStart>();
+			var start = reader.Expect<TStart>();
+
+            // throws an exception while deserializing
+            if (thisObject == null)
+            {
+                throw new YamlException(start.Start, start.End, "Cannot instantiate an object for type [{0}]".DoFormat(typeDescriptor));
+            }
+
 			while (!reader.Accept<TEnd>())
 			{
 				ReadItem(context, thisObject, typeDescriptor);
 			}
 			reader.Expect<TEnd>();
-			return thisObject;
+
+            return TransformObjectAfterRead(context, thisObject, typeDescriptor);
 		}
 
+        /// <summary>
+        /// Reads an item of the object from the YAML flow (either a sequence item or mapping key/value item).
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
 		protected virtual void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
 		{
 			var reader = context.Reader;
@@ -165,6 +210,9 @@ namespace SharpYaml.Serialization.Serializers
 
 			// Resolve the style, use default style if not defined.
 			var style = ResolveStyle(context, value, typeDescriptor);
+
+            // Allow to create on the fly an object that will be used to serialize an object
+		    CreateOrTransformObjectInternal(context, ref value, ref typeDescriptor);
 
 			if (isSequence)
 			{

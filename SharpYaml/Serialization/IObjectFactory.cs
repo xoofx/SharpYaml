@@ -11,7 +11,7 @@ namespace SharpYaml.Serialization
 	public interface IObjectFactory
 	{
 		/// <summary>
-		/// Creates an instance of the specified type.
+		/// Creates an instance of the specified type. Returns null if instance cannot be created.
 		/// </summary>
 		object Create(Type type);
 	}

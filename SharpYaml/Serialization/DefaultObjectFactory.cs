@@ -10,6 +10,7 @@ namespace SharpYaml.Serialization
 	/// </summary>
 	public sealed class DefaultObjectFactory : IObjectFactory
 	{
+        private static readonly Type[] EmptyTypes = new Type[0];
 		private static readonly Dictionary<Type, Type> DefaultInterfaceImplementations = new Dictionary<Type, Type>
 			{
 				{typeof(IList), typeof(List<object>)},
@@ -56,19 +57,11 @@ namespace SharpYaml.Serialization
 		{
 			type = GetDefaultImplementation(type);
 
-			try
-			{
-				// We can't instantiate primitive or arrays
-				if (PrimitiveDescriptor.IsPrimitive(type) || type.IsArray)
-					return null;
+			// We can't instantiate primitive or arrays
+			if (PrimitiveDescriptor.IsPrimitive(type) || type.IsArray)
+				return null;
 
-				return Activator.CreateInstance(type);
-			}
-			catch (Exception err)
-			{
-				var message = string.Format("Failed to create an instance of type '{0}'", type);
-				throw new InvalidOperationException(message, err);
-			}
+			return type.GetConstructor(EmptyTypes) != null ? Activator.CreateInstance(type) : null;
 		}
 	}
 }

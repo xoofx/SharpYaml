@@ -784,6 +784,101 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
             Assert.AreEqual("Name", ((IMemberDescriptor)specialTransform.SpecialKeys[0].Item2).Name);
         }
+
+        public sealed class MyClassImmutable
+        {
+            public MyClassImmutable(string name, int value)
+            {
+                Name = name;
+                Value = value;
+            }
+
+            public string Name { get; private set; }
+
+            public int Value { get; private set; }
+
+            protected bool Equals(MyClassImmutable other)
+            {
+                return string.Equals(Name, other.Name) && Value == other.Value;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj)) return false;
+                if (ReferenceEquals(this, obj)) return true;
+                if (obj.GetType() != this.GetType()) return false;
+                return Equals((MyClassImmutable) obj);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return ((Name != null ? Name.GetHashCode() : 0)*397) ^ Value;
+                }
+            }
+        }
+
+        public class MyClassImmutableSerializer : ObjectSerializer
+        {
+            public override IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+            {
+                return typeDescriptor.Type == typeof (MyClassImmutable) ? this : null;
+            }
+
+            protected override object CreateOrTransformObject(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
+            {
+                return context.IsSerializing ? new MyClassMutable((MyClassImmutable) currentObject) : new MyClassMutable();
+            }
+
+            protected override object TransformObjectAfterRead(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
+            {
+                return ((MyClassMutable) currentObject).ToImmutable();
+            }
+
+            /// <summary>
+            /// Use internally this object to serialize/deserialize instead of MyClassImmutable
+            /// </summary>
+            internal sealed class MyClassMutable
+            {
+                public MyClassMutable()
+                {
+                }
+
+                public MyClassMutable(MyClassImmutable immutable)
+                {
+                    Name = immutable.Name;
+                    Value = immutable.Value;
+                }
+
+                public string Name { get; set; }
+
+                public int Value { get; set; }
+
+                public MyClassImmutable ToImmutable()
+                {
+                    return new MyClassImmutable(Name, Value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Example on how to handle immutable-mutable object when serializing/deserializing.
+        /// </summary>
+        [Test]
+        public void TestImmutable()
+        {
+            var settings = new SerializerSettings();
+            settings.RegisterTagMapping("MyClassImmutable", typeof(MyClassImmutable));
+            settings.RegisterSerializerFactory(new MyClassImmutableSerializer());
+
+            var immutable = new MyClassImmutable("Test", 1);
+            var serializer = new Serializer(settings);
+            var text = serializer.Serialize(immutable);
+
+            var newImmutable = serializer.Deserialize(text);
+            Assert.AreEqual(immutable, newImmutable);
+        }
 		
 		private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
 		{
