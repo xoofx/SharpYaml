@@ -137,7 +137,9 @@ namespace SharpYaml.Serialization.Descriptors
 			get 
 			{ 
 				if (mapMembers == null) throw new KeyNotFoundException(name);
-				return mapMembers[name];
+			    IMemberDescriptor member;
+			    mapMembers.TryGetValue(name, out member);
+			    return member;
 			}
 		}
 

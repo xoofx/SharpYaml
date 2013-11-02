@@ -33,7 +33,7 @@ namespace SharpYaml.Serialization
 		bool HasMembers { get; }
 
 		/// <summary>
-		/// Gets the <see cref="IMemberDescriptor"/> with the specified name.
+		/// Gets the <see cref="IMemberDescriptor"/> with the specified name. Return null if not found
 		/// </summary>
 		/// <param name="name">The name.</param>
 		/// <returns>The member.</returns>
