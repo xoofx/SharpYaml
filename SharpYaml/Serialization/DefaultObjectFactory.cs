@@ -105,7 +105,7 @@ namespace SharpYaml.Serialization
 			if (PrimitiveDescriptor.IsPrimitive(type) || type.IsArray)
 				return null;
 
-			return type.GetConstructor(EmptyTypes) != null ? Activator.CreateInstance(type) : null;
+            return type.GetConstructor(EmptyTypes) != null || type.IsValueType ? Activator.CreateInstance(type) : null;
 		}
 	}
 }

@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Runtime;
 using SharpYaml.Serialization.Serializers;
 using SharpYaml.Serialization;
 using NUnit.Framework;
@@ -34,6 +32,36 @@ Value: World!
 ", text);
         }
 
+        public struct Color
+        {
+            public byte R;
+
+            public byte G;
+
+            public byte B;
+
+            public byte A;
+        }
+
+        public class TestStructColor
+        {
+            public Color Color { get; set; }
+        }
+
+        [Test]
+        public void TestSimpleStruct()
+        {
+            var serializer = new Serializer();
+            var value = (TestStructColor)serializer.Deserialize(@"Color: {R: 255, G: 255, B: 255, A: 255}", typeof (TestStructColor));
+            Assert.AreEqual(new Color() { R = 255, G = 255, B = 255, A = 255}, value.Color);
+            var text = serializer.Serialize(value, typeof (TestStructColor));
+            Assert.AreEqual(@"Color:
+  A: 255
+  B: 255
+  G: 255
+  R: 255
+", text);
+        }
 
 		public class MyObject
 		{
