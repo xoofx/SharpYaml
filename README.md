@@ -1,33 +1,43 @@
-# YamlDotNet
+# SharpYaml
 
-YamlDotNet is a .NET library for YAML. YamlDotNet provides low level parsing and emitting of YAML as well as a high level object model similar to XmlDocument. A serialization library is also included that allows to read and write objects from and to YAML streams.
+**SharpYaml** is a .NET library that provides a **YAML parser and serialization engine** for .NET objects.
 
-## What is YAML?
+## Usage
 
-YAML, which stands for "YAML Ain't Markup Language", is described as "a human friendly data serialization standard for all programming languages". Like XML, it allows to represent about any kind of data in a portable, platform-independent format. Unlike XML, it is "human friendly", which means that it is easy for a human to read or produce a valid YAML document.
+```C#
+var serializer = new Serializer();
+var text = serializer.Serialize(new { List = new List<int>() { 1, 2, 3 }, Name = "Hello", Value = "World!" });
+Console.WriteLine(text);
+```   
+Output:
 
-## The YamlDotNet library
+	List:
+	  - 1
+	  - 2
+	  - 3
+	Name: Hello
+	Value: World!
 
-The library has now been successfully used in multiple projects and is considered fairly stable.
+## Features
 
-## Where to get it?
+SharpYaml is a fork of [YamlDotNet](http://www.aaubry.net/yamldotnet.aspx) and is adding the following features:
 
-The most up-to-date version can always be found in the following NuGet packages:
+ - Supports for 4.5+ .NET Portable Class Library compatible with Windows desktop, Windows Phone 8 and Windows RT
+ - Completely rewritten serialization/deserialization engine
+ - A single interface `IYamlSerializable` for implementing custom serializers, along `IYamlSerializableFactory` to allow dynamic creation of serializers. Registration can be done through `SerializerSettings.RegisterSerializer` and `SerializerSettings.RegisterSerializerFactory`
+   - Can inherit from `ScalarSerializerBase` to provide custom serialization to/from a Yaml scalar 
+ - Supports for custom collection that contains user properties to serialize along the collection.
+ - Supports for Yaml 1.2 schemas 
+ - A centralized type system through `ITypeDescriptor` and `IMemberDescriptor`
+ - Highly configurable serialization using `SerializerSettings` (see usage)
+   - Add supports to register custom attributes on external objects (objects that you can't modify) by using `SerializerSettings.Register(memberInfo, attribute)`
+   - Several options and settings: `EmitAlias`, `IndentLess`, `SortKeyForMapping`, `EmitJsonComptible`, `EmitCapacityForList`, `LimitPrimitiveFlowSequence`, `EmitDefaultValues`
+   - Add supports for overriding the Yaml style of serialization (block or flow) with `SerializerSettings.DefaultStyle` and `SerializerSettings.DynamicStyleFormat`  
+ - Supports for registering an assembly when discovering types to deserialize through `SerializerSettings.RegisterAssembly`
+ - Memory allocation and GC pressure improved
 
-* [http://nuget.org/packages/YamlDotNet.Core](http://nuget.org/packages/YamlDotNet.Core)
-* [http://nuget.org/packages/YamlDotNet.RepresentationModel](http://nuget.org/packages/YamlDotNet.RepresentationModel)
+## Available from Nuget 
+You can download **SharpYaml** binaries directly from [nuget](http://www.nuget.org/packages?q=sharpyaml).
 
-# Changelog
-
-## Version 2.0.0
-
-* YamlSerializer has been replaced by the Deserializer class. It offer the same functionality of YamlSerializer but is easier to maintain and extend.
-  * **Breaking change:** DeserializationOverrides is no longer supported. If you need this, please file a bug and we will analyze it.
-  * **Breaking change:** IDeserializationContext is no longer supported. If you need this, please file a bug and we will analyze it.
-  * Tag mappings are registered directly on the Deserializer using RegisterTagMapping()
-  * ObjectFactory is specified in the constructor, if required.
-
-* Bug fixes to the Serializer:
-  * Fix bug when serializing lists with nulls inside. e9019d5f224f266e88d9882502f83f0c6865ec24
-
-* Adds a YAML editor add-in for Visual Studio 2012. Available on the [Visual Studio Gallery](http://visualstudiogallery.msdn.microsoft.com/34423c06-f756-4721-8394-bc3d23b91ca7).
+## License
+MIT

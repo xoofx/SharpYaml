@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using SharpYaml.Serialization.Serializers;
 using SharpYaml.Serialization;
 using NUnit.Framework;
@@ -17,6 +18,22 @@ namespace SharpYaml.Test.Serialization
 			A,
 			B,
 		}
+
+        [Test]
+        public void TestHelloWorld()
+        {
+            var serializer = new Serializer();
+            var text = serializer.Serialize(new { List = new List<int>() { 1, 2, 3 }, Name = "Hello", Value = "World!" });
+            Console.WriteLine(text);
+            Assert.AreEqual(@"List:
+  - 1
+  - 2
+  - 3
+Name: Hello
+Value: World!
+", text);
+        }
+
 
 		public class MyObject
 		{
