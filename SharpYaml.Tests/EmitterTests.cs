@@ -1,114 +1,136 @@
-//  This file is part of YamlDotNet - A .NET library for YAML.
-//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013 Antoine Aubry
-    
-//  Permission is hereby granted, free of charge, to any person obtaining a copy of
-//  this software and associated documentation files (the "Software"), to deal in
-//  the Software without restriction, including without limitation the rights to
-//  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-//  of the Software, and to permit persons to whom the Software is furnished to do
-//  so, subject to the following conditions:
-    
-//  The above copyright notice and this permission notice shall be included in all
-//  copies or substantial portions of the Software.
-    
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-//  SOFTWARE.
-
-using System.Linq;
+// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+// 
+// -------------------------------------------------------------------------------
+// SharpYaml is a fork of YamlDotNet https://github.com/aaubry/YamlDotNet
+// published with the following license:
+// -------------------------------------------------------------------------------
+// 
+// Copyright (c) 2008, 2009, 2010, 2011, 2012 Antoine Aubry
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 using System.IO;
-using Xunit;
-using Xunit.Extensions;
+using System.Linq;
+using NUnit.Framework;
 using SharpYaml.Events;
 using SharpYaml.Serialization;
 
-namespace SharpYaml.Test
+namespace SharpYaml.Tests
 {
 	public class EmitterTests : YamlTest
 	{
-		[Fact]
+		[Test]
 		public void EmitExample1()
 		{
 			ParseAndEmit("test1.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample2()
 		{
 			ParseAndEmit("test2.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample3()
 		{
 			ParseAndEmit("test3.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample4()
 		{
 			ParseAndEmit("test4.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample5()
 		{
 			ParseAndEmit("test5.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample6()
 		{
 			ParseAndEmit("test6.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample7()
 		{
 			ParseAndEmit("test7.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample8()
 		{
 			ParseAndEmit("test8.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample9()
 		{
 			ParseAndEmit("test9.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample10()
 		{
 			ParseAndEmit("test10.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample11()
 		{
 			ParseAndEmit("test11.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample12()
 		{
 			ParseAndEmit("test12.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample13()
 		{
 			ParseAndEmit("test13.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void EmitExample14()
 		{
 			ParseAndEmit("test14.yaml");
@@ -167,9 +189,9 @@ namespace SharpYaml.Test
 			return buffer.ToString();
 		}
 
-		[Theory]
-		[InlineData("LF hello\nworld")]
-		[InlineData("CRLF hello\r\nworld")]
+		[Test]
+        [TestCase("LF hello\nworld")]
+        [TestCase("CRLF hello\r\nworld")]
 		public void FoldedStyleDoesNotLooseCharacters(string text)
 		{
 			var yaml = EmitScalar(new Scalar(null, null, text, ScalarStyle.Folded, true, false));
@@ -177,7 +199,7 @@ namespace SharpYaml.Test
 			Assert.True(yaml.Contains("world"));
 		}
 
-		[Fact]
+		[Test]
 		public void FoldedStyleIsSelectedWhenNewLinesAreFoundInLiteral()
 		{
 			var yaml = EmitScalar(new Scalar(null, null, "hello\nworld", ScalarStyle.Any, true, false));
@@ -185,7 +207,7 @@ namespace SharpYaml.Test
 			Assert.True(yaml.Contains(">"));
 		}
 
-		[Fact]
+		[Test]
 		public void FoldedStyleDoesNotGenerateExtraLineBreaks()
 		{
 			var yaml = EmitScalar(new Scalar(null, null, "hello\nworld", ScalarStyle.Folded, true, false));
@@ -197,10 +219,10 @@ namespace SharpYaml.Test
 			var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
 			var scalar = (YamlScalarNode)sequence.Children[0];
 
-			Assert.Equal("hello\nworld", scalar.Value);
+			Assert.AreEqual("hello\nworld", scalar.Value);
 		}
 
-		[Fact]
+		[Test]
 		public void FoldedStyleDoesNotCollapseLineBreaks()
 		{
 			var yaml = EmitScalar(new Scalar(null, null, ">+\n", ScalarStyle.Folded, true, false));
@@ -211,10 +233,10 @@ namespace SharpYaml.Test
 			var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
 			var scalar = (YamlScalarNode)sequence.Children[0];
 
-			Assert.Equal(">+\n", scalar.Value);
+			Assert.AreEqual(">+\n", scalar.Value);
 		}
 
-		[Fact]
+		[Test]
 		public void FoldedStylePreservesNewLines()
 		{
 			var input = "id: 0\nPayload:\n  X: 5\n  Y: 6\n";
@@ -235,7 +257,7 @@ namespace SharpYaml.Test
 
 			var output = value.Value;
 			Dump.WriteLine(output);
-			Assert.Equal(input, output);
+			Assert.AreEqual(input, output);
 		}
 	}
 }

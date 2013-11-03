@@ -1,176 +1,199 @@
-//  This file is part of YamlDotNet - A .NET library for YAML.
-//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013 Antoine Aubry
-    
-//  Permission is hereby granted, free of charge, to any person obtaining a copy of
-//  this software and associated documentation files (the "Software"), to deal in
-//  the Software without restriction, including without limitation the rights to
-//  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-//  of the Software, and to permit persons to whom the Software is furnished to do
-//  so, subject to the following conditions:
-    
-//  The above copyright notice and this permission notice shall be included in all
-//  copies or substantial portions of the Software.
-    
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-//  SOFTWARE.
-
+// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+// 
+// -------------------------------------------------------------------------------
+// SharpYaml is a fork of YamlDotNet https://github.com/aaubry/YamlDotNet
+// published with the following license:
+// -------------------------------------------------------------------------------
+// 
+// Copyright (c) 2008, 2009, 2010, 2011, 2012 Antoine Aubry
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 using System.Collections.Generic;
-using Xunit;
-using SharpYaml.Serialization;
-using System.Text;
 using System.IO;
+using System.Text;
+using NUnit.Framework;
+using SharpYaml.Serialization;
 
-namespace SharpYaml.Test.Serialization
+namespace SharpYaml.Tests.Serialization
 {
 	public class YamlStreamTests : YamlTest
 	{
 
-		[Fact]
+		[Test]
 		public void LoadSimpleDocument() {
 			var stream = new YamlStream();
 			stream.Load(YamlFile("test2.yaml"));
 			
-			Assert.Equal(1, stream.Documents.Count);
-			Assert.IsType<YamlScalarNode>(stream.Documents[0].RootNode);
-			Assert.Equal("a scalar", ((YamlScalarNode)stream.Documents[0].RootNode).Value);
+			Assert.AreEqual(1, stream.Documents.Count);
+			Assert.IsInstanceOf<YamlScalarNode>(stream.Documents[0].RootNode);
+			Assert.AreEqual("a scalar", ((YamlScalarNode)stream.Documents[0].RootNode).Value);
 		}
 		
-		[Fact]
+		[Test]
 		public void BackwardAliasReferenceWorks() {
 			var stream = new YamlStream();
 			stream.Load(YamlFile("backwardsAlias.yaml"));
 			
-			Assert.Equal(1, stream.Documents.Count);
-			Assert.IsType<YamlSequenceNode>(stream.Documents[0].RootNode);
+			Assert.AreEqual(1, stream.Documents.Count);
+			Assert.IsInstanceOf<YamlSequenceNode>(stream.Documents[0].RootNode);
 
 			var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
-			Assert.Equal(3, sequence.Children.Count);
+			Assert.AreEqual(3, sequence.Children.Count);
 
-			Assert.Equal("a scalar", ((YamlScalarNode)sequence.Children[0]).Value);
-			Assert.Equal("another scalar", ((YamlScalarNode)sequence.Children[1]).Value);
-			Assert.Equal("a scalar", ((YamlScalarNode)sequence.Children[2]).Value);
-			Assert.Same(sequence.Children[0], sequence.Children[2]);
+			Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[0]).Value);
+			Assert.AreEqual("another scalar", ((YamlScalarNode)sequence.Children[1]).Value);
+			Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[2]).Value);
+			Assert.AreSame(sequence.Children[0], sequence.Children[2]);
 		}
 		
-		[Fact]
+		[Test]
 		public void ForwardAliasReferenceWorks() {
 			var stream = new YamlStream();
 			stream.Load(YamlFile("forwardAlias.yaml"));
 			
-			Assert.Equal(1, stream.Documents.Count);
-			Assert.IsType<YamlSequenceNode>(stream.Documents[0].RootNode);
+			Assert.AreEqual(1, stream.Documents.Count);
+			Assert.IsInstanceOf<YamlSequenceNode>(stream.Documents[0].RootNode);
 
 			var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
-			Assert.Equal(3, sequence.Children.Count);
+			Assert.AreEqual(3, sequence.Children.Count);
 
-			Assert.Equal("a scalar", ((YamlScalarNode)sequence.Children[0]).Value);
-			Assert.Equal("another scalar", ((YamlScalarNode)sequence.Children[1]).Value);
-			Assert.Equal("a scalar", ((YamlScalarNode)sequence.Children[2]).Value);
-			Assert.Same(sequence.Children[0], sequence.Children[2]);
+			Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[0]).Value);
+			Assert.AreEqual("another scalar", ((YamlScalarNode)sequence.Children[1]).Value);
+			Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[2]).Value);
+			Assert.AreSame(sequence.Children[0], sequence.Children[2]);
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample1()
 		{
 			RoundtripTest("test1.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample2()
 		{
 			RoundtripTest("test2.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample3()
 		{
 			RoundtripTest("test3.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample4()
 		{
 			RoundtripTest("test4.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample5()
 		{
 			RoundtripTest("test6.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample6()
 		{
 			RoundtripTest("test6.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample7()
 		{
 			RoundtripTest("test7.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample8()
 		{
 			RoundtripTest("test8.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample9()
 		{
 			RoundtripTest("test9.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample10()
 		{
 			RoundtripTest("test10.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample11()
 		{
 			RoundtripTest("test11.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample12()
 		{
 			RoundtripTest("test12.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample13()
 		{
 			RoundtripTest("test13.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripExample14()
 		{
 			RoundtripTest("test14.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void RoundtripBackreference()
 		{
 			RoundtripTest("backreference.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void FailBackreference()
 		{
 			RoundtripTest("fail-backreference.yaml");
 		}
 
-		[Fact]
+		[Test]
 		public void AllAliasesMustBeResolved()
 		{
 			var original = new YamlStream();
@@ -198,15 +221,15 @@ namespace SharpYaml.Test.Serialization
 
 			Dump.WriteLine("The original document produced {0} events.", originalBuilder.Events.Count);
 			Dump.WriteLine("The final document produced {0} events.", finalBuilder.Events.Count);
-			Assert.Equal(originalBuilder.Events.Count, finalBuilder.Events.Count);
+			Assert.AreEqual(originalBuilder.Events.Count, finalBuilder.Events.Count);
 
 			for (var i = 0; i < originalBuilder.Events.Count; ++i)
 			{
 				var originalEvent = originalBuilder.Events[i];
 				var finalEvent = finalBuilder.Events[i];
 
-				Assert.Equal(originalEvent.Type, finalEvent.Type);
-				Assert.Equal(originalEvent.Value, finalEvent.Value);
+				Assert.AreEqual(originalEvent.Type, finalEvent.Type);
+				Assert.AreEqual(originalEvent.Value, finalEvent.Value);
 			}
 		}
 
@@ -272,7 +295,7 @@ namespace SharpYaml.Test.Serialization
 		}
 
 		// Todo: Sample.. belongs elsewhere?
-		[Fact]
+		[Test]
 		public void RoundtripSample()
 		{
 			var original = new YamlStream();

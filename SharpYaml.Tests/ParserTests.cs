@@ -1,35 +1,56 @@
-//  This file is part of YamlDotNet - A .NET library for YAML.
-//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013 Antoine Aubry
-	
-//  Permission is hereby granted, free of charge, to any person obtaining a copy of
-//  this software and associated documentation files (the "Software"), to deal in
-//  the Software without restriction, including without limitation the rights to
-//  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-//  of the Software, and to permit persons to whom the Software is furnished to do
-//  so, subject to the following conditions:
-	
-//  The above copyright notice and this permission notice shall be included in all
-//  copies or substantial portions of the Software.
-	
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-//  SOFTWARE.
-
+// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+// 
+// -------------------------------------------------------------------------------
+// SharpYaml is a fork of YamlDotNet https://github.com/aaubry/YamlDotNet
+// published with the following license:
+// -------------------------------------------------------------------------------
+// 
+// Copyright (c) 2008, 2009, 2010, 2011, 2012 Antoine Aubry
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 using System.Collections;
-using FluentAssertions;
-using Xunit;
-using SharpYaml.Test;
+using NUnit.Framework;
 using SharpYaml.Events;
 
-namespace SharpYaml.Test
+namespace SharpYaml.Tests
 {
 	public class ParserTests : ParserTestHelper
 	{
-		[Fact]
+		[Test]
 		public void EmptyDocument()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("empty.yaml"),
@@ -37,7 +58,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyEventsOnExample1()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test1.yaml"),
@@ -51,7 +72,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample2()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test2.yaml"),
@@ -62,7 +83,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample3()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test3.yaml"),
@@ -73,7 +94,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample4()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test4.yaml"),
@@ -90,7 +111,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample5()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test5.yaml"),
@@ -103,7 +124,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample6()
 		{
 			var parser = ParserFor("test6.yaml");
@@ -115,7 +136,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample7()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test7.yaml"),
@@ -141,7 +162,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample8()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test8.yaml"),
@@ -156,7 +177,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample9()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test9.yaml"),
@@ -172,7 +193,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample10()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test10.yaml"),
@@ -196,7 +217,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample11()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test11.yaml"),
@@ -224,7 +245,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample12()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test12.yaml"),
@@ -250,7 +271,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample13()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test13.yaml"),
@@ -274,7 +295,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample14()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("test14.yaml"),
@@ -291,7 +312,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokenWithLocalTags()
 		{
 			AssertSequenceOfEventsFrom(ParserFor("local-tags.yaml"),
@@ -319,16 +340,16 @@ namespace SharpYaml.Test
 			var eventNumber = 1;
 			foreach (var expected in events)
 			{
-				parser.MoveNext().Should().BeTrue("Missing parse event number {0}", eventNumber);
+				Assert.True(parser.MoveNext(), "Missing parse event number {0}", eventNumber);
 				AssertEvent(expected, parser.Current, eventNumber);
 				eventNumber++;
 			}
-			parser.MoveNext().Should().BeFalse("Found extra parse events");
+			Assert.False(parser.MoveNext(), "Found extra parse events");
 		}
 
 		private void AssertEvent(ParsingEvent expected, ParsingEvent actual, int eventNumber)
 		{
-			actual.GetType().Should().Be(expected.GetType(), "Parse event {0} is not of the expected type.", eventNumber);
+			Assert.AreEqual(expected.GetType(), actual.GetType(), "Parse event {0} is not of the expected type.", eventNumber);
 
 			foreach (var property in expected.GetType().GetProperties())
 			{
@@ -349,7 +370,7 @@ namespace SharpYaml.Test
 					{
 						var expectedCount = ((ICollection)expectedValue).Count;
 						var valueCount = ((ICollection)value).Count;
-						valueCount.Should().Be(expectedCount, "Compared size of collections in property {0} in parse event {1}",
+						Assert.AreEqual(expectedCount, valueCount, "Compared size of collections in property {0} in parse event {1}",
 							property.Name, eventNumber);
 					}
 
@@ -357,16 +378,16 @@ namespace SharpYaml.Test
 					var expectedValues = ((IEnumerable)expectedValue).GetEnumerator();
 					while (expectedValues.MoveNext())
 					{
-						values.MoveNext().Should().BeTrue("Property {0} in parse event {1} had too few elements", property.Name, eventNumber);
-						values.Current.Should().Be(expectedValues.Current,
+                        Assert.True(values.MoveNext(), "Property {0} in parse event {1} had too few elements", property.Name, eventNumber);
+                        Assert.AreEqual(expectedValues.Current, values.Current,
 							"Compared element in property {0} in parse event {1}", property.Name, eventNumber);
 					}
-					values.MoveNext().Should().BeFalse("Property {0} in parse event {1} had too many elements", property.Name, eventNumber);
+                    Assert.False(values.MoveNext(), "Property {0} in parse event {1} had too many elements", property.Name, eventNumber);
 				}
 				else
 				{
 					Dump.WriteLine("\t{0} = {1}", property.Name, value);
-					value.Should().Be(expectedValue, "Compared property {0} in parse event {1}", property.Name, eventNumber);
+					Assert.AreEqual(expectedValue, value, "Compared property {0} in parse event {1}", property.Name, eventNumber);
 				}
 			}
 		}

@@ -1,33 +1,55 @@
-//  This file is part of YamlDotNet - A .NET library for YAML.
-//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013 Antoine Aubry
-    
-//  Permission is hereby granted, free of charge, to any person obtaining a copy of
-//  this software and associated documentation files (the "Software"), to deal in
-//  the Software without restriction, including without limitation the rights to
-//  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-//  of the Software, and to permit persons to whom the Software is furnished to do
-//  so, subject to the following conditions:
-    
-//  The above copyright notice and this permission notice shall be included in all
-//  copies or substantial portions of the Software.
-    
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-//  SOFTWARE.
-
-using FluentAssertions;
-using Xunit;
+// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+// 
+// -------------------------------------------------------------------------------
+// SharpYaml is a fork of YamlDotNet https://github.com/aaubry/YamlDotNet
+// published with the following license:
+// -------------------------------------------------------------------------------
+// 
+// Copyright (c) 2008, 2009, 2010, 2011, 2012 Antoine Aubry
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+using NUnit.Framework;
 using SharpYaml.Tokens;
 
-namespace SharpYaml.Test
+namespace SharpYaml.Tests
 {
 	public class ScannerTests : ScannerTestHelper
 	{
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample1()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test1.yaml"),
@@ -39,7 +61,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample2()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test2.yaml"),
@@ -48,7 +70,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample3()
 		{
 			Scanner scanner = ScannerFor("test3.yaml");
@@ -60,7 +82,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample4()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test4.yaml"),
@@ -73,7 +95,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}		
  		
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample5()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test5.yaml"),
@@ -85,7 +107,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample6()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test6.yaml"),
@@ -95,7 +117,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample7()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test7.yaml"),
@@ -114,7 +136,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample8()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test8.yaml"),
@@ -129,7 +151,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample9()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test9.yaml"),
@@ -149,7 +171,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample10()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test10.yaml"),
@@ -181,7 +203,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample11()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test11.yaml"),
@@ -221,7 +243,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 	
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample12()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test12.yaml"),
@@ -256,7 +278,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 			
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample13()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test13.yaml"),
@@ -288,7 +310,7 @@ namespace SharpYaml.Test
 				StreamEnd);
 		}
 			
-		[Fact]
+		[Test]
 		public void VerifyTokensOnExample14()
 		{
 			AssertSequenceOfTokensFrom(ScannerFor("test14.yaml"),
@@ -314,18 +336,18 @@ namespace SharpYaml.Test
 			var tokenNumber = 1;
 			foreach (var expected in tokens)
 			{
-				scanner.MoveNext().Should().BeTrue("Missing token number {0}", tokenNumber);
+				Assert.True(scanner.MoveNext(), "Missing token number {0}", tokenNumber);
 				AssertToken(expected, scanner.Current, tokenNumber);
 				tokenNumber++;
 			}
-			scanner.MoveNext().Should().BeFalse("Found extra tokens");
+			Assert.False(scanner.MoveNext(), "Found extra tokens");
 		}
 
 		private void AssertToken(Token expected, Token actual, int tokenNumber)
 		{
 			Dump.WriteLine(expected.GetType().Name);
-			actual.Should().NotBeNull();
-			actual.GetType().Should().Be(expected.GetType(), "Token {0} is not of the expected type", tokenNumber);
+            Assert.NotNull(actual);
+			Assert.AreEqual(expected.GetType(), actual.GetType(), "Token {0} is not of the expected type", tokenNumber);
 
 			foreach (var property in expected.GetType().GetProperties())
 			{
@@ -334,7 +356,7 @@ namespace SharpYaml.Test
 					var value = property.GetValue(actual, null);
 					var expectedValue = property.GetValue(expected, null);
 					Dump.WriteLine("\t{0} = {1}", property.Name, value);
-					value.Should().Be(expectedValue, "Comparing property {0} in token {1}", property.Name, tokenNumber);
+                    Assert.AreEqual(expectedValue, value, "Comparing property {0} in token {1}", property.Name, tokenNumber);
 				}
 			}
 		}

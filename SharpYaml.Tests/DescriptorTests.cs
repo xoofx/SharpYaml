@@ -1,14 +1,58 @@
-﻿using System;
+﻿// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+// 
+// -------------------------------------------------------------------------------
+// SharpYaml is a fork of YamlDotNet https://github.com/aaubry/YamlDotNet
+// published with the following license:
+// -------------------------------------------------------------------------------
+// 
+// Copyright (c) 2008, 2009, 2010, 2011, 2012 Antoine Aubry
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using Xunit;
+using NUnit.Framework;
 using SharpYaml.Serialization;
 using SharpYaml.Serialization.Descriptors;
 
-namespace SharpYaml.Test
+namespace SharpYaml.Tests
 {
 	public class DescriptorTests
 	{
@@ -53,7 +97,7 @@ namespace SharpYaml.Test
 			}
 		}
 
-		[Fact]
+		[Test]
 		public void TestObjectDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
@@ -64,10 +108,10 @@ namespace SharpYaml.Test
 			var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObject), false);
 
 			// Verify members
-			Assert.Equal(8, descriptor.Count);
+			Assert.AreEqual(8, descriptor.Count);
 
 			// Check names and their orders
-			Assert.Equal(descriptor.Members.Select(memberDescriptor => memberDescriptor.Name), new []
+			Assert.AreEqual(descriptor.Members.Select(memberDescriptor => memberDescriptor.Name), new []
 				{
 					"Collection",
 					"CollectionReadOnly",
@@ -82,14 +126,14 @@ namespace SharpYaml.Test
 			var instance = new TestObject {Name = "Yes", Property = "property"};
 
 			// Check field accessor
-			Assert.Equal("Yes", descriptor["Name"].Get(instance));
+			Assert.AreEqual("Yes", descriptor["Name"].Get(instance));
 			descriptor["Name"].Set(instance, "No");
-			Assert.Equal("No", instance.Name);
+			Assert.AreEqual("No", instance.Name);
 
 			// Check property accessor
-			Assert.Equal("property", descriptor["Property"].Get(instance));
+			Assert.AreEqual("property", descriptor["Property"].Get(instance));
 			descriptor["Property"].Set(instance, "property1");
-			Assert.Equal("property1", instance.Property);
+			Assert.AreEqual("property1", instance.Property);
 
 			// Check ShouldSerialize
 			Assert.True(descriptor["Name"].ShouldSerialize(instance));
@@ -115,32 +159,32 @@ namespace SharpYaml.Test
 			public string Name { get; set; }
 		}
 
-		[Fact]
+		[Test]
 		public void TestCollectionDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
 			var descriptor = new CollectionDescriptor(attributeRegistry, typeof (List<string>), false);
 
 			// Only Capacity as a member
-			Assert.Equal(1, descriptor.Count);
+			Assert.AreEqual(1, descriptor.Count);
 			Assert.True(descriptor.HasOnlyCapacity);
 			Assert.False(descriptor.IsPureCollection);
-			Assert.Equal(typeof(string), descriptor.ElementType);
+			Assert.AreEqual(typeof(string), descriptor.ElementType);
 
 			descriptor = new CollectionDescriptor(attributeRegistry, typeof(NonPureCollection), false);
 
 			// Only Capacity as a member
-			Assert.Equal(2, descriptor.Count);
+			Assert.AreEqual(2, descriptor.Count);
 			Assert.False(descriptor.HasOnlyCapacity);
 			Assert.False(descriptor.IsPureCollection);
-			Assert.Equal(typeof(int), descriptor.ElementType);
+			Assert.AreEqual(typeof(int), descriptor.ElementType);
 
 			descriptor = new CollectionDescriptor(attributeRegistry, typeof(ArrayList), false);
 			// Only Capacity as a member
-			Assert.Equal(1, descriptor.Count);
+			Assert.AreEqual(1, descriptor.Count);
 			Assert.True(descriptor.HasOnlyCapacity);
 			Assert.False(descriptor.IsPureCollection);
-			Assert.Equal(typeof(object), descriptor.ElementType);		
+			Assert.AreEqual(typeof(object), descriptor.ElementType);		
 		}
 
 		/// <summary>
@@ -151,32 +195,32 @@ namespace SharpYaml.Test
 			public string Name { get; set; }
 		}
 
-		[Fact]
+		[Test]
 		public void TestDictionaryDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
 			var descriptor = new DictionaryDescriptor(attributeRegistry, typeof(Dictionary<int, string>), false);
 
-			Assert.Equal(0, descriptor.Count);
+			Assert.AreEqual(0, descriptor.Count);
 			Assert.True(descriptor.IsPureDictionary);
-			Assert.Equal(typeof(int), descriptor.KeyType);
-			Assert.Equal(typeof(string), descriptor.ValueType);
+			Assert.AreEqual(typeof(int), descriptor.KeyType);
+			Assert.AreEqual(typeof(string), descriptor.ValueType);
 
 			descriptor = new DictionaryDescriptor(attributeRegistry, typeof(NonPureDictionary), false);
-			Assert.Equal(1, descriptor.Count);
+			Assert.AreEqual(1, descriptor.Count);
 			Assert.False(descriptor.IsPureDictionary);
-			Assert.Equal(typeof(float), descriptor.KeyType);
-			Assert.Equal(typeof(object), descriptor.ValueType);
+			Assert.AreEqual(typeof(float), descriptor.KeyType);
+			Assert.AreEqual(typeof(object), descriptor.ValueType);
 		}
 
-		[Fact]
+		[Test]
 		public void TestArrayDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
 			var descriptor = new ArrayDescriptor(attributeRegistry, typeof(int[]));
 
-			Assert.Equal(0, descriptor.Count);
-			Assert.Equal(typeof(int), descriptor.ElementType);
+			Assert.AreEqual(0, descriptor.Count);
+			Assert.AreEqual(typeof(int), descriptor.ElementType);
 		}
 
 		public enum MyEnum
@@ -185,12 +229,12 @@ namespace SharpYaml.Test
 			B
 		}
 
-		[Fact]
+		[Test]
 		public void TestPrimitiveDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
 			var descriptor = new PrimitiveDescriptor(attributeRegistry, typeof(int));
-			Assert.Equal(0, descriptor.Count);
+			Assert.AreEqual(0, descriptor.Count);
 
 			Assert.True(PrimitiveDescriptor.IsPrimitive(typeof(MyEnum)));
 			Assert.True(PrimitiveDescriptor.IsPrimitive(typeof (object)));

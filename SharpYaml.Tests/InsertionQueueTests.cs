@@ -1,67 +1,86 @@
-//  This file is part of YamlDotNet - A .NET library for YAML.
-//  Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013 Antoine Aubry
-    
-//  Permission is hereby granted, free of charge, to any person obtaining a copy of
-//  this software and associated documentation files (the "Software"), to deal in
-//  the Software without restriction, including without limitation the rights to
-//  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-//  of the Software, and to permit persons to whom the Software is furnished to do
-//  so, subject to the following conditions:
-    
-//  The above copyright notice and this permission notice shall be included in all
-//  copies or substantial portions of the Software.
-    
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-//  SOFTWARE.
-
+// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+// 
+// -------------------------------------------------------------------------------
+// SharpYaml is a fork of YamlDotNet https://github.com/aaubry/YamlDotNet
+// published with the following license:
+// -------------------------------------------------------------------------------
+// 
+// Copyright (c) 2008, 2009, 2010, 2011, 2012 Antoine Aubry
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using FluentAssertions;
-using Xunit;
+using NUnit.Framework;
 
-namespace SharpYaml.Test
+namespace SharpYaml.Tests
 {
 	public class InsertionQueueTests
 	{
-		[Fact]
+		[Test]
 		public void ShouldThrowExceptionWhenDequeuingEmptyContainer()
 		{
 			var queue = CreateQueue();
 
-			Action action = () => queue.Dequeue();
-
-			action.ShouldThrow<InvalidOperationException>();
+		    Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
 		}
 
-		[Fact]
+		[Test]
 		public void ShouldThrowExceptionWhenDequeuingContainerThatBecomesEmpty()
 		{
 			var queue = new InsertionQueue<int>();
 
 			queue.Enqueue(1);
 			queue.Dequeue();
-			Action action = () => queue.Dequeue();
+		
+            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
+        }
 
-			action.ShouldThrow<InvalidOperationException>();
-		}
-
-		[Fact]
+		[Test]
 		public void ShouldCorrectlyDequeueElementsAfterEnqueuing()
 		{
 			var queue = CreateQueue();
 
 			WithTheRange(0, 10).Perform(queue.Enqueue);
 
-			OrderOfElementsIn(queue).Should().Equal(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+			Assert.AreEqual(new List<int>() {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue));
 		}
 
-		[Fact]
+		[Test]
 		public void ShouldCorrectlyDequeueElementsWhenIntermixingEnqueuing()
 		{
 			var queue = CreateQueue();
@@ -70,10 +89,10 @@ namespace SharpYaml.Test
 			PerformTimes(5, queue.Dequeue);
 			WithTheRange(10, 15).Perform(queue.Enqueue);
 
-			OrderOfElementsIn(queue).Should().Equal(5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+			Assert.AreEqual(new List<int>() {5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, OrderOfElementsIn(queue));
 		}
 
-		[Fact]
+		[Test]
 		public void ShouldThrowExceptionWhenDequeuingAfterInserting()
 		{
 			var queue = CreateQueue();
@@ -81,12 +100,11 @@ namespace SharpYaml.Test
 			queue.Enqueue(1);
 			queue.Insert(0, 99);
 			PerformTimes(2, queue.Dequeue);
-			Action action = () => queue.Dequeue();
 
-			action.ShouldThrow<InvalidOperationException>();
+            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
 		}
 
-		[Fact]
+		[Test]
 		public void ShouldCorrectlyDequeueElementsWhenInserting()
 		{
 			var queue = CreateQueue();
@@ -94,8 +112,8 @@ namespace SharpYaml.Test
 			WithTheRange(0, 10).Perform(queue.Enqueue);
 			queue.Insert(5, 99);
 
-			OrderOfElementsIn(queue).Should().Equal(0, 1, 2, 3, 4, 99, 5, 6, 7, 8, 9);
-		}
+            Assert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 99, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue));
+        }
 
 		private static InsertionQueue<int> CreateQueue()
 		{
