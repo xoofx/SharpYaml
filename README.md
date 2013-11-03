@@ -22,7 +22,7 @@ Output:
 
 SharpYaml is a fork of [YamlDotNet](http://www.aaubry.net/yamldotnet.aspx) and is adding the following features:
 
- - Supports for 4.5+ .NET Portable Class Library compatible with Windows desktop, Windows Phone 8 and Windows RT
+ - Supports for 4.0+ .NET Portable Class Library compatible with Windows desktop, Windows Phone 8 and Windows RT
  - Completely rewritten serialization/deserialization engine
  - A single interface `IYamlSerializable` for implementing custom serializers, along `IYamlSerializableFactory` to allow dynamic creation of serializers. Registration can be done through `SerializerSettings.RegisterSerializer` and `SerializerSettings.RegisterSerializerFactory`
    - Can inherit from `ScalarSerializerBase` to provide custom serialization to/from a Yaml scalar 
