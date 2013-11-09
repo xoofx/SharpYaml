@@ -50,12 +50,19 @@ using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization.Serializers
 {
-	internal class DictionarySerializer : ObjectSerializer
+    /// <summary>
+    /// Class for serializing a <see cref="IDictionary{TKey,TValue}"/> or <see cref="System.Collections.IDictionary"/>
+    /// </summary>
+	public class DictionarySerializer : ObjectSerializer
 	{
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DictionarySerializer"/> class.
+        /// </summary>
 		public DictionarySerializer()
 		{
 		}
 
+        /// <inheritdoc/>
 		public override IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
 		{
 			return typeDescriptor is DictionaryDescriptor ? this : null;
@@ -67,53 +74,56 @@ namespace SharpYaml.Serialization.Serializers
 
 			if (dictionaryDescriptor.IsPureDictionary)
 			{
-				ReadPureDictionaryItems(context, thisObject, typeDescriptor);
+				ReadDictionaryItems(context, thisObject, typeDescriptor);
 			}
 			else
 			{
 				var keyEvent = context.Reader.Peek<Scalar>();
-				if (keyEvent != null)
-				{
-					if (keyEvent.Value == context.Settings.SpecialCollectionMember)
-					{
-						var reader = context.Reader;
-						reader.Parser.MoveNext();
+			    if (keyEvent != null && keyEvent.Value == context.Settings.SpecialCollectionMember)
+			    {
+			        var reader = context.Reader;
+			        reader.Parser.MoveNext();
 
-						reader.Expect<MappingStart>();
-						ReadPureDictionaryItems(context, thisObject, typeDescriptor);
-						reader.Expect<MappingEnd>();
-						return;
-					}
-				}
+			        reader.Expect<MappingStart>();
+			        ReadDictionaryItems(context, thisObject, typeDescriptor);
+			        reader.Expect<MappingEnd>();
+			        return;
+			    }
 
-                base.ReadItem(context, thisObject, typeDescriptor);	
+			    base.ReadItem(context, thisObject, typeDescriptor);	
 			}
 		}
 
-		protected override void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
+		protected override void WriteMembers(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
 		{
 			var dictionaryDescriptor = (DictionaryDescriptor)typeDescriptor;
 			if (dictionaryDescriptor.IsPureDictionary)
 			{
-				WritePureDictionaryItems(context, thisObject, typeDescriptor);
+                WriteDictionaryItems(context, thisObject, dictionaryDescriptor);
 			}
 			else
 			{
 				// Serialize Dictionary members
 				foreach (var member in typeDescriptor.Members)
 				{
-                    WriteMember(context, thisObject, typeDescriptor, style, member);
+                    WriteMember(context, thisObject, typeDescriptor, member);
 				}
 
                 WriteMemberName(context, context.Settings.SpecialCollectionMember);
 
 				context.Writer.Emit(new MappingStartEventInfo(thisObject, thisObject.GetType()) { Style = style });
-				WritePureDictionaryItems(context, thisObject, typeDescriptor);
+                WriteDictionaryItems(context, thisObject, dictionaryDescriptor);
 				context.Writer.Emit(new MappingEndEventInfo(thisObject, thisObject.GetType()));
 			}
 		}
 
-		private void ReadPureDictionaryItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
+        /// <summary>
+        /// Reads the dictionary items key-values.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="typeDescriptor">The type descriptor.</param>
+		protected virtual void ReadDictionaryItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
 		{
 			var dictionaryDescriptor = (DictionaryDescriptor)typeDescriptor;
 
@@ -134,13 +144,14 @@ namespace SharpYaml.Serialization.Serializers
 			    }
 
                 // Read key and value
-				var keyResult = context.ReadYaml(null, dictionaryDescriptor.KeyType);
-			    if (isKeyDecoded)
-			    {
-			        context.DecodeKeyPost(thisObject, typeDescriptor, keyResult.Value, preKey);
-			    }
+			    ValueOutput keyResult;
+			    ValueOutput valueResult;
+                ReadDictionaryItem(context, thisObject, dictionaryDescriptor, out keyResult, out valueResult);
 
-				var valueResult = context.ReadYaml(null, dictionaryDescriptor.ValueType);
+                if (isKeyDecoded)
+                {
+                    context.DecodeKeyPost(thisObject, typeDescriptor, keyResult.Value, preKey);
+                }
 
 				// Handle aliasing
 				if (keyResult.IsAlias || valueResult.IsAlias)
@@ -175,10 +186,29 @@ namespace SharpYaml.Serialization.Serializers
 			}
 		}
 
-		private void WritePureDictionaryItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
-		{
-			var dictionaryDescriptor = (DictionaryDescriptor)typeDescriptor;
+        /// <summary>
+        /// Reads a dictionary item key-value.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="dictionaryDescriptor">The dictionary descriptor.</param>
+        /// <param name="keyResult">The key result.</param>
+        /// <param name="valueResult">The value result.</param>
+	    protected virtual void ReadDictionaryItem(SerializerContext context, object thisObject,
+            DictionaryDescriptor dictionaryDescriptor, out ValueOutput keyResult, out ValueOutput valueResult)
+	    {
+            keyResult = context.ReadYaml(null, dictionaryDescriptor.KeyType);
+            valueResult = context.ReadYaml(null, dictionaryDescriptor.ValueType);
+	    }
 
+        /// <summary>
+        /// Writes the dictionary items keys-values.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="dictionaryDescriptor">The dictionary descriptor.</param>
+        protected virtual void WriteDictionaryItems(SerializerContext context, object thisObject, DictionaryDescriptor dictionaryDescriptor)
+		{
 			var keyValues = dictionaryDescriptor.GetEnumerator(thisObject).ToList();
 
 			if (context.Settings.SortKeyForMapping)
@@ -186,19 +216,29 @@ namespace SharpYaml.Serialization.Serializers
 				keyValues.Sort(SortDictionaryByKeys);
 			}
 
-			var keyType = dictionaryDescriptor.KeyType;
-			var valueType = dictionaryDescriptor.ValueType;
-
             // Allow to encode dictionary key before emitting them
-		    Func<object, string, string> encodeScalarKey = context.KeyTransform != null ? (key, keyText) => context.EncodeKey(thisObject, typeDescriptor, key, keyText) : (Func<object, string,string>)null;
+            Func<object, string, string> encodeScalarKey = context.KeyTransform != null ? (key, keyText) => context.EncodeKey(thisObject, dictionaryDescriptor, key, keyText) : (Func<object, string, string>)null;
 
 			foreach (var keyValue in keyValues)
 			{
 			    context.EncodeScalarKey = encodeScalarKey;
-				context.WriteYaml(keyValue.Key, keyType);
-				context.WriteYaml(keyValue.Value, valueType);
+                WriteDictionaryItem(context, thisObject, dictionaryDescriptor, keyValue);
 			}
 		}
+
+        /// <summary>
+        /// Writes the dictionary item key-value.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="dictionaryDescriptor">The dictionary descriptor.</param>
+        /// <param name="keyValue">The key value.</param>
+	    protected virtual void WriteDictionaryItem(SerializerContext context, object thisObject, DictionaryDescriptor dictionaryDescriptor,
+	        KeyValuePair<object, object> keyValue)
+	    {
+            context.WriteYaml(keyValue.Key, dictionaryDescriptor.KeyType);
+            context.WriteYaml(keyValue.Value, dictionaryDescriptor.ValueType);
+	    }
 
 		private static int SortDictionaryByKeys(KeyValuePair<object, object> left, KeyValuePair<object, object> right)
 		{

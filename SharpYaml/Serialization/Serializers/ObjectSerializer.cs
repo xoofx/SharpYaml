@@ -42,9 +42,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-using System;
 using SharpYaml.Events;
-using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization.Serializers
 {
@@ -60,6 +58,7 @@ namespace SharpYaml.Serialization.Serializers
 		{
 		}
 
+        /// <inheritdoc/>
 		public virtual IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
 		{
 			// always accept
@@ -77,6 +76,13 @@ namespace SharpYaml.Serialization.Serializers
 			return false;
 		}
 
+        /// <summary>
+        /// Gets the style that will be used to serialized the object.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <returns>The <see cref="YamlStyle"/> to use. Default is <see cref="ITypeDescriptor.Style"/>.</returns>
 		protected virtual YamlStyle GetStyle(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
 		{
 			return typeDescriptor.Style;
@@ -245,6 +251,7 @@ namespace SharpYaml.Serialization.Serializers
             return true;
         }
 
+        /// <inheritdoc/>
 		public virtual void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
 		{
 			var value = input.Value;
@@ -261,27 +268,41 @@ namespace SharpYaml.Serialization.Serializers
 			if (isSequence)
 			{
 				context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) { Tag = input.Tag, Anchor = context.GetAnchor(), Style = style});
-				WriteItems(context, value, typeDescriptor, style);
+				WriteMembers(context, value, typeDescriptor, style);
 				context.Writer.Emit(new SequenceEndEventInfo(value, typeOfValue));
 			}
 			else
 			{
 				context.Writer.Emit(new MappingStartEventInfo(value, typeOfValue) { Tag = input.Tag, Anchor = context.GetAnchor(), Style = style });
-				WriteItems(context, value, typeDescriptor, style);
+				WriteMembers(context, value, typeDescriptor, style);
 				context.Writer.Emit(new MappingEndEventInfo(value, typeOfValue));
 			}
 		}
 
-		protected virtual void WriteItems(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
+        /// <summary>
+        /// Writes the members of the object to serialize. By default this method is iterating on the <see cref="ITypeDescriptor.Members"/> and
+        /// calling <see cref="WriteMember"/> on each member.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object to serialize.</param>
+        /// <param name="typeDescriptor">The type descriptor of <see cref="thisObject"/>.</param>
+        /// <param name="style">The style.</param>
+		protected virtual void WriteMembers(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
 		{
 			foreach (var member in typeDescriptor.Members)
 			{
-			    WriteMember(context, thisObject, typeDescriptor, style, member);
+			    WriteMember(context, thisObject, typeDescriptor, member);
 			}
 		}
 
-        protected virtual void WriteMember(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor,
-            YamlStyle style, IMemberDescriptor member)
+        /// <summary>
+        /// Writes a member.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <param name="member">The member.</param>
+        protected virtual void WriteMember(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, IMemberDescriptor member)
         {
             // Skip any member that we won't serialize
             if (!member.ShouldSerialize(thisObject)) return;
@@ -308,6 +329,11 @@ namespace SharpYaml.Serialization.Serializers
             context.WriteYaml(memberValue, memberType);
         }
 
+        /// <summary>
+        /// Writes the name of the member.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="name">The name.</param>
 		protected void WriteMemberName(SerializerContext context, string name)
 		{
 			// Emit the key name
