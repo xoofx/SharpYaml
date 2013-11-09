@@ -100,12 +100,17 @@ namespace SharpYaml.Serialization
 		/// <param name="attribute">The attribute.</param>
 		public void Register(MemberInfo memberInfo, Attribute attribute)
 		{
-			List<Attribute> attributes;
-			if (!registeredAttributes.TryGetValue(memberInfo, out attributes))
-			{
-				attributes = new List<Attribute>();
-				registeredAttributes.Add(memberInfo, attributes);
-			}
+            // Use a cache of attributes
+            List<Attribute> attributes;
+
+            if (!cachedAttributes.TryGetValue(new MemberInfoKey(memberInfo, false), out attributes))
+            {
+                if (!registeredAttributes.TryGetValue(memberInfo, out attributes))
+                {
+                    attributes = new List<Attribute>();
+                    registeredAttributes.Add(memberInfo, attributes);
+                }
+            }
 
 			attributes.Add(attribute);
 		}

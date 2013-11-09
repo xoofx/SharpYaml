@@ -149,14 +149,7 @@ namespace SharpYaml.Serialization.Serializers
 						continue;
 					}
 
-					// Emit the key name
-					WriteMemberName(context, member.Name);
-
-					var memberValue = member.Get(thisObject);
-					var memberType = member.Type;
-
-					context.PushStyle(member.Style);
-					context.WriteYaml(memberValue, memberType);
+                    WriteMember(context, thisObject, typeDescriptor, style, member);
 				}
 
                 WriteMemberName(context, context.Settings.SpecialCollectionMember);

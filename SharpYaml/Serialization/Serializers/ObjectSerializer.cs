@@ -276,31 +276,37 @@ namespace SharpYaml.Serialization.Serializers
 		{
 			foreach (var member in typeDescriptor.Members)
 			{
-				// Skip any member that we won't serialize
-				if (!member.ShouldSerialize(thisObject)) continue;
-
-                // Emit the key name
-                WriteMemberName(context, context.EncodeKey(thisObject, typeDescriptor, member, member.Name));
-
-				var memberValue = member.Get(thisObject);
-				var memberType = member.Type;
-
-				// In case of serializing a property/field which is not writeable
-				// we need to change the expected type to the actual type of the 
-				// content value
-				if (member.SerializeMemberMode == SerializeMemberMode.Content)
-				{
-					if (memberValue != null)
-					{
-						memberType = memberValue.GetType();
-					}
-				}
-
-				// Push the style of the current member
-				context.PushStyle(member.Style);
-				context.WriteYaml(memberValue, memberType);
+			    WriteMember(context, thisObject, typeDescriptor, style, member);
 			}
 		}
+
+        protected virtual void WriteMember(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor,
+            YamlStyle style, IMemberDescriptor member)
+        {
+            // Skip any member that we won't serialize
+            if (!member.ShouldSerialize(thisObject)) return;
+
+            // Emit the key name
+            WriteMemberName(context, context.EncodeKey(thisObject, typeDescriptor, member, member.Name));
+
+            var memberValue = member.Get(thisObject);
+            var memberType = member.Type;
+
+            // In case of serializing a property/field which is not writeable
+            // we need to change the expected type to the actual type of the 
+            // content value
+            if (member.SerializeMemberMode == SerializeMemberMode.Content)
+            {
+                if (memberValue != null)
+                {
+                    memberType = memberValue.GetType();
+                }
+            }
+
+            // Push the style of the current member
+            context.PushStyle(member.Style);
+            context.WriteYaml(memberValue, memberType);
+        }
 
 		protected void WriteMemberName(SerializerContext context, string name)
 		{
