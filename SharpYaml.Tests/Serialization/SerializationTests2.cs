@@ -825,6 +825,31 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 	            return memberName;
 	        }
 
+	        public override KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
+	        {
+                var item = base.ReadDictionaryItem(ref objectContext, keyValueType);
+	            var itemKey = item.Key as string;
+                if (itemKey != null && itemKey.EndsWith("!"))
+                {
+                    itemKey = itemKey.Substring(0, itemKey.Length - 1);
+                    SpecialKeys.Add(new Tuple<object, object>(objectContext.Instance, itemKey));
+                    return new KeyValuePair<object, object>(itemKey, item.Value);
+                }
+	            return item;
+	        }
+
+
+	        public override void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
+	        {
+                var itemKey = keyValue.Key as string;
+	            if (itemKey != null && (itemKey.Contains("Name") || itemKey.Contains("Test")))
+	            {
+	                keyValue = new KeyValuePair<object, object>(itemKey + "!", keyValue.Value);
+	            }
+
+	            base.WriteDictionaryItem(ref objectContext, keyValue, types);
+	        }
+
 	        public override void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string name)
 	        {
                 name =  (name.Contains("Name") || name.Contains("Test")) ? name + "!" : name;

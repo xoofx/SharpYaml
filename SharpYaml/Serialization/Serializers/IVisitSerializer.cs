@@ -16,7 +16,7 @@ namespace SharpYaml.Serialization.Serializers
 
         object ReadCollectionItem(ref ObjectContext objectContext, Type itemType);
 
-        KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext);
+        KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType);
 
         void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string memberName);
 
@@ -24,6 +24,6 @@ namespace SharpYaml.Serialization.Serializers
 
         void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType);
 
-        void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue);
+        void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types);
     }
 }

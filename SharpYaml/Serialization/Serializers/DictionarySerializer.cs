@@ -47,6 +47,8 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpYaml.Events;
 using SharpYaml.Serialization.Descriptors;
+using SharpYaml.Tokens;
+using Scalar = SharpYaml.Events.Scalar;
 
 namespace SharpYaml.Serialization.Serializers
 {
@@ -129,7 +131,7 @@ namespace SharpYaml.Serialization.Serializers
 			while (!reader.Accept<MappingEnd>())
 			{
                 // Read key and value
-                var keyValue = ReadDictionaryItem(ref objectContext);
+                var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
                 dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
 			}
 		}
@@ -139,13 +141,9 @@ namespace SharpYaml.Serialization.Serializers
         /// </summary>
         /// <param name="objectContext">The object context.</param>
         /// <returns>KeyValuePair{System.ObjectSystem.Object}.</returns>
-	    protected virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext)
+	    protected virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
-            var keyResult = objectContext.Context.ReadYaml(null, dictionaryDescriptor.KeyType);
-            var valueResult = objectContext.Context.ReadYaml(null, dictionaryDescriptor.ValueType);
-
-            return new KeyValuePair<object, object>(keyResult, valueResult);
+            return objectContext.Visitor.ReadDictionaryItem(ref objectContext, keyValueType);
         }
 
         /// <summary>
@@ -162,9 +160,11 @@ namespace SharpYaml.Serialization.Serializers
 				keyValues.Sort(SortDictionaryByKeys);
 			}
 
+            var keyValueType = new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType); 
+
 			foreach (var keyValue in keyValues)
 			{
-                WriteDictionaryItem(ref objectContext, keyValue);
+                WriteDictionaryItem(ref objectContext, keyValue, keyValueType);
 			}
 		}
 
@@ -173,11 +173,9 @@ namespace SharpYaml.Serialization.Serializers
         /// </summary>
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValue">The key value.</param>
-        protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue)
+        protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
 	    {
-            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
-            objectContext.Context.WriteYaml(keyValue.Key, dictionaryDescriptor.KeyType);
-            objectContext.Context.WriteYaml(keyValue.Value, dictionaryDescriptor.ValueType);
+            objectContext.Visitor.WriteDictionaryItem(ref objectContext, keyValue, types);
 	    }
 
 		private static int SortDictionaryByKeys(KeyValuePair<object, object> left, KeyValuePair<object, object> right)

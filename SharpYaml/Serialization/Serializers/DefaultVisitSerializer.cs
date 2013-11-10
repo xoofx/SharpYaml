@@ -92,9 +92,12 @@ namespace SharpYaml.Serialization.Serializers
             return objectContext.Context.ReadYaml(null, itemType);
         }
 
-        public virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext)
+        public virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
-            throw new NotImplementedException();
+            var keyResult = objectContext.Context.ReadYaml(null, keyValueType.Key);
+            var valueResult = objectContext.Context.ReadYaml(null, keyValueType.Value);
+
+            return new KeyValuePair<object, object>(keyResult, valueResult);
         }
 
         public virtual void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string name)
@@ -120,9 +123,10 @@ namespace SharpYaml.Serialization.Serializers
             objectContext.Context.WriteYaml(item, itemType);
         }
 
-        public virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue)
+        public virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
         {
-            throw new NotImplementedException();
+            objectContext.Context.WriteYaml(keyValue.Key, types.Key);
+            objectContext.Context.WriteYaml(keyValue.Value, types.Value);
         }
     }
 }
