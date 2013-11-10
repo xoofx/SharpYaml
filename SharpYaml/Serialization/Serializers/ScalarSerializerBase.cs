@@ -49,26 +49,28 @@ namespace SharpYaml.Serialization.Serializers
 {
 	public abstract class ScalarSerializerBase : IYamlSerializable
 	{
-		public ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public object ReadYaml(ref ObjectContext objectContext)
 		{
-			var scalar = context.Reader.Expect<Scalar>();
-			return new ValueOutput(ConvertFrom(context, value, scalar, typeDescriptor));
+            var scalar = objectContext.Reader.Expect<Scalar>();
+            return ConvertFrom(ref objectContext, scalar);
 		}
 
-		public abstract object ConvertFrom(SerializerContext context, object value, Scalar fromScalar, ITypeDescriptor typeDescriptor);
+		public abstract object ConvertFrom(ref ObjectContext context, Scalar fromScalar);
 
-		public void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
+		public void WriteYaml(ref ObjectContext objectContext)
 		{
-			var value = input.Value;
+            var value = objectContext.Instance;
 			var typeOfValue = value.GetType();
 
-			var isSchemaImplicitTag = context.Schema.IsTagImplicit(input.Tag);
+		    var context = objectContext.Context;
+
+            var isSchemaImplicitTag = context.Schema.IsTagImplicit(objectContext.Tag);
 			var scalar = new ScalarEventInfo(value, typeOfValue)
 				{
 					IsPlainImplicit = isSchemaImplicitTag,
 					Style = ScalarStyle.Plain,
-					Anchor = context.GetAnchor(),
-					Tag = input.Tag,
+					Anchor = objectContext.Anchor,
+                    Tag = objectContext.Tag,
 				};
 
 
@@ -82,20 +84,12 @@ namespace SharpYaml.Serialization.Serializers
 					break;
 			}
 
-			scalar.RenderedValue =  ConvertTo(context, value, typeDescriptor);
-
-            // If we are encoding a key, 
-		    if (context.EncodeScalarKey != null)
-		    {
-                // Set it back to null, as the key is encoded.
-                scalar.RenderedValue = context.EncodeScalarKey(value, scalar.RenderedValue);
-                context.EncodeScalarKey = null;
-		    }
+            scalar.RenderedValue = ConvertTo(ref objectContext);
 
 		    // Emit the scalar
 			context.Writer.Emit(scalar);
 		}
 
-		public abstract string ConvertTo(SerializerContext context, object value, ITypeDescriptor typeDescriptor);
+		public abstract string ConvertTo(ref ObjectContext objectContext);
 	}
 }

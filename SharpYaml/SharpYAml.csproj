@@ -68,8 +68,10 @@
     <Compile Include="Events\Scalar.cs" />
     <Compile Include="Events\SequenceEnd.cs" />
     <Compile Include="Events\SequenceStart.cs" />
+    <Compile Include="Serialization\AnchorEventEmitter.cs" />
     <Compile Include="Serialization\IDynamicStyleFormat.cs" />
-    <Compile Include="Serialization\IMappingKeyTransform.cs" />
+    <Compile Include="Serialization\Serializers\DefaultVisitSerializer.cs" />
+    <Compile Include="Serialization\Serializers\IVisitSerializer.cs" />
     <Compile Include="YamlStyle.cs" />
     <Compile Include="Events\StreamEnd.cs" />
     <Compile Include="Events\StreamStart.cs" />
@@ -90,7 +92,6 @@
     <Compile Include="Schemas\IYamlSchema.cs" />
     <Compile Include="Schemas\JsonSchema.cs" />
     <Compile Include="SemanticErrorException.cs" />
-    <Compile Include="Serialization\AnchorEventEmitter.cs" />
     <Compile Include="Serialization\AnchorNotFoundException.cs" />
     <Compile Include="Serialization\ChainedObjectFactory.cs" />
     <Compile Include="Serialization\DefaultObjectFactory.cs" />
@@ -144,8 +145,6 @@
     <Compile Include="Serialization\SerializerContext.cs" />
     <Compile Include="Serialization\AttributeRegistry.cs" />
     <Compile Include="Serialization\TagTypeRegistry.cs" />
-    <Compile Include="Serialization\ValueInput.cs" />
-    <Compile Include="Serialization\ValueOutput.cs" />
     <Compile Include="Serialization\WriterEventEmitter.cs">
       <SubType>Code</SubType>
     </Compile>

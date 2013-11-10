@@ -56,13 +56,13 @@ namespace SharpYaml.Serialization.Serializers
 			return typeDescriptor is ArrayDescriptor ? this : null;
 		}
 
-		public virtual ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public virtual object ReadYaml(ref ObjectContext objectContext)
 		{
-			var reader = context.Reader;
-			var arrayDescriptor = (ArrayDescriptor)typeDescriptor;
+            var reader = objectContext.Reader;
+            var arrayDescriptor = (ArrayDescriptor)objectContext.Descriptor;
 
-			bool isArray = value != null && value.GetType().IsArray;
-			var arrayList = (IList)value;
+            bool isArray = objectContext.Instance != null && objectContext.Instance.GetType().IsArray;
+            var arrayList = (IList)objectContext.Instance;
 
 			reader.Expect<SequenceStart>();
 			int index = 0;
@@ -76,71 +76,51 @@ namespace SharpYaml.Serialization.Serializers
 						throw new YamlException(node.Start, node.End, "Unable to deserialize array. Current number of elements [{0}] exceeding array size [{1}]".DoFormat(index, arrayList.Count));
 					}
 
-					var valueResult = context.ReadYaml(null, arrayDescriptor.ElementType);
-
 					// Handle aliasing
-					var localIndex = index;
-					if (valueResult.IsAlias)
-					{
-						context.AddAliasBinding(valueResult.Alias, deferredValue => arrayList[localIndex] = deferredValue);
-					}
-					else
-					{
-						arrayList[localIndex] = valueResult.Value;
-					}
-					index++;
+					arrayList[index++] = objectContext.Context.ReadYaml(null, arrayDescriptor.ElementType);
 				}
 			}
 			else
 			{
-				var results = new List<ValueOutput>();
+				var results = new List<object>();
 				while (!reader.Accept<SequenceEnd>())
 				{
-					results.Add(context.ReadYaml(null, arrayDescriptor.ElementType));
+
+					results.Add(objectContext.Context.ReadYaml(null, arrayDescriptor.ElementType));
 				}
 
 				// Handle aliasing
 				arrayList = arrayDescriptor.CreateArray(results.Count);
-				foreach (var valueResult in results)
+				foreach (var arrayItem in results)
 				{
-					var localIndex = index;
-					if (valueResult.IsAlias)
-					{
-						context.AddAliasBinding(valueResult.Alias, deferredValue => arrayList[localIndex] = deferredValue);
-					}
-					else
-					{
-						arrayList[localIndex] = valueResult.Value;
-					}
-					index++;
+                    arrayList[index++] = arrayItem;
 				}
 			}
 			reader.Expect<SequenceEnd>();
 
-			return new ValueOutput(arrayList);
+			return arrayList;
 		}
 
-		public void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
+		public void WriteYaml(ref ObjectContext objectContext)
 		{
-			var value = input.Value;
-			var arrayDescriptor = (ArrayDescriptor)typeDescriptor;
+		    var value = objectContext.Instance;
+		    var arrayDescriptor = (ArrayDescriptor) objectContext.Descriptor;
 
 			var valueType = value.GetType();
 			var arrayList = (IList) value;
 
 			// Emit a Flow sequence or block sequence depending on settings 
-			context.Writer.Emit(new SequenceStartEventInfo(value, valueType)
+            objectContext.Writer.Emit(new SequenceStartEventInfo(value, valueType)
 				{
-					Tag = input.Tag,
-					Anchor = context.GetAnchor(),
-					Style = arrayList.Count < context.Settings.LimitPrimitiveFlowSequence ? YamlStyle.Flow : YamlStyle.Block
+                    Tag = objectContext.Tag,
+					Style = arrayList.Count < objectContext.Settings.LimitPrimitiveFlowSequence ? YamlStyle.Flow : YamlStyle.Block
 				});
 
 			foreach (var element in arrayList)
 			{
-				context.WriteYaml(element, arrayDescriptor.ElementType);
+                objectContext.Context.WriteYaml(element, arrayDescriptor.ElementType);
 			}
-			context.Writer.Emit(new SequenceEndEventInfo(value, valueType));
+            objectContext.Writer.Emit(new SequenceEndEventInfo(value, valueType));
 		}
 	}
 }

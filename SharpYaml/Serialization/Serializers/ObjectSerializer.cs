@@ -42,6 +42,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
+using System;
 using SharpYaml.Events;
 
 namespace SharpYaml.Serialization.Serializers
@@ -64,13 +66,13 @@ namespace SharpYaml.Serialization.Serializers
 			// always accept
 			return this;
 		}
-		
-		/// <summary>
-		/// Checks if a type is a sequence.
-		/// </summary>
-		/// <param name="typeDescriptor">The type descriptor.</param>
-		/// <returns><c>true</c> if a type is a sequence, <c>false</c> otherwise.</returns>
-		protected virtual bool CheckIsSequence(ITypeDescriptor typeDescriptor)
+
+        /// <summary>
+        /// Checks if a type is a sequence.
+        /// </summary>
+        /// <param name="objectContext"></param>
+        /// <returns><c>true</c> if a type is a sequence, <c>false</c> otherwise.</returns>
+        protected virtual bool CheckIsSequence(ref ObjectContext objectContext)
 		{
 			// By default an object serializer is a mapping
 			return false;
@@ -79,72 +81,74 @@ namespace SharpYaml.Serialization.Serializers
         /// <summary>
         /// Gets the style that will be used to serialized the object.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <param name="objectContext"></param>
         /// <returns>The <see cref="YamlStyle"/> to use. Default is <see cref="ITypeDescriptor.Style"/>.</returns>
-		protected virtual YamlStyle GetStyle(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
-		{
-			return typeDescriptor.Style;
-		}
+        protected virtual YamlStyle GetStyle(ref ObjectContext objectContext)
+        {
+            return objectContext.Visitor.GetStyle(ref objectContext);
+        }
 
-		public virtual ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public virtual object ReadYaml(ref ObjectContext objectContext)
 		{
             // Create or transform the value to deserialize
             // If the new value to serialize is not the same as the one we were expecting to serialize
-            CreateOrTransformObjectInternal(context, ref value, ref typeDescriptor);
+            CreateOrTransformObjectInternal(ref objectContext);
 
 			// Get the object accessor for the corresponding class
-			var isSequence = CheckIsSequence(typeDescriptor);
+		    if (CheckIsSequence(ref objectContext))
+		    {
+		        ReadMembers<SequenceStart, SequenceEnd>(ref objectContext);
+		    }
+		    else
+		    {
+		        ReadMembers<MappingStart, MappingEnd>(ref objectContext);
+		    }
 
 			// Process members
-			return new ValueOutput(isSequence
-						? ReadItems<SequenceStart, SequenceEnd>(context, value, typeDescriptor)
-						: ReadItems<MappingStart, MappingEnd>(context, value, typeDescriptor));
+			return objectContext.Instance;
 		}
 
 
-        private void CreateOrTransformObjectInternal(SerializerContext context, ref object value,
-            ref ITypeDescriptor typeDescriptor)
+        private void CreateOrTransformObjectInternal(ref ObjectContext objectContext)
         {
-            var newValue = CreateOrTransformObject(context, value, typeDescriptor);
-            if (!ReferenceEquals(newValue, value) && newValue != null && newValue.GetType() != typeDescriptor.Type)
+            var previousValue = objectContext.Instance;
+            CreateOrTransformObject(ref objectContext);
+            var newValue = objectContext.Instance;
+
+            if (!ReferenceEquals(newValue, previousValue) && newValue != null && newValue.GetType() != objectContext.Descriptor.Type)
             {
-                typeDescriptor = context.FindTypeDescriptor(newValue.GetType());
+                objectContext.Descriptor = objectContext.Context.FindTypeDescriptor(newValue.GetType());
             }
-            value = newValue;
         }
 
         /// <summary>
         /// Overrides this method when deserializing/serializing an object that needs a special instantiation or transformation. By default, this is calling
-        /// <see cref="IObjectFactory.Create" /> if the <see cref="currentObject"/> is null or returning <see cref="currentObject"/>.
+        /// <see cref="IObjectFactory.Create" /> if the <see cref="ObjectContext.Instance" /> is null or returning <see cref="ObjectContext.Instance" />.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="currentObject">The current object, may be null. (in case the object is an instance in a member that is not settable).</param>
-        /// <param name="typeDescriptor">The type descriptor of the object to create.</param>
-        /// <returns>A new instance of the object or <see cref="currentObject"/> if not null</returns>
-	    protected virtual object CreateOrTransformObject(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
+        /// <param name="objectContext">The object context.</param>
+        /// <returns>A new instance of the object or <see cref="ObjectContext.Instance" /> if not null</returns>
+        protected virtual void CreateOrTransformObject(ref ObjectContext objectContext)
 	    {
-            return currentObject ?? context.ObjectFactory.Create(typeDescriptor.Type);
+            if (objectContext.Instance == null)
+            {
+                objectContext.Instance = objectContext.Context.ObjectFactory.Create(objectContext.Descriptor.Type);
+            }
 	    }
 
         /// <summary>
         /// Transforms the object after it has been read. This method is called after an object has been read and before returning the object to
         /// the deserialization process. See remarks for usage.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="currentObject">The current object that has been deserialized..</param>
-        /// <param name="typeDescriptor">The type descriptor.</param>
-        /// <returns>The actual object deserialized. By default same as <see cref="currentObject"/>.</returns>
+        /// <param name="objectContext"></param>
+        /// <returns>The actual object deserialized. By default same as <see cref="ObjectContext.Instance"/>.</returns>
         /// <remarks>
         /// This method is usefull in conjunction with <see cref="CreateOrTransformObject"/>.
         /// For example, in the case of deserializing to an immutable member, where we need to call the constructor of a type instead of setting each of 
         /// its member, we can instantiate a mutable object in <see cref="CreateOrTransformObject"/>, receive the mutable object filled in 
         /// <see cref="TransformObjectAfterRead"/> and transform it back to an immutable object.
         /// </remarks>
-        protected virtual object TransformObjectAfterRead(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
+        protected virtual void TransformObjectAfterRead(ref ObjectContext objectContext)
         {
-            return currentObject;
         }
 
         /// <summary>
@@ -152,129 +156,102 @@ namespace SharpYaml.Serialization.Serializers
         /// </summary>
         /// <typeparam name="TStart">The type of the t start.</typeparam>
         /// <typeparam name="TEnd">The type of the t end.</typeparam>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <param name="objectContext"></param>
         /// <returns>Return the object being read, by default thisObject passed by argument.</returns>
-		protected virtual object ReadItems<TStart, TEnd>(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor) 
+        protected virtual void ReadMembers<TStart, TEnd>(ref ObjectContext objectContext) 
 			where TStart : NodeEvent
 			where TEnd : ParsingEvent
 		{
-			var reader = context.Reader;
+            var reader = objectContext.Reader;
 			var start = reader.Expect<TStart>();
 
             // throws an exception while deserializing
-            if (thisObject == null)
+            if (objectContext.Instance == null)
             {
-                throw new YamlException(start.Start, start.End, "Cannot instantiate an object for type [{0}]".DoFormat(typeDescriptor));
+                throw new YamlException(start.Start, start.End, "Cannot instantiate an object for type [{0}]".DoFormat(objectContext.Descriptor));
             }
 
 			while (!reader.Accept<TEnd>())
 			{
-				ReadItem(context, thisObject, typeDescriptor);
+                ReadMember(ref objectContext);
 			}
 			reader.Expect<TEnd>();
 
-            return TransformObjectAfterRead(context, thisObject, typeDescriptor);
+            TransformObjectAfterRead(ref objectContext);
 		}
 
         /// <summary>
         /// Reads an item of the object from the YAML flow (either a sequence item or mapping key/value item).
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <param name="objectContext"></param>
         /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
-		protected virtual void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
+        protected virtual void ReadMember(ref ObjectContext objectContext)
 		{
-			var reader = context.Reader;
-
 			// For a regular object, the key is expected to be a simple scalar
-		    string propertyName;
-		    var propertyNode = reader.Expect<Scalar>();
-		    var keyName = propertyNode.Value;
-            var isKeyDecoded = context.DecodeKeyPre(thisObject, typeDescriptor, keyName, out propertyName);
+            var memberScalar = objectContext.Reader.Expect<Scalar>();
+            var memberName = ReadMemberName(ref objectContext, memberScalar.Value);
+            var memberAccessor = objectContext.Descriptor[memberName];
 
-            var memberAccessor = typeDescriptor[propertyName];
-
-		    if (isKeyDecoded)
-		    {
-                context.DecodeKeyPost(thisObject, typeDescriptor, memberAccessor, keyName);
-            }
-
-		    if (!ReadMemberByName(context, thisObject, propertyName, memberAccessor, typeDescriptor))
-                throw new YamlException(propertyNode.Start, propertyNode.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(propertyName, typeDescriptor));
-		}
-
-        /// <summary>
-        /// Reads a member by its name.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object where the member to read applies.</param>
-        /// <param name="memberName">Name of the member.</param>
-        /// <param name="memberAccessor">The member accessor. May be null if member acecssor was not found</param>
-        /// <param name="typeDescriptor">The type descriptor of the this object.</param>
-        /// <returns><c>true</c> if reading the member was successfull, <c>false</c> otherwise.</returns>
-        protected virtual bool ReadMemberByName(SerializerContext context, object thisObject, string memberName, IMemberDescriptor memberAccessor, ITypeDescriptor typeDescriptor)
-        {
             // Check that property exist before trying to access the descriptor
             if (memberAccessor == null)
             {
-                return false;
+                throw new YamlException(memberScalar.Start, memberScalar.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(memberName, objectContext.Descriptor));
             }
 
             // Read the value according to the type
-            var propertyType = memberAccessor.Type;
+            object memberValue = null;
 
-            object value = null;
             if (memberAccessor.SerializeMemberMode == SerializeMemberMode.Content)
             {
-                value = memberAccessor.Get(thisObject);
+                memberValue = memberAccessor.Get(objectContext.Instance);
             }
 
-            var valueResult = context.ReadYaml(value, propertyType);
+            memberValue = ReadMemberValue(ref objectContext, memberAccessor, memberValue, memberAccessor.Type);
 
             // Handle late binding
             if (memberAccessor.HasSet && memberAccessor.SerializeMemberMode != SerializeMemberMode.Content)
             {
-                // If result value is a late binding, register it.
-                if (valueResult.IsAlias)
-                {
-                    context.AddAliasBinding(valueResult.Alias, lateValue => memberAccessor.Set(thisObject, lateValue));
-                }
-                else
-                {
-                    memberAccessor.Set(thisObject, valueResult.Value);
-                }
+                memberAccessor.Set(objectContext.Instance, memberValue);
             }
+        }
 
-            return true;
+        protected virtual string ReadMemberName(ref ObjectContext objectContext, string memberName)
+        {
+            return objectContext.Visitor.ReadMemberName(ref objectContext, memberName);
+        }
+
+        protected virtual object ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor member,
+            object memberValue,
+            Type memberType)
+        {
+            return objectContext.Visitor.ReadMemberValue(ref objectContext, member, memberValue, memberType);
         }
 
         /// <inheritdoc/>
-		public virtual void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
+		public virtual void WriteYaml(ref ObjectContext objectContext)
 		{
-			var value = input.Value;
+            var value = objectContext.Instance;
 			var typeOfValue = value.GetType();
 
-			var isSequence = CheckIsSequence(typeDescriptor);
+            var isSequence = CheckIsSequence(ref objectContext);
 
 			// Resolve the style, use default style if not defined.
-			var style = ResolveStyle(context, value, typeDescriptor);
+            var style = GetStyle(ref objectContext);
 
             // Allow to create on the fly an object that will be used to serialize an object
-		    CreateOrTransformObjectInternal(context, ref value, ref typeDescriptor);
+            CreateOrTransformObjectInternal(ref objectContext);
 
+            var context = objectContext.Context;
 			if (isSequence)
 			{
-				context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) { Tag = input.Tag, Anchor = context.GetAnchor(), Style = style});
-				WriteMembers(context, value, typeDescriptor, style);
+                context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) { Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style });
+                WriteMembers(ref objectContext);
 				context.Writer.Emit(new SequenceEndEventInfo(value, typeOfValue));
 			}
 			else
 			{
-				context.Writer.Emit(new MappingStartEventInfo(value, typeOfValue) { Tag = input.Tag, Anchor = context.GetAnchor(), Style = style });
-				WriteMembers(context, value, typeDescriptor, style);
+                context.Writer.Emit(new MappingStartEventInfo(value, typeOfValue) { Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style });
+                WriteMembers(ref objectContext);
 				context.Writer.Emit(new MappingEndEventInfo(value, typeOfValue));
 			}
 		}
@@ -283,34 +260,29 @@ namespace SharpYaml.Serialization.Serializers
         /// Writes the members of the object to serialize. By default this method is iterating on the <see cref="ITypeDescriptor.Members"/> and
         /// calling <see cref="WriteMember"/> on each member.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object to serialize.</param>
-        /// <param name="typeDescriptor">The type descriptor of <see cref="thisObject"/>.</param>
-        /// <param name="style">The style.</param>
-		protected virtual void WriteMembers(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
+        /// <param name="objectContext"></param>
+        protected virtual void WriteMembers(ref ObjectContext objectContext)
 		{
-			foreach (var member in typeDescriptor.Members)
+            foreach (var member in objectContext.Descriptor.Members)
 			{
-			    WriteMember(context, thisObject, typeDescriptor, member);
+                WriteMember(ref objectContext, member);
 			}
 		}
 
         /// <summary>
         /// Writes a member.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="typeDescriptor">The type descriptor.</param>
+        /// <param name="objectContext"></param>
         /// <param name="member">The member.</param>
-        protected virtual void WriteMember(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, IMemberDescriptor member)
+        protected virtual void WriteMember(ref ObjectContext objectContext, IMemberDescriptor member)
         {
             // Skip any member that we won't serialize
-            if (!member.ShouldSerialize(thisObject)) return;
+            if (!member.ShouldSerialize(objectContext.Instance)) return;
 
             // Emit the key name
-            WriteMemberName(context, context.EncodeKey(thisObject, typeDescriptor, member, member.Name));
+            WriteMemberName(ref objectContext, member, member.Name);
 
-            var memberValue = member.Get(thisObject);
+            var memberValue = member.Get(objectContext.Instance);
             var memberType = member.Type;
 
             // In case of serializing a property/field which is not writeable
@@ -324,63 +296,19 @@ namespace SharpYaml.Serialization.Serializers
                 }
             }
 
-            // Push the style of the current member
-            context.PushStyle(member.Style);
-            context.WriteYaml(memberValue, memberType);
+            // Write the member value
+            WriteMemberValue(ref objectContext, member, memberValue, memberType);
         }
 
-        /// <summary>
-        /// Writes the name of the member.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="name">The name.</param>
-		protected void WriteMemberName(SerializerContext context, string name)
-		{
-			// Emit the key name
-			context.Writer.Emit(new ScalarEventInfo(name, typeof(string))
-			{
-				RenderedValue = name,
-				IsPlainImplicit = true,
-				Style = ScalarStyle.Plain
-			});
-		}
+        protected virtual void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string name)
+        {
+            objectContext.Visitor.WriteMemberName(ref objectContext, member, name);
+        }
 
-		private YamlStyle ResolveStyle(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
-		{
-			// Resolve the style, use default style if not defined.
-			// First pop style of current member being serialized.
-			var style = context.PopStyle();
-
-			// If a dynamic style format is found, try to resolve through it
-			if (context.Settings.DynamicStyleFormat != null)
-			{
-				var dynamicStyle = context.Settings.DynamicStyleFormat.GetStyle(context, value, typeDescriptor);
-				if (dynamicStyle != YamlStyle.Any)
-				{
-					style = dynamicStyle;
-				}
-			}
-
-			// If no style yet defined
-			if (style == YamlStyle.Any)
-			{
-				// Try to get the style from this serializer
-				style = GetStyle(context, value, typeDescriptor);
-
-				// If not defined, get the default style
-				if (style == YamlStyle.Any)
-				{
-					style = context.Settings.DefaultStyle;
-
-					// If default style is set to Any, set it to Block by default.
-					if (style == YamlStyle.Any)
-					{
-						style = YamlStyle.Block;
-					}
-				}
-			}
-
-			return style;
-		}
+        protected virtual void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object memberValue,
+            Type memberType)
+        {
+            objectContext.Visitor.WriteMemberValue(ref objectContext, member, memberValue, memberType);
+        }
 	}
 }

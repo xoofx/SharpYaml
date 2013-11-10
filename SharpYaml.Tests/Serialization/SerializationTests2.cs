@@ -806,7 +806,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             public Dictionary<string, object> KeyValues { get; set; }
 	    }
 
-	    class MyMappingKeyTransform : IMappingKeyTransform
+	    class MyMappingKeyTransform : DefaultVisitSerializer
 	    {
 	        public MyMappingKeyTransform()
 	        {
@@ -815,26 +815,21 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
             public List<Tuple<object, object>> SpecialKeys { get; private set; }
 
-	        public string Encode(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string keyText)
+	        public override string ReadMemberName(ref ObjectContext objectContext, string memberName)
 	        {
-	            return (keyText.Contains("Name") || keyText.Contains("Test")) ? keyText + "!" : keyText;
+                if (memberName.EndsWith("!"))
+                {
+                    memberName = memberName.Substring(0, memberName.Length - 1);
+                    SpecialKeys.Add(new Tuple<object, object>(objectContext.Instance, objectContext.Descriptor[memberName]));
+                }
+	            return memberName;
 	        }
 
-	        public bool DecodePre(SerializerContext context, object thisObject, ITypeDescriptor descriptor, string keyIn, out string keyOut)
+	        public override void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string name)
 	        {
-	            keyOut = keyIn;
-                if (keyIn.EndsWith("!"))
-	            {
-                    keyOut = keyIn.Substring(0, keyIn.Length - 1);
-	                return true;
-	            }
-	            return false;
+                name =  (name.Contains("Name") || name.Contains("Test")) ? name + "!" : name;
+                base.WriteMemberName(ref objectContext, member, name);
 	        }
-
-	        public void DecodePost(SerializerContext context, object thisObject, ITypeDescriptor descriptor, object key, string keyIn)
-	        {
-                SpecialKeys.Add(new Tuple<object, object>(thisObject, key));
-            }
 	    }
 
         /// <summary>
@@ -845,7 +840,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
         {
             var specialTransform = new MyMappingKeyTransform();
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 4 };
-            settings.KeyTransform = specialTransform;
+            settings.Visitor = specialTransform;
             settings.RegisterTagMapping("ClassWithKeyTransform", typeof(ClassWithKeyTransform));
 
             var myCustomObject = new ClassWithKeyTransform();
@@ -915,14 +910,14 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
                 return typeDescriptor.Type == typeof (MyClassImmutable) ? this : null;
             }
 
-            protected override object CreateOrTransformObject(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
+            protected override void CreateOrTransformObject(ref ObjectContext objectContext)
             {
-                return context.IsSerializing ? new MyClassMutable((MyClassImmutable) currentObject) : new MyClassMutable();
+                objectContext.Instance = objectContext.Context.IsSerializing ? new MyClassMutable((MyClassImmutable)objectContext.Instance) : new MyClassMutable();
             }
 
-            protected override object TransformObjectAfterRead(SerializerContext context, object currentObject, ITypeDescriptor typeDescriptor)
+            protected override void TransformObjectAfterRead(ref ObjectContext objectContext)
             {
-                return ((MyClassMutable) currentObject).ToImmutable();
+                objectContext.Instance = ((MyClassMutable)objectContext.Instance).ToImmutable();
             }
 
             /// <summary>

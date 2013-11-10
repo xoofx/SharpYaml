@@ -56,14 +56,14 @@ namespace SharpYaml.Serialization.Serializers
 			this.next = next;
 		}
 
-		public virtual ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public virtual object ReadYaml(ref ObjectContext objectContext)
 		{
-			return next.ReadYaml(context, value, typeDescriptor);
+			return next.ReadYaml(ref objectContext);
 		}
 
-		public virtual void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
+		public virtual void WriteYaml(ref ObjectContext objectContext)
 		{
-			next.WriteYaml(context, input, typeDescriptor);
+			next.WriteYaml(ref objectContext);
 		}
 	}
 }

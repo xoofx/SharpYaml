@@ -70,18 +70,20 @@ namespace SharpYaml.Serialization.Serializers
 			factories.Add(factory);
 		}
 
-		public ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public object ReadYaml(ref ObjectContext objectContext)
 		{
 			// If value is not null, use its TypeDescriptor otherwise use expected type descriptor
-			var typeDescriptorOfValue = value != null ? context.FindTypeDescriptor(value.GetType()) : typeDescriptor;
-			var serializer = GetSerializer(context, typeDescriptorOfValue);
-			return serializer.ReadYaml(context, value, typeDescriptor);
+		    var instance = objectContext.Instance;
+            var typeDescriptorOfValue = instance != null ? objectContext.Context.FindTypeDescriptor(instance.GetType()) : objectContext.Descriptor;
+
+			var serializer = GetSerializer(objectContext.Context, typeDescriptorOfValue);
+			return serializer.ReadYaml(ref objectContext);
 		}
 
-		public void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
+		public void WriteYaml(ref ObjectContext objectContext)
 		{
-			var serializer = GetSerializer(context, typeDescriptor);
-			serializer.WriteYaml(context, input, typeDescriptor);
+			var serializer = GetSerializer(objectContext.Context, objectContext.Descriptor);
+			serializer.WriteYaml(ref objectContext);
 		}
 
 		private IYamlSerializable GetSerializer(SerializerContext context, ITypeDescriptor typeDescriptor)

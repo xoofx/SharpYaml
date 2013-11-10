@@ -63,8 +63,9 @@ namespace SharpYaml.Serialization
 		private IObjectFactory objectFactory;
 		private int preferredIndent;
 		private string specialCollectionMember;
+	    private IVisitSerializer visitor;
 
-		/// <summary>
+	    /// <summary>
 		/// Initializes a new instance of the <see cref="SerializerSettings"/> class.
 		/// </summary>
 		public SerializerSettings() : this(null)
@@ -89,6 +90,7 @@ namespace SharpYaml.Serialization
 			tagTypeRegistry = new TagTypeRegistry(Schema);
 			attributeRegistry = new AttributeRegistry();
 			ObjectFactory = new DefaultObjectFactory();
+            Visitor = new DefaultVisitSerializer();
 
 			// Register default mapping for map and seq
 			tagTypeRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>));
@@ -222,12 +224,6 @@ namespace SharpYaml.Serialization
 			}
 		}
 
-        /// <summary>
-        /// Gets or sets the key transform.
-        /// </summary>
-        /// <value>The key transform.</value>
-        public IMappingKeyTransform KeyTransform { get; set; }
-
 		/// <summary>
 		/// Gets the attribute registry.
 		/// </summary>
@@ -242,12 +238,26 @@ namespace SharpYaml.Serialization
 			}
 		}
 
-		/// <summary>
-		/// Gets or sets the default factory to instantiate a type. Default is <see cref="DefaultObjectFactory" />.
-		/// </summary>
-		/// <value>The default factory to instantiate a type.</value>
-		/// <exception cref="System.ArgumentNullException">value</exception>
-		public IObjectFactory ObjectFactory
+	    /// <summary>
+	    /// Gets or sets the visitor.
+	    /// </summary>
+	    /// <value>The visitor.</value>
+	    public IVisitSerializer Visitor
+	    {
+	        get { return visitor; }
+	        set
+	        {
+                if (value == null) throw new ArgumentNullException("value");
+                visitor = value;
+	        }
+	    }
+
+	    /// <summary>
+	    /// Gets or sets the default factory to instantiate a type. Default is <see cref="DefaultObjectFactory" />.
+	    /// </summary>
+	    /// <value>The default factory to instantiate a type.</value>
+	    /// <exception cref="System.ArgumentNullException">value</exception>
+	    public IObjectFactory ObjectFactory
 		{
 			get { return objectFactory; }
 			set

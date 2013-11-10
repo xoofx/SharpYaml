@@ -44,6 +44,7 @@
 // SOFTWARE.
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using SharpYaml.Events;
 using SharpYaml.Serialization.Descriptors;
 
@@ -66,119 +67,81 @@ namespace SharpYaml.Serialization.Serializers
 			return typeDescriptor is CollectionDescriptor ? this : null;
 		}
 
-		protected override bool CheckIsSequence(ITypeDescriptor typeDescriptor)
+		protected override bool CheckIsSequence(ref ObjectContext objectContext)
 		{
-			var collectionDescriptor = (CollectionDescriptor)typeDescriptor;
+			var collectionDescriptor = (CollectionDescriptor)objectContext.Descriptor;
 
 			// If the dictionary is pure, we can directly output a sequence instead of a mapping
 			return collectionDescriptor.IsPureCollection || collectionDescriptor.HasOnlyCapacity;
 		}
 
-		protected override void ReadItem(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
+		protected override void ReadMember(ref ObjectContext objectContext)
 		{
-			var collectionDescriptor = (CollectionDescriptor)typeDescriptor;
-
-			if (CheckIsSequence(collectionDescriptor))
+            if (CheckIsSequence(ref objectContext))
 			{
-                ReadCollectionItems(context, thisObject, collectionDescriptor);
+                ReadCollectionItems(ref objectContext);
 			}
 			else
 			{
-				var keyEvent = context.Reader.Peek<Scalar>();
+                var keyEvent = objectContext.Reader.Peek<Scalar>();
 				if (keyEvent != null)
 				{
-					if (keyEvent.Value == context.Settings.SpecialCollectionMember)
+                    if (keyEvent.Value == objectContext.Settings.SpecialCollectionMember)
 					{
-						var reader = context.Reader;
+                        var reader = objectContext.Reader;
 						reader.Parser.MoveNext();
 
 						// Read inner sequence
 						reader.Expect<SequenceStart>();
-                        ReadCollectionItems(context, thisObject, collectionDescriptor);
+                        ReadCollectionItems(ref objectContext);
 						reader.Expect<SequenceEnd>();
 						return;
 					}
 				}
 
-                base.ReadItem(context, thisObject, typeDescriptor);
+                base.ReadMember(ref objectContext);
 			}
 		}
 
-		protected override YamlStyle GetStyle(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor)
+		protected override void WriteMembers(ref ObjectContext objectContext)
 		{
-			var style = base.GetStyle(context, thisObject, typeDescriptor);
-
-			// In case of any style, allow to emit a flow sequence depending on Settings LimitPrimitiveFlowSequence.
-			// Apply this only for primitives
-			if (style == YamlStyle.Any)
+            if (CheckIsSequence(ref objectContext))
 			{
-				bool isPrimitiveElementType = false;
-				var collectionDescriptor = typeDescriptor as CollectionDescriptor;
-				int count = 0;
-				if (collectionDescriptor != null)
-				{
-					isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(collectionDescriptor.ElementType);
-					count = collectionDescriptor.GetCollectionCount(thisObject);
-				}
-				else
-				{
-					var arrayDescriptor = typeDescriptor as ArrayDescriptor;
-					if (arrayDescriptor != null)
-					{
-						isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(arrayDescriptor.ElementType);
-						count = thisObject != null ? ((Array) thisObject).Length : -1;
-					}
-				}
-
-				style = thisObject == null || count >= context.Settings.LimitPrimitiveFlowSequence || !isPrimitiveElementType
-					       ? YamlStyle.Block
-					       : YamlStyle.Flow;
-			}
-
-			return style;
-		}
-
-		protected override void WriteMembers(SerializerContext context, object thisObject, ITypeDescriptor typeDescriptor, YamlStyle style)
-		{
-			var collectionDescriptor = (CollectionDescriptor)typeDescriptor;
-			if (CheckIsSequence(collectionDescriptor))
-			{
-                WriteCollectionItems(context, thisObject, collectionDescriptor);
+                WriteCollectionItems(ref objectContext);
 			}
 			else
 			{
 				// Serialize Dictionary members
-				foreach (var member in typeDescriptor.Members)
+                foreach (var member in objectContext.Descriptor.Members)
 				{
-					if (member.Name == "Capacity" && !context.Settings.EmitCapacityForList)
+                    if (member.Name == "Capacity" && !objectContext.Settings.EmitCapacityForList)
 					{
 						continue;
 					}
 
-                    WriteMember(context, thisObject, typeDescriptor, member);
+                    WriteMember(ref objectContext, member);
 				}
 
-                WriteMemberName(context, context.Settings.SpecialCollectionMember);
+                WriteMemberName(ref objectContext, null, objectContext.Settings.SpecialCollectionMember);
 
-				context.Writer.Emit(new SequenceStartEventInfo(thisObject, thisObject.GetType()) { Style = style });
-                WriteCollectionItems(context, thisObject, collectionDescriptor);
-				context.Writer.Emit(new SequenceEndEventInfo(thisObject, thisObject.GetType()));
+                objectContext.Writer.Emit(new SequenceStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) { Style = objectContext.Style });
+                WriteCollectionItems(ref objectContext);
+                objectContext.Writer.Emit(new SequenceEndEventInfo(objectContext.Instance, objectContext.Instance.GetType()));
 			}
 		}
 
         /// <summary>
         /// Reads the collection items.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="collectionDescriptor">The collection descriptor.</param>
-        /// <exception cref="System.InvalidOperationException">
-        /// Cannot deserialize list to type [{0}]. No Add method found.DoFormat(thisObject.GetType())
+        /// <param name="objectContext">The object context.</param>
+        /// <exception cref="System.InvalidOperationException">Cannot deserialize list to type [{0}]. No Add method found.DoFormat(thisObject.GetType())
         /// or
-        /// Cannot deserialize list to readonly collection type [{0}]..DoFormat(thisObject.GetType())
-        /// </exception>
-        protected virtual void ReadCollectionItems(SerializerContext context, object thisObject, CollectionDescriptor collectionDescriptor)
-		{
+        /// Cannot deserialize list to readonly collection type [{0}]..DoFormat(thisObject.GetType())</exception>
+        protected virtual void ReadCollectionItems(ref ObjectContext objectContext)
+        {
+            var collectionDescriptor = (CollectionDescriptor) objectContext.Descriptor;
+            var thisObject = objectContext.Instance;
+
 			if (!collectionDescriptor.HasAdd)
 			{
 				throw new InvalidOperationException("Cannot deserialize list to type [{0}]. No Add method found".DoFormat(thisObject.GetType()));
@@ -188,62 +151,50 @@ namespace SharpYaml.Serialization.Serializers
 				throw new InvalidOperationException("Cannot deserialize list to readonly collection type [{0}].".DoFormat(thisObject.GetType()));
 			}
 
-			var reader = context.Reader;
+            var reader = objectContext.Reader;
 
+            var elementType = collectionDescriptor.ElementType;
 			while (!reader.Accept<SequenceEnd>())
 			{
-			    var valueResult = ReadCollectionItem(context, thisObject, collectionDescriptor);
-	
-				// Handle aliasing. TODO: Aliasing doesn't preserve order here. This is not an expected behavior
-				if (valueResult.IsAlias)
-				{
-					context.AddAliasBinding(valueResult.Alias, deferredValue => collectionDescriptor.CollectionAdd(thisObject, deferredValue));
-				}
-				else
-				{
-					collectionDescriptor.CollectionAdd(thisObject, valueResult.Value);
-				}
+                var value = ReadCollectionItem(ref objectContext, elementType);
+				collectionDescriptor.CollectionAdd(thisObject, value);
 			}
 		}
 
         /// <summary>
         /// Reads a collection item.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="collectionDescriptor">The collection descriptor.</param>
+        /// <param name="objectContext">The object context.</param>
+        /// <param name="itemType">Type of the item.</param>
         /// <returns>The item to add to the current collection.</returns>
-        protected virtual ValueOutput ReadCollectionItem(SerializerContext context, object thisObject, CollectionDescriptor collectionDescriptor)
+        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, Type itemType)
         {
-            return context.ReadYaml(null, collectionDescriptor.ElementType);
+            return objectContext.Visitor.ReadCollectionItem(ref objectContext, itemType);
         }
 
         /// <summary>
         /// Writes the collection items.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="collectionDescriptor">The collection descriptor.</param>
-        protected virtual void WriteCollectionItems(SerializerContext context, object thisObject, CollectionDescriptor collectionDescriptor)
-		{
-			var collection = (IEnumerable)thisObject;
+        /// <param name="objectContext">The object context.</param>
+        protected virtual void WriteCollectionItems(ref ObjectContext objectContext)
+        {
+            var collectionDescriptor = (CollectionDescriptor) objectContext.Descriptor;
+            var collection = (IEnumerable) objectContext.Instance;
 			foreach (var item in collection)
 			{
-				context.WriteYaml(item, collectionDescriptor.ElementType);
+                WriteCollectionItem(ref objectContext, item, collectionDescriptor.ElementType);
 			}
 		}
 
         /// <summary>
         /// Writes the collection item.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="thisObject">The this object.</param>
-        /// <param name="collectionDescriptor">The collection descriptor.</param>
+        /// <param name="objectContext">The object context.</param>
         /// <param name="item">The item.</param>
-        protected virtual void WriteCollectionItem(SerializerContext context, object thisObject,
-            CollectionDescriptor collectionDescriptor, object item)
+        /// <param name="itemType">Type of the item.</param>
+        protected virtual void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType)
         {
-            context.WriteYaml(item, collectionDescriptor.ElementType);
+            objectContext.Visitor.WriteCollectionItem(ref objectContext, item, itemType);
         }
 	}
 }

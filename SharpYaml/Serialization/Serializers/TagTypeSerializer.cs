@@ -55,9 +55,9 @@ namespace SharpYaml.Serialization.Serializers
 		{
 		}
 
-		public override ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public override object ReadYaml(ref ObjectContext objectContext)
 		{
-			var parsingEvent = context.Reader.Peek<ParsingEvent>();
+            var parsingEvent = objectContext.Reader.Peek<ParsingEvent>();
 			// Can this happen here?
 			if (parsingEvent == null)
 			{
@@ -71,13 +71,13 @@ namespace SharpYaml.Serialization.Serializers
 				throw new YamlException(parsingEvent.Start, parsingEvent.End, "Unexpected parsing event found [{0}]. Expecting Scalar, Mapping or Sequence".DoFormat(parsingEvent));
 			}
 
-			var type = typeDescriptor != null ? typeDescriptor.Type : null;
+            var type = objectContext.Descriptor != null ? objectContext.Descriptor.Type : null;
 
 			// Tries to get a Type from the TagTypes
 			Type typeFromTag = null;
 			if (!string.IsNullOrEmpty(node.Tag))
 			{
-				typeFromTag = context.TypeFromTag(node.Tag);
+                typeFromTag = objectContext.Context.TypeFromTag(node.Tag);
 				if (typeFromTag == null)
 				{
 					throw new YamlException(parsingEvent.Start, parsingEvent.End, "Unable to resolve tag [{0}] to type from tag resolution or registered assemblies".DoFormat(node.Tag));
@@ -92,12 +92,14 @@ namespace SharpYaml.Serialization.Serializers
 			if (type == null)
 				type = typeFromTag;
 
+		    object value = objectContext.Instance;
+
 			// Handle explicit null scalar
-			if (node is Scalar && context.Schema.TryParse((Scalar) node, typeof (object), out value))
+            if (node is Scalar && objectContext.Context.Schema.TryParse((Scalar)node, typeof(object), out value))
 			{
 				// The value was pick up, go to next
-				context.Reader.Parser.MoveNext();
-				return new ValueOutput(value);
+				objectContext.Reader.Parser.MoveNext();
+				return value;
 			}
 
 			// If type is null or equal to typeof(object) and value is null
@@ -130,24 +132,24 @@ namespace SharpYaml.Serialization.Serializers
 				type = value.GetType();
 			}
 
-			typeDescriptor = context.FindTypeDescriptor(type);
+            objectContext.Descriptor = objectContext.Context.FindTypeDescriptor(type);
 
 			// If this is a nullable descriptor, use its underlying type directly
-			if (typeDescriptor is NullableDescriptor)
+            if (objectContext.Descriptor is NullableDescriptor)
 			{
-				typeDescriptor = context.FindTypeDescriptor(((NullableDescriptor) typeDescriptor).UnderlyingType);
+                objectContext.Descriptor = objectContext.Context.FindTypeDescriptor(((NullableDescriptor)objectContext.Descriptor).UnderlyingType);
 			}
-			return base.ReadYaml(context, value, typeDescriptor);
+			return base.ReadYaml(ref objectContext);
 		}
 
-		public override void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
+		public override void WriteYaml(ref ObjectContext objectContext)
 		{
-			var value = input.Value;
+			var value = objectContext.Instance;
 
 			// If value is null, then just output a plain null scalar
 			if (value == null)
 			{
-				context.Writer.Emit(new ScalarEventInfo(null, typeof(object)) { RenderedValue = "null", IsPlainImplicit = true, Style = ScalarStyle.Plain });
+                objectContext.Writer.Emit(new ScalarEventInfo(null, typeof(object)) { RenderedValue = "null", IsPlainImplicit = true, Style = ScalarStyle.Plain });
 				return;
 			}
 
@@ -155,13 +157,13 @@ namespace SharpYaml.Serialization.Serializers
 
 
 			// If we have a nullable value, get its type directly and replace the descriptor
-			if (typeDescriptor is NullableDescriptor)
+            if (objectContext.Descriptor is NullableDescriptor)
 			{
-				typeDescriptor = context.FindTypeDescriptor(((NullableDescriptor) typeDescriptor).UnderlyingType);
+                objectContext.Descriptor = objectContext.Context.FindTypeDescriptor(((NullableDescriptor)objectContext.Descriptor).UnderlyingType);
 			}
 			
 			// Expected type 
-			var expectedType = typeDescriptor != null ? typeDescriptor.Type : null;
+            var expectedType = objectContext.Descriptor != null ? objectContext.Descriptor.Type : null;
 			bool isAutoMapSeq = false;
 
 			// Allow to serialize back to plain YAML !!map and !!seq if the expected type is an object
@@ -184,16 +186,16 @@ namespace SharpYaml.Serialization.Serializers
 			// If this is an anonymous tag we will serialize only a default untyped YAML mapping
 			var tag = typeOfValue.IsAnonymous() || typeOfValue == expectedType || isAutoMapSeq
 				          ? null
-				          : context.TagFromType(typeOfValue);
+                          : objectContext.Context.TagFromType(typeOfValue);
 
 			// Set the tag
-			input.Tag = tag;
+            objectContext.Tag = tag;
 
 			// We will use the type of the value for the rest of the WriteYaml serialization
-			typeDescriptor = context.FindTypeDescriptor(typeOfValue);
+            objectContext.Descriptor = objectContext.Context.FindTypeDescriptor(typeOfValue);
 			
 			// Go next to the chain
-			base.WriteYaml(context, input, typeDescriptor);
+			base.WriteYaml(ref objectContext);
 		}
 	}
 }

@@ -361,9 +361,7 @@ namespace SharpYaml.Serialization
 						Reader = reader,
 						ObjectSerializer = CreateProcessor(),
 					};
-				var valueResult = context.ReadYaml(null, expectedType);
-				context.ResolveLateAliasBindings();
-				result = valueResult.Value;
+				result = context.ReadYaml(null, expectedType);
 			}
 
 			if (hasDocumentStart)
@@ -413,7 +411,7 @@ namespace SharpYaml.Serialization
 			{
 				writer = new JsonEventEmitter(writer);
 			}
-			return settings.EmitAlias ? new AnchorEventEmitter(writer) : writer;
+		    return Settings.EmitAlias ? new AnchorEventEmitter(writer) : writer;
 		}
    }
 }

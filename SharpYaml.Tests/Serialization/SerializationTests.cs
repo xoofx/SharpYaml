@@ -357,14 +357,14 @@ namespace SharpYaml.Tests.Serialization
 				return typeDescriptor.Type == typeof (SomeCustomType) ? this : null;
 			}
 
-			public override object ConvertFrom(SerializerContext context, object value, Scalar fromScalar, ITypeDescriptor typeDescriptor)
+			public override object ConvertFrom(ref ObjectContext context, Scalar fromScalar)
 			{
 				return new SomeCustomType(fromScalar.Value);
 			}
 
-			public override string ConvertTo(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+			public override string ConvertTo(ref ObjectContext objectContext)
 			{
-				return ((SomeCustomType) value).Value;
+				return ((SomeCustomType) objectContext.Instance).Value;
 			}
 		}
 

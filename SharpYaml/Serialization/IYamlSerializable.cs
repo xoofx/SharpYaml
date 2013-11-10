@@ -42,28 +42,92 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
+using SharpYaml.Serialization.Serializers;
+
 namespace SharpYaml.Serialization
 {
+    public struct ObjectContext
+    {
+        public ObjectContext(SerializerContext context, object instance, ITypeDescriptor descriptor) : this()
+        {
+            Context = context;
+            Instance = instance;
+            Descriptor = descriptor;
+        }
+
+        public readonly SerializerContext Context;
+
+        /// <summary>
+        /// Gets the current YAML reader. Equivalent to calling directly <see cref="SerializerContext.Reader"/>.
+        /// </summary>
+        /// <value>The current YAML reader.</value>
+        public EventReader Reader
+        {
+            get
+            {
+                return Context.Reader;
+            }
+        }
+
+        /// <summary>
+        /// Gets the writer used while deserializing.
+        /// </summary>
+        /// <value>The writer.</value>
+        public IEventEmitter Writer
+        {
+            get
+            {
+                return Context.Writer;
+            }
+        }
+
+        /// <summary>
+        /// Gets the settings.
+        /// </summary>
+        /// <value>The settings.</value>
+        public SerializerSettings Settings
+        {
+            get { return Context.Settings; }
+        }
+
+        public IVisitSerializer Visitor
+        {
+            get
+            {
+                return Context.Visitor;
+            }
+        }
+
+        public object Instance;
+
+        public ITypeDescriptor Descriptor;
+
+        public string Tag;
+
+        public string Anchor;
+
+        public YamlStyle Style;
+    }
+
+
 	/// <summary>
 	/// Allows an object to customize how it is serialized and deserialized.
 	/// </summary>
 	public interface IYamlSerializable
 	{
-		/// <summary>
-		/// Reads this object's state from a YAML parser.
-		/// </summary>
-		/// <param name="context">The context.</param>
-		/// <param name="value">The value.</param>
-		/// <param name="typeDescriptor">The type descriptor.</param>
-		/// <returns>A instance of the object deserialized from Yaml.</returns>
-		ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor);
+	    /// <summary>
+	    /// Reads this object's state from a YAML parser.
+	    /// </summary>
+	    /// <param name="objectContext"></param>
+	    /// <returns>A instance of the object deserialized from Yaml.</returns>
+	    object ReadYaml(ref ObjectContext objectContext);
 
-		/// <summary>
-		/// Writes this object's state to a YAML emitter.
-		/// </summary>
-		/// <param name="context">The context.</param>
-		/// <param name="value">The value.</param>
-		/// <param name="typeDescriptor"></param>
-		void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor);
+	    /// <summary>
+	    /// Writes this object's state to a YAML emitter.
+	    /// </summary>
+	    /// <param name="objectContext"></param>
+	    /// <param name="value">The value.</param>
+	    void WriteYaml(ref ObjectContext objectContext);
 	}
 }

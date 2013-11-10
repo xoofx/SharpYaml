@@ -50,28 +50,36 @@ namespace SharpYaml.Serialization.Serializers
 {
 	internal class AnchorSerializer : ChainedSerializer
 	{
-		private Dictionary<string, object> aliasToObject;
-		private Dictionary<object, string> objectToAlias;
+		private readonly Dictionary<string, object> aliasToObject;
+		private readonly Dictionary<object, string> objectToAlias;
 
 		public AnchorSerializer(IYamlSerializable next) : base(next)
 		{
+            aliasToObject = new Dictionary<string, object>();
+		    objectToAlias = new Dictionary<object, string>(new IdentityEqualityComparer<object>());
 		}
 
 		public bool TryGetAliasValue(string alias, out object value)
 		{
-			return AliasToObject.TryGetValue(alias, out value);
+			return aliasToObject.TryGetValue(alias, out value);
 		}
 
-		public override ValueOutput ReadYaml(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public override object ReadYaml(ref ObjectContext objectContext)
 		{
+		    var context = objectContext.Context;
 			var reader = context.Reader;
+		    object value = null;
 
 			// Process Anchor alias (*oxxx)
 			var alias = reader.Allow<AnchorAlias>();
 			if (alias != null)
 			{
 				// Return an alias or directly the value
-				return !AliasToObject.TryGetValue(alias.Value, out value) ? new ValueOutput(alias) : new ValueOutput(value);
+			    if (!aliasToObject.TryGetValue(alias.Value, out value))
+			    {
+			        throw new AnchorNotFoundException(alias.Value, alias.Start, alias.End, "Unable to find alias");
+			    }
+			    return value;
 			}
 
 			// Test if current node has an anchor &oxxx
@@ -83,20 +91,20 @@ namespace SharpYaml.Serialization.Serializers
 			}
 
 			// Deserialize the current node
-			var valueResult = base.ReadYaml(context, value, typeDescriptor);
+			value = base.ReadYaml(ref objectContext);
 
 			// Store Anchor (&oxxx) and override any defined anchor 
 			if (anchor != null)
 			{
-				AliasToObject[anchor] = valueResult.Value;
+				aliasToObject[anchor] = value;
 			}
 
-			return valueResult;
+			return value;
 		}
 
-		public override void WriteYaml(SerializerContext context, ValueInput input, ITypeDescriptor typeDescriptor)
+		public override void WriteYaml(ref ObjectContext objectContext)
 		{
-			var value = input.Value;
+		    var value = objectContext.Instance;
 
 			// Only write anchors for object (and not value types)
 			bool isAnchorable = false;
@@ -115,33 +123,22 @@ namespace SharpYaml.Serialization.Serializers
 			if (isAnchorable)
 			{
 				string alias;
-				if (ObjectToString.TryGetValue(value, out alias))
+                if (objectToAlias.TryGetValue(value, out alias))
 				{
-					context.Writer.Emit(new AliasEventInfo(value, value.GetType()) {Alias = alias});
+					objectContext.Writer.Emit(new AliasEventInfo(value, value.GetType()) {Alias = alias});
 					return;
 				}
 				else
 				{
-					alias = string.Format("o{0}", context.AnchorCount);
-					ObjectToString.Add(value, alias);
+					alias = string.Format("o{0}", objectContext.Context.AnchorCount);
+                    objectToAlias.Add(value, alias);
 
-					// Store the alias in the context
-					context.Anchors.Push(alias);
-					context.AnchorCount++;
+				    objectContext.Anchor = alias;
+                    objectContext.Context.AnchorCount++;
 				}
 			}
 
-			base.WriteYaml(context, input, typeDescriptor);
-		}
-
-		private Dictionary<string, object> AliasToObject
-		{
-			get { return aliasToObject ?? (aliasToObject = new Dictionary<string, object>()); }
-		}
-
-		private Dictionary<object, string> ObjectToString
-		{
-			get { return objectToAlias ?? (objectToAlias = new Dictionary<object, string>(new IdentityEqualityComparer<object>())); }
+			base.WriteYaml(ref objectContext);
 		}
 	}
 }

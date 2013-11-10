@@ -56,9 +56,9 @@ namespace SharpYaml.Serialization.Serializers
 			return typeDescriptor is PrimitiveDescriptor ? this : null;
 		}
 
-		public override object ConvertFrom(SerializerContext context, object value, Scalar scalar, ITypeDescriptor typeDescriptor)
+		public override object ConvertFrom(ref ObjectContext context, Scalar scalar)
 		{
-			var primitiveType = (PrimitiveDescriptor) typeDescriptor;
+            var primitiveType = (PrimitiveDescriptor)context.Descriptor;
 			var type = primitiveType.Type;
 			var text = scalar.Value;
 
@@ -83,11 +83,12 @@ namespace SharpYaml.Serialization.Serializers
 				return Enum.Parse(type, text, false);
 			}
 
-			// Parse default types 
+		    // Parse default types 
 			switch (Type.GetTypeCode(type))
 			{
 				case TypeCode.Boolean:
-					context.Schema.TryParse(scalar, type, out value);
+			        object value;
+			        context.Context.Schema.TryParse(scalar, type, out value);
 					return value;
 				case TypeCode.DateTime:
 					return DateTime.Parse(text, CultureInfo.InvariantCulture);
@@ -143,7 +144,7 @@ namespace SharpYaml.Serialization.Serializers
 				// Try to parse the scalar directly
 				string defaultTag;
 				object scalarValue;
-				if (context.Schema.TryParse(scalar, true, out defaultTag, out scalarValue))
+				if (context.Context.Schema.TryParse(scalar, true, out defaultTag, out scalarValue))
 				{
 					return scalarValue;
 				}
@@ -154,9 +155,11 @@ namespace SharpYaml.Serialization.Serializers
 			throw new YamlException(scalar.Start, scalar.End, "Unable to decode scalar [{0}] not supported by current schema".DoFormat(scalar));
 		}
 
-		public override string ConvertTo(SerializerContext context, object value, ITypeDescriptor typeDescriptor)
+		public override string ConvertTo(ref ObjectContext objectContext)
 		{
 			var text = string.Empty;
+		    var value = objectContext.Instance;
+
 			// Return null if expected type is an object and scalar is null
 			if (value == null)
 			{
