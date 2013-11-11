@@ -69,7 +69,6 @@
     <Compile Include="Events\SequenceEnd.cs" />
     <Compile Include="Events\SequenceStart.cs" />
     <Compile Include="Serialization\AnchorEventEmitter.cs" />
-    <Compile Include="Serialization\IDynamicStyleFormat.cs" />
     <Compile Include="Serialization\Serializers\DefaultVisitSerializer.cs" />
     <Compile Include="Serialization\Serializers\IVisitSerializer.cs" />
     <Compile Include="YamlStyle.cs" />

@@ -9,7 +9,7 @@ namespace SharpYaml.Serialization.Serializers
     /// </summary>
     public class DefaultVisitSerializer : IVisitSerializer
     {
-        public YamlStyle GetStyle(ref ObjectContext objectContext)
+        public virtual YamlStyle GetStyle(ref ObjectContext objectContext)
         {
             var context = objectContext.Context;
 
@@ -17,59 +17,51 @@ namespace SharpYaml.Serialization.Serializers
             // First pop style of current member being serialized.
             var style = objectContext.Style;
 
-            // If a dynamic style format is found, try to resolve through it
-            if (context.Settings.DynamicStyleFormat != null)
+            // If no style yet defined
+            if (style != YamlStyle.Any)
             {
-                var dynamicStyle = context.Settings.DynamicStyleFormat.GetStyle(context, objectContext.Instance, objectContext.Descriptor);
-                if (dynamicStyle != YamlStyle.Any)
-                {
-                    style = dynamicStyle;
-                }
+                return style;
             }
 
-            // If no style yet defined
+            // Try to get the style from this serializer
+            style = objectContext.Descriptor.Style;
+
+            // In case of any style, allow to emit a flow sequence depending on Settings LimitPrimitiveFlowSequence.
+            // Apply this only for primitives
             if (style == YamlStyle.Any)
             {
-                // Try to get the style from this serializer
-                style = objectContext.Descriptor.Style;
-
-                // In case of any style, allow to emit a flow sequence depending on Settings LimitPrimitiveFlowSequence.
-                // Apply this only for primitives
-                if (style == YamlStyle.Any)
+                bool isPrimitiveElementType = false;
+                var collectionDescriptor = objectContext.Descriptor as CollectionDescriptor;
+                int count = 0;
+                if (collectionDescriptor != null)
                 {
-                    bool isPrimitiveElementType = false;
-                    var collectionDescriptor = objectContext.Descriptor as CollectionDescriptor;
-                    int count = 0;
-                    if (collectionDescriptor != null)
+                    isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(collectionDescriptor.ElementType);
+                    count = collectionDescriptor.GetCollectionCount(objectContext.Instance);
+                }
+                else
+                {
+                    var arrayDescriptor = objectContext.Descriptor as ArrayDescriptor;
+                    if (arrayDescriptor != null)
                     {
-                        isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(collectionDescriptor.ElementType);
-                        count = collectionDescriptor.GetCollectionCount(objectContext.Instance);
+                        isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(arrayDescriptor.ElementType);
+                        count = objectContext.Instance != null ? ((Array)objectContext.Instance).Length : -1;
                     }
-                    else
-                    {
-                        var arrayDescriptor = objectContext.Descriptor as ArrayDescriptor;
-                        if (arrayDescriptor != null)
-                        {
-                            isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(arrayDescriptor.ElementType);
-                            count = objectContext.Instance != null ? ((Array)objectContext.Instance).Length : -1;
-                        }
-                    }
-
-                    style = objectContext.Instance == null || count >= objectContext.Context.Settings.LimitPrimitiveFlowSequence || !isPrimitiveElementType
-                        ? YamlStyle.Block
-                        : YamlStyle.Flow;
                 }
 
-                // If not defined, get the default style
+                style = objectContext.Instance == null || count >= objectContext.Context.Settings.LimitPrimitiveFlowSequence || !isPrimitiveElementType
+                    ? YamlStyle.Block
+                    : YamlStyle.Flow;
+            }
+
+            // If not defined, get the default style
+            if (style == YamlStyle.Any)
+            {
+                style = context.Settings.DefaultStyle;
+
+                // If default style is set to Any, set it to Block by default.
                 if (style == YamlStyle.Any)
                 {
-                    style = context.Settings.DefaultStyle;
-
-                    // If default style is set to Any, set it to Block by default.
-                    if (style == YamlStyle.Any)
-                    {
-                        style = YamlStyle.Block;
-                    }
+                    style = YamlStyle.Block;
                 }
             }
 

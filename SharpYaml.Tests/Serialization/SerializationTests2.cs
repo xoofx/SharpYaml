@@ -722,12 +722,12 @@ Value: 0
 		}
 
 
-		private class FormatListObject : IDynamicStyleFormat
+		private class FormatListObject : DefaultVisitSerializer
 		{
-			public YamlStyle GetStyle(SerializerContext context, object value, ITypeDescriptor descriptor)
-			{
-				return value is List<object> ? YamlStyle.Flow : YamlStyle.Any;
-			}
+		    public override YamlStyle GetStyle(ref ObjectContext objectContext)
+		    {
+                return objectContext.Instance is List<object> ? YamlStyle.Flow : base.GetStyle(ref objectContext);
+            }
 		}
 
 		/// <summary>
@@ -739,7 +739,7 @@ Value: 0
 			var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 4};
 			settings.RegisterTagMapping("ClassNoStyle", typeof(ClassNoStyle));
 			settings.RegisterTagMapping("ClassWithStyle", typeof(ClassWithStyle));
-			settings.DynamicStyleFormat = new FormatListObject();
+			settings.Visitor = new FormatListObject();
 
 			var classNoStyle = new ClassNoStyle();
 			classNoStyle.A_ListWithCustomStyle.Add("a");
