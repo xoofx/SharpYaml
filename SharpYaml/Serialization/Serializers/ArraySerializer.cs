@@ -77,7 +77,7 @@ namespace SharpYaml.Serialization.Serializers
 					}
 
 					// Handle aliasing
-					arrayList[index++] = objectContext.Context.ReadYaml(null, arrayDescriptor.ElementType);
+					arrayList[index++] = objectContext.SerializerContext.ReadYaml(null, arrayDescriptor.ElementType);
 				}
 			}
 			else
@@ -86,7 +86,7 @@ namespace SharpYaml.Serialization.Serializers
 				while (!reader.Accept<SequenceEnd>())
 				{
 
-					results.Add(objectContext.Context.ReadYaml(null, arrayDescriptor.ElementType));
+					results.Add(objectContext.SerializerContext.ReadYaml(null, arrayDescriptor.ElementType));
 				}
 
 				// Handle aliasing
@@ -118,7 +118,7 @@ namespace SharpYaml.Serialization.Serializers
 
 			foreach (var element in arrayList)
 			{
-                objectContext.Context.WriteYaml(element, arrayDescriptor.ElementType);
+                objectContext.SerializerContext.WriteYaml(element, arrayDescriptor.ElementType);
 			}
             objectContext.Writer.Emit(new SequenceEndEventInfo(value, valueType));
 		}

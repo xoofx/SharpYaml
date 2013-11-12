@@ -85,7 +85,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <returns>The <see cref="YamlStyle"/> to use. Default is <see cref="ITypeDescriptor.Style"/>.</returns>
         protected virtual YamlStyle GetStyle(ref ObjectContext objectContext)
         {
-            return objectContext.Visitor.GetStyle(ref objectContext);
+            return objectContext.ObjectSerializerBackend.GetStyle(ref objectContext);
         }
 
 		public virtual object ReadYaml(ref ObjectContext objectContext)
@@ -117,7 +117,7 @@ namespace SharpYaml.Serialization.Serializers
 
             if (!ReferenceEquals(newValue, previousValue) && newValue != null && newValue.GetType() != objectContext.Descriptor.Type)
             {
-                objectContext.Descriptor = objectContext.Context.FindTypeDescriptor(newValue.GetType());
+                objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(newValue.GetType());
             }
         }
 
@@ -131,7 +131,7 @@ namespace SharpYaml.Serialization.Serializers
 	    {
             if (objectContext.Instance == null)
             {
-                objectContext.Instance = objectContext.Context.ObjectFactory.Create(objectContext.Descriptor.Type);
+                objectContext.Instance = objectContext.SerializerContext.ObjectFactory.Create(objectContext.Descriptor.Type);
             }
 	    }
 
@@ -217,14 +217,14 @@ namespace SharpYaml.Serialization.Serializers
 
         protected virtual string ReadMemberName(ref ObjectContext objectContext, string memberName)
         {
-            return objectContext.Visitor.ReadMemberName(ref objectContext, memberName);
+            return objectContext.ObjectSerializerBackend.ReadMemberName(ref objectContext, memberName);
         }
 
         protected virtual object ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor member,
             object memberValue,
             Type memberType)
         {
-            return objectContext.Visitor.ReadMemberValue(ref objectContext, member, memberValue, memberType);
+            return objectContext.ObjectSerializerBackend.ReadMemberValue(ref objectContext, member, memberValue, memberType);
         }
 
         /// <inheritdoc/>
@@ -241,7 +241,7 @@ namespace SharpYaml.Serialization.Serializers
             // Allow to create on the fly an object that will be used to serialize an object
             CreateOrTransformObjectInternal(ref objectContext);
 
-            var context = objectContext.Context;
+            var context = objectContext.SerializerContext;
 			if (isSequence)
 			{
                 context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) { Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style });
@@ -302,13 +302,13 @@ namespace SharpYaml.Serialization.Serializers
 
         protected virtual void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string name)
         {
-            objectContext.Visitor.WriteMemberName(ref objectContext, member, name);
+            objectContext.ObjectSerializerBackend.WriteMemberName(ref objectContext, member, name);
         }
 
         protected virtual void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object memberValue,
             Type memberType)
         {
-            objectContext.Visitor.WriteMemberValue(ref objectContext, member, memberValue, memberType);
+            objectContext.ObjectSerializerBackend.WriteMemberValue(ref objectContext, member, memberValue, memberType);
         }
 	}
 }

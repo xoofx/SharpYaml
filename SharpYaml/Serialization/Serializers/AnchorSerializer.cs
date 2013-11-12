@@ -66,7 +66,7 @@ namespace SharpYaml.Serialization.Serializers
 
 		public override object ReadYaml(ref ObjectContext objectContext)
 		{
-		    var context = objectContext.Context;
+		    var context = objectContext.SerializerContext;
 			var reader = context.Reader;
 		    object value = null;
 
@@ -130,11 +130,11 @@ namespace SharpYaml.Serialization.Serializers
 				}
 				else
 				{
-					alias = string.Format("o{0}", objectContext.Context.AnchorCount);
+					alias = string.Format("o{0}", objectContext.SerializerContext.AnchorCount);
                     objectToAlias.Add(value, alias);
 
 				    objectContext.Anchor = alias;
-                    objectContext.Context.AnchorCount++;
+                    objectContext.SerializerContext.AnchorCount++;
 				}
 			}
 

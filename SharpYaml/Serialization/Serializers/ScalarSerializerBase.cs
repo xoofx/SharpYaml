@@ -62,7 +62,7 @@ namespace SharpYaml.Serialization.Serializers
             var value = objectContext.Instance;
 			var typeOfValue = value.GetType();
 
-		    var context = objectContext.Context;
+		    var context = objectContext.SerializerContext;
 
             var isSchemaImplicitTag = context.Schema.IsTagImplicit(objectContext.Tag);
 			var scalar = new ScalarEventInfo(value, typeOfValue)

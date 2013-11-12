@@ -1,17 +1,37 @@
-﻿using System;
+﻿// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+using System;
 using System.Collections.Generic;
 using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization.Serializers
 {
     /// <summary>
-    /// 
+    /// Default implementation for <see cref="IObjectSerializerBackend"/>
     /// </summary>
-    public class DefaultVisitSerializer : IVisitSerializer
+    public class DefaultObjectSerializerBackend : IObjectSerializerBackend
     {
         public virtual YamlStyle GetStyle(ref ObjectContext objectContext)
         {
-            var context = objectContext.Context;
+            var context = objectContext.SerializerContext;
 
             // Resolve the style, use default style if not defined.
             // First pop style of current member being serialized.
@@ -48,7 +68,7 @@ namespace SharpYaml.Serialization.Serializers
                     }
                 }
 
-                style = objectContext.Instance == null || count >= objectContext.Context.Settings.LimitPrimitiveFlowSequence || !isPrimitiveElementType
+                style = objectContext.Instance == null || count >= objectContext.SerializerContext.Settings.LimitPrimitiveFlowSequence || !isPrimitiveElementType
                     ? YamlStyle.Block
                     : YamlStyle.Flow;
             }
@@ -76,18 +96,18 @@ namespace SharpYaml.Serialization.Serializers
         public virtual object ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor memberDescriptor, object memberValue,
             Type memberType)
         {
-            return objectContext.Context.ReadYaml(memberValue, memberType);
+            return objectContext.SerializerContext.ReadYaml(memberValue, memberType);
         }
 
         public virtual object ReadCollectionItem(ref ObjectContext objectContext, Type itemType)
         {
-            return objectContext.Context.ReadYaml(null, itemType);
+            return objectContext.SerializerContext.ReadYaml(null, itemType);
         }
 
         public virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
-            var keyResult = objectContext.Context.ReadYaml(null, keyValueType.Key);
-            var valueResult = objectContext.Context.ReadYaml(null, keyValueType.Value);
+            var keyResult = objectContext.SerializerContext.ReadYaml(null, keyValueType.Key);
+            var valueResult = objectContext.SerializerContext.ReadYaml(null, keyValueType.Value);
 
             return new KeyValuePair<object, object>(keyResult, valueResult);
         }
@@ -107,18 +127,18 @@ namespace SharpYaml.Serialization.Serializers
             Type memberType)
         {
             // Push the style of the current member
-            objectContext.Context.WriteYaml(memberValue, memberType, member.Style);
+            objectContext.SerializerContext.WriteYaml(memberValue, memberType, member.Style);
         }
 
         public virtual void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType)
         {
-            objectContext.Context.WriteYaml(item, itemType);
+            objectContext.SerializerContext.WriteYaml(item, itemType);
         }
 
         public virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
         {
-            objectContext.Context.WriteYaml(keyValue.Key, types.Key);
-            objectContext.Context.WriteYaml(keyValue.Value, types.Value);
+            objectContext.SerializerContext.WriteYaml(keyValue.Key, types.Key);
+            objectContext.SerializerContext.WriteYaml(keyValue.Value, types.Value);
         }
     }
 }

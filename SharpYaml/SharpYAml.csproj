@@ -69,8 +69,9 @@
     <Compile Include="Events\SequenceEnd.cs" />
     <Compile Include="Events\SequenceStart.cs" />
     <Compile Include="Serialization\AnchorEventEmitter.cs" />
-    <Compile Include="Serialization\Serializers\DefaultVisitSerializer.cs" />
-    <Compile Include="Serialization\Serializers\IVisitSerializer.cs" />
+    <Compile Include="Serialization\ObjectContext.cs" />
+    <Compile Include="Serialization\Serializers\DefaultObjectSerializerBackend.cs" />
+    <Compile Include="Serialization\IObjectSerializerBackend.cs" />
     <Compile Include="YamlStyle.cs" />
     <Compile Include="Events\StreamEnd.cs" />
     <Compile Include="Events\StreamStart.cs" />

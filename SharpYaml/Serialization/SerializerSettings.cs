@@ -63,7 +63,7 @@ namespace SharpYaml.Serialization
 		private IObjectFactory objectFactory;
 		private int preferredIndent;
 		private string specialCollectionMember;
-	    private IVisitSerializer visitor;
+	    private IObjectSerializerBackend objectSerializerBackend;
 
 	    /// <summary>
 		/// Initializes a new instance of the <see cref="SerializerSettings"/> class.
@@ -90,7 +90,7 @@ namespace SharpYaml.Serialization
 			tagTypeRegistry = new TagTypeRegistry(Schema);
 			attributeRegistry = new AttributeRegistry();
 			ObjectFactory = new DefaultObjectFactory();
-            Visitor = new DefaultVisitSerializer();
+            ObjectSerializerBackend = new DefaultObjectSerializerBackend();
 
 			// Register default mapping for map and seq
 			tagTypeRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>));
@@ -222,16 +222,16 @@ namespace SharpYaml.Serialization
 		}
 
 	    /// <summary>
-	    /// Gets or sets the visitor.
+	    /// Gets or sets the ObjectSerializerBackend. Default implementation is <see cref="DefaultObjectSerializerBackend"/>
 	    /// </summary>
-	    /// <value>The visitor.</value>
-	    public IVisitSerializer Visitor
+	    /// <value>The ObjectSerializerBackend.</value>
+	    public IObjectSerializerBackend ObjectSerializerBackend
 	    {
-	        get { return visitor; }
+	        get { return objectSerializerBackend; }
 	        set
 	        {
                 if (value == null) throw new ArgumentNullException("value");
-                visitor = value;
+                objectSerializerBackend = value;
 	        }
 	    }
 

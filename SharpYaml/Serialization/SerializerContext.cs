@@ -73,7 +73,7 @@ namespace SharpYaml.Serialization
 			settings = serializer.Settings;
 		    tagTypeRegistry = settings.tagTypeRegistry;
 			ObjectFactory = settings.ObjectFactory;
-		    Visitor = settings.Visitor;
+		    ObjectSerializerBackend = settings.ObjectSerializerBackend;
 			Schema = Settings.Schema;
 			typeDescriptorFactory = new TypeDescriptorFactory(Settings.Attributes, Settings.EmitDefaultValues);
 		}
@@ -114,7 +114,11 @@ namespace SharpYaml.Serialization
 		/// <value>The reader.</value>
 		public EventReader Reader { get; internal set; }
 
-        public IVisitSerializer Visitor { get; private set; }
+        /// <summary>
+        /// Gets the object serializer backend.
+        /// </summary>
+        /// <value>The object serializer backend.</value>
+        public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
 
 		internal IYamlSerializable ObjectSerializer { get; set; }
 

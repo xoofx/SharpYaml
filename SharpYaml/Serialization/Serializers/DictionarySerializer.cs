@@ -143,7 +143,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <returns>KeyValuePair{System.ObjectSystem.Object}.</returns>
 	    protected virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
-            return objectContext.Visitor.ReadDictionaryItem(ref objectContext, keyValueType);
+            return objectContext.ObjectSerializerBackend.ReadDictionaryItem(ref objectContext, keyValueType);
         }
 
         /// <summary>
@@ -175,7 +175,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="keyValue">The key value.</param>
         protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
 	    {
-            objectContext.Visitor.WriteDictionaryItem(ref objectContext, keyValue, types);
+            objectContext.ObjectSerializerBackend.WriteDictionaryItem(ref objectContext, keyValue, types);
 	    }
 
 		private static int SortDictionaryByKeys(KeyValuePair<object, object> left, KeyValuePair<object, object> right)

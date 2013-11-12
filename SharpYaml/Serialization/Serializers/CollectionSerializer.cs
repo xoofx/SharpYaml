@@ -169,7 +169,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <returns>The item to add to the current collection.</returns>
         protected virtual object ReadCollectionItem(ref ObjectContext objectContext, Type itemType)
         {
-            return objectContext.Visitor.ReadCollectionItem(ref objectContext, itemType);
+            return objectContext.ObjectSerializerBackend.ReadCollectionItem(ref objectContext, itemType);
         }
 
         /// <summary>
@@ -194,7 +194,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="itemType">Type of the item.</param>
         protected virtual void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType)
         {
-            objectContext.Visitor.WriteCollectionItem(ref objectContext, item, itemType);
+            objectContext.ObjectSerializerBackend.WriteCollectionItem(ref objectContext, item, itemType);
         }
 	}
 }

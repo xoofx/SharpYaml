@@ -722,7 +722,7 @@ Value: 0
 		}
 
 
-		private class FormatListObject : DefaultVisitSerializer
+		private class FormatListObject : DefaultObjectSerializerBackend
 		{
 		    public override YamlStyle GetStyle(ref ObjectContext objectContext)
 		    {
@@ -739,7 +739,7 @@ Value: 0
 			var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 4};
 			settings.RegisterTagMapping("ClassNoStyle", typeof(ClassNoStyle));
 			settings.RegisterTagMapping("ClassWithStyle", typeof(ClassWithStyle));
-			settings.Visitor = new FormatListObject();
+			settings.ObjectSerializerBackend = new FormatListObject();
 
 			var classNoStyle = new ClassNoStyle();
 			classNoStyle.A_ListWithCustomStyle.Add("a");
@@ -806,7 +806,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             public Dictionary<string, object> KeyValues { get; set; }
 	    }
 
-	    class MyMappingKeyTransform : DefaultVisitSerializer
+	    class MyMappingKeyTransform : DefaultObjectSerializerBackend
 	    {
 	        public MyMappingKeyTransform()
 	        {
@@ -865,7 +865,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
         {
             var specialTransform = new MyMappingKeyTransform();
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 4 };
-            settings.Visitor = specialTransform;
+            settings.ObjectSerializerBackend = specialTransform;
             settings.RegisterTagMapping("ClassWithKeyTransform", typeof(ClassWithKeyTransform));
 
             var myCustomObject = new ClassWithKeyTransform();
@@ -937,7 +937,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
             protected override void CreateOrTransformObject(ref ObjectContext objectContext)
             {
-                objectContext.Instance = objectContext.Context.IsSerializing ? new MyClassMutable((MyClassImmutable)objectContext.Instance) : new MyClassMutable();
+                objectContext.Instance = objectContext.SerializerContext.IsSerializing ? new MyClassMutable((MyClassImmutable)objectContext.Instance) : new MyClassMutable();
             }
 
             protected override void TransformObjectAfterRead(ref ObjectContext objectContext)

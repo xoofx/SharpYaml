@@ -74,15 +74,15 @@ namespace SharpYaml.Serialization.Serializers
 		{
 			// If value is not null, use its TypeDescriptor otherwise use expected type descriptor
 		    var instance = objectContext.Instance;
-            var typeDescriptorOfValue = instance != null ? objectContext.Context.FindTypeDescriptor(instance.GetType()) : objectContext.Descriptor;
+            var typeDescriptorOfValue = instance != null ? objectContext.SerializerContext.FindTypeDescriptor(instance.GetType()) : objectContext.Descriptor;
 
-			var serializer = GetSerializer(objectContext.Context, typeDescriptorOfValue);
+			var serializer = GetSerializer(objectContext.SerializerContext, typeDescriptorOfValue);
 			return serializer.ReadYaml(ref objectContext);
 		}
 
 		public void WriteYaml(ref ObjectContext objectContext)
 		{
-			var serializer = GetSerializer(objectContext.Context, objectContext.Descriptor);
+			var serializer = GetSerializer(objectContext.SerializerContext, objectContext.Descriptor);
 			serializer.WriteYaml(ref objectContext);
 		}
 
