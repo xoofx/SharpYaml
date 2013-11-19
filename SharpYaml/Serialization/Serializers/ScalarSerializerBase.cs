@@ -90,6 +90,20 @@ namespace SharpYaml.Serialization.Serializers
 			context.Writer.Emit(scalar);
 		}
 
+        /// <summary>
+        /// Writes the scalar to the <see cref="SerializerContext.Writer"/>. See remarks.
+        /// </summary>
+        /// <param name="objectContext">The object context.</param>
+        /// <param name="scalar">The scalar.</param>
+        /// <remarks>
+        /// This method can be overloaded to replace the converted scalar just before writing it.
+        /// </remarks>
+	    protected virtual void WriteScalar(ref ObjectContext objectContext, ScalarEventInfo scalar)
+	    {
+            // Emit the scalar
+            objectContext.SerializerContext.Writer.Emit(scalar);
+        }
+
 		public abstract string ConvertTo(ref ObjectContext objectContext);
 	}
 }
