@@ -87,7 +87,7 @@ namespace SharpYaml.Serialization.Serializers
             scalar.RenderedValue = ConvertTo(ref objectContext);
 
 		    // Emit the scalar
-			context.Writer.Emit(scalar);
+			WriteScalar(ref objectContext, scalar);
 		}
 
         /// <summary>
