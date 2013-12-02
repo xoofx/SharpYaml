@@ -54,6 +54,6 @@ namespace SharpYaml
 		/// <summary>
 		/// Emits an event.
 		/// </summary>
-		void Emit(IParsingEvent @event);
+		void Emit(ParsingEvent @event);
 	}
 }

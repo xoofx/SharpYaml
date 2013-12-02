@@ -50,7 +50,7 @@ namespace SharpYaml.Events
 	/// <summary>
 	/// Contains the behavior that is common between node events.
 	/// </summary>
-	public abstract class NodeEvent : ParsingEvent, INodeEvent
+	public abstract class NodeEvent : ParsingEvent
 	{
 		internal static readonly Regex anchorValidator = new Regex(@"^[0-9a-zA-Z_\-]+$");
 

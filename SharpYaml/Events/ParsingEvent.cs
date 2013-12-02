@@ -42,14 +42,13 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-using System;
 
 namespace SharpYaml.Events
 {
 	/// <summary>
 	/// Base class for parsing events.
 	/// </summary>
-	public abstract class ParsingEvent : IParsingEvent
+	public abstract class ParsingEvent
 	{
 		/// <summary>
 		/// Gets a value indicating the variation of depth caused by this event.

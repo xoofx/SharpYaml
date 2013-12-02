@@ -49,7 +49,7 @@ namespace SharpYaml.Events
 	/// <summary>
 	/// Represents a mapping end event.
 	/// </summary>
-	public class MappingEnd : ParsingEvent, IMappingEnd
+	public class MappingEnd : ParsingEvent
 	{
 		/// <summary>
 		/// Gets a value indicating the variation of depth caused by this event.

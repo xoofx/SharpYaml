@@ -50,7 +50,7 @@ namespace SharpYaml.Events
 	/// <summary>
 	/// Represents a scalar event.
 	/// </summary>
-	public class Scalar : NodeEvent, IScalar
+	public class Scalar : NodeEvent
 	{
         private string value;
         

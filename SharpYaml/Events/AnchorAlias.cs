@@ -50,7 +50,7 @@ namespace SharpYaml.Events
 	/// <summary>
 	/// Represents an alias event.
 	/// </summary>
-	public class AnchorAlias : ParsingEvent, IAnchorAlias
+	public class AnchorAlias : ParsingEvent
 	{
 		/// <summary>
 		/// Gets a value indicating the variation of depth caused by this event.
