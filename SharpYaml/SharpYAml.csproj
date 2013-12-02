@@ -69,6 +69,7 @@
     <Compile Include="Events\SequenceEnd.cs" />
     <Compile Include="Events\SequenceStart.cs" />
     <Compile Include="Serialization\AnchorEventEmitter.cs" />
+    <Compile Include="Serialization\Descriptors\DefaultKeyComparer.cs" />
     <Compile Include="Serialization\ObjectContext.cs" />
     <Compile Include="Serialization\Serializers\DefaultObjectSerializerBackend.cs" />
     <Compile Include="Serialization\IObjectSerializerBackend.cs" />

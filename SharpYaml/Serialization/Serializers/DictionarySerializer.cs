@@ -155,10 +155,12 @@ namespace SharpYaml.Serialization.Serializers
             var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
 			var keyValues = dictionaryDescriptor.GetEnumerator(objectContext.Instance).ToList();
 
-            if (objectContext.Settings.SortKeyForMapping)
-			{
-				keyValues.Sort(SortDictionaryByKeys);
-			}
+            var settings = objectContext.Settings;
+            if (settings.SortKeyForMapping && settings.ComparerForKeySorting != null)
+            {
+                var keyComparer = settings.ComparerForKeySorting;
+                keyValues.Sort((left, right) => keyComparer.Compare(left.Key, right.Key));
+            }
 
             var keyValueType = new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType); 
 
@@ -177,19 +179,5 @@ namespace SharpYaml.Serialization.Serializers
 	    {
             objectContext.ObjectSerializerBackend.WriteDictionaryItem(ref objectContext, keyValue, types);
 	    }
-
-		private static int SortDictionaryByKeys(KeyValuePair<object, object> left, KeyValuePair<object, object> right)
-		{
-			if (left.Key is string && right.Key is string)
-			{
-				return string.CompareOrdinal((string)left.Key, (string)right.Key);
-			}
-
-			if (left.Key is IComparable && right.Key is IComparable)
-			{
-				return ((IComparable)left.Key).CompareTo(right.Key);
-			}
-			return 0;
-		}
 	}
 }

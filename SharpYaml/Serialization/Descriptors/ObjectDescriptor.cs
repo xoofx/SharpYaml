@@ -61,10 +61,11 @@ namespace SharpYaml.Serialization.Descriptors
 
 		private readonly static object[] EmptyObjectArray = new object[0];
 		private readonly Type type;
-		private readonly IMemberDescriptor[] members;
+		private readonly List<IMemberDescriptor> members;
 		private readonly Dictionary<string, IMemberDescriptor> mapMembers;
 		private readonly bool emitDefaultValues;
 		private YamlStyle style;
+	    private bool isSorted;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -85,20 +86,12 @@ namespace SharpYaml.Serialization.Descriptors
 			var styleAttribute = AttributeRegistry.GetAttribute<YamlStyleAttribute>(type);
 			this.style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
 			this.IsCompilerGenerated = AttributeRegistry.GetAttribute<CompilerGeneratedAttribute>(type) != null;
-			var memberList = PrepareMembers();
-
-			// Sort members by name
-			// This is to make sure that properties/fields for an object 
-			// are always displayed in the same order
-			memberList.Sort(SortMembers);
-
-			// Free the member list
-			this.members = memberList.ToArray();
+			members = PrepareMembers();
 
 			// If no members found, we don't need to build a dictionary map
-			if (members.Length <= 0) return;
+			if (members.Count <= 0) return;
 
-			mapMembers = new Dictionary<string, IMemberDescriptor>(members.Length);
+			mapMembers = new Dictionary<string, IMemberDescriptor>(members.Count);
 			
 			foreach (var member in members)
 			{
@@ -112,19 +105,6 @@ namespace SharpYaml.Serialization.Descriptors
 			}
 		}
 
-		private int SortMembers(IMemberDescriptor left, IMemberDescriptor right)
-		{
-			// If order is defined, first order by order
-			if (left.Order.HasValue | right.Order.HasValue)
-			{
-				var leftOrder = left.Order.HasValue ? left.Order.Value : int.MaxValue;
-				var rightOrder = right.Order.HasValue ? right.Order.Value : int.MaxValue;
-				return leftOrder.CompareTo(rightOrder);
-			}
-			
-			// else order by name
-			return string.CompareOrdinal(left.Name, right.Name);
-		}
 
 		protected IAttributeRegistry AttributeRegistry { get; private set; }
 
@@ -140,18 +120,31 @@ namespace SharpYaml.Serialization.Descriptors
 
 		public int Count
 		{
-			get { return members.Length; }
+			get { return members.Count; }
 		}
 
 		public bool HasMembers
 		{
-			get { return members.Length > 0; }
+			get { return members.Count > 0; }
 		}
 
 		public YamlStyle Style
 		{
 			get { return style; }
 		}
+
+        /// <summary>
+        /// Sorts the members of this instance with the specified instance.
+        /// </summary>
+        /// <param name="keyComparer">The key comparer.</param>
+	    public void SortMembers(IComparer<object> keyComparer)
+	    {
+            if (keyComparer != null && !isSorted)
+            {
+                members.Sort(keyComparer.Compare);
+                isSorted = true;
+            }
+	    }
 
 		public IMemberDescriptor this[string name]
 		{

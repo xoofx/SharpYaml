@@ -110,7 +110,9 @@ namespace SharpYaml.Tests
 			// Verify members
 			Assert.AreEqual(8, descriptor.Count);
 
-			// Check names and their orders
+            descriptor.SortMembers(new DefaultKeyComparer());
+            
+            // Check names and their orders
 			Assert.AreEqual(descriptor.Members.Select(memberDescriptor => memberDescriptor.Name), new []
 				{
 					"Collection",

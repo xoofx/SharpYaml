@@ -107,6 +107,21 @@ Value: World!
 ", text);
         }
 
+        [Test]
+        public void TestSimpleStructMemberOrdering()
+        {
+            var settings = new SerializerSettings() {ComparerForKeySorting = null};
+            var serializer = new Serializer(settings);
+            var value = new TestStructColor() { Color = new Color() { R=255, G = 255, B= 255, A = 255 }};
+            var text = serializer.Serialize(value, typeof(TestStructColor));
+            Assert.AreEqual(@"Color:
+  R: 255
+  G: 255
+  B: 255
+  A: 255
+", text);
+        }
+
 		public class MyObject
 		{
 			public MyObject()

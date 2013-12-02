@@ -46,6 +46,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using SharpYaml.Schemas;
+using SharpYaml.Serialization.Descriptors;
 using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Serialization
@@ -92,6 +93,7 @@ namespace SharpYaml.Serialization
 			attributeRegistry = new AttributeRegistry();
 			ObjectFactory = new DefaultObjectFactory();
             ObjectSerializerBackend = new DefaultObjectSerializerBackend();
+            ComparerForKeySorting = new DefaultKeyComparer();
 
 			// Register default mapping for map and seq
 			tagTypeRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>));
@@ -166,6 +168,14 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <value><c>true</c> if to emit default value; otherwise, <c>false</c>.</value>
 		public bool EmitDefaultValues { get; set; }
+
+        /// <summary>
+        /// Gets or sets the default key comparer used to sort members (<see cref="IMemberDescriptor"/>) or
+        /// dictionary keys, when serializing objects as YAML mappings. Default is <see cref="DefaultKeyComparer"/>. 
+        /// To disable the default comparer, this value can be set to null.
+        /// </summary>
+        /// <value>The key comparer.</value>
+        public IComparer<object> ComparerForKeySorting { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether to emit short type name (type, assembly name) or full <see cref="Type.AssemblyQualifiedName"/>. Default is false.
