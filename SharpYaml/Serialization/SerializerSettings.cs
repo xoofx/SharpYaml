@@ -80,6 +80,7 @@ namespace SharpYaml.Serialization
 			PreferredIndent = 2;
 			IndentLess = false;
 			EmitAlias = true;
+		    EmitTags = true;
 			SortKeyForMapping = true;
 			EmitJsonComptible = false;
 			EmitCapacityForList = false;
@@ -117,6 +118,12 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <value><c>true</c> to emit anchor alias; otherwise, <c>false</c>.</value>
 		public bool EmitAlias { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to emit tags when serializing. Default is true.
+        /// </summary>
+        /// <value><c>true</c> to emit tags when serializing; otherwise, <c>false</c>.</value>
+        public bool EmitTags { get; set; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the identation is trying to less

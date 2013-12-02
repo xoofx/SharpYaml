@@ -189,7 +189,7 @@ namespace SharpYaml.Serialization.Serializers
                           : objectContext.SerializerContext.TagFromType(typeOfValue);
 
 			// Set the tag
-            objectContext.Tag = tag;
+		    objectContext.Tag = objectContext.Settings.EmitTags ? tag : null;
 
 			// We will use the type of the value for the rest of the WriteYaml serialization
             objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(typeOfValue);

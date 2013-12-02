@@ -486,8 +486,19 @@ Value: 0
 		{
 			var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
 			settings.RegisterTagMapping("ClassWithObjectAndScalar", typeof(ClassWithObjectAndScalar));
-			SerialRoundTrip(settings, new ClassWithObjectAndScalar());
+            SerialRoundTrip(settings, new ClassWithObjectAndScalar());
 		}
+
+
+        [Test]
+        public void TestNoEmitTags()
+        {
+            var settings = new SerializerSettings() { EmitTags = false };
+            settings.RegisterTagMapping("ClassWithObjectAndScalar", typeof(ClassWithObjectAndScalar));
+            var serializer = new Serializer(settings);
+            var text = serializer.Serialize(new ClassWithObjectAndScalar {Value4 = new ClassWithObjectAndScalar()});
+            Assert.False(text.Contains("!"));
+        }
 
 		[Test]
 		public void TestImplicitDictionaryAndList()

@@ -97,26 +97,26 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// The instance link to this context.
         /// </summary>
-        public object Instance;
+        public object Instance { get; set; }
 
         /// <summary>
         /// The expected type descriptor.
         /// </summary>
-        public ITypeDescriptor Descriptor;
+        public ITypeDescriptor Descriptor { get; set; }
 
         /// <summary>
         /// The tag used when serializing.
         /// </summary>
-        public string Tag;
+        public string Tag { get; set; }
 
         /// <summary>
         /// The anchor used when serializing.
         /// </summary>
-        public string Anchor;
+        public string Anchor { get; set; }
 
         /// <summary>
         /// The style used when serializing.
         /// </summary>
-        public YamlStyle Style;
+        public YamlStyle Style { get; set; }
     }
 }
