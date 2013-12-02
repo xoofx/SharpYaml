@@ -246,61 +246,6 @@ namespace SharpYaml
 			}
 		}
 
-		private static EventType GetEventType(ParsingEvent @event)
-		{
-			if (@event is AnchorAlias)
-			{
-				return EventType.YAML_ALIAS_EVENT;
-			}
-
-			if (@event is DocumentEnd)
-			{
-				return EventType.YAML_DOCUMENT_END_EVENT;
-			}
-
-			if (@event is DocumentStart)
-			{
-				return EventType.YAML_DOCUMENT_START_EVENT;
-			}
-
-			if (@event is MappingEnd)
-			{
-				return EventType.YAML_MAPPING_END_EVENT;
-			}
-
-			if (@event is MappingStart)
-			{
-				return EventType.YAML_MAPPING_START_EVENT;
-			}
-
-			if (@event is Scalar)
-			{
-				return EventType.YAML_SCALAR_EVENT;
-			}
-
-			if (@event is SequenceEnd)
-			{
-				return EventType.YAML_SEQUENCE_END_EVENT;
-			}
-
-			if (@event is SequenceStart)
-			{
-				return EventType.YAML_SEQUENCE_START_EVENT;
-			}
-
-			if (@event is StreamEnd)
-			{
-				return EventType.YAML_STREAM_END_EVENT;
-			}
-
-			if (@event is StreamStart)
-			{
-				return EventType.YAML_STREAM_START_EVENT;
-			}
-
-			throw new ArgumentException("The specified event is of the wrong type.");
-		}
-
 		/// <summary>
 		/// Check if we need to accumulate more events before emitting.
 		/// 
@@ -317,7 +262,7 @@ namespace SharpYaml
 			}
 
 			int accumulate;
-			switch (GetEventType(events.Peek()))
+			switch (events.Peek().Type)
 			{
 				case EventType.YAML_DOCUMENT_START_EVENT:
 					accumulate = 1;
@@ -343,7 +288,7 @@ namespace SharpYaml
 			int level = 0;
 			foreach (var evt in events)
 			{
-				switch (GetEventType(evt))
+				switch (evt.Type)
 				{
 					case EventType.YAML_DOCUMENT_START_EVENT:
 					case EventType.YAML_SEQUENCE_START_EVENT:
@@ -963,7 +908,7 @@ namespace SharpYaml
 			isMappingContext = isMapping;
 			isSimpleKeyContext = isSimpleKey;
 
-			var eventType = GetEventType(evt);
+			var eventType = evt.Type;
 			switch (eventType)
 			{
 				case EventType.YAML_ALIAS_EVENT:
@@ -1736,7 +1681,7 @@ namespace SharpYaml
 			}
 
 			int length;
-			switch (GetEventType(events.Peek()))
+			switch (events.Peek().Type)
 			{
 				case EventType.YAML_ALIAS_EVENT:
 					length = SafeStringLength(anchorData.anchor);
