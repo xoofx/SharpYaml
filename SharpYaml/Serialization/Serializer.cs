@@ -45,6 +45,7 @@
 using System;
 using System.IO;
 using SharpYaml.Events;
+using SharpYaml.Serialization.Descriptors;
 using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Serialization
@@ -55,6 +56,9 @@ namespace SharpYaml.Serialization
 	public sealed class Serializer
 	{
 		private readonly SerializerSettings settings;
+
+	    internal readonly IYamlSerializable ObjectSerializer;
+	    internal readonly ITypeDescriptorFactory TypeDescriptorFactory;
 
 		private static readonly IYamlSerializableFactory[] DefaultFactories = new IYamlSerializableFactory[]
 			{
@@ -79,6 +83,8 @@ namespace SharpYaml.Serialization
 		public Serializer(SerializerSettings settings)
 		{
 			this.settings = settings ?? new SerializerSettings();
+            TypeDescriptorFactory = CreateTypeDescriptorFactory();
+            ObjectSerializer = CreateProcessor();
 		}
 
 		/// <summary>
@@ -204,16 +210,9 @@ namespace SharpYaml.Serialization
 				defaultEmitter.ForceIndentLess = settings.IndentLess;
 			}
 
-			// Prepare the context
-			var context = new SerializerContext(this)
-			{
-				ObjectSerializer = CreateProcessor(),
-			};
+            var context = new SerializerContext(this) {Emitter = emitter, Writer = CreateEmitter(emitter)};
 
-		    context.Emitter = emitter;
-			context.Writer = CreateEmitter(emitter);
-
-			// Serialize the document
+		    // Serialize the document
 			context.Writer.StreamStart();
 			context.Writer.DocumentStart();
 			context.WriteYaml(graph, type);
@@ -356,12 +355,8 @@ namespace SharpYaml.Serialization
 			object result = null;
 			if (!reader.Accept<DocumentEnd>() && !reader.Accept<StreamEnd>())
 			{
-				var context = new SerializerContext(this)
-					{
-						Reader = reader,
-						ObjectSerializer = CreateProcessor(),
-					};
-				result = context.ReadYaml(null, expectedType);
+			    var context = new SerializerContext(this) {Reader = reader};
+			    result = context.ReadYaml(null, expectedType);
 			}
 
 			if (hasDocumentStart)
@@ -402,6 +397,11 @@ namespace SharpYaml.Serialization
 			var typingSerializer = new TagTypeSerializer(routintSerializer);
 			return settings.EmitAlias ? (IYamlSerializable)new AnchorSerializer(typingSerializer) : typingSerializer;
 		}
+
+	    private ITypeDescriptorFactory CreateTypeDescriptorFactory()
+	    {
+            return new TypeDescriptorFactory(Settings.Attributes, Settings.EmitDefaultValues);
+	    }
 
 		private IEventEmitter CreateEmitter(IEmitter emitter)
 		{

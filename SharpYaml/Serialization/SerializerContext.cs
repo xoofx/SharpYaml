@@ -43,11 +43,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
-using System.Collections.Generic;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization.Descriptors;
-using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Serialization
 {
@@ -75,7 +73,8 @@ namespace SharpYaml.Serialization
 			ObjectFactory = settings.ObjectFactory;
 		    ObjectSerializerBackend = settings.ObjectSerializerBackend;
 			Schema = Settings.Schema;
-			typeDescriptorFactory = new TypeDescriptorFactory(Settings.Attributes, Settings.EmitDefaultValues);
+		    ObjectSerializer = serializer.ObjectSerializer;
+			typeDescriptorFactory = serializer.TypeDescriptorFactory;
 		}
 
 		/// <summary>
@@ -120,8 +119,7 @@ namespace SharpYaml.Serialization
         /// <value>The object serializer backend.</value>
         public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
 
-		internal IYamlSerializable ObjectSerializer { get; set; }
-
+		private IYamlSerializable ObjectSerializer { get; set; }
 
 		/// <summary>
 		/// The default function to read an object from the current Yaml stream.
