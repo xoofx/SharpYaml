@@ -489,20 +489,29 @@ namespace SharpYaml.Tests.Serialization
 			var serializer = new Serializer(settings);
 
 			var buffer = new StringWriter();
-			var orig = new ContainsIgnore { IgnoreMe = "Some Text" };
+		    var orig = new ContainsIgnore();
 			serializer.Serialize(buffer, orig);
 
 			Dump.WriteLine(buffer);
 			
 			var copy = (ContainsIgnore) serializer.Deserialize(new StringReader(buffer.ToString()), typeof(ContainsIgnore));
 			
-			Assert.Null(copy.IgnoreMe);
+			Assert.Throws<NotImplementedException>(() =>
+			{
+			    if (copy.IgnoreMe == null)
+			    {
+			    }
+			});
 		}
 
 		class ContainsIgnore
 		{
 			[YamlIgnore]
-			public String IgnoreMe { get; set; }
+			public String IgnoreMe
+			{
+				get { throw new NotImplementedException("Accessing a [YamlIgnore] property"); }
+				set { throw new NotImplementedException("Accessing a [YamlIgnore] property"); }
+			}
 		}
 
 		[Test]
