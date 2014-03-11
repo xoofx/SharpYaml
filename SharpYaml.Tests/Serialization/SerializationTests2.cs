@@ -1014,6 +1014,35 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             var newImmutable = serializer.Deserialize(text);
             Assert.AreEqual(immutable, newImmutable);
         }
+
+        [Test]
+        public void TestDictionaryWithObjectValue()
+	    {
+            var settings = new SerializerSettings();
+            settings.RegisterTagMapping("Color", typeof(Color));
+            settings.RegisterTagMapping("ObjectWithDictionaryAndObjectValue", typeof(ObjectWithDictionaryAndObjectValue));
+
+            var item = new ObjectWithDictionaryAndObjectValue();
+            item.Values.Add("Test", new Color() { R = 1, G = 2, B = 3, A = 4});
+
+            var serializer = new Serializer(settings);
+            var text = serializer.Serialize(item);
+
+            var newItem = (ObjectWithDictionaryAndObjectValue)serializer.Deserialize(text);
+            Assert.AreEqual(1, newItem.Values.Count);
+            Assert.IsTrue(newItem.Values.ContainsKey("Test"));
+            Assert.AreEqual(item.Values["Test"], newItem.Values["Test"]);
+	    }
+
+        public class ObjectWithDictionaryAndObjectValue
+        {
+            public ObjectWithDictionaryAndObjectValue()
+            {
+                Values = new Dictionary<string, object>();
+            }
+
+            public Dictionary<string, object> Values { get; set; }
+        }
 		
 		private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
 		{

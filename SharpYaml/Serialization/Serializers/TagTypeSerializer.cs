@@ -85,7 +85,7 @@ namespace SharpYaml.Serialization.Serializers
 			}
 
 			// Use typeFromTag when type are different
-			if (typeFromTag != null && type != typeFromTag && typeFromTag.IsClass && typeFromTag != typeof(string))
+			if (typeFromTag != null && type != typeFromTag)
 				type = typeFromTag;
 
 			// If type is null, use type from tag
