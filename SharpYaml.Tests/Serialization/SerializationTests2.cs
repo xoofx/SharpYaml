@@ -61,6 +61,13 @@ namespace SharpYaml.Tests.Serialization
 			B,
 		}
 
+        [Flags]
+        public enum MyEnumWithFlags
+        {
+            A = 1,
+            B = 2,
+        }
+
         [Test]
         public void TestHelloWorld()
         {
@@ -127,6 +134,7 @@ Value: World!
 			public MyObject()
 			{
 				ArrayContent = new int[2];
+			    EnumWithFlags = MyEnumWithFlags.A | MyEnumWithFlags.B;
 			}
 
 			public string String { get; set; }
@@ -152,6 +160,8 @@ Value: World!
 			public double Double { get; set; }
 
 			public MyEnum Enum { get; set; }
+
+            public MyEnumWithFlags EnumWithFlags { get; set; }
 
 			public bool Bool { get; set; }
 
@@ -179,6 +189,7 @@ BoolFalse: false
 Byte: 2
 Double: 6.6
 Enum: B
+EnumWithFlags: A, B
 Float: 5.5
 Int16: 3
 Int32: 5
