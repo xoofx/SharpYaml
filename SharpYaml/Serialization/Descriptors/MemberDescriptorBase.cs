@@ -77,8 +77,9 @@ namespace SharpYaml.Serialization.Descriptors
 		public abstract bool HasSet { get; }
 		public YamlStyle Style { get; internal set; }
 		public Func<object, bool> ShouldSerialize { get; internal set; }
+	    public object Tag { get; set; }
 
-		/// <summary>
+	    /// <summary>
 		/// Gets the member information.
 		/// </summary>
 		/// <value>The member information.</value>

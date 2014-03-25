@@ -108,5 +108,11 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <value><c>true</c> if [should serialize]; otherwise, <c>false</c>.</value>
 		Func<object, bool> ShouldSerialize { get; }
+
+		/// <summary>
+		/// Gets or sets a custom tag to associate with this object.
+		/// </summary>
+		/// <value>A custom tag object.</value>
+		object Tag { get; set; }
 	}
 }
