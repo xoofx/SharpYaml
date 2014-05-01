@@ -69,24 +69,33 @@ namespace SharpYaml.Serialization.Descriptors
 			this.attributeRegistry = attributeRegistry;
 		}
 
-		public ITypeDescriptor Find(Type type)
+		public ITypeDescriptor Find(Type type, IComparer<object> memberComparer)
 		{
 			if (type == null)
 				return null;
 
-			// Caching is integrated in this class, avoiding a ChainedTypeDescriptorFactory
-			ITypeDescriptor descriptor;
-			if (registeredDescriptors.TryGetValue(type, out descriptor))
-			{
-				return descriptor;
-			}
+		    lock (registeredDescriptors)
+		    {
+		        // Caching is integrated in this class, avoiding a ChainedTypeDescriptorFactory
+		        ITypeDescriptor descriptor;
+		        if (registeredDescriptors.TryGetValue(type, out descriptor))
+		        {
+		            return descriptor;
+		        }
 
-			descriptor = Create(type);
+		        descriptor = Create(type);
 
-			// Register this descriptor
-			registeredDescriptors.Add(type, descriptor);
+		        var objectDescriptor = descriptor as ObjectDescriptor;
+		        if (objectDescriptor != null)
+		        {
+		            objectDescriptor.SortMembers(memberComparer);
+		        }
 
-			return descriptor;
+		        // Register this descriptor
+		        registeredDescriptors.Add(type, descriptor);
+
+		        return descriptor;
+		    }
 		}
 
 		/// <summary>

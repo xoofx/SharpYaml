@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
+using System.Collections.Generic;
 
 namespace SharpYaml.Serialization
 {
@@ -51,11 +52,12 @@ namespace SharpYaml.Serialization
 	/// </summary>
 	internal interface ITypeDescriptorFactory
 	{
-		/// <summary>
-		/// Tries to create an instance of a <see cref="ITypeDescriptor"/> from the type. Return null if this factory is not handling this type.
-		/// </summary>
-		/// <param name="type">The type.</param>
-		/// <returns>ITypeDescriptor.</returns>
-		ITypeDescriptor Find(Type type);
+	    /// <summary>
+	    /// Tries to create an instance of a <see cref="ITypeDescriptor"/> from the type. Return null if this factory is not handling this type.
+	    /// </summary>
+	    /// <param name="type">The type.</param>
+	    /// <param name="memberComparer"></param>
+	    /// <returns>ITypeDescriptor.</returns>
+	    ITypeDescriptor Find(Type type, IComparer<object> memberComparer);
 	}
 }

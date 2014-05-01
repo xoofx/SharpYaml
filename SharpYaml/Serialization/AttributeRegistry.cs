@@ -56,6 +56,7 @@ namespace SharpYaml.Serialization
 	/// </summary>
 	public class AttributeRegistry : IAttributeRegistry
 	{
+        private readonly object globalLock = new object();
 		private readonly Dictionary<MemberInfoKey, List<Attribute>> cachedAttributes = new Dictionary<MemberInfoKey, List<Attribute>>();
 		private readonly Dictionary<MemberInfo, List<Attribute>> registeredAttributes = new Dictionary<MemberInfo, List<Attribute>>();
 
@@ -69,28 +70,30 @@ namespace SharpYaml.Serialization
 		{
 			var key = new MemberInfoKey(memberInfo, inherit);
 
-			// Use a cache of attributes
-			List<Attribute> attributes;
-			if (cachedAttributes.TryGetValue(key, out attributes))
-			{
-				return attributes;
-			}
+		    lock (globalLock)
+		    {
+		        // Use a cache of attributes
+		        List<Attribute> attributes;
+		        if (cachedAttributes.TryGetValue(key, out attributes))
+		        {
+		            return attributes;
+		        }
 
-			// Else retrieve all default attributes
-			var defaultAttributes = memberInfo.GetCustomAttributes(inherit);
-			attributes = defaultAttributes.Cast<Attribute>().ToList();
+		        // Else retrieve all default attributes
+		        var defaultAttributes = memberInfo.GetCustomAttributes(inherit);
+		        attributes = defaultAttributes.Cast<Attribute>().ToList();
 
-			// And add registered attributes
-			List<Attribute> registered;
-			if (registeredAttributes.TryGetValue(memberInfo, out registered))
-			{
-				attributes.AddRange(registered);
-			}
+		        // And add registered attributes
+		        List<Attribute> registered;
+		        if (registeredAttributes.TryGetValue(memberInfo, out registered))
+		        {
+		            attributes.AddRange(registered);
+		        }
 
-			// Add to the cache
-			cachedAttributes.Add(key, attributes);
-
-			return attributes;
+		        // Add to the cache
+		        cachedAttributes.Add(key, attributes);
+                return attributes;
+            }
 		}
 
 		/// <summary>
@@ -100,19 +103,22 @@ namespace SharpYaml.Serialization
 		/// <param name="attribute">The attribute.</param>
 		public void Register(MemberInfo memberInfo, Attribute attribute)
 		{
-            // Use a cache of attributes
-            List<Attribute> attributes;
+		    lock (globalLock)
+		    {
+		        // Use a cache of attributes
+		        List<Attribute> attributes;
 
-            if (!cachedAttributes.TryGetValue(new MemberInfoKey(memberInfo, false), out attributes))
-            {
-                if (!registeredAttributes.TryGetValue(memberInfo, out attributes))
-                {
-                    attributes = new List<Attribute>();
-                    registeredAttributes.Add(memberInfo, attributes);
-                }
-            }
+		        if (!cachedAttributes.TryGetValue(new MemberInfoKey(memberInfo, false), out attributes))
+		        {
+		            if (!registeredAttributes.TryGetValue(memberInfo, out attributes))
+		            {
+		                attributes = new List<Attribute>();
+		                registeredAttributes.Add(memberInfo, attributes);
+		            }
+		        }
 
-			attributes.Add(attribute);
+		        attributes.Add(attribute);
+		    }
 		}
 
 		private struct MemberInfoKey : IEquatable<MemberInfoKey>

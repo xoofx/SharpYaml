@@ -181,13 +181,7 @@ namespace SharpYaml.Serialization
 		/// <returns>An instance of <see cref="ITypeDescriptor"/>.</returns>
 		public ITypeDescriptor FindTypeDescriptor(Type type)
 		{
-			var typeDescriptor = typeDescriptorFactory.Find(type);
-		    var objectDescriptor = typeDescriptor as ObjectDescriptor;
-		    if (objectDescriptor != null)
-		    {
-                objectDescriptor.SortMembers(Settings.ComparerForKeySorting);
-		    }
-		    return typeDescriptor;
+            return typeDescriptorFactory.Find(type, Settings.ComparerForKeySorting);
 		}
 
 		/// <summary>
