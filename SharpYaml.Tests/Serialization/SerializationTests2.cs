@@ -1016,7 +1016,9 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
         {
             var settings = new SerializerSettings();
             settings.RegisterTagMapping("MyClassImmutable", typeof(MyClassImmutable));
-            settings.RegisterSerializerFactory(new MyClassImmutableSerializer());
+
+            // Automatically register MyClassImmutableSerializer assembly
+            settings.RegisterAssembly(typeof(SerializationTests2).Assembly);
 
             var immutable = new MyClassImmutable("Test", 1);
             var serializer = new Serializer(settings);

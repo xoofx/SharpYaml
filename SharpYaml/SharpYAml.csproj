@@ -133,7 +133,7 @@
     <Compile Include="Serialization\Serializers\RoutingSerializer.cs" />
     <Compile Include="Serialization\SerializerContext.cs" />
     <Compile Include="Serialization\AttributeRegistry.cs" />
-    <Compile Include="Serialization\TagTypeRegistry.cs" />
+    <Compile Include="Serialization\AssemblyRegistry.cs" />
     <Compile Include="Serialization\WriterEventEmitter.cs">
       <SubType>Code</SubType>
     </Compile>

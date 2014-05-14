@@ -69,7 +69,7 @@ namespace SharpYaml.Serialization
 		{
 			Serializer = serializer;
 			settings = serializer.Settings;
-		    tagTypeRegistry = settings.tagTypeRegistry;
+		    tagTypeRegistry = settings.AssemblyRegistry;
 			ObjectFactory = settings.ObjectFactory;
 		    ObjectSerializerBackend = settings.ObjectSerializerBackend;
 			Schema = Settings.Schema;

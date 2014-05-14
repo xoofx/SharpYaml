@@ -383,7 +383,7 @@ namespace SharpYaml.Serialization
 			}
 
 			// Add registered factories
-			foreach (var factory in settings.factories)
+			foreach (var factory in settings.AssemblyRegistry.SerializableFactories)
 			{
 				routintSerializer.AddSerializerFactory(factory);
 			}

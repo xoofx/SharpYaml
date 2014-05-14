@@ -56,9 +56,8 @@ namespace SharpYaml.Serialization
 	/// </summary>
 	public sealed class SerializerSettings
 	{
-		internal readonly List<IYamlSerializableFactory> factories = new List<IYamlSerializableFactory>();
 		internal readonly Dictionary<Type, IYamlSerializable> serializers = new Dictionary<Type, IYamlSerializable>();
-		internal readonly TagTypeRegistry tagTypeRegistry;
+		internal readonly AssemblyRegistry AssemblyRegistry;
 		private IAttributeRegistry attributeRegistry;
 		private readonly IYamlSchema schema;
 		private IObjectFactory objectFactory;
@@ -89,15 +88,15 @@ namespace SharpYaml.Serialization
 			LimitPrimitiveFlowSequence = 0;
 			DefaultStyle = YamlStyle.Block;
 			this.schema = schema ?? new CoreSchema();
-			tagTypeRegistry = new TagTypeRegistry(Schema);
+			AssemblyRegistry = new AssemblyRegistry(Schema);
 			attributeRegistry = new AttributeRegistry();
 			ObjectFactory = new DefaultObjectFactory();
             ObjectSerializerBackend = new DefaultObjectSerializerBackend();
             ComparerForKeySorting = new DefaultKeyComparer();
 
 			// Register default mapping for map and seq
-			tagTypeRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>));
-			tagTypeRegistry.RegisterTagMapping("!!seq", typeof(IList<object>));
+			AssemblyRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>));
+			AssemblyRegistry.RegisterTagMapping("!!seq", typeof(IList<object>));
 		}
 
 		/// <summary>
@@ -183,8 +182,8 @@ namespace SharpYaml.Serialization
 		/// <value><c>true</c> to emit short type name; otherwise, <c>false</c>.</value>
 		public bool EmitShortTypeName
 		{
-			get { return tagTypeRegistry.UseShortTypeName; }
-			set { tagTypeRegistry.UseShortTypeName = value; }
+			get { return AssemblyRegistry.UseShortTypeName; }
+			set { AssemblyRegistry.UseShortTypeName = value; }
 		}
 
 		/// <summary>
@@ -284,7 +283,7 @@ namespace SharpYaml.Serialization
 		/// <param name="assembly">The assembly.</param>
 		public void RegisterAssembly(Assembly assembly)
 		{
-			tagTypeRegistry.RegisterAssembly(assembly, attributeRegistry);
+			AssemblyRegistry.RegisterAssembly(assembly, attributeRegistry);
 		}
 
 		/// <summary>
@@ -294,7 +293,7 @@ namespace SharpYaml.Serialization
 		/// <param name="tagType">Type of the tag.</param>
 		public void RegisterTagMapping(string tagName, Type tagType)
 		{
-			tagTypeRegistry.RegisterTagMapping(tagName, tagType);
+			AssemblyRegistry.RegisterTagMapping(tagName, tagType);
 		}
 
 		/// <summary>
@@ -322,7 +321,7 @@ namespace SharpYaml.Serialization
 		public void RegisterSerializerFactory(IYamlSerializableFactory factory)
 		{
 			if (factory == null) throw new ArgumentNullException("factory");
-			factories.Add(factory);
+			AssemblyRegistry.SerializableFactories.Add(factory);
 		}
 	}
 }
