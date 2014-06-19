@@ -91,12 +91,17 @@ namespace SharpYaml.Serialization.Descriptors
 			}
 
 			addMethod = type.GetMethod("Add", new[] { keyType, valueType });
-
-			// Only Keys and Values
-			IsPureDictionary = Count == 0;
 		}
 
-		/// <summary>
+	    public override void Initialize()
+	    {
+	        base.Initialize();
+
+            // Only Keys and Values
+            IsPureDictionary = Count == 0;
+        }
+
+	    /// <summary>
 		/// Gets a value indicating whether this instance is generic dictionary.
 		/// </summary>
 		/// <value><c>true</c> if this instance is generic dictionary; otherwise, <c>false</c>.</value>

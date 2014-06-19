@@ -61,8 +61,8 @@ namespace SharpYaml.Serialization.Descriptors
 
 		private readonly static object[] EmptyObjectArray = new object[0];
 		private readonly Type type;
-		private readonly List<IMemberDescriptor> members;
-		private readonly Dictionary<string, IMemberDescriptor> mapMembers;
+		private List<IMemberDescriptor> members;
+		private Dictionary<string, IMemberDescriptor> mapMembers;
 		private readonly bool emitDefaultValues;
 		private YamlStyle style;
 	    private bool isSorted;
@@ -86,25 +86,37 @@ namespace SharpYaml.Serialization.Descriptors
 			var styleAttribute = AttributeRegistry.GetAttribute<YamlStyleAttribute>(type);
 			this.style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
 			this.IsCompilerGenerated = AttributeRegistry.GetAttribute<CompilerGeneratedAttribute>(type) != null;
-			members = PrepareMembers();
-
-			// If no members found, we don't need to build a dictionary map
-			if (members.Count <= 0) return;
-
-			mapMembers = new Dictionary<string, IMemberDescriptor>(members.Count);
-			
-			foreach (var member in members)
-			{
-				IMemberDescriptor existingMember;
-				if (mapMembers.TryGetValue(member.Name, out existingMember))
-				{
-					throw new YamlException("Failed to get ObjectDescriptor for type [{0}]. The member [{1}] cannot be registered as a member with the same name is already registered [{2}]".DoFormat(type.FullName, member, existingMember));
-				}
-
-				mapMembers.Add(member.Name, member);
-			}
 		}
 
+        /// <summary>
+        /// Initializes this instance.
+        /// </summary>
+        /// <exception cref="YamlException">Failed to get ObjectDescriptor for type [{0}]. The member [{1}] cannot be registered as a member with the same name is already registered [{2}].DoFormat(type.FullName, member, existingMember)</exception>
+	    public virtual void Initialize()
+	    {
+            if (members != null)
+            {
+                return;
+            }
+
+            members = PrepareMembers();
+
+            // If no members found, we don't need to build a dictionary map
+            if (members.Count <= 0) return;
+
+            mapMembers = new Dictionary<string, IMemberDescriptor>(members.Count);
+
+            foreach (var member in members)
+            {
+                IMemberDescriptor existingMember;
+                if (mapMembers.TryGetValue(member.Name, out existingMember))
+                {
+                    throw new YamlException("Failed to get ObjectDescriptor for type [{0}]. The member [{1}] cannot be registered as a member with the same name is already registered [{2}]".DoFormat(type.FullName, member, existingMember));
+                }
+
+                mapMembers.Add(member.Name, member);
+            }
+	    }
 
 		protected IAttributeRegistry AttributeRegistry { get; private set; }
 
@@ -120,7 +132,7 @@ namespace SharpYaml.Serialization.Descriptors
 
 		public int Count
 		{
-			get { return members.Count; }
+            get { return members == null ? 0 : members.Count; }
 		}
 
 		public bool HasMembers

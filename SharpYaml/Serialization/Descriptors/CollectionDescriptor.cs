@@ -45,6 +45,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace SharpYaml.Serialization.Descriptors
@@ -57,6 +58,7 @@ namespace SharpYaml.Serialization.Descriptors
 		private readonly Func<object, bool> IsReadOnlyFunction;
 		private readonly Func<object, int> GetCollectionCountFunction;
 		private readonly Action<object, object> CollectionAddFunction;
+	    private readonly bool isKeyedCollection = false;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="CollectionDescriptor" /> class.
@@ -85,6 +87,7 @@ namespace SharpYaml.Serialization.Descriptors
 				GetCollectionCountFunction = o => (int)countMethod.Invoke(o, null);
 				var isReadOnly = itype.GetProperty("IsReadOnly").GetGetMethod();
 				IsReadOnlyFunction = obj => (bool)isReadOnly.Invoke(obj, null);
+			    isKeyedCollection = type.ExtendsGeneric(typeof (KeyedCollection<,>));
 			}
 			// implements IList 
 			else if (typeof (IList).IsAssignableFrom(type))
@@ -93,19 +96,24 @@ namespace SharpYaml.Serialization.Descriptors
 				GetCollectionCountFunction = o => ((IList) o).Count;
 				IsReadOnlyFunction = obj => ((IList) obj).IsReadOnly;
 			}
-
-			// Finds if it is a pure list
-			if (Contains("Capacity"))
-			{
-				var capacityMember = this["Capacity"] as PropertyDescriptor;
-				HasOnlyCapacity = Count == 1 && capacityMember != null &&
-								  (capacityMember.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace);
-			}
-
-			IsPureCollection = Count == 0;
 		}
 
-		/// <summary>
+	    public override void Initialize()
+	    {
+	        base.Initialize();
+
+            // Finds if it is a pure list
+            if (Contains("Capacity"))
+            {
+                var capacityMember = this["Capacity"] as PropertyDescriptor;
+                HasOnlyCapacity = Count == 1 && capacityMember != null &&
+                                  (capacityMember.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace);
+            } 
+            
+            IsPureCollection = Count == 0;
+	    }
+
+	    /// <summary>
 		/// Gets or sets the type of the element.
 		/// </summary>
 		/// <value>The type of the element.</value>
@@ -169,8 +177,14 @@ namespace SharpYaml.Serialization.Descriptors
 			return !type.IsArray && (typeof (ICollection).IsAssignableFrom(type) || type.HasInterface(typeof(ICollection<>)) || typeof(IEnumerable).IsAssignableFrom(type));
 		}
 
+        /// <inheritdoc/>
 		protected override bool PrepareMember(MemberDescriptorBase member)
 		{
+		    if (isKeyedCollection && member.Name == "Comparer")
+		    {
+		        return false;
+		    }
+
 			// Exclude members for compiler generated collections
 			return !IsCompilerGenerated && base.PrepareMember(member);
 		}

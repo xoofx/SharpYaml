@@ -55,7 +55,25 @@ namespace SharpYaml
 			return type.GetInterface(lookInterfaceType) != null;
 		}
 
-		public static Type GetInterface(this Type type, Type lookInterfaceType)
+	    public static bool ExtendsGeneric(this Type type, Type genericType)
+	    {
+	        if (genericType == null) throw new ArgumentNullException("genericType");
+            if (!genericType.IsGenericTypeDefinition) throw new ArgumentException("Expecting a generic type definition", "genericType");
+
+	        var nextType = type;
+	        while (nextType != null)
+	        {
+                var checkType = nextType.IsGenericType ? nextType.GetGenericTypeDefinition() : nextType;
+                if (checkType == genericType)
+	            {
+	                return true;
+	            }
+	            nextType = nextType.BaseType;
+	        }
+	        return false;
+	    }
+
+	    public static Type GetInterface(this Type type, Type lookInterfaceType)
 		{
 			if (type == null)
 				throw new ArgumentNullException("type");

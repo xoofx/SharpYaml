@@ -106,6 +106,7 @@ namespace SharpYaml.Tests
 			attributeRegistry.Register(typeof(TestObject).GetProperty("ItemRenamed2"), new YamlMemberAttribute("Item2"));
 
 			var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObject), false);
+            descriptor.Initialize();
 
 			// Verify members
 			Assert.AreEqual(8, descriptor.Count);
@@ -166,6 +167,7 @@ namespace SharpYaml.Tests
 		{
 			var attributeRegistry = new AttributeRegistry();
 			var descriptor = new CollectionDescriptor(attributeRegistry, typeof (List<string>), false);
+            descriptor.Initialize();
 
 			// Only Capacity as a member
 			Assert.AreEqual(1, descriptor.Count);
@@ -174,6 +176,7 @@ namespace SharpYaml.Tests
 			Assert.AreEqual(typeof(string), descriptor.ElementType);
 
 			descriptor = new CollectionDescriptor(attributeRegistry, typeof(NonPureCollection), false);
+            descriptor.Initialize();
 
 			// Only Capacity as a member
 			Assert.AreEqual(2, descriptor.Count);
@@ -182,7 +185,8 @@ namespace SharpYaml.Tests
 			Assert.AreEqual(typeof(int), descriptor.ElementType);
 
 			descriptor = new CollectionDescriptor(attributeRegistry, typeof(ArrayList), false);
-			// Only Capacity as a member
+            descriptor.Initialize();
+            // Only Capacity as a member
 			Assert.AreEqual(1, descriptor.Count);
 			Assert.True(descriptor.HasOnlyCapacity);
 			Assert.False(descriptor.IsPureCollection);
@@ -202,6 +206,7 @@ namespace SharpYaml.Tests
 		{
 			var attributeRegistry = new AttributeRegistry();
 			var descriptor = new DictionaryDescriptor(attributeRegistry, typeof(Dictionary<int, string>), false);
+            descriptor.Initialize();
 
 			Assert.AreEqual(0, descriptor.Count);
 			Assert.True(descriptor.IsPureDictionary);
@@ -209,6 +214,7 @@ namespace SharpYaml.Tests
 			Assert.AreEqual(typeof(string), descriptor.ValueType);
 
 			descriptor = new DictionaryDescriptor(attributeRegistry, typeof(NonPureDictionary), false);
+            descriptor.Initialize();
 			Assert.AreEqual(1, descriptor.Count);
 			Assert.False(descriptor.IsPureDictionary);
 			Assert.AreEqual(typeof(float), descriptor.KeyType);
@@ -220,6 +226,7 @@ namespace SharpYaml.Tests
 		{
 			var attributeRegistry = new AttributeRegistry();
 			var descriptor = new ArrayDescriptor(attributeRegistry, typeof(int[]));
+		    descriptor.Initialize();
 
 			Assert.AreEqual(0, descriptor.Count);
 			Assert.AreEqual(typeof(int), descriptor.ElementType);

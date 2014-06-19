@@ -114,7 +114,7 @@ namespace SharpYaml.Serialization.Descriptors
 		/// <returns>An instance of type descriptor.</returns>
 		protected virtual ITypeDescriptor Create(Type type)
 		{
-			ITypeDescriptor descriptor;
+			ObjectDescriptor descriptor;
 			// The order of the descriptors here is important
 
 			if (PrimitiveDescriptor.IsPrimitive(type))
@@ -145,6 +145,9 @@ namespace SharpYaml.Serialization.Descriptors
 				// standard object (class or value type)
 				descriptor = new ObjectDescriptor(attributeRegistry, type, emitDefaultValues);
 			}
+
+            // Initialize the descriptor
+		    descriptor.Initialize();
 			return descriptor;
 		}
 	}
