@@ -224,7 +224,7 @@ namespace SharpYaml.Serialization.Serializers
 					default:
 						if (valueType == typeof (TimeSpan))
 						{
-							text = value.ToString();
+							text = ((TimeSpan)value).ToString("G", CultureInfo.InvariantCulture);
 						}
 						break;
 				}

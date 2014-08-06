@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
+using System.Globalization;
 
 namespace SharpYaml.Schemas
 {
@@ -89,7 +90,7 @@ namespace SharpYaml.Schemas
 		{
 			AddScalarRule<object>("!!null", @"null|Null|NULL|\~|", m => null, null);
 			AddScalarRule<int>("!!int", @"([-+]?(0|[1-9][0-9_]*))",
-							   m => Convert.ToInt32(m.Value.Replace("_", "")), null);
+							   m => Convert.ToInt32(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
 			AddScalarRule<int>("!!int", @"([-+]?)0b([01_]+)", m =>
 				{
 					var v = Convert.ToInt32(m.Groups[2].Value.Replace("_", ""), 2);
@@ -107,11 +108,11 @@ namespace SharpYaml.Schemas
 				}, null);
 			// Todo: http://yaml.org/type/float.html is wrong  => [0-9.] should be [0-9_]
 			AddScalarRule<double>("!!float", @"[-+]?(0|[1-9][0-9_]*)\.[0-9_]*([eE][-+]?[0-9]+)?",
-								  m => Convert.ToDouble(m.Value.Replace("_", "")), null);
+								  m => Convert.ToDouble(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
 			AddScalarRule<double>("!!float", @"[-+]?\._*[0-9][0-9_]*([eE][-+]?[0-9]+)?",
 								  m => Convert.ToDouble(m.Value.Replace("_", "")), null);
 			AddScalarRule<double>("!!float", @"[-+]?(0|[1-9][0-9_]*)([eE][-+]?[0-9]+)",
-								  m => Convert.ToDouble(m.Value.Replace("_", "")), null);
+								  m => Convert.ToDouble(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
 			AddScalarRule<double>("!!float", @"\+?(\.inf|\.Inf|\.INF)", m => double.PositiveInfinity, null);
 			AddScalarRule<double>("!!float", @"-(\.inf|\.Inf|\.INF)", m => double.NegativeInfinity, null);
 			AddScalarRule<double>("!!float", @"\.nan|\.NaN|\.NAN", m => double.NaN, null);
@@ -128,26 +129,26 @@ namespace SharpYaml.Schemas
 									@"(Z|([-+])([0-9]{1,2})(:([0-9][0-9]))?)" +
 									@")?" +
 									@")?",
-									match => DateTime.Parse(match.Value),
+									match => DateTime.Parse(match.Value, CultureInfo.InvariantCulture),
 									datetime =>
 										{
-											var z = datetime.ToString("%K");
+											var z = datetime.ToString("%K", CultureInfo.InvariantCulture);
 											if (z != "Z" && z != "")
 												z = " " + z;
 											if (datetime.Millisecond == 0)
 											{
 												if (datetime.Hour == 0 && datetime.Minute == 0 && datetime.Second == 0)
 												{
-													return datetime.ToString("yyyy-MM-dd" + z);
+													return datetime.ToString("yyyy-MM-dd" + z, CultureInfo.InvariantCulture);
 												}
 												else
 												{
-													return datetime.ToString("yyyy-MM-dd HH:mm:ss" + z);
+													return datetime.ToString("yyyy-MM-dd HH:mm:ss" + z, CultureInfo.InvariantCulture);
 												}
 											}
 											else
 											{
-												return datetime.ToString("yyyy-MM-dd HH:mm:ss.fff" + z);
+												return datetime.ToString("yyyy-MM-dd HH:mm:ss.fff" + z, CultureInfo.InvariantCulture);
 											}
 										});
 

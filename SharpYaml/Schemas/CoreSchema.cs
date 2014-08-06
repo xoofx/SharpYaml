@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
+using System.Globalization;
 
 namespace SharpYaml.Schemas
 {
@@ -64,10 +65,10 @@ namespace SharpYaml.Schemas
 			AddScalarRule<bool>("!!bool", @"true|True|TRUE", m => true, null);
 			AddScalarRule<bool>("!!bool", @"false|False|FALSE", m => false, null);
 
-			AddScalarRule<int>("!!int", @"([-+]?(0|[1-9][0-9_]*))", m => Convert.ToInt32(m.Value.Replace("_", "")), null);
+			AddScalarRule<int>("!!int", @"([-+]?(0|[1-9][0-9_]*))", m => Convert.ToInt32(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
 
 			// Make float before 0x/0o to improve parsing as float are more common than 0x and 0o
-			AddScalarRule<double>("!!float", @"[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?", m => Convert.ToDouble(m.Value.Replace("_", "")), null);
+			AddScalarRule<double>("!!float", @"[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?", m => Convert.ToDouble(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
 	
 			AddScalarRule<int>("!!int", @"0x([0-9a-fA-F_]+)", m => Convert.ToInt32(m.Groups[1].Value.Replace("_", ""), 16), null);
 			AddScalarRule<int>("!!int", @"0o([0-7_]+)", m => Convert.ToInt32(m.Groups[1].Value.Replace("_", ""), 8), null);
