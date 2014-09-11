@@ -112,15 +112,8 @@ namespace SharpYaml
 		}
 
 		public bool IsPrintable(int offset) {
-			char character = buffer.Peek(offset); 
-			return
-				character == '\x9' ||
-				character == '\xA' ||
-				character == '\xD' ||
-				(character >= '\x20' && character <= '\x7E') ||
-				character == '\x85' ||
-				(character >= '\xA0' && character <= '\xD7FF') ||
-				(character >= '\xE000' && character <= '\xFFFD');
+			char character = buffer.Peek(offset);
+		    return Emitter.IsPrintable(character);
 		}
 
 		public bool IsPrintable() {

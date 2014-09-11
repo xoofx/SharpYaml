@@ -1092,14 +1092,9 @@ namespace SharpYaml
 			return character == ' ';
 		}
 
-
-
-		private static bool IsPrintable(char character)
+		internal static bool IsPrintable(char character)
 		{
 			return
-				character == '\x9' ||
-				character == '\xA' ||
-				character == '\xD' ||
 				(character >= '\x20' && character <= '\x7E') ||
 				character == '\x85' ||
 				(character >= '\xA0' && character <= '\xD7FF') ||

@@ -696,9 +696,11 @@ Value: 0
 
 		public class ClassWithChars
 		{
+            [YamlMember(0)]
 			public char Start;
 
-			public char End;
+            [YamlMember(1)]
+            public char End;
 		}
 
 		[Test]
@@ -711,6 +713,21 @@ Value: 0
 				End = '\x7f'
 			});
 		}
+
+        [Test]
+        public void TestClassWithSpecialChars()
+        {
+            var settings = new SerializerSettings() { EmitShortTypeName = true };
+            for (int i = 0; i < 32; i++)
+            {
+                SerialRoundTrip(settings, new ClassWithChars()
+                {
+                    Start = (char)i,
+                    End = (char)(i+1)
+                });
+            }
+        }
+
 
 
 		[YamlStyle(YamlStyle.Flow)]
