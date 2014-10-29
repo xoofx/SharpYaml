@@ -113,7 +113,7 @@ namespace SharpYaml.Serialization
 		/// <param name="state">The state.</param>
 		internal override void Emit(IEmitter emitter, EmitterState state)
 		{
-			emitter.Emit(new Scalar(Anchor, Tag, Value, Style, true, false));
+			emitter.Emit(new Scalar(Anchor, Tag, Value, Style, string.IsNullOrEmpty(Tag), false));
 		}
 		
 		/// <summary>

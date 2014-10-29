@@ -275,7 +275,7 @@ namespace SharpYaml.Serialization
 		/// <param name="state">The state.</param>
 		internal override void Emit(IEmitter emitter, EmitterState state)
 		{
-			emitter.Emit(new MappingStart(Anchor, Tag, true, Style));
+			emitter.Emit(new MappingStart(Anchor, Tag, string.IsNullOrEmpty(Tag), Style));
 			foreach (var entry in children)
 			{
 				entry.Key.Save(emitter, state);

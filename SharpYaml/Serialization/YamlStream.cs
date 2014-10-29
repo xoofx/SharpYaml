@@ -129,7 +129,7 @@ namespace SharpYaml.Serialization
 		/// <param name="output">The output.</param>
 		public void Save(TextWriter output)
 		{
-		    var emitter = new Emitter(output, isCanonical: true);
+		    var emitter = new Emitter(output);
 
 			emitter.Emit(new StreamStart());
 
