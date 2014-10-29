@@ -129,41 +129,6 @@ namespace SharpYaml
 		private const int MaxBestIndent = 9;
 
 		/// <summary>
-		/// Initializes a new instance of the <see cref="IEmitter"/> class.
-		/// </summary>
-		/// <param name="output">The <see cref="TextWriter"/> where the emitter will write.</param>
-		public Emitter(TextWriter output)
-			: this(output, MinBestIndent)
-		{
-		}
-
-		/// <summary>
-		/// Initializes a new instance of the <see cref="IEmitter"/> class.
-		/// </summary>
-		/// <param name="output">The <see cref="TextWriter"/> where the emitter will write.</param>
-		/// <param name="bestIndent">The preferred indentation.</param>
-		public Emitter(TextWriter output, int bestIndent)
-			: this(output, bestIndent, int.MaxValue)
-		{
-		}
-
-		/// <summary>
-		/// Initializes a new instance of the <see cref="IEmitter"/> class.
-		/// </summary>
-		/// <param name="output">The <see cref="TextWriter"/> where the emitter will write.</param>
-		/// <param name="bestIndent">The preferred indentation.</param>
-		/// <param name="bestWidth">The preferred text width.</param>
-		public Emitter(TextWriter output, int bestIndent, int bestWidth)
-			: this(output, bestIndent, bestWidth, false)
-		{
-		}
-
-		public Emitter(TextWriter output, int bestIndent, int bestWidth, bool isCanonical)
-			:this(output, bestIndent, bestWidth, isCanonical, false)
-		{
-		}
-
-		/// <summary>
 		/// Initializes a new instance of the <see cref="IEmitter" /> class.
 		/// </summary>
 		/// <param name="output">The <see cref="TextWriter" /> where the emitter will write.</param>
@@ -176,7 +141,7 @@ namespace SharpYaml
 		/// or
 		/// bestWidth;The bestWidth parameter must be greater than bestIndent * 2.
 		/// </exception>
-		public Emitter(TextWriter output, int bestIndent, int bestWidth, bool isCanonical, bool forceIndentLess)
+        public Emitter(TextWriter output, int bestIndent = MinBestIndent, int bestWidth = int.MaxValue, bool isCanonical = false, bool forceIndentLess = false)
 		{
 			if (bestIndent < MinBestIndent || bestIndent > MaxBestIndent)
 			{

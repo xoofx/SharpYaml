@@ -193,6 +193,12 @@ namespace SharpYaml.Tests.Serialization
 			RoundtripTest("fail-backreference.yaml");
 		}
 
+        [Test]
+        public void RoundtripTags()
+        {
+            RoundtripTest("tags.yaml");
+        }
+
 		[Test]
 		public void AllAliasesMustBeResolved()
 		{
