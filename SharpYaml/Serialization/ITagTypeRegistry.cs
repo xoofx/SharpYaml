@@ -50,7 +50,7 @@ namespace SharpYaml.Serialization
 	/// <summary>
 	/// Prodives tag discovery from a type and type discovery from a tag.
 	/// </summary>
-	internal interface ITagTypeRegistry
+	public interface ITagTypeRegistry
 	{
 		/// <summary>
 		/// Finds a type from a tag, null if not found.
