@@ -127,15 +127,18 @@ namespace SharpYaml.Serialization
 		/// Saves the stream to the specified output.
 		/// </summary>
 		/// <param name="output">The output.</param>
-		public void Save(TextWriter output)
+		/// <param name="isLastDocumentEndImplicit">If set to <c>true</c>, last <see cref="DocumentEnd"/> will be implicit.</param>
+		public void Save(TextWriter output, bool isLastDocumentEndImplicit = false)
 		{
-		    var emitter = new Emitter(output);
+			var emitter = new Emitter(output);
 
 			emitter.Emit(new StreamStart());
 
+			var lastDocument = documents.Count > 0 ? documents[documents.Count - 1] : null;
 			foreach (var document in documents)
 			{
-				document.Save(emitter);
+				bool isDocumentEndImplicit = isLastDocumentEndImplicit && document == lastDocument;
+				document.Save(emitter, isDocumentEndImplicit);
 			}
 
 			emitter.Emit(new StreamEnd());
