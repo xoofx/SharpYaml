@@ -58,7 +58,9 @@
     <Compile Include="Events\SequenceStart.cs" />
     <Compile Include="Serialization\AnchorEventEmitter.cs" />
     <Compile Include="Serialization\Descriptors\DefaultKeyComparer.cs" />
+    <Compile Include="Serialization\IOrderedDictionary.cs" />
     <Compile Include="Serialization\ObjectContext.cs" />
+    <Compile Include="Serialization\OrderedDictionary.cs" />
     <Compile Include="Serialization\Serializers\DefaultObjectSerializerBackend.cs" />
     <Compile Include="Serialization\IObjectSerializerBackend.cs" />
     <Compile Include="YamlStyle.cs" />
