@@ -87,6 +87,7 @@ namespace SharpYaml.Serialization
 		{
 			SequenceStart sequence = events.Expect<SequenceStart>();
 			Load(sequence, state);
+			Style = sequence.Style;
 
 			bool hasUnresolvedAliases = false;
 			while (!events.Accept<SequenceEnd>())

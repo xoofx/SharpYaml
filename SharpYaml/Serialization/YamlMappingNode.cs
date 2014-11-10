@@ -84,6 +84,7 @@ namespace SharpYaml.Serialization
 		{
 			MappingStart mapping = events.Expect<MappingStart>();
 			Load(mapping, state);
+			Style = mapping.Style;
 
 			bool hasUnresolvedAliases = false;
 			while (!events.Accept<MappingEnd>())
