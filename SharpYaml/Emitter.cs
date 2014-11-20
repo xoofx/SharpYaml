@@ -125,8 +125,8 @@ namespace SharpYaml
 
 		private ScalarData scalarData;
 
-		private const int MinBestIndent = 2;
-		private const int MaxBestIndent = 9;
+		internal const int MinBestIndent = 2;
+		internal const int MaxBestIndent = 9;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="IEmitter" /> class.

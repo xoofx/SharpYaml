@@ -128,9 +128,10 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <param name="output">The output.</param>
 		/// <param name="isLastDocumentEndImplicit">If set to <c>true</c>, last <see cref="DocumentEnd"/> will be implicit.</param>
-		public void Save(TextWriter output, bool isLastDocumentEndImplicit = false)
+		/// <param name="bestIndent">The desired indent.</param>
+		public void Save(TextWriter output, bool isLastDocumentEndImplicit = false, int bestIndent = Emitter.MinBestIndent)
 		{
-			var emitter = new Emitter(output);
+			var emitter = new Emitter(output, bestIndent);
 
 			emitter.Emit(new StreamStart());
 
