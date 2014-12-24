@@ -209,7 +209,8 @@ namespace SharpYaml.Serialization.Serializers
             memberValue = ReadMemberValue(ref objectContext, memberAccessor, memberValue, memberAccessor.Type);
 
             // Handle late binding
-            if (memberAccessor.HasSet && memberAccessor.SerializeMemberMode != SerializeMemberMode.Content)
+            // Value types need to be reassigned even if it was a Content
+            if (memberAccessor.HasSet && (memberAccessor.SerializeMemberMode != SerializeMemberMode.Content || memberAccessor.Type.IsValueType))
             {
                 memberAccessor.Set(objectContext.Instance, memberValue);
             }
