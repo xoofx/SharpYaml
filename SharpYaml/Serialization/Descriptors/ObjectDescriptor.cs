@@ -220,7 +220,7 @@ namespace SharpYaml.Serialization.Descriptors
 			}
 
 			// Member is not displayed if there is a YamlIgnore attribute on it
-			if (AttributeRegistry.GetAttribute<YamlIgnoreAttribute>(member.MemberInfo, false) != null)
+			if (AttributeRegistry.GetAttribute<YamlIgnoreAttribute>(member.MemberInfo) != null)
 				return false;
 
 			// Gets the style
@@ -228,7 +228,7 @@ namespace SharpYaml.Serialization.Descriptors
 			member.Style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
 
 			// Handle member attribute
-			var memberAttribute = AttributeRegistry.GetAttribute<YamlMemberAttribute>(member.MemberInfo, false);
+			var memberAttribute = AttributeRegistry.GetAttribute<YamlMemberAttribute>(member.MemberInfo);
 			if (memberAttribute != null)
 			{
 				if (!member.HasSet)
