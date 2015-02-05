@@ -55,6 +55,8 @@ namespace SharpYaml.Serialization.Descriptors
 	/// </summary>
 	public class CollectionDescriptor : ObjectDescriptor
 	{
+        private static readonly List<string> ListOfMembersToRemove = new List<string> { "Capacity", "Count", "IsReadOnly", "IsFixedSize", "IsSynchronized", "SyncRoot", "Comparer" };
+
 		private readonly Func<object, bool> IsReadOnlyFunction;
 		private readonly Func<object, int> GetCollectionCountFunction;
 		private readonly Action<object, object> CollectionAddFunction;
@@ -180,12 +182,13 @@ namespace SharpYaml.Serialization.Descriptors
         /// <inheritdoc/>
 		protected override bool PrepareMember(MemberDescriptorBase member)
 		{
-		    if (isKeyedCollection && member.Name == "Comparer")
-		    {
-		        return false;
-		    }
+            // Filter members
+            if (member is PropertyDescriptor && ListOfMembersToRemove.Contains(member.Name))
+            //if (member is PropertyDescriptor && (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace) && ListOfMembersToRemove.Contains(member.Name))
+            {
+                return false;
+            }
 
-			// Exclude members for compiler generated collections
 			return !IsCompilerGenerated && base.PrepareMember(member);
 		}
 	}

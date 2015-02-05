@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization.Descriptors
 	/// </summary>
 	public class DictionaryDescriptor : ObjectDescriptor
 	{
-		private static readonly List<string> ListOfMembersToRemove = new List<string> {"Comparer", "Keys", "Values"};
+		private static readonly List<string> ListOfMembersToRemove = new List<string> { "Comparer", "Keys", "Values", "Capacity" };
 
 		private readonly Type keyType;
 		private readonly Type valueType;
