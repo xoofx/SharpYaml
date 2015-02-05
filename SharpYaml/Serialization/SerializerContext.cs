@@ -53,7 +53,7 @@ namespace SharpYaml.Serialization
 	/// <summary>
 	/// A context used while deserializing.
 	/// </summary>
-	public class SerializerContext
+	public class SerializerContext : ITagTypeResolver
 	{
 		private readonly SerializerSettings settings;
 		private readonly ITagTypeRegistry tagTypeRegistry;

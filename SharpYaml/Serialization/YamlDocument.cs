@@ -191,13 +191,13 @@ namespace SharpYaml.Serialization
 			visitor.AssignAnchors(this);
 		}
 
-		internal void Save(IEmitter emitter)
+		internal void Save(IEmitter emitter, bool isDocumentEndImplicit)
 		{
 			AssignAnchors();
 
 			emitter.Emit(new DocumentStart());
 			RootNode.Save(emitter, new EmitterState());
-			emitter.Emit(new DocumentEnd(false));
+			emitter.Emit(new DocumentEnd(isDocumentEndImplicit));
 		}
 
 		/// <summary>

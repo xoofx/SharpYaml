@@ -55,13 +55,13 @@ namespace SharpYaml.Serialization
 	/// </summary>
 	public class YamlMappingNode : YamlNode, IEnumerable<KeyValuePair<YamlNode, YamlNode>>
 	{
-		private readonly IDictionary<YamlNode, YamlNode> children = new Dictionary<YamlNode, YamlNode>();
+		private readonly IOrderedDictionary<YamlNode, YamlNode> children = new OrderedDictionary<YamlNode, YamlNode>();
 
 		/// <summary>
 		/// Gets the children of the current node.
 		/// </summary>
 		/// <value>The children.</value>
-		public IDictionary<YamlNode, YamlNode> Children
+		public IOrderedDictionary<YamlNode, YamlNode> Children
 		{
 			get
 			{
@@ -84,6 +84,7 @@ namespace SharpYaml.Serialization
 		{
 			MappingStart mapping = events.Expect<MappingStart>();
 			Load(mapping, state);
+			Style = mapping.Style;
 
 			bool hasUnresolvedAliases = false;
 			while (!events.Accept<MappingEnd>())
