@@ -72,7 +72,7 @@ namespace SharpYaml.Serialization.Serializers
 			var collectionDescriptor = (CollectionDescriptor)objectContext.Descriptor;
 
 			// If the dictionary is pure, we can directly output a sequence instead of a mapping
-			return collectionDescriptor.IsPureCollection || collectionDescriptor.HasOnlyCapacity;
+			return collectionDescriptor.IsPureCollection;
 		}
 
 		protected override void ReadMember(ref ObjectContext objectContext)

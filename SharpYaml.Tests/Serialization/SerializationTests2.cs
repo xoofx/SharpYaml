@@ -466,27 +466,28 @@ Value: 0
 			}
 		}
 
-		[Test]
-		public void TestIEnumerable()
-		{
-			var serializer = new Serializer();
-			var text = serializer.Serialize(new ClassWithMemberIEnumerable(), typeof (ClassWithMemberIEnumerable));
-			Assert.Throws<YamlException>(() => serializer.Deserialize(text, typeof(ClassWithMemberIEnumerable)));
-			var value = serializer.Deserialize(text);
+        // We no longer support IEnumerable
+        //[Test]
+        //public void TestIEnumerable()
+        //{
+        //    var serializer = new Serializer();
+        //    var text = serializer.Serialize(new ClassWithMemberIEnumerable(), typeof (ClassWithMemberIEnumerable));
+        //    Assert.Throws<YamlException>(() => serializer.Deserialize(text, typeof(ClassWithMemberIEnumerable)));
+        //    var value = serializer.Deserialize(text);
 
-			Assert.True(value is IDictionary<object, object>);
-			var dictionary = (IDictionary<object, object>) value;
-			Assert.True(dictionary.ContainsKey("Keys"));
-			Assert.True( dictionary["Keys"] is IList<object>);
-			var list = (IList<object>) dictionary["Keys"];
-			Assert.AreEqual(list.OfType<int>(), new ClassWithMemberIEnumerable().Keys);
+        //    Assert.True(value is IDictionary<object, object>);
+        //    var dictionary = (IDictionary<object, object>) value;
+        //    Assert.True(dictionary.ContainsKey("Keys"));
+        //    Assert.True( dictionary["Keys"] is IList<object>);
+        //    var list = (IList<object>) dictionary["Keys"];
+        //    Assert.AreEqual(list.OfType<int>(), new ClassWithMemberIEnumerable().Keys);
 
-			// Test simple IEnumerable
-			var iterator = Enumerable.Range(0, 10);
-			var values = serializer.Deserialize(serializer.Serialize(iterator, iterator.GetType()));
-			Assert.True(value is IEnumerable);
-			Assert.AreEqual(((IEnumerable<object>)values).OfType<int>(), iterator);
-		}
+        //    // Test simple IEnumerable
+        //    var iterator = Enumerable.Range(0, 10);
+        //    var values = serializer.Deserialize(serializer.Serialize(iterator, iterator.GetType()));
+        //    Assert.True(value is IEnumerable);
+        //    Assert.AreEqual(((IEnumerable<object>)values).OfType<int>(), iterator);
+        //}
 
 		public class ClassWithObjectAndScalar
 		{

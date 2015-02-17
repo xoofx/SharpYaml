@@ -104,14 +104,6 @@ namespace SharpYaml.Serialization.Descriptors
 	    {
 	        base.Initialize();
 
-            // Finds if it is a pure list
-            if (Contains("Capacity"))
-            {
-                var capacityMember = this["Capacity"] as PropertyDescriptor;
-                HasOnlyCapacity = Count == 1 && capacityMember != null &&
-                                  (capacityMember.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace);
-            } 
-            
             IsPureCollection = Count == 0;
 	    }
 
@@ -120,12 +112,6 @@ namespace SharpYaml.Serialization.Descriptors
 		/// </summary>
 		/// <value>The type of the element.</value>
 		public Type ElementType { get; private set; }
-
-		/// <summary>
-		/// Gets a value indicating whether the collection has only the capacity as a property defined.
-		/// </summary>
-		/// <value><c>true</c> if the collection has only the capacity as a property defined; otherwise, <c>false</c>.</value>
-		public bool HasOnlyCapacity { get; private set; }
 
 		/// <summary>
 		/// Gets a value indicating whether this instance is a pure collection (no public property/field)
@@ -176,7 +162,7 @@ namespace SharpYaml.Serialization.Descriptors
 		/// <returns><c>true</c> if the specified type is collection; otherwise, <c>false</c>.</returns>
 		public static bool IsCollection(Type type)
 		{
-			return !type.IsArray && (typeof (ICollection).IsAssignableFrom(type) || type.HasInterface(typeof(ICollection<>)) || typeof(IEnumerable).IsAssignableFrom(type));
+			return !type.IsArray && (typeof (ICollection).IsAssignableFrom(type) || type.HasInterface(typeof(ICollection<>)));
 		}
 
         /// <inheritdoc/>

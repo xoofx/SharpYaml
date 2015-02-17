@@ -169,27 +169,25 @@ namespace SharpYaml.Tests
 			var descriptor = new CollectionDescriptor(attributeRegistry, typeof (List<string>), false);
             descriptor.Initialize();
 
-			// Only Capacity as a member
-			Assert.AreEqual(1, descriptor.Count);
-			Assert.True(descriptor.HasOnlyCapacity);
-			Assert.False(descriptor.IsPureCollection);
+			// No Capacity as a member
+			Assert.AreEqual(0, descriptor.Count);
+			Assert.True(descriptor.IsPureCollection);
 			Assert.AreEqual(typeof(string), descriptor.ElementType);
 
 			descriptor = new CollectionDescriptor(attributeRegistry, typeof(NonPureCollection), false);
             descriptor.Initialize();
 
-			// Only Capacity as a member
-			Assert.AreEqual(2, descriptor.Count);
-			Assert.False(descriptor.HasOnlyCapacity);
+			// Has name as a member
+			Assert.AreEqual(1, descriptor.Count);
 			Assert.False(descriptor.IsPureCollection);
 			Assert.AreEqual(typeof(int), descriptor.ElementType);
 
 			descriptor = new CollectionDescriptor(attributeRegistry, typeof(ArrayList), false);
             descriptor.Initialize();
-            // Only Capacity as a member
-			Assert.AreEqual(1, descriptor.Count);
-			Assert.True(descriptor.HasOnlyCapacity);
-			Assert.False(descriptor.IsPureCollection);
+
+            // No Capacity
+			Assert.AreEqual(0, descriptor.Count);
+			Assert.True(descriptor.IsPureCollection);
 			Assert.AreEqual(typeof(object), descriptor.ElementType);		
 		}
 
