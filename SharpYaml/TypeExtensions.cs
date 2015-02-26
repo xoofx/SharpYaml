@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -50,6 +51,8 @@ namespace SharpYaml
 {
 	internal static class TypeExtensions
 	{
+		private static Dictionary<Type, bool> anonymousTypes = new Dictionary<Type, bool>();
+
 		public static bool HasInterface(this Type type, Type lookInterfaceType)
 		{
 			return type.GetInterface(lookInterfaceType) != null;
@@ -137,9 +140,19 @@ namespace SharpYaml
 			if (type == null)
 				return false;
 
-			return type.GetCustomAttributes(typeof (CompilerGeneratedAttribute), false).Length > 0
-				&& type.Namespace == null
-				&& type.FullName.Contains("AnonymousType");
+			lock (anonymousTypes)
+			{
+				bool isAnonymous;
+				if (anonymousTypes.TryGetValue(type, out isAnonymous))
+					return isAnonymous;
+
+				isAnonymous = type.GetCustomAttributes(typeof (CompilerGeneratedAttribute), false).Length > 0
+							  && type.Namespace == null
+							  && type.FullName.Contains("AnonymousType");
+
+				anonymousTypes.Add(type, isAnonymous);
+				return isAnonymous;
+			}
 		}
 
 		/// <summary>
