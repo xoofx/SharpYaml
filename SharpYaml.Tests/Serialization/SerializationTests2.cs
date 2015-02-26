@@ -45,6 +45,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using NUnit.Framework;
 using SharpYaml.Serialization;
@@ -99,6 +100,41 @@ Value: World!
             public Color Color { get; set; }
         }
 
+
+        public struct StructWithDefaultValue
+        {
+            public StructWithDefaultValue(int width, int height) : this()
+            {
+                Width = width;
+                Height = height;
+            }
+
+            public static StructWithDefaultValue Default
+            {
+                get
+                {
+                    return new StructWithDefaultValue(100, 50);
+                }
+            }
+
+            [DefaultValue(100)]
+            public int Width { get; set; }
+
+            [DefaultValue(50)]
+            public int Height { get; set; }
+        }
+
+        public class TestStructWithDefaultValues
+        {
+            public TestStructWithDefaultValues()
+            {
+                Test = StructWithDefaultValue.Default;
+            }
+
+            public StructWithDefaultValue Test { get; set; }
+        }
+
+
         [Test]
         public void TestSimpleStruct()
         {
@@ -112,6 +148,18 @@ Value: World!
   G: 255
   R: 255
 ", text);
+        }
+
+        [Test]
+        public void TestSimpleStructWithDefaultValues()
+        {
+            var serializer = new Serializer();
+
+            var value = new TestStructWithDefaultValues();
+            var text = serializer.Serialize(value);
+            var newValue = serializer.Deserialize<TestStructWithDefaultValues>(text);
+            Assert.AreEqual(value.Test.Width, newValue.Test.Width);
+            Assert.AreEqual(value.Test.Height, newValue.Test.Height);
         }
 
         [Test]

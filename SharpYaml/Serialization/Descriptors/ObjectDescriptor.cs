@@ -211,7 +211,7 @@ namespace SharpYaml.Serialization.Descriptors
 			// If the member has a set, this is a conventional assign method
 			if (member.HasSet)
 			{
-				member.SerializeMemberMode = SerializeMemberMode.Assign;
+                member.SerializeMemberMode = memberType.IsStruct() ? SerializeMemberMode.Content : SerializeMemberMode.Assign;
 			}
 			else
 			{
