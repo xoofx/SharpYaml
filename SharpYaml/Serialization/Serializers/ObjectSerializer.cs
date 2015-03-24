@@ -198,14 +198,8 @@ namespace SharpYaml.Serialization.Serializers
                 throw new YamlException(memberScalar.Start, memberScalar.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(memberName, objectContext.Descriptor));
             }
 
-            // Read the value according to the type
-            object memberValue = null;
-
-            if (memberAccessor.SerializeMemberMode == SerializeMemberMode.Content)
-            {
-                memberValue = memberAccessor.Get(objectContext.Instance);
-            }
-
+            // Read the previous value to allow reusing existing instance (e.g when members are created in the constructor of the object)
+            var memberValue = memberAccessor.Get(objectContext.Instance);
             memberValue = ReadMemberValue(ref objectContext, memberAccessor, memberValue, memberAccessor.Type);
 
             // Handle late binding
