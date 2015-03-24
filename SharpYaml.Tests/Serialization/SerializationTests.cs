@@ -711,6 +711,42 @@ Name: Charles
 			public string Name { get; set; }
 		}
 
+        public class ExtendedPerson {
+            public string Name { get; set; }
+            public int Age { get; set; }
+        }
+
+        [Test]
+        public void DeserializeIntoExisting() {
+            var serializer = new Serializer();
+            var andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            var yaml = @"---
+Name: Andy
+...";
+            andy = serializer.DeserializeInto<ExtendedPerson>(yaml,andy);
+            Assert.AreEqual("Andy", andy.Name);
+            Assert.AreEqual(30, andy.Age);
+
+            andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            andy = (ExtendedPerson)serializer.Deserialize(yaml, typeof(ExtendedPerson), andy);
+            Assert.AreEqual("Andy", andy.Name);
+            Assert.AreEqual(30, andy.Age);
+
+        }
+
+        [Test]
+        public void DeserializeWithExistingObject() {
+            var serializer = new Serializer();
+            var andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            var yaml = @"---
+Name: Andy
+...";
+            andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            andy = (ExtendedPerson)serializer.Deserialize(yaml, typeof(ExtendedPerson), andy);
+            Assert.AreEqual("Andy", andy.Name);
+            Assert.AreEqual(30, andy.Age);
+        }
+
 		[Test]
 		public void DeserializeEmptyDocument()
 		{
