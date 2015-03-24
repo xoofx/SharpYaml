@@ -266,62 +266,67 @@ namespace SharpYaml.Serialization
 			return (T) Deserialize(stream, typeof (T));
 		}
 
-		/// <summary>
-		/// Deserializes an object from the specified <see cref="TextReader" /> with an expected specific type.
-		/// </summary>
-		/// <param name="reader">The reader.</param>
-		/// <param name="expectedType">The expected type.</param>
-		/// <returns>A deserialized object.</returns>
-		/// <exception cref="System.ArgumentNullException">reader</exception>
-		public object Deserialize(TextReader reader, Type expectedType)
+	    /// <summary>
+	    /// Deserializes an object from the specified <see cref="TextReader" /> with an expected specific type.
+	    /// </summary>
+	    /// <param name="reader">The reader.</param>
+	    /// <param name="expectedType">The expected type.</param>
+	    /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
+	    /// <returns>A deserialized object.</returns>
+	    /// <exception cref="System.ArgumentNullException">reader</exception>
+	    public object Deserialize(TextReader reader, Type expectedType, object existingObject=null)
 		{
 			if (reader == null) throw new ArgumentNullException("reader");
-			return Deserialize(new EventReader(new Parser(reader)), expectedType);
+			return Deserialize(new EventReader(new Parser(reader)), expectedType, existingObject);
 		}
 
-		/// <summary>
-		/// Deserializes an object from the specified <see cref="TextReader" /> with an expected specific type.
-		/// </summary>
-		/// <typeparam name="T">The expected type</typeparam>
-		/// <param name="reader">The reader.</param>
-		/// <returns>A deserialized object.</returns>
-		/// <exception cref="System.ArgumentNullException">reader</exception>
-		public T Deserialize<T>(TextReader reader)
+	    /// <summary>
+	    /// Deserializes an object from the specified <see cref="TextReader" /> with an expected specific type.
+	    /// </summary>
+	    /// <typeparam name="T">The expected type</typeparam>
+	    /// <param name="reader">The reader.</param>
+        /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
+	    /// <returns>A deserialized object.</returns>
+	    /// <exception cref="System.ArgumentNullException">reader</exception>
+	    public T Deserialize<T>(TextReader reader, object existingObject=null)
 		{
-			return (T) Deserialize(reader, typeof (T));
+			return (T) Deserialize(reader, typeof (T), existingObject);
 		}
 
-		/// <summary>
-		/// Deserializes an object from the specified string.
-		/// </summary>
-		/// <param name="fromText">The text.</param>
-		/// <returns>A deserialized object.</returns>
-		public object Deserialize(string fromText)
+	    /// <summary>
+	    /// Deserializes an object from the specified string.
+	    /// </summary>
+	    /// <param name="fromText">The text.</param>
+        /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
+	    /// <returns>A deserialized object.</returns>
+	    public object Deserialize(string fromText, object existingObject=null)
 		{
-			return Deserialize(fromText, null);
+			return Deserialize(fromText, null, existingObject);
 		}
 
-		/// <summary>
-		/// Deserializes an object from the specified string. with an expected specific type.
-		/// </summary>
-		/// <param name="fromText">From text.</param>
-		/// <param name="expectedType">The expected type.</param>
-		/// <returns>A deserialized object.</returns>
-		/// <exception cref="System.ArgumentNullException">stream</exception>
-		public object Deserialize(string fromText, Type expectedType)
+	    /// <summary>
+	    /// Deserializes an object from the specified string. with an expected specific type.
+	    /// </summary>
+	    /// <param name="fromText">From text.</param>
+	    /// <param name="expectedType">The expected type.</param>
+        /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
+	    /// <returns>A deserialized object.</returns>
+	    /// <exception cref="System.ArgumentNullException">stream</exception>
+	    public object Deserialize(string fromText, Type expectedType, object existingObject=null)
 		{
 			if (fromText == null) throw new ArgumentNullException("fromText");
-			return Deserialize(new StringReader(fromText), expectedType);
+			return Deserialize(new StringReader(fromText), expectedType,existingObject);
 		}
 
-		/// <summary>
-		/// Deserializes an object from the specified string. with an expected specific type.
-		/// </summary>
-		/// <typeparam name="T">The expected type</typeparam>
-		/// <param name="fromText">From text.</param>
-		/// <returns>A deserialized object.</returns>
-		/// <exception cref="System.ArgumentNullException">stream</exception>
-		public T Deserialize<T>(string fromText)
+	    /// <summary>
+	    /// Deserializes an object from the specified string. with an expected specific type.
+	    /// </summary>
+	    /// <typeparam name="T">The expected type</typeparam>
+	    /// <param name="fromText">From text.</param>
+        /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
+	    /// <returns>A deserialized object.</returns>
+	    /// <exception cref="System.ArgumentNullException">stream</exception>
+	    public T Deserialize<T>(string fromText)
 		{
 			return (T) Deserialize(fromText, typeof (T));
 		}
@@ -338,14 +343,43 @@ namespace SharpYaml.Serialization
 			return (T) Deserialize(reader, typeof (T));
 		}
 
-		/// <summary>
-		/// Deserializes an object from the specified <see cref="EventReader" /> with an expected specific type.
-		/// </summary>
-		/// <param name="reader">The reader.</param>
-		/// <param name="expectedType">The expected type.</param>
-		/// <returns>A deserialized object.</returns>
-		/// <exception cref="System.ArgumentNullException">reader</exception>
-		public object Deserialize(EventReader reader, Type expectedType)
+
+        /// <summary>
+        /// Deserializes an object from the specified string. with an expected specific type.
+        /// </summary>
+        /// <typeparam name="T">The expected type</typeparam>
+        /// <param name="fromText">From text.</param>
+        /// <param name="existingObject">The object to deserialize into.</param>
+        /// <returns>A deserialized object.</returns>
+        /// <exception cref="System.ArgumentNullException">stream</exception>
+        /// 
+        /// Note: These need a different name, because otherwise they will conflict with existing Deserialize(string,Type). They are new so the difference should not matter
+        public T DeserializeInto<T>(string fromText, T existingObject) { 
+            return (T)Deserialize(fromText, typeof(T), existingObject);
+        }
+
+        /// <summary>
+        /// Deserializes an object from the specified <see cref="EventReader" /> with an expected specific type.
+        /// </summary>
+        /// <typeparam name="T">The expected type</typeparam>
+        /// <param name="reader">The reader.</param>
+        /// <param name="existingObject">The object to deserialize into.</param>
+        /// <returns>A deserialized object.</returns>
+        /// <exception cref="System.ArgumentNullException">reader</exception>
+        public T DeserializeInto<T>(EventReader reader, T existingObject) {
+            return (T)Deserialize(reader, typeof(T), existingObject);
+        }
+
+
+	    /// <summary>
+	    /// Deserializes an object from the specified <see cref="EventReader" /> with an expected specific type.
+	    /// </summary>
+	    /// <param name="reader">The reader.</param>
+	    /// <param name="expectedType">The expected type.</param>
+	    /// <param name="existingObject">An object to deserialize into. By default a new object will be created</param>
+	    /// <returns>A deserialized object.</returns>
+	    /// <exception cref="System.ArgumentNullException">reader</exception>
+	    public object Deserialize(EventReader reader, Type expectedType, object existingObject = null)
 		{
 			if (reader == null) throw new ArgumentNullException("reader");
 			
@@ -356,7 +390,7 @@ namespace SharpYaml.Serialization
 			if (!reader.Accept<DocumentEnd>() && !reader.Accept<StreamEnd>())
 			{
 			    var context = new SerializerContext(this) {Reader = reader};
-			    result = context.ReadYaml(null, expectedType);
+			    result = context.ReadYaml(existingObject, expectedType);
 			}
 
 			if (hasDocumentStart)
