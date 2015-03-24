@@ -201,7 +201,19 @@ namespace SharpYaml.Serialization.Serializers
             // Read the value according to the type
             object memberValue = null;
 
-            if (memberAccessor.SerializeMemberMode == SerializeMemberMode.Content)
+            // TEMPORARY COMMENT
+            // This property changes the treatment of existing members - by setting it to true any existing members will be updated, not reset
+            // This is the behaviour I would expect with deserializing into an existing object, but it is a change that I do not fully understand.            
+            // All tests pass with this true, but it may cause a different result for strangely formed yaml.
+            // In particular, if a property is repeated in the yaml file then the second set will override the first only where values are set
+            // Previously they would have overwritten everything.
+            // See the test DeserializeWithExistingSubObjects
+            // I have separated this into a variable because it may be worth putting somewhere as a configuration setting
+            // I'm not sure where it should go, so I've left it here.
+            // If you're happy with the change then just delete this comment and the variable
+            bool updateExistingMembers = true;
+
+            if (memberAccessor.SerializeMemberMode == SerializeMemberMode.Content || (updateExistingMembers && memberAccessor.SerializeMemberMode == SerializeMemberMode.Assign))
             {
                 memberValue = memberAccessor.Get(objectContext.Instance);
             }

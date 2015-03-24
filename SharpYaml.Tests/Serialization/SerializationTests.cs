@@ -711,6 +711,90 @@ Name: Charles
 			public string Name { get; set; }
 		}
 
+        public class ExtendedPerson {
+            public string Name { get; set; }
+            public int Age { get; set; }
+        }
+
+        [Test]
+        public void DeserializeIntoExisting() {
+            var serializer = new Serializer();
+            var andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            var yaml = @"---
+Name: Andy
+...";
+            andy = serializer.DeserializeInto<ExtendedPerson>(yaml,andy);
+            Assert.AreEqual("Andy", andy.Name);
+            Assert.AreEqual(30, andy.Age);
+
+            andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            andy = (ExtendedPerson)serializer.Deserialize(yaml, typeof(ExtendedPerson), andy);
+            Assert.AreEqual("Andy", andy.Name);
+            Assert.AreEqual(30, andy.Age);
+
+        }
+
+        [Test]
+        public void DeserializeWithExistingObject() {
+            var serializer = new Serializer();
+            var andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            var yaml = @"---
+Name: Andy
+...";
+            andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            andy = (ExtendedPerson)serializer.Deserialize(yaml, typeof(ExtendedPerson), andy);
+            Assert.AreEqual("Andy", andy.Name);
+            Assert.AreEqual(30, andy.Age);
+        }
+
+        public class Family {
+            public ExtendedPerson Mother { get; set; }
+            public ExtendedPerson Father { get; set; }
+        }
+
+        [Test]
+        public void DeserializeIntoExistingSubObjects() {
+            var serializer = new Serializer();
+            var andy = new ExtendedPerson { Name = "Not Andy", Age = 30 };
+            var amy = new ExtendedPerson { Name = "Amy", Age = 33 };
+            var family = new Family { Father = andy, Mother = amy };
+            var yaml = @"---
+Mother:  
+  Name: Betty
+  Age: 22
+
+Father:
+  Name: Andy
+...";
+            family = serializer.DeserializeInto<Family>(yaml, family);
+            Assert.AreEqual("Andy", family.Father.Name);
+            Assert.AreEqual("Betty", family.Mother.Name);
+            // Existing behaviour will pass with the commented line
+            //Assert.AreEqual(0, family.Father.Age);
+            Assert.AreEqual(30, family.Father.Age);
+            Assert.AreEqual(22, family.Mother.Age);
+        }
+
+        [Test]
+        public void DeserializeWithRepeatedSubObjects() {
+            var serializer = new Serializer();
+            var yaml = @"---
+Mother:  
+  Name: Betty
+  
+Mother:
+  Age: 22
+...";
+            var family = serializer.Deserialize<Family>(yaml);
+            Assert.IsNull(family.Father);
+            // Note: This is the behaviour I would expect
+            // Existing behaviour will pass with the commented line
+            //Assert.IsNull(family.Mother.Name);
+            Assert.AreEqual("Betty", family.Mother.Name);
+            Assert.AreEqual(22, family.Mother.Age);
+        }
+
+
 		[Test]
 		public void DeserializeEmptyDocument()
 		{
