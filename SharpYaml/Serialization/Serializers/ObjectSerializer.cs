@@ -186,8 +186,30 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext"></param>
         /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
         protected virtual void ReadMember(ref ObjectContext objectContext)
-		{
-			// For a regular object, the key is expected to be a simple scalar
+        {
+            if (objectContext.SerializerContext.AllowErrors)
+            {
+                var currentDepth = objectContext.Reader.CurrentDepth;
+
+                try
+                {
+                    ReadMemberCore(ref objectContext);
+                }
+                catch (YamlException)
+                {
+                    // TODO: Warning?
+                    objectContext.Reader.Skip(currentDepth);
+                }
+            }
+            else
+            {
+                ReadMemberCore(ref objectContext);
+            }
+        }
+
+        private void ReadMemberCore(ref ObjectContext objectContext)
+        {
+            // For a regular object, the key is expected to be a simple scalar
             var memberScalar = objectContext.Reader.Expect<Scalar>();
             var memberName = ReadMemberName(ref objectContext, memberScalar.Value);
             var memberAccessor = objectContext.Descriptor[memberName];

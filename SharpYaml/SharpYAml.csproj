@@ -56,6 +56,7 @@
     <Compile Include="Events\Scalar.cs" />
     <Compile Include="Events\SequenceEnd.cs" />
     <Compile Include="Events\SequenceStart.cs" />
+    <Compile Include="MemoryParser.cs" />
     <Compile Include="Serialization\AnchorEventEmitter.cs" />
     <Compile Include="Serialization\Descriptors\DefaultKeyComparer.cs" />
     <Compile Include="Serialization\IOrderedDictionary.cs" />

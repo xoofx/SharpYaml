@@ -156,8 +156,26 @@ namespace SharpYaml.Serialization.Serializers
             var elementType = collectionDescriptor.ElementType;
 			while (!reader.Accept<SequenceEnd>())
 			{
-                var value = ReadCollectionItem(ref objectContext, elementType);
-				collectionDescriptor.CollectionAdd(thisObject, value);
+				if (objectContext.SerializerContext.AllowErrors)
+				{
+					var currentDepth = objectContext.Reader.CurrentDepth;
+
+					try
+					{
+						var value = ReadCollectionItem(ref objectContext, elementType);
+						collectionDescriptor.CollectionAdd(thisObject, value);
+					}
+					catch (YamlException)
+					{
+						// TODO: Warning?
+						objectContext.Reader.Skip(currentDepth);
+					}
+				}
+				else
+				{
+					var value = ReadCollectionItem(ref objectContext, elementType);
+					collectionDescriptor.CollectionAdd(thisObject, value);
+				}
 			}
 		}
 

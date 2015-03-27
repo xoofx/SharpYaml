@@ -108,10 +108,10 @@ namespace SharpYaml.Serialization
 		public Serializer Serializer { get; private set; }
 
 		/// <summary>
-		/// Gets the reader used while deserializing.
+		/// Gets or sets the reader used while deserializing.
 		/// </summary>
 		/// <value>The reader.</value>
-		public EventReader Reader { get; internal set; }
+		public EventReader Reader { get; set; }
 
         /// <summary>
         /// Gets the object serializer backend.
@@ -120,6 +120,14 @@ namespace SharpYaml.Serialization
         public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
 
 		private IYamlSerializable ObjectSerializer { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether errors are allowed.
+		/// </summary>
+		/// <value>
+		///   <c>true</c> if errors are allowed; otherwise, <c>false</c>.
+		/// </value>
+		public bool AllowErrors { get; set; }
 
 		/// <summary>
 		/// The default function to read an object from the current Yaml stream.
@@ -150,10 +158,10 @@ namespace SharpYaml.Serialization
 		public IObjectFactory ObjectFactory { get; set; }
 
 		/// <summary>
-		/// Gets the writer used while deserializing.
+		/// Gets or sets the writer used while deserializing.
 		/// </summary>
 		/// <value>The writer.</value>
-		public IEventEmitter Writer { get; internal set; }
+		public IEventEmitter Writer { get; set; }
 
         /// <summary>
         /// Gets the emitter.

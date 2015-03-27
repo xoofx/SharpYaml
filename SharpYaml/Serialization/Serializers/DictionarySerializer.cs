@@ -130,9 +130,28 @@ namespace SharpYaml.Serialization.Serializers
             var reader = objectContext.Reader;
 			while (!reader.Accept<MappingEnd>())
 			{
-                // Read key and value
-                var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
-                dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
+				if (objectContext.SerializerContext.AllowErrors)
+				{
+					var currentDepth = objectContext.Reader.CurrentDepth;
+
+					try
+					{
+						// Read key and value
+						var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
+						dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
+					}
+					catch (YamlException)
+					{
+						// TODO: Warning?
+						objectContext.Reader.Skip(currentDepth);
+					}
+				}
+				else
+				{
+					// Read key and value
+					var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
+					dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
+				}
 			}
 		}
 

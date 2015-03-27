@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
+using SharpYaml.Events;
 
 namespace SharpYaml.Serialization
 {
@@ -102,6 +103,11 @@ namespace SharpYaml.Serialization
 		public virtual void Emit(SequenceEndEventInfo eventInfo)
 		{
 			nextEmitter.Emit(eventInfo);
+		}
+
+		public virtual void Emit(ParsingEvent parsingEvent)
+		{
+			nextEmitter.Emit(parsingEvent);
 		}
 
 		public virtual void DocumentEnd()

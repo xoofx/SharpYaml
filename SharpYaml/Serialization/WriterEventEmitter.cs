@@ -95,6 +95,11 @@ namespace SharpYaml.Serialization
 			emitter.Emit(new SequenceEnd());
 		}
 
+		public void Emit(ParsingEvent parsingEvent)
+		{
+			emitter.Emit(parsingEvent);
+		}
+
 		void IEventEmitter.DocumentEnd()
 		{
 			emitter.Emit(new DocumentEnd(true));

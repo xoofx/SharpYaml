@@ -58,6 +58,7 @@ namespace SharpYaml
 	{
 		private readonly IParser parser;
 		private bool endOfStream;
+		private int currentDepth = 0;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="EventReader"/> class.
@@ -79,6 +80,11 @@ namespace SharpYaml
 			{
 				return parser;
 			}
+		}
+
+		public int CurrentDepth
+		{
+			get { return currentDepth; }
 		}
 
 		/// <summary>
@@ -114,6 +120,8 @@ namespace SharpYaml
 		/// </summary>
 		private void MoveNext()
 		{
+			if (parser.Current != null)
+				currentDepth += parser.Current.NestingIncrease;
 			endOfStream = !parser.MoveNext();
 		}
 
@@ -183,6 +191,18 @@ namespace SharpYaml
 				MoveNext();
 			}
 			while(depth > 0);
+		}
+
+		/// <summary>
+		/// Skips until we reach the appropriate depth again
+		/// </summary>
+		public void Skip(int untilDepth)
+		{
+			do
+			{
+				MoveNext();
+			}
+			while (CurrentDepth > untilDepth);
 		}
 
 		/// <summary>
