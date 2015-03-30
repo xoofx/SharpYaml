@@ -226,12 +226,60 @@ namespace SharpYaml.Serialization
 			var type = Type.GetType(typeName);
 			if (type == null)
 			{
+				string assemblyName = null;
+
+				// Find assembly name start (skip up to one space if needed)
+				// We ignore everything else (version, publickeytoken, etc...)
+				if (UseShortTypeName)
+				{
+					var typeNameEnd = typeName.IndexOf(',');
+					var assemblyNameStart = typeNameEnd;
+					if (assemblyNameStart != -1 && typeName[++assemblyNameStart] == ' ') // Skip first comma and check if we have a space
+						assemblyNameStart++; // Skip first space
+
+					// Extract assemblyName and readjust typeName to not include assemblyName anymore
+					if (assemblyNameStart != -1)
+					{
+						var assemblyNameEnd = typeName.IndexOf(',', assemblyNameStart);
+						assemblyName = assemblyNameEnd != -1
+							? typeName.Substring(assemblyNameStart, assemblyNameEnd - assemblyNameStart)
+							: typeName.Substring(assemblyNameStart);
+
+						typeName = typeName.Substring(0, typeNameEnd);
+					}
+				}
+
+				// Look for type in loaded assemblies
 				foreach (var assembly in lookupAssemblies)
 				{
+					if (assemblyName != null)
+					{
+						// Check that assembly name match, by comparing up to the first comma
+						var assemblyFullName = assembly.FullName;
+						if (string.Compare(assemblyFullName, 0, assemblyName, 0, assemblyName.Length) != 0
+							|| !(assemblyFullName.Length == assemblyName.Length || assemblyFullName[assemblyName.Length] == ','))
+						{
+							continue;
+						}
+					}
+
 					type = assembly.GetType(typeName);
 					if (type != null)
 					{
 						break;
+					}
+				}
+
+				// No type found, let's try again ignoring assembly name (in case a type moved)
+				if (type == null && assemblyName != null)
+				{
+					foreach (var assembly in lookupAssemblies)
+					{
+						type = assembly.GetType(typeName);
+						if (type != null)
+						{
+							break;
+						}
 					}
 				}
 			}
