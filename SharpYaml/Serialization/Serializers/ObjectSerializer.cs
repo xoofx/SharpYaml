@@ -186,16 +186,45 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext"></param>
         /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
         protected virtual void ReadMember(ref ObjectContext objectContext)
-		{
-			// For a regular object, the key is expected to be a simple scalar
-            var memberScalar = objectContext.Reader.Expect<Scalar>();
-            var memberName = ReadMemberName(ref objectContext, memberScalar.Value);
+        {
+            Scalar memberScalar;
+            string memberName;
+            if (!TryReadMember(ref objectContext, out memberScalar, out memberName))
+            {
+                throw new YamlException(memberScalar.Start, memberScalar.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(memberName, objectContext.Descriptor));
+            }
+        }
+
+        /// <summary>
+        /// Tries to read a member.
+        /// </summary>
+        /// <param name="objectContext">The object context.</param>
+        /// <param name="memberName">Name of the member.</param>
+        /// <returns><c>true</c> if the member was successfully read, <c>false</c> otherwise.</returns>
+        protected bool TryReadMember(ref ObjectContext objectContext, out string memberName)
+        {
+            Scalar scalar;
+            return TryReadMember(ref objectContext, out scalar, out memberName);
+        }
+
+        /// <summary>
+        /// Tries to read a member.
+        /// </summary>
+        /// <param name="objectContext">The object context.</param>
+        /// <param name="memberScalar">The member scalar.</param>
+        /// <param name="memberName">Name of the member.</param>
+        /// <returns><c>true</c> if the member was successfully read, <c>false</c> otherwise.</returns>
+        protected bool TryReadMember(ref ObjectContext objectContext, out Scalar memberScalar, out string memberName)
+        {
+            // For a regular object, the key is expected to be a simple scalar
+            memberScalar = objectContext.Reader.Expect<Scalar>();
+            memberName = ReadMemberName(ref objectContext, memberScalar.Value);
             var memberAccessor = objectContext.Descriptor[memberName];
 
             // Check that property exist before trying to access the descriptor
             if (memberAccessor == null)
             {
-                throw new YamlException(memberScalar.Start, memberScalar.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(memberName, objectContext.Descriptor));
+                return false;
             }
 
             // Read the previous value to allow reusing existing instance (e.g when members are created in the constructor of the object)
@@ -208,6 +237,7 @@ namespace SharpYaml.Serialization.Serializers
             {
                 memberAccessor.Set(objectContext.Instance, memberValue);
             }
+            return true;
         }
 
         protected virtual string ReadMemberName(ref ObjectContext objectContext, string memberName)

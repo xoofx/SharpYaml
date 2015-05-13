@@ -78,9 +78,19 @@ namespace SharpYaml.Serialization.Serializers
 			{
 				ReadDictionaryItems(ref objectContext);
 			}
-			else
+            else if (objectContext.Settings.SerializeDictionaryItemsAsMembers && dictionaryDescriptor.KeyType == typeof(string))
 			{
-                var keyEvent = objectContext.Reader.Peek<Scalar>();
+                // Read dictionaries that can be serialized as items
+			    string memberName;
+			    if (!TryReadMember(ref objectContext, out memberName))
+			    {
+                    var value = ReadMemberValue(ref objectContext, null, null, dictionaryDescriptor.ValueType);
+                    dictionaryDescriptor.AddToDictionary(objectContext.Instance, memberName, value);
+			    }
+			}
+            else 
+            {
+		        var keyEvent = objectContext.Reader.Peek<Scalar>();
                 if (keyEvent != null && keyEvent.Value == objectContext.Settings.SpecialCollectionMember)
 			    {
                     var reader = objectContext.Reader;
@@ -103,7 +113,16 @@ namespace SharpYaml.Serialization.Serializers
 			{
                 WriteDictionaryItems(ref objectContext);
 			}
-			else
+            else if (objectContext.Settings.SerializeDictionaryItemsAsMembers && dictionaryDescriptor.KeyType == typeof(string))
+			{
+                // Serialize Dictionary members and items together
+                foreach (var member in dictionaryDescriptor.Members)
+                {
+                    WriteMember(ref objectContext, member);
+                }
+                WriteDictionaryItems(ref objectContext);
+			} 
+            else 
 			{
 				// Serialize Dictionary members
                 foreach (var member in dictionaryDescriptor.Members)

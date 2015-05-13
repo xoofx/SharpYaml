@@ -178,6 +178,12 @@ namespace SharpYaml.Serialization
         /// <value>The key comparer.</value>
         public IComparer<object> ComparerForKeySorting { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether to serialize dictionary items as regular members.s
+        /// </summary>
+        /// <value><c>true</c> if [enable dictionary items as members]; otherwise, <c>false</c>.</value>
+        public bool SerializeDictionaryItemsAsMembers { get; set; }
+
 	    /// <summary>
 	    /// Gets or sets the naming convention. Default is to output name as-is <see cref="DefaultNamingConvention"/>.
 	    /// </summary>

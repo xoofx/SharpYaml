@@ -347,6 +347,29 @@ Value: 1
 			SerialRoundTrip(settings, text);
 		}
 
+
+        /// <summary>
+        /// Tests the serialization of a custom dictionary with some custom properties while allowing to serialize both
+        /// member and items into the same YAML mapping, using the option Settings.SerializeDictionaryItemsAsMembers = true
+        /// </summary>
+        [Test]
+        public void TestCustomDictionaryWithItemsAsMembers()
+        {
+            var text = @"!MyCustomDictionaryWithProperties
+Name: Yes
+Value: 1
+a: true
+b: false
+c: true
+".Trim();
+
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0, SerializeDictionaryItemsAsMembers = true };
+            settings.RegisterTagMapping("MyCustomDictionaryWithProperties", typeof(MyCustomDictionaryWithProperties));
+            SerialRoundTrip(settings, text);
+        }
+
+
+
 		public class MyCustomClassWithSpecialMembers
 		{
 			public MyCustomClassWithSpecialMembers()
