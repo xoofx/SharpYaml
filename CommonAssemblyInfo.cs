@@ -1,4 +1,4 @@
-// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ using System;
 #endif
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("SharpYaml")]
-[assembly: AssemblyCopyright("Copyright © 2013 - Alexandre Mutel")]
+[assembly: AssemblyCopyright("Copyright © 2015 - Alexandre Mutel")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -69,7 +69,7 @@ using System;
 //
 // You can specify all the values or you can default the Revision and Build Numbers
 // by using the '*' as shown below:
-[assembly: AssemblyVersion("1.2.0.*")]
-[assembly: AssemblyFileVersion("1.2.0")]
+[assembly: AssemblyVersion("1.3.0.*")]
+[assembly: AssemblyFileVersion("1.3.0")]
 
 [assembly: CLSCompliant(true)]
