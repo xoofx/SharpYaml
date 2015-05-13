@@ -114,7 +114,7 @@ namespace SharpYaml.Serialization.Serializers
 				// Serialize Dictionary members
                 foreach (var member in objectContext.Descriptor.Members)
 				{
-                    if (member.Name == "Capacity" && !objectContext.Settings.EmitCapacityForList)
+                    if (member.OriginalName == "Capacity" && !objectContext.Settings.EmitCapacityForList)
 					{
 						continue;
 					}

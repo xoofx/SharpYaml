@@ -62,15 +62,16 @@ namespace SharpYaml.Serialization.Descriptors
 		private readonly MethodInfo getEnumeratorGeneric;
 		private readonly MethodInfo addMethod;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="DictionaryDescriptor" /> class.
-		/// </summary>
-		/// <param name="attributeRegistry">The attribute registry.</param>
-		/// <param name="type">The type.</param>
-		/// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
-		/// <exception cref="System.ArgumentException">Expecting a type inheriting from System.Collections.IDictionary;type</exception>
-		public DictionaryDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues)
-			: base(attributeRegistry, type, emitDefaultValues)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DictionaryDescriptor" /> class.
+        /// </summary>
+        /// <param name="attributeRegistry">The attribute registry.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
+        /// <param name="namingConvention">The naming convention.</param>
+        /// <exception cref="System.ArgumentException">Expecting a type inheriting from System.Collections.IDictionary;type</exception>
+        public DictionaryDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, IMemberNamingConvention namingConvention)
+			: base(attributeRegistry, type, emitDefaultValues, namingConvention)
 		{
 			if (!IsDictionary(type))
 				throw new ArgumentException("Expecting a type inheriting from System.Collections.IDictionary", "type");
@@ -217,7 +218,7 @@ namespace SharpYaml.Serialization.Descriptors
 		protected override bool PrepareMember(MemberDescriptorBase member)
 		{
 			// Filter members
-			if (member is PropertyDescriptor && ListOfMembersToRemove.Contains(member.Name))
+			if (member is PropertyDescriptor && ListOfMembersToRemove.Contains(member.OriginalName))
 			//if (member is PropertyDescriptor && (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace) && ListOfMembersToRemove.Contains(member.Name))
 			{
 				return false;

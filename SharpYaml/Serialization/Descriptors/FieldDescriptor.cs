@@ -54,11 +54,14 @@ namespace SharpYaml.Serialization.Descriptors
 	{
 		private readonly FieldInfo fieldInfo;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="FieldDescriptor"/> class.
-		/// </summary>
-		/// <param name="fieldInfo">The property information.</param>
-		public FieldDescriptor(FieldInfo fieldInfo) : base(fieldInfo)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FieldDescriptor" /> class.
+        /// </summary>
+        /// <param name="fieldInfo">The property information.</param>
+        /// <param name="defaultNameComparer">The default name comparer.</param>
+        /// <exception cref="System.ArgumentNullException">fieldInfo</exception>
+        public FieldDescriptor(FieldInfo fieldInfo, StringComparer defaultNameComparer)
+            : base(fieldInfo, defaultNameComparer)
 		{
 			if (fieldInfo == null) throw new ArgumentNullException("fieldInfo");
 
@@ -100,7 +103,7 @@ namespace SharpYaml.Serialization.Descriptors
 		/// <returns>A <see cref="System.String" /> that represents this instance.</returns>
 		public override string ToString()
 		{
-			return string.Format("Field [{0}] from Type [{1}]", Name, FieldInfo.DeclaringType != null ? FieldInfo.DeclaringType.FullName : string.Empty);
+			return string.Format("Field [{0}] from Type [{1}]", OriginalName, FieldInfo.DeclaringType != null ? FieldInfo.DeclaringType.FullName : string.Empty);
 		}
 	}
 }

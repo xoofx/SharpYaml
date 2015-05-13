@@ -56,11 +56,14 @@ namespace SharpYaml.Serialization.Descriptors
 		private readonly MethodInfo getMethod;
 		private readonly MethodInfo setMethod;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="PropertyDescriptor"/> class.
-		/// </summary>
-		/// <param name="propertyInfo">The property information.</param>
-		public PropertyDescriptor(PropertyInfo propertyInfo) : base(propertyInfo)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PropertyDescriptor" /> class.
+        /// </summary>
+        /// <param name="propertyInfo">The property information.</param>
+        /// <param name="defaultNameComparer">The default name comparer.</param>
+        /// <exception cref="System.ArgumentNullException">propertyInfo</exception>
+        public PropertyDescriptor(PropertyInfo propertyInfo, StringComparer defaultNameComparer)
+            : base(propertyInfo, defaultNameComparer)
 		{
 			if (propertyInfo == null) throw new ArgumentNullException("propertyInfo");
 
@@ -109,7 +112,7 @@ namespace SharpYaml.Serialization.Descriptors
 		/// <returns>A <see cref="System.String" /> that represents this instance.</returns>
 		public override string ToString()
 		{
-			return string.Format("Property [{0}] from Type [{1}]", Name,  PropertyInfo.DeclaringType != null ? PropertyInfo.DeclaringType.FullName : string.Empty);
+			return string.Format("Property [{0}] from Type [{1}]", OriginalName,  PropertyInfo.DeclaringType != null ? PropertyInfo.DeclaringType.FullName : string.Empty);
 		}
 	}
 }

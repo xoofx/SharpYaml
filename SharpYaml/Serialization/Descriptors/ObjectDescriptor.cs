@@ -66,27 +66,40 @@ namespace SharpYaml.Serialization.Descriptors
 		private readonly bool emitDefaultValues;
 		private YamlStyle style;
 	    private bool isSorted;
+	    private readonly IMemberNamingConvention memberNamingConvention;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
-		/// </summary>
-		/// <param name="attributeRegistry">The attribute registry.</param>
-		/// <param name="type">The type.</param>
-		/// <param name="emitDefaultValues"></param>
-		/// <exception cref="System.ArgumentNullException">type</exception>
-		/// <exception cref="YamlException">Failed to get ObjectDescriptor for type [{0}]. The member [{1}] cannot be registered as a member with the same name is already registered [{2}].DoFormat(type.FullName, member, existingMember)</exception>
-		public ObjectDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
+        /// </summary>
+        /// <param name="attributeRegistry">The attribute registry.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
+        /// <param name="namingConvention">The naming convention.</param>
+        /// <exception cref="System.ArgumentNullException">type</exception>
+        /// <exception cref="YamlException">type</exception>
+		public ObjectDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, IMemberNamingConvention namingConvention)
 		{
 			if (attributeRegistry == null) throw new ArgumentNullException("attributeRegistry");
 			if (type == null) throw new ArgumentNullException("type");
+            if (namingConvention == null) throw new ArgumentNullException("namingConvention");
 
-			this.emitDefaultValues = emitDefaultValues;
+            this.memberNamingConvention = namingConvention;
+            this.emitDefaultValues = emitDefaultValues;
 			this.AttributeRegistry = attributeRegistry;
 			this.type = type;
 			var styleAttribute = AttributeRegistry.GetAttribute<YamlStyleAttribute>(type);
 			this.style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
 			this.IsCompilerGenerated = AttributeRegistry.GetAttribute<CompilerGeneratedAttribute>(type) != null;
 		}
+
+        /// <summary>
+        /// Gets the naming convention.
+        /// </summary>
+        /// <value>The naming convention.</value>
+	    public IMemberNamingConvention NamingConvention
+	    {
+	        get { return memberNamingConvention; }
+	    }
 
         /// <summary>
         /// Initializes this instance.
@@ -183,7 +196,7 @@ namespace SharpYaml.Serialization.Descriptors
 							  where
 								  propertyInfo.CanRead && propertyInfo.GetGetMethod(false) != null &&
 								  propertyInfo.GetIndexParameters().Length == 0
-							  select new PropertyDescriptor(propertyInfo)
+							  select new PropertyDescriptor(propertyInfo, NamingConvention.Comparer)
 							  into member
 							  where PrepareMember(member)
 							  select member).Cast<IMemberDescriptor>().ToList();
@@ -191,7 +204,7 @@ namespace SharpYaml.Serialization.Descriptors
 			// Add all public fields
 			memberList.AddRange((from fieldInfo in type.GetFields(BindingFlags.Instance | BindingFlags.Public)
 								 where fieldInfo.IsPublic
-								 select new FieldDescriptor(fieldInfo)
+                                 select new FieldDescriptor(fieldInfo, NamingConvention.Comparer)
 								 into member where PrepareMember(member) select member));
 
 			return memberList;
@@ -202,7 +215,7 @@ namespace SharpYaml.Serialization.Descriptors
 			var memberType = member.Type;
 
 			// Remove all SyncRoot from members
-			if (member is PropertyDescriptor && member.Name == "SyncRoot" &&
+			if (member is PropertyDescriptor && member.OriginalName == "SyncRoot" &&
 				(member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace))
 			{
 				return false;
@@ -235,7 +248,7 @@ namespace SharpYaml.Serialization.Descriptors
 				{
 					if (memberAttribute.SerializeMethod == SerializeMemberMode.Assign ||
 						(memberType.IsValueType && member.SerializeMemberMode == SerializeMemberMode.Content))
-						throw new ArgumentException("{0} {1} is not writeable by {2}.".DoFormat(memberType.FullName, member.Name, memberAttribute.SerializeMethod.ToString()));
+						throw new ArgumentException("{0} {1} is not writeable by {2}.".DoFormat(memberType.FullName, member.OriginalName, memberAttribute.SerializeMethod.ToString()));
 				}
 
 				if (memberAttribute.SerializeMethod != SerializeMemberMode.Default)
@@ -249,9 +262,9 @@ namespace SharpYaml.Serialization.Descriptors
 			{
 				if (!memberType.IsArray)
 					throw new InvalidOperationException("{0} {1} of {2} is not an array. Can not be serialized as binary."
-															.DoFormat(memberType.FullName, member.Name, type.FullName));
+															.DoFormat(memberType.FullName, member.OriginalName, type.FullName));
 				if (!memberType.GetElementType().IsPureValueType())
-					throw new InvalidOperationException("{0} is not a pure ValueType. {1} {2} of {3} can not serialize as binary.".DoFormat(memberType.GetElementType(), memberType.FullName, member.Name, type.FullName));
+					throw new InvalidOperationException("{0} is not a pure ValueType. {1} {2} of {3} can not serialize as binary.".DoFormat(memberType.GetElementType(), memberType.FullName, member.OriginalName, type.FullName));
 			}
 
 			// If this member cannot be serialized, remove it from the list
@@ -265,7 +278,7 @@ namespace SharpYaml.Serialization.Descriptors
 			//	  ShouldSerializeSomeProperty => call it
 			//	  DefaultValueAttribute(default) => compare to it
 			//	  otherwise => true
-			var shouldSerialize = type.GetMethod("ShouldSerialize" + member.Name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+			var shouldSerialize = type.GetMethod("ShouldSerialize" + member.OriginalName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 			if (shouldSerialize != null && shouldSerialize.ReturnType == typeof(bool) && member.ShouldSerialize == null)
 				member.ShouldSerialize = obj => (bool)shouldSerialize.Invoke(obj, EmptyObjectArray);
 
@@ -286,6 +299,10 @@ namespace SharpYaml.Serialization.Descriptors
 			if (memberAttribute != null && !string.IsNullOrEmpty(memberAttribute.Name))
 			{
 				member.Name = memberAttribute.Name;
+			}
+			else
+			{
+			    member.Name = NamingConvention.Convert(member.OriginalName);
 			}
 
 			return true;

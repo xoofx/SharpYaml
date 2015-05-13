@@ -53,7 +53,7 @@ namespace SharpYaml.Serialization.Descriptors
                 }
 
                 // else order by name
-                return string.CompareOrdinal(left.Name, right.Name);
+                return left.DefaultNameComparer.Compare(left.Name, right.Name);
             }
 
             if (x is string && y is string)

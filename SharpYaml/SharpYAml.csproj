@@ -57,7 +57,10 @@
     <Compile Include="Events\SequenceEnd.cs" />
     <Compile Include="Events\SequenceStart.cs" />
     <Compile Include="Serialization\AnchorEventEmitter.cs" />
+    <Compile Include="Serialization\DefaultNamingConvention.cs" />
     <Compile Include="Serialization\Descriptors\DefaultKeyComparer.cs" />
+    <Compile Include="Serialization\FlatNamingConvention.cs" />
+    <Compile Include="Serialization\IMemberNamingConvention.cs" />
     <Compile Include="Serialization\IOrderedDictionary.cs" />
     <Compile Include="Serialization\ITagTypeResolver.cs" />
     <Compile Include="Serialization\ObjectContext.cs" />

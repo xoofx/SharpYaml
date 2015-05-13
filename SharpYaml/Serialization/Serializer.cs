@@ -434,7 +434,7 @@ namespace SharpYaml.Serialization
 
 	    private ITypeDescriptorFactory CreateTypeDescriptorFactory()
 	    {
-            return new TypeDescriptorFactory(Settings.Attributes, Settings.EmitDefaultValues);
+            return new TypeDescriptorFactory(Settings.Attributes, Settings.EmitDefaultValues, Settings.NamingConvention);
 	    }
 
 		private IEventEmitter CreateEmitter(IEmitter emitter)

@@ -105,7 +105,7 @@ namespace SharpYaml.Tests
 			// Rename ItemRenamed2 to Item2
 			attributeRegistry.Register(typeof(TestObject).GetProperty("ItemRenamed2"), new YamlMemberAttribute("Item2"));
 
-			var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObject), false);
+			var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObject), false, new DefaultNamingConvention());
             descriptor.Initialize();
 
 			// Verify members
@@ -154,6 +154,34 @@ namespace SharpYaml.Tests
 			Assert.False(descriptor["CollectionReadOnly"].HasSet);
 		}
 
+	    public class TestObjectNamingConvention
+	    {
+            public string Name { get; set; }
+
+            public string ThisIsCamelName { get; set; }
+
+            [YamlMember("myname")]
+            public string CustomName { get; set; }
+	    }
+
+	    [Test]
+	    public void TestObjectWithCustomNamingConvention()
+	    {
+            var attributeRegistry = new AttributeRegistry();
+            var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObjectNamingConvention), false, new FlatNamingConvention());
+            descriptor.Initialize();
+
+            descriptor.SortMembers(new DefaultKeyComparer());
+
+            // Check names and their orders
+            Assert.AreEqual(descriptor.Members.Select(memberDescriptor => memberDescriptor.Name), new[]
+				{
+					"myname",
+					"name",
+                    "this_is_camel_name"
+				});
+	    }
+
 		/// <summary>
 		/// This is a non pure collection: It has at least one public get/set member.
 		/// </summary>
@@ -166,7 +194,7 @@ namespace SharpYaml.Tests
 		public void TestCollectionDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
-			var descriptor = new CollectionDescriptor(attributeRegistry, typeof (List<string>), false);
+			var descriptor = new CollectionDescriptor(attributeRegistry, typeof (List<string>), false, new DefaultNamingConvention());
             descriptor.Initialize();
 
 			// No Capacity as a member
@@ -174,7 +202,8 @@ namespace SharpYaml.Tests
 			Assert.True(descriptor.IsPureCollection);
 			Assert.AreEqual(typeof(string), descriptor.ElementType);
 
-			descriptor = new CollectionDescriptor(attributeRegistry, typeof(NonPureCollection), false);
+		    descriptor = new CollectionDescriptor(attributeRegistry, typeof (NonPureCollection), false,
+		        new DefaultNamingConvention());
             descriptor.Initialize();
 
 			// Has name as a member
@@ -182,7 +211,7 @@ namespace SharpYaml.Tests
 			Assert.False(descriptor.IsPureCollection);
 			Assert.AreEqual(typeof(int), descriptor.ElementType);
 
-			descriptor = new CollectionDescriptor(attributeRegistry, typeof(ArrayList), false);
+		    descriptor = new CollectionDescriptor(attributeRegistry, typeof (ArrayList), false, new DefaultNamingConvention());
             descriptor.Initialize();
 
             // No Capacity
@@ -203,7 +232,8 @@ namespace SharpYaml.Tests
 		public void TestDictionaryDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
-			var descriptor = new DictionaryDescriptor(attributeRegistry, typeof(Dictionary<int, string>), false);
+		    var descriptor = new DictionaryDescriptor(attributeRegistry, typeof (Dictionary<int, string>), false,
+		        new DefaultNamingConvention());
             descriptor.Initialize();
 
 			Assert.AreEqual(0, descriptor.Count);
@@ -211,7 +241,8 @@ namespace SharpYaml.Tests
 			Assert.AreEqual(typeof(int), descriptor.KeyType);
 			Assert.AreEqual(typeof(string), descriptor.ValueType);
 
-			descriptor = new DictionaryDescriptor(attributeRegistry, typeof(NonPureDictionary), false);
+		    descriptor = new DictionaryDescriptor(attributeRegistry, typeof (NonPureDictionary), false,
+		        new DefaultNamingConvention());
             descriptor.Initialize();
 			Assert.AreEqual(1, descriptor.Count);
 			Assert.False(descriptor.IsPureDictionary);
@@ -223,7 +254,7 @@ namespace SharpYaml.Tests
 		public void TestArrayDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
-			var descriptor = new ArrayDescriptor(attributeRegistry, typeof(int[]));
+		    var descriptor = new ArrayDescriptor(attributeRegistry, typeof (int[]), new DefaultNamingConvention());
 		    descriptor.Initialize();
 
 			Assert.AreEqual(0, descriptor.Count);
@@ -240,7 +271,7 @@ namespace SharpYaml.Tests
 		public void TestPrimitiveDescriptor()
 		{
 			var attributeRegistry = new AttributeRegistry();
-			var descriptor = new PrimitiveDescriptor(attributeRegistry, typeof(int));
+		    var descriptor = new PrimitiveDescriptor(attributeRegistry, typeof (int), new DefaultNamingConvention());
 			Assert.AreEqual(0, descriptor.Count);
 
 			Assert.True(PrimitiveDescriptor.IsPrimitive(typeof(MyEnum)));

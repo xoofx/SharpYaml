@@ -52,17 +52,28 @@ namespace SharpYaml.Serialization.Descriptors
 	/// </summary>
 	public abstract class MemberDescriptorBase : IMemberDescriptor
 	{
-		protected MemberDescriptorBase(MemberInfo memberInfo)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MemberDescriptorBase"/> class.
+        /// </summary>
+        /// <param name="memberInfo">The member information.</param>
+        /// <param name="defaultNameComparer">The default name comparer.</param>
+        /// <exception cref="System.ArgumentNullException">memberInfo</exception>
+		protected MemberDescriptorBase(MemberInfo memberInfo, StringComparer defaultNameComparer)
 		{
 			if (memberInfo == null) throw new ArgumentNullException("memberInfo");
+            if (defaultNameComparer == null) throw new ArgumentNullException("defaultNameComparer");
 
-			MemberInfo = memberInfo;
+            MemberInfo = memberInfo;
 			Name = MemberInfo.Name;
+		    OriginalName = Name;
 			DeclaringType = memberInfo.DeclaringType;
+            DefaultNameComparer = defaultNameComparer;
 		}
 
 		public string Name { get; internal set; }
-		public abstract Type Type { get; }
+	    public string OriginalName { get; private set; }
+	    public StringComparer DefaultNameComparer { get; private set; }
+	    public abstract Type Type { get; }
 		public int? Order { get; internal set; }
 
 		/// <summary>

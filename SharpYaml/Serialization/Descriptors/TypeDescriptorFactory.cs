@@ -55,16 +55,20 @@ namespace SharpYaml.Serialization.Descriptors
 		private readonly IAttributeRegistry attributeRegistry;
 		private readonly Dictionary<Type,ITypeDescriptor> registeredDescriptors = new Dictionary<Type, ITypeDescriptor>();
 		private readonly bool emitDefaultValues;
+	    private readonly IMemberNamingConvention namingConvention;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="TypeDescriptorFactory" /> class.
-		/// </summary>
-		/// <param name="attributeRegistry">The attribute registry.</param>
-		/// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
-		/// <exception cref="System.ArgumentNullException">attributeRegistry</exception>
-		public TypeDescriptorFactory(IAttributeRegistry attributeRegistry, bool emitDefaultValues)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TypeDescriptorFactory" /> class.
+        /// </summary>
+        /// <param name="attributeRegistry">The attribute registry.</param>
+        /// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
+        /// <param name="namingConvention">The naming convention.</param>
+        /// <exception cref="System.ArgumentNullException">attributeRegistry</exception>
+        public TypeDescriptorFactory(IAttributeRegistry attributeRegistry, bool emitDefaultValues, IMemberNamingConvention namingConvention)
 		{
 			if (attributeRegistry == null) throw new ArgumentNullException("attributeRegistry");
+            if (namingConvention == null) throw new ArgumentNullException("namingConvention");
+            this.namingConvention = namingConvention;
 			this.emitDefaultValues = emitDefaultValues;
 			this.attributeRegistry = attributeRegistry;
 		}
@@ -119,31 +123,31 @@ namespace SharpYaml.Serialization.Descriptors
 
 			if (PrimitiveDescriptor.IsPrimitive(type))
 			{
-				descriptor = new PrimitiveDescriptor(attributeRegistry, type);
+                descriptor = new PrimitiveDescriptor(attributeRegistry, type, namingConvention);
 			}
 			else if (DictionaryDescriptor.IsDictionary(type)) // resolve dictionary before collections, as they are also collections
 			{
 				// IDictionary
-				descriptor = new DictionaryDescriptor(attributeRegistry, type, emitDefaultValues);
+                descriptor = new DictionaryDescriptor(attributeRegistry, type, emitDefaultValues, namingConvention);
 			}
 			else if (CollectionDescriptor.IsCollection(type))
 			{
 				// ICollection
-				descriptor = new CollectionDescriptor(attributeRegistry, type, emitDefaultValues);
+                descriptor = new CollectionDescriptor(attributeRegistry, type, emitDefaultValues, namingConvention);
 			}
 			else if (type.IsArray)
 			{
 				// array[]
-				descriptor = new ArrayDescriptor(attributeRegistry, type);
+                descriptor = new ArrayDescriptor(attributeRegistry, type, namingConvention);
 			}
 			else if (NullableDescriptor.IsNullable(type))
 			{
-				descriptor = new NullableDescriptor(attributeRegistry, type);
+                descriptor = new NullableDescriptor(attributeRegistry, type, namingConvention);
 			} 
 			else
 			{
 				// standard object (class or value type)
-				descriptor = new ObjectDescriptor(attributeRegistry, type, emitDefaultValues);
+                descriptor = new ObjectDescriptor(attributeRegistry, type, emitDefaultValues, namingConvention);
 			}
 
             // Initialize the descriptor

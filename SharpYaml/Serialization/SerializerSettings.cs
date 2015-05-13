@@ -64,6 +64,7 @@ namespace SharpYaml.Serialization
 		private int preferredIndent;
 		private string specialCollectionMember;
 	    private IObjectSerializerBackend objectSerializerBackend;
+	    private IMemberNamingConvention _namingConvention;
 
 	    /// <summary>
 		/// Initializes a new instance of the <see cref="SerializerSettings"/> class.
@@ -93,6 +94,7 @@ namespace SharpYaml.Serialization
 			ObjectFactory = new DefaultObjectFactory();
             ObjectSerializerBackend = new DefaultObjectSerializerBackend();
             ComparerForKeySorting = new DefaultKeyComparer();
+            NamingConvention = new DefaultNamingConvention();
 
 			// Register default mapping for map and seq
 			AssemblyRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>));
@@ -176,11 +178,25 @@ namespace SharpYaml.Serialization
         /// <value>The key comparer.</value>
         public IComparer<object> ComparerForKeySorting { get; set; }
 
-		/// <summary>
-		/// Gets or sets a value indicating whether to emit short type name (type, assembly name) or full <see cref="Type.AssemblyQualifiedName"/>. Default is false.
-		/// </summary>
-		/// <value><c>true</c> to emit short type name; otherwise, <c>false</c>.</value>
-		public bool EmitShortTypeName
+	    /// <summary>
+	    /// Gets or sets the naming convention. Default is to output name as-is <see cref="DefaultNamingConvention"/>.
+	    /// </summary>
+	    /// <value>The naming convention.</value>
+	    public IMemberNamingConvention NamingConvention
+	    {
+	        get { return _namingConvention; }
+	        set
+	        {
+                if (value == null) throw new ArgumentNullException("value");
+	            _namingConvention = value;
+	        }
+	    }
+
+	    /// <summary>
+	    /// Gets or sets a value indicating whether to emit short type name (type, assembly name) or full <see cref="Type.AssemblyQualifiedName"/>. Default is false.
+	    /// </summary>
+	    /// <value><c>true</c> to emit short type name; otherwise, <c>false</c>.</value>
+	    public bool EmitShortTypeName
 		{
 			get { return AssemblyRegistry.UseShortTypeName; }
 			set { AssemblyRegistry.UseShortTypeName = value; }

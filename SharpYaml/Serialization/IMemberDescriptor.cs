@@ -57,7 +57,19 @@ namespace SharpYaml.Serialization
 		/// <value>The name.</value>
 		string Name { get; }
 
-		/// <summary>
+        /// <summary>
+        /// Gets the name.
+        /// </summary>
+        /// <value>The name.</value>
+        string OriginalName { get; }
+
+        /// <summary>
+        /// Gets the default name comparer.
+        /// </summary>
+        /// <value>The default name comparer.</value>
+        StringComparer DefaultNameComparer { get; }
+        
+        /// <summary>
 		/// Gets the type.
 		/// </summary>
 		/// <value>The type.</value>

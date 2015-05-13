@@ -54,13 +54,15 @@ namespace SharpYaml.Serialization.Descriptors
 	{
 		private static readonly List<IMemberDescriptor> EmptyMembers = new List<IMemberDescriptor>();
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
-		/// </summary>
-		/// <param name="attributeRegistry">The attribute registry.</param>
-		/// <param name="type">The type.</param>
-		/// <exception cref="System.ArgumentException">Type [{0}] is not a primitive</exception>
-		public NullableDescriptor(IAttributeRegistry attributeRegistry, Type type) : base(attributeRegistry, type, false)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
+        /// </summary>
+        /// <param name="attributeRegistry">The attribute registry.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="namingConvention">The naming convention.</param>
+        /// <exception cref="System.ArgumentException">Type [{0}] is not a primitive</exception>
+        public NullableDescriptor(IAttributeRegistry attributeRegistry, Type type, IMemberNamingConvention namingConvention)
+            : base(attributeRegistry, type, false, namingConvention)
 		{
 			if (!IsNullable(type))
 				throw new ArgumentException("Type [{0}] is not a primitive");
