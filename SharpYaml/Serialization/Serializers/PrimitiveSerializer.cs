@@ -155,6 +155,23 @@ namespace SharpYaml.Serialization.Serializers
 			throw new YamlException(scalar.Start, scalar.End, "Unable to decode scalar [{0}] not supported by current schema".DoFormat(scalar));
 		}
 
+        /// <summary>
+        /// Appends decimal point to arg if it does not exist
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
+        private string AppendDecimalPoint(string text )
+        {
+            if (text.Contains("."))
+            {
+                return text;
+            }
+            else
+            {
+                return text + ".0";
+            }
+        }
+
 		public override string ConvertTo(ref ObjectContext objectContext)
 		{
 			var text = string.Empty;
@@ -210,13 +227,15 @@ namespace SharpYaml.Serialization.Serializers
 						text = ((ulong) value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.Single:
-						text = ((float) value).ToString("R", CultureInfo.InvariantCulture);
+                        //Append decimal point to floating point type values 
+                        //because type changes in round trip conversion if ( value * 10.0 ) % 10.0 == 0
+                        text = AppendDecimalPoint(((float)value).ToString("R", CultureInfo.InvariantCulture));
 						break;
 					case TypeCode.Double:
-						text = ((double) value).ToString("R", CultureInfo.InvariantCulture);
+                        text = AppendDecimalPoint(((double)value).ToString("R", CultureInfo.InvariantCulture));
 						break;
 					case TypeCode.Decimal:
-						text = ((decimal) value).ToString("R", CultureInfo.InvariantCulture);
+                        text = AppendDecimalPoint(((decimal)value).ToString("R", CultureInfo.InvariantCulture));
 						break;
 					case TypeCode.DateTime:
 						text = ((DateTime) value).ToString("o", CultureInfo.InvariantCulture);
