@@ -347,6 +347,19 @@ namespace SharpYaml.Serialization
 		/// <exception cref="System.ArgumentNullException">reader</exception>
 		public object Deserialize(EventReader reader, Type expectedType)
 		{
+			return Deserialize(reader, null, expectedType);
+		}
+
+		/// <summary>
+		/// Deserializes an object from the specified <see cref="EventReader" /> with an expected specific type.
+		/// </summary>
+		/// <param name="reader">The reader.</param>
+		/// <param name="value">The value.</param>
+		/// <param name="expectedType">The expected type.</param>
+		/// <returns>A deserialized object.</returns>
+		/// <exception cref="System.ArgumentNullException">reader</exception>
+		public object Deserialize(EventReader reader, object value, Type expectedType)
+		{
 			if (reader == null) throw new ArgumentNullException("reader");
 			
 			var hasStreamStart = reader.Allow<StreamStart>() != null;
@@ -356,7 +369,7 @@ namespace SharpYaml.Serialization
 			if (!reader.Accept<DocumentEnd>() && !reader.Accept<StreamEnd>())
 			{
 			    var context = new SerializerContext(this) {Reader = reader};
-			    result = context.ReadYaml(null, expectedType);
+			    result = context.ReadYaml(value, expectedType);
 			}
 
 			if (hasDocumentStart)

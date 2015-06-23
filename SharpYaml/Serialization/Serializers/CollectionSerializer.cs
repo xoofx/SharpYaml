@@ -154,6 +154,7 @@ namespace SharpYaml.Serialization.Serializers
             var reader = objectContext.Reader;
 
             var elementType = collectionDescriptor.ElementType;
+            var index = 0;
 			while (!reader.Accept<SequenceEnd>())
 			{
 				if (objectContext.SerializerContext.AllowErrors)
@@ -162,8 +163,7 @@ namespace SharpYaml.Serialization.Serializers
 
 					try
 					{
-						var value = ReadCollectionItem(ref objectContext, elementType);
-						collectionDescriptor.CollectionAdd(thisObject, value);
+						ReadAddCollectionItem(ref objectContext, elementType, collectionDescriptor, thisObject, index);
 					}
 					catch (YamlException)
 					{
@@ -173,21 +173,36 @@ namespace SharpYaml.Serialization.Serializers
 				}
 				else
 				{
-					var value = ReadCollectionItem(ref objectContext, elementType);
-					collectionDescriptor.CollectionAdd(thisObject, value);
+					ReadAddCollectionItem(ref objectContext, elementType, collectionDescriptor, thisObject, index);
 				}
+				index++;
 			}
 		}
+
+        /// <summary>
+        /// Reads and adds item to the collection.
+        /// </summary>
+        /// <param name="objectContext">The object context.</param>
+        /// <param name="elementType">Type of the element.</param>
+        /// <param name="collectionDescriptor">The collection descriptor.</param>
+        /// <param name="thisObject">The this object.</param>
+        /// <param name="index">The index.</param>
+        protected virtual void ReadAddCollectionItem(ref ObjectContext objectContext, Type elementType, CollectionDescriptor collectionDescriptor, object thisObject, int index)
+        {
+            var value = ReadCollectionItem(ref objectContext, null, elementType);
+            collectionDescriptor.CollectionAdd(thisObject, value);
+        }
 
         /// <summary>
         /// Reads a collection item.
         /// </summary>
         /// <param name="objectContext">The object context.</param>
+        /// <param name="value">The value.</param>
         /// <param name="itemType">Type of the item.</param>
         /// <returns>The item to add to the current collection.</returns>
-        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, Type itemType)
+        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType)
         {
-            return objectContext.ObjectSerializerBackend.ReadCollectionItem(ref objectContext, itemType);
+            return objectContext.ObjectSerializerBackend.ReadCollectionItem(ref objectContext, value, itemType);
         }
 
         /// <summary>
