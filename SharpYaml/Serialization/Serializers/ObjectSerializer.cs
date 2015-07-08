@@ -45,6 +45,7 @@
 
 using System;
 using SharpYaml.Events;
+using SharpYaml.Serialization.Logging;
 
 namespace SharpYaml.Serialization.Serializers
 {
@@ -195,9 +196,11 @@ namespace SharpYaml.Serialization.Serializers
                 {
                     ReadMemberCore(ref objectContext);
                 }
-                catch (YamlException)
+                catch (YamlException ex)
                 {
-                    // TODO: Warning?
+                    var logger = objectContext.SerializerContext.ContextSettings.Logger;
+                    if (logger != null)
+                        logger.Log(LogLevel.Warning, ex, "Ignored object member that could not be deserialized");
                     objectContext.Reader.Skip(currentDepth);
                 }
             }

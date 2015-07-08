@@ -47,6 +47,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpYaml.Events;
 using SharpYaml.Serialization.Descriptors;
+using SharpYaml.Serialization.Logging;
 using SharpYaml.Tokens;
 using Scalar = SharpYaml.Events.Scalar;
 
@@ -140,10 +141,12 @@ namespace SharpYaml.Serialization.Serializers
 						var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
 						dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
 					}
-					catch (YamlException)
+					catch (YamlException ex)
 					{
-						// TODO: Warning?
-						objectContext.Reader.Skip(currentDepth);
+                        var logger = objectContext.SerializerContext.ContextSettings.Logger;
+                        if (logger != null)
+                            logger.Log(LogLevel.Warning, ex, "Ignored dictionary item that could not be deserialized");
+                        objectContext.Reader.Skip(currentDepth);
 					}
 				}
 				else

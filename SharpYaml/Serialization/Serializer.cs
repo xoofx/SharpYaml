@@ -110,11 +110,12 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <param name="graph">The graph.</param>
 		/// <param name="expectedType">The expected type.</param>
+		/// <param name="contextSettings">The context settings.</param>
 		/// <returns>A YAML string of the object.</returns>
-		public string Serialize(object graph, Type expectedType)
+		public string Serialize(object graph, Type expectedType, SerializerContextSettings contextSettings = null)
 		{
 			var stringWriter = new StringWriter();
-			Serialize(stringWriter, graph, expectedType);
+			Serialize(stringWriter, graph, expectedType, contextSettings);
 			return stringWriter.ToString();
 		}
 
@@ -133,12 +134,13 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <param name="stream">The stream.</param>
 		/// <param name="graph">The object to serialize.</param>
-		public void Serialize(Stream stream, object graph, Type expectedType)
+		/// <param name="contextSettings">The context settings.</param>
+		public void Serialize(Stream stream, object graph, Type expectedType, SerializerContextSettings contextSettings = null)
 		{
 			var writer = new StreamWriter(stream);
 			try
 			{
-				Serialize(writer, graph, expectedType);
+				Serialize(writer, graph, expectedType, contextSettings);
 			}
 			finally
 			{
@@ -168,9 +170,10 @@ namespace SharpYaml.Serialization
 		/// <param name="writer">The <see cref="TextWriter" /> where to serialize the object.</param>
 		/// <param name="graph">The object to serialize.</param>
 		/// <param name="type">The static type of the object to serialize.</param>
-		public void Serialize(TextWriter writer, object graph, Type type)
+		/// <param name="contextSettings">The context settings.</param>
+		public void Serialize(TextWriter writer, object graph, Type type, SerializerContextSettings contextSettings = null)
 		{
-			Serialize(new Emitter(writer, Settings.PreferredIndent), graph, type);
+			Serialize(new Emitter(writer, Settings.PreferredIndent), graph, type, contextSettings);
 		}
 
 		/// <summary>
@@ -189,7 +192,8 @@ namespace SharpYaml.Serialization
 		/// <param name="emitter">The <see cref="IEmitter" /> where to serialize the object.</param>
 		/// <param name="graph">The object to serialize.</param>
 		/// <param name="type">The static type of the object to serialize.</param>
-		public void Serialize(IEmitter emitter, object graph, Type type)
+		/// <param name="contextSettings">The context settings.</param>
+		public void Serialize(IEmitter emitter, object graph, Type type, SerializerContextSettings contextSettings = null)
 		{
 			if (emitter == null)
 			{
@@ -210,7 +214,7 @@ namespace SharpYaml.Serialization
 				defaultEmitter.ForceIndentLess = settings.IndentLess;
 			}
 
-            var context = new SerializerContext(this) {Emitter = emitter, Writer = CreateEmitter(emitter)};
+            var context = new SerializerContext(this, contextSettings) { Emitter = emitter, Writer = CreateEmitter(emitter) };
 
 		    // Serialize the document
 			context.Writer.StreamStart();
@@ -245,13 +249,14 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <param name="stream">The stream.</param>
 		/// <param name="expectedType">The expected type.</param>
+		/// <param name="contextSettings">The context settings.</param>
 		/// <returns>A deserialized object.</returns>
 		/// <exception cref="System.ArgumentNullException">stream</exception>
-		public object Deserialize(Stream stream, Type expectedType)
+		public object Deserialize(Stream stream, Type expectedType, SerializerContextSettings contextSettings = null)
 		{
 			if (stream == null) throw new ArgumentNullException("stream");
 
-			return Deserialize(new StreamReader(stream), expectedType);
+			return Deserialize(new StreamReader(stream), expectedType, contextSettings);
 		}
 
 		/// <summary>
@@ -271,12 +276,13 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <param name="reader">The reader.</param>
 		/// <param name="expectedType">The expected type.</param>
+		/// <param name="contextSettings">The context settings.</param>
 		/// <returns>A deserialized object.</returns>
 		/// <exception cref="System.ArgumentNullException">reader</exception>
-		public object Deserialize(TextReader reader, Type expectedType)
+		public object Deserialize(TextReader reader, Type expectedType, SerializerContextSettings contextSettings = null)
 		{
 			if (reader == null) throw new ArgumentNullException("reader");
-			return Deserialize(new EventReader(new Parser(reader)), expectedType);
+			return Deserialize(new EventReader(new Parser(reader)), expectedType, contextSettings);
 		}
 
 		/// <summary>
@@ -343,11 +349,12 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <param name="reader">The reader.</param>
 		/// <param name="expectedType">The expected type.</param>
+		/// <param name="contextSettings">The context settings.</param>
 		/// <returns>A deserialized object.</returns>
 		/// <exception cref="System.ArgumentNullException">reader</exception>
-		public object Deserialize(EventReader reader, Type expectedType)
+		public object Deserialize(EventReader reader, Type expectedType, SerializerContextSettings contextSettings = null)
 		{
-			return Deserialize(reader, null, expectedType);
+			return Deserialize(reader, null, expectedType, contextSettings);
 		}
 
 		/// <summary>
@@ -356,9 +363,10 @@ namespace SharpYaml.Serialization
 		/// <param name="reader">The reader.</param>
 		/// <param name="value">The value.</param>
 		/// <param name="expectedType">The expected type.</param>
+		/// <param name="contextSettings">The context settings.</param>
 		/// <returns>A deserialized object.</returns>
 		/// <exception cref="System.ArgumentNullException">reader</exception>
-		public object Deserialize(EventReader reader, object value, Type expectedType)
+		public object Deserialize(EventReader reader, object value, Type expectedType, SerializerContextSettings contextSettings = null)
 		{
 			if (reader == null) throw new ArgumentNullException("reader");
 			
@@ -368,7 +376,7 @@ namespace SharpYaml.Serialization
 			object result = null;
 			if (!reader.Accept<DocumentEnd>() && !reader.Accept<StreamEnd>())
 			{
-			    var context = new SerializerContext(this) {Reader = reader};
+				var context = new SerializerContext(this, contextSettings) { Reader = reader };
 			    result = context.ReadYaml(value, expectedType);
 			}
 

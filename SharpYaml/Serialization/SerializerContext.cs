@@ -59,13 +59,15 @@ namespace SharpYaml.Serialization
 		private readonly ITagTypeRegistry tagTypeRegistry;
 		private readonly ITypeDescriptorFactory typeDescriptorFactory;
 	    private IEmitter emitter;
+	    private readonly SerializerContextSettings contextSettings;
 		internal int AnchorCount;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="SerializerContext"/> class.
 		/// </summary>
 		/// <param name="serializer">The serializer.</param>
-		internal SerializerContext(Serializer serializer)
+		/// <param name="serializerContextSettings">The serializer context settings.</param>
+		internal SerializerContext(Serializer serializer, SerializerContextSettings serializerContextSettings)
 		{
 			Serializer = serializer;
 			settings = serializer.Settings;
@@ -75,6 +77,7 @@ namespace SharpYaml.Serialization
 			Schema = Settings.Schema;
 		    ObjectSerializer = serializer.ObjectSerializer;
 			typeDescriptorFactory = serializer.TypeDescriptorFactory;
+		    contextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
 		}
 
 		/// <summary>
@@ -84,6 +87,17 @@ namespace SharpYaml.Serialization
 		public bool IsSerializing
 		{
 			get { return Writer != null; }
+		}
+
+		/// <summary>
+		/// Gets the context settings.
+		/// </summary>
+		/// <value>
+		/// The context settings.
+		/// </value>
+		public SerializerContextSettings ContextSettings
+		{
+		    get { return contextSettings; }
 		}
 
 		/// <summary>

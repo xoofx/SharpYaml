@@ -47,6 +47,7 @@ using System.Collections;
 using System.Collections.Generic;
 using SharpYaml.Events;
 using SharpYaml.Serialization.Descriptors;
+using SharpYaml.Serialization.Logging;
 
 namespace SharpYaml.Serialization.Serializers
 {
@@ -165,9 +166,11 @@ namespace SharpYaml.Serialization.Serializers
 					{
 						ReadAddCollectionItem(ref objectContext, elementType, collectionDescriptor, thisObject, index);
 					}
-					catch (YamlException)
+					catch (YamlException ex)
 					{
-						// TODO: Warning?
+					    var logger = objectContext.SerializerContext.ContextSettings.Logger;
+                        if (logger != null)
+                            logger.Log(LogLevel.Warning, ex, "Ignored collection item that could not be deserialized");
 						objectContext.Reader.Skip(currentDepth);
 					}
 				}
