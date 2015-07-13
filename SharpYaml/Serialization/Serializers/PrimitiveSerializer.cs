@@ -235,7 +235,7 @@ namespace SharpYaml.Serialization.Serializers
                         text = AppendDecimalPoint(((double)value).ToString("R", CultureInfo.InvariantCulture));
 						break;
 					case TypeCode.Decimal:
-                        text = AppendDecimalPoint(((decimal)value).ToString("R", CultureInfo.InvariantCulture));
+                        text = AppendDecimalPoint(((decimal)value).ToString(CultureInfo.InvariantCulture));
 						break;
 					case TypeCode.DateTime:
 						text = ((DateTime) value).ToString("o", CultureInfo.InvariantCulture);

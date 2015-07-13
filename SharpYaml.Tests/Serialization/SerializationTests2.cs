@@ -203,7 +203,9 @@ Value: World!
 
 			public ulong UInt64 { get; set; }
 
-			public float Float { get; set; }
+		    public decimal Decimal { get; set; }
+
+		    public float Float { get; set; }
 
 			public double Double { get; set; }
 
@@ -235,6 +237,7 @@ ArrayContent: [1, 2]
 Bool: true
 BoolFalse: false
 Byte: 2
+Decimal: 4623451.0232342352463856744563
 Double: 6.6
 Enum: B
 EnumWithFlags: A, B
