@@ -58,6 +58,7 @@ namespace SharpYaml.Serialization
 		private readonly Dictionary<string, Type> tagToType;
 		private readonly Dictionary<Type, string> typeToTag;
 		private readonly List<Assembly> lookupAssemblies;
+	    private readonly object lockCache = new object();
 
 		private static readonly List<Assembly> DefaultLookupAssemblies = new List<Assembly>()
 			{
@@ -152,8 +153,11 @@ namespace SharpYaml.Serialization
 
 			tag = tag.StartsWith("!") ? tag : "!" + tag;
 
-			tagToType[tag] = type;
-			typeToTag[type] = tag;
+		    lock (lockCache)
+		    {
+                tagToType[tag] = type;
+                typeToTag[type] = tag;
+            }
 		}
 
 		public virtual Type TypeFromTag(string tag)
@@ -178,26 +182,29 @@ namespace SharpYaml.Serialization
 			// un-escape tag
 			shortTag = Uri.UnescapeDataString(shortTag);
 
-			// Else try to find a registered alias
-			if (tagToType.TryGetValue(shortTag, out type))
-			{
-				return type;
-			}
+		    lock (lockCache)
+		    {
+		        // Else try to find a registered alias
+		        if (tagToType.TryGetValue(shortTag, out type))
+		        {
+		            return type;
+		        }
 
-			// Else resolve type from assembly
-			var tagAsType = shortTag.StartsWith("!") ? shortTag.Substring(1) : shortTag;
+		        // Else resolve type from assembly
+		        var tagAsType = shortTag.StartsWith("!") ? shortTag.Substring(1) : shortTag;
 
-			// Try to resolve the type from registered assemblies
-			type = ResolveType(tagAsType);
+		        // Try to resolve the type from registered assemblies
+		        type = ResolveType(tagAsType);
 
-			// Register a type that was found
-			tagToType.Add(shortTag, type);
-			if (type != null && !typeToTag.ContainsKey(type))
-			{
-				typeToTag.Add(type, shortTag);
-			}
+		        // Register a type that was found
+		        tagToType.Add(shortTag, type);
+		        if (type != null && !typeToTag.ContainsKey(type))
+		        {
+		            typeToTag.Add(type, shortTag);
+		        }
+		    }
 
-			return type;
+		    return type;
 		}
 
 		public virtual string TagFromType(Type type)
@@ -208,17 +215,21 @@ namespace SharpYaml.Serialization
 			}
 
 			string tagName;
-			// First try to resolve a tag from registered tag
-			if (!typeToTag.TryGetValue(type, out tagName))
-			{
-				// Else try to use schema tag for scalars
-				// Else use full name of the type
-				var typeName = UseShortTypeName ? type.GetShortAssemblyQualifiedName() : type.AssemblyQualifiedName;
-				tagName = schema.GetDefaultTag(type) ?? Uri.EscapeUriString(string.Format("!{0}", typeName));
-				typeToTag.Add(type, tagName);
-			}
 
-			return tagName;
+		    lock (lockCache)
+		    {
+		        // First try to resolve a tag from registered tag
+		        if (!typeToTag.TryGetValue(type, out tagName))
+		        {
+		            // Else try to use schema tag for scalars
+		            // Else use full name of the type
+		            var typeName = UseShortTypeName ? type.GetShortAssemblyQualifiedName() : type.AssemblyQualifiedName;
+		            tagName = schema.GetDefaultTag(type) ?? Uri.EscapeUriString(string.Format("!{0}", typeName));
+		            typeToTag.Add(type, tagName);
+		        }
+		    }
+
+		    return tagName;
 		}
 
 		public virtual Type ResolveType(string typeName)
