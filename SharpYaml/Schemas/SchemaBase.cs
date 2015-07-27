@@ -346,12 +346,15 @@ namespace SharpYaml.Schemas
 
 		private void EnsureScalarRules()
 		{
-			if (needFirstUpdate || updateCountter != scalarTagResolutionRules.Count)
-			{
-				PrepareScalarRules();
-				Update();
-				needFirstUpdate = false;
-			}
+		    lock (this)
+		    {
+		        if (needFirstUpdate || updateCountter != scalarTagResolutionRules.Count)
+		        {
+		            PrepareScalarRules();
+		            Update();
+		            needFirstUpdate = false;
+		        }
+		    }
 		}
 
 		private void Update()

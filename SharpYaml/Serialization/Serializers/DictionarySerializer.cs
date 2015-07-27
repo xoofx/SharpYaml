@@ -47,6 +47,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpYaml.Events;
 using SharpYaml.Serialization.Descriptors;
+using SharpYaml.Serialization.Logging;
 using SharpYaml.Tokens;
 using Scalar = SharpYaml.Events.Scalar;
 
@@ -149,9 +150,30 @@ namespace SharpYaml.Serialization.Serializers
             var reader = objectContext.Reader;
 			while (!reader.Accept<MappingEnd>())
 			{
-                // Read key and value
-                var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
-                dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
+				if (objectContext.SerializerContext.AllowErrors)
+				{
+					var currentDepth = objectContext.Reader.CurrentDepth;
+
+					try
+					{
+						// Read key and value
+						var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
+						dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
+					}
+					catch (YamlException ex)
+					{
+                        var logger = objectContext.SerializerContext.ContextSettings.Logger;
+                        if (logger != null)
+                            logger.Log(LogLevel.Warning, ex, "Ignored dictionary item that could not be deserialized");
+                        objectContext.Reader.Skip(currentDepth);
+					}
+				}
+				else
+				{
+					// Read key and value
+					var keyValue = ReadDictionaryItem(ref objectContext, new KeyValuePair<Type, Type>(dictionaryDescriptor.KeyType, dictionaryDescriptor.ValueType));
+					dictionaryDescriptor.AddToDictionary(objectContext.Instance, keyValue.Key, keyValue.Value);
+				}
 			}
 		}
 

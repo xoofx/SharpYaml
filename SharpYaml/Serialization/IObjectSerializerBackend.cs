@@ -66,9 +66,10 @@ namespace SharpYaml.Serialization
         /// Reads the collection item from the current YAML stream.
         /// </summary>
         /// <param name="objectContext">The object context.</param>
+        /// <param name="value">The value.</param>
         /// <param name="itemType">Type of the item.</param>
         /// <returns>The collection item read from YAML stream.</returns>
-        object ReadCollectionItem(ref ObjectContext objectContext, Type itemType);
+        object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType);
 
         /// <summary>
         /// Reads the dictionary item from the current YAML stream.

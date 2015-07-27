@@ -59,13 +59,15 @@ namespace SharpYaml.Serialization
 		private readonly ITagTypeRegistry tagTypeRegistry;
 		private readonly ITypeDescriptorFactory typeDescriptorFactory;
 	    private IEmitter emitter;
+	    private readonly SerializerContextSettings contextSettings;
 		internal int AnchorCount;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="SerializerContext"/> class.
 		/// </summary>
 		/// <param name="serializer">The serializer.</param>
-		internal SerializerContext(Serializer serializer)
+		/// <param name="serializerContextSettings">The serializer context settings.</param>
+		internal SerializerContext(Serializer serializer, SerializerContextSettings serializerContextSettings)
 		{
 			Serializer = serializer;
 			settings = serializer.Settings;
@@ -75,6 +77,7 @@ namespace SharpYaml.Serialization
 			Schema = Settings.Schema;
 		    ObjectSerializer = serializer.ObjectSerializer;
 			typeDescriptorFactory = serializer.TypeDescriptorFactory;
+		    contextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
 		}
 
 		/// <summary>
@@ -84,6 +87,17 @@ namespace SharpYaml.Serialization
 		public bool IsSerializing
 		{
 			get { return Writer != null; }
+		}
+
+		/// <summary>
+		/// Gets the context settings.
+		/// </summary>
+		/// <value>
+		/// The context settings.
+		/// </value>
+		public SerializerContextSettings ContextSettings
+		{
+		    get { return contextSettings; }
 		}
 
 		/// <summary>
@@ -108,10 +122,10 @@ namespace SharpYaml.Serialization
 		public Serializer Serializer { get; private set; }
 
 		/// <summary>
-		/// Gets the reader used while deserializing.
+		/// Gets or sets the reader used while deserializing.
 		/// </summary>
 		/// <value>The reader.</value>
-		public EventReader Reader { get; internal set; }
+		public EventReader Reader { get; set; }
 
         /// <summary>
         /// Gets the object serializer backend.
@@ -120,6 +134,14 @@ namespace SharpYaml.Serialization
         public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
 
 		private IYamlSerializable ObjectSerializer { get; set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether errors are allowed.
+		/// </summary>
+		/// <value>
+		///   <c>true</c> if errors are allowed; otherwise, <c>false</c>.
+		/// </value>
+		public bool AllowErrors { get; set; }
 
 		/// <summary>
 		/// The default function to read an object from the current Yaml stream.
@@ -150,10 +172,10 @@ namespace SharpYaml.Serialization
 		public IObjectFactory ObjectFactory { get; set; }
 
 		/// <summary>
-		/// Gets the writer used while deserializing.
+		/// Gets or sets the writer used while deserializing.
 		/// </summary>
 		/// <value>The writer.</value>
-		public IEventEmitter Writer { get; internal set; }
+		public IEventEmitter Writer { get; set; }
 
         /// <summary>
         /// Gets the emitter.

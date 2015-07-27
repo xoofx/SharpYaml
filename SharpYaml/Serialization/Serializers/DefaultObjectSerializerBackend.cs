@@ -99,9 +99,9 @@ namespace SharpYaml.Serialization.Serializers
             return objectContext.SerializerContext.ReadYaml(memberValue, memberType);
         }
 
-        public virtual object ReadCollectionItem(ref ObjectContext objectContext, Type itemType)
+        public virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType)
         {
-            return objectContext.SerializerContext.ReadYaml(null, itemType);
+            return objectContext.SerializerContext.ReadYaml(value, itemType);
         }
 
         public virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)

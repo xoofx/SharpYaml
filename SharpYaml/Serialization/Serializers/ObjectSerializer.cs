@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2013 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@
 
 using System;
 using SharpYaml.Events;
+using SharpYaml.Serialization.Logging;
 
 namespace SharpYaml.Serialization.Serializers
 {
@@ -208,13 +209,53 @@ namespace SharpYaml.Serialization.Serializers
         }
 
         /// <summary>
-        /// Tries to read a member.
+        /// Tries to read an item of the object from the YAML flow (either a sequence item or mapping key/value item).
         /// </summary>
         /// <param name="objectContext">The object context.</param>
         /// <param name="memberScalar">The member scalar.</param>
         /// <param name="memberName">Name of the member.</param>
-        /// <returns><c>true</c> if the member was successfully read, <c>false</c> otherwise.</returns>
-        protected bool TryReadMember(ref ObjectContext objectContext, out Scalar memberScalar, out string memberName)
+        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
+        public virtual bool TryReadMember(ref ObjectContext objectContext, out Scalar memberScalar, out string memberName)
+        {
+            memberScalar = null;
+            memberName = null;
+
+            if (objectContext.SerializerContext.AllowErrors)
+            {
+                var currentDepth = objectContext.Reader.CurrentDepth;
+
+                bool skipMember = false;
+
+                try
+                {
+                    if (!TryReadMemberCore(ref objectContext, out memberScalar, out memberName))
+                    {
+                        skipMember = true;
+                    }
+                }
+                catch (YamlException ex)
+                {
+                    var logger = objectContext.SerializerContext.ContextSettings.Logger;
+                    if (logger != null)
+                        logger.Log(LogLevel.Warning, ex, "Ignored object member that could not be deserialized");
+                    skipMember = true;
+                }
+
+                if (skipMember)
+                {
+                    objectContext.Reader.Skip(currentDepth);
+                }
+            }
+            else
+            {
+                return TryReadMemberCore(ref objectContext, out memberScalar, out memberName);
+            }
+
+            return true;
+        }
+
+        private bool TryReadMemberCore(ref ObjectContext objectContext, out Scalar memberScalar, out string memberName)
         {
             // For a regular object, the key is expected to be a simple scalar
             memberScalar = objectContext.Reader.Expect<Scalar>();
@@ -227,9 +268,17 @@ namespace SharpYaml.Serialization.Serializers
                 return false;
             }
 
-            // Read the previous value to allow reusing existing instance (e.g when members are created in the constructor of the object)
+            // Read the value according to the type
             var memberValue = memberAccessor.Get(objectContext.Instance);
-            memberValue = ReadMemberValue(ref objectContext, memberAccessor, memberValue, memberAccessor.Type);
+            var memberType = memberAccessor.Type;
+
+            // In case of serializing a property/field which is not writeable
+            // we need to change the expected type to the actual type of the 
+            // content value
+            if (memberValue != null)
+                memberType = memberValue.GetType();
+
+            memberValue = ReadMemberValue(ref objectContext, memberAccessor, memberValue, memberType);
 
             // Handle late binding
             // Value types need to be reassigned even if it was a Content
@@ -237,6 +286,7 @@ namespace SharpYaml.Serialization.Serializers
             {
                 memberAccessor.Set(objectContext.Instance, memberValue);
             }
+
             return true;
         }
 

@@ -44,12 +44,13 @@
 // SOFTWARE.
 using System.Collections.Generic;
 using System.Linq;
+using SharpYaml.Events;
 
 namespace SharpYaml.Serialization
 {
 	internal class AnchorEventEmitter : ChainedEventEmitter
 	{
-		private readonly List<EventInfo> events = new List<EventInfo>();
+		private readonly List<object> events = new List<object>();
 		private readonly HashSet<string> alias = new HashSet<string>();
 
 		public AnchorEventEmitter(IEventEmitter nextEmitter) : base(nextEmitter)
@@ -85,6 +86,11 @@ namespace SharpYaml.Serialization
 		public override void Emit(SequenceEndEventInfo eventInfo)
 		{
 			events.Add(eventInfo);
+		}
+
+		public override void Emit(ParsingEvent parsingEvent)
+		{
+			events.Add(parsingEvent);
 		}
 
 		public override void DocumentEnd()
@@ -124,6 +130,10 @@ namespace SharpYaml.Serialization
 				else if (evt is SequenceEndEventInfo)
 				{
 					nextEmitter.Emit((SequenceEndEventInfo)evt);
+				}
+				else if (evt is ParsingEvent)
+				{
+					nextEmitter.Emit((ParsingEvent)evt);
 				}
 			}
 
