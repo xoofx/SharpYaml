@@ -131,6 +131,12 @@ namespace SharpYaml.Serialization.Serializers
 			{
 				type = value.GetType();
 			}
+            else if (typeFromTag != null && value != null && value.GetType() != typeFromTag)
+            {
+                // Reset the instance if the value loaded from the tag is not of the same type then the value already instantiated
+                type = typeFromTag;
+                objectContext.Instance = null;
+            }
 
             objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(type);
 

@@ -112,11 +112,10 @@ namespace SharpYaml.Serialization.Serializers
 
         private void CreateOrTransformObjectInternal(ref ObjectContext objectContext)
         {
-            var previousValue = objectContext.Instance;
             CreateOrTransformObject(ref objectContext);
             var newValue = objectContext.Instance;
 
-            if (!ReferenceEquals(newValue, previousValue) && newValue != null && newValue.GetType() != objectContext.Descriptor.Type)
+            if (newValue != null && newValue.GetType() != objectContext.Descriptor.Type)
             {
                 objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(newValue.GetType());
             }
