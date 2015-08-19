@@ -259,6 +259,22 @@ namespace SharpYaml.Serialization
 			return Deserialize(new StreamReader(stream), expectedType, null, contextSettings);
 		}
 
+        /// <summary>
+        /// Deserializes an object from the specified <see cref="Stream" /> with an expected specific type.
+        /// </summary>
+        /// <param name="stream">The stream.</param>
+        /// <param name="expectedType">The expected type.</param>
+        /// <param name="contextSettings">The context settings.</param>
+        /// <param name="context">The context used to deserialize this object.</param>
+        /// <returns>A deserialized object.</returns>
+        /// <exception cref="System.ArgumentNullException">stream</exception>
+        public object Deserialize(Stream stream, Type expectedType, SerializerContextSettings contextSettings, out SerializerContext context)
+        {
+            if (stream == null) throw new ArgumentNullException("stream");
+
+            return Deserialize(new StreamReader(stream), expectedType, null, contextSettings, out context);
+        }
+
 		/// <summary>
 		/// Deserializes an object from the specified <see cref="Stream" /> with an expected specific type.
 		/// </summary>
