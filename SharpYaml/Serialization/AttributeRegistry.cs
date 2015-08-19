@@ -60,7 +60,13 @@ namespace SharpYaml.Serialization
 		private readonly Dictionary<MemberInfoKey, List<Attribute>> cachedAttributes = new Dictionary<MemberInfoKey, List<Attribute>>();
 		private readonly Dictionary<MemberInfo, List<Attribute>> registeredAttributes = new Dictionary<MemberInfo, List<Attribute>>();
 
-		/// <summary>
+        /// <summary>
+        /// Gets or sets the attribute remapper. May be null
+        /// </summary>
+        /// <value>The remap attribute.</value>
+	    public Func<Attribute, Attribute> AttributeRemap { get; set; }
+
+	    /// <summary>
 		/// Gets the attributes associated with the specified member.
 		/// </summary>
 		/// <param name="memberInfo">The reflection member.</param>
@@ -88,6 +94,15 @@ namespace SharpYaml.Serialization
 		        if (registeredAttributes.TryGetValue(memberInfo, out registered))
 		        {
 		            attributes.AddRange(registered);
+		        }
+
+                // Allow to remap attributes
+		        if (AttributeRemap != null)
+		        {
+		            for (int i = 0; i < attributes.Count; i++)
+		            {
+		                attributes[i] = AttributeRemap(attributes[i]);
+		            }
 		        }
 
 		        // Add to the cache

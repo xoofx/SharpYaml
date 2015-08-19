@@ -54,7 +54,13 @@ namespace SharpYaml.Serialization
 	/// </summary>
 	public interface IAttributeRegistry
 	{
-		/// <summary>
+        /// <summary>
+        /// Gets or sets the attribute remapper. May be null
+        /// </summary>
+        /// <value>The remap attribute.</value>
+        Func<Attribute, Attribute> AttributeRemap { get; set; }
+            
+        /// <summary>
 		/// Gets the attributes associated with the specified member.
 		/// </summary>
 		/// <param name="memberInfo">The reflection member.</param>
