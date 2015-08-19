@@ -1060,7 +1060,7 @@ Enum: Value2
 ", out context);
             Assert.AreEqual("Test1", myCustomObjectText.Name);
             Assert.AreEqual(MyRemapEnum.Value2, myCustomObjectText.Enum);
-            Assert.IsFalse(context.HasRemapOccured);
+            Assert.IsFalse(context.HasRemapOccurred);
 
             // Test all
             myCustomObjectText = serializer.Deserialize<TestRemapObject>(@"!TestRemapObjectOld
@@ -1069,28 +1069,28 @@ Enum: OldValue2
 ", out context);
             Assert.AreEqual("Test1", myCustomObjectText.Name);
             Assert.AreEqual(MyRemapEnum.Value2, myCustomObjectText.Enum);
-            Assert.IsTrue(context.HasRemapOccured);
+            Assert.IsTrue(context.HasRemapOccurred);
 
-            // Test HasRemapOccured for Class name
+            // Test HasRemapOccurred for Class name
             serializer.Deserialize<TestRemapObject>(@"!TestRemapObjectOld
 Name: Test1
 Enum: Value2
 ", out context);
-            Assert.IsTrue(context.HasRemapOccured);
+            Assert.IsTrue(context.HasRemapOccurred);
 
-            // Test HasRemapOccured for of property name
+            // Test HasRemapOccurred for of property name
             serializer.Deserialize<TestRemapObject>(@"!TestRemapObject
 OldName: Test1
 Enum: Value2
 ", out context);
-            Assert.IsTrue(context.HasRemapOccured);
+            Assert.IsTrue(context.HasRemapOccurred);
 
-            // Test HasRemapOccured for of enum items
+            // Test HasRemapOccurred for of enum items
             serializer.Deserialize<TestRemapObject>(@"!TestRemapObject
 Name: Test1
 Enum: OldValue2
 ", out context);
-            Assert.IsTrue(context.HasRemapOccured);
+            Assert.IsTrue(context.HasRemapOccurred);
         }
 
         [YamlTag("TestWithMemberRenamed")]

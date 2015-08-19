@@ -147,7 +147,7 @@ namespace SharpYaml.Serialization
         /// Gets a value indicating whether the deserialization has generated some remap.
         /// </summary>
         /// <value><c>true</c> if the deserialization has generated some remap; otherwise, <c>false</c>.</value>
-        public bool HasRemapOccured { get; internal set; }
+        public bool HasRemapOccurred { get; internal set; }
 
 		/// <summary>
 		/// The default function to read an object from the current Yaml stream.

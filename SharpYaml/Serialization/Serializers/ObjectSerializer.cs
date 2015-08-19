@@ -264,7 +264,7 @@ namespace SharpYaml.Serialization.Serializers
             // If the member was remapped, store this in the context
             if (objectContext.Descriptor.IsMemberRemapped(memberName))
             {
-                objectContext.SerializerContext.HasRemapOccured = true;
+                objectContext.SerializerContext.HasRemapOccurred = true;
             }
 
             // Check that property exist before trying to access the descriptor

@@ -87,7 +87,7 @@ namespace SharpYaml.Serialization.Serializers
                 // Store the fact that remap has occured on this tag
 			    if (remapped)
 			    {
-			        objectContext.SerializerContext.HasRemapOccured = true;
+			        objectContext.SerializerContext.HasRemapOccurred = true;
 			    }
 			}
 

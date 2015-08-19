@@ -84,7 +84,7 @@ namespace SharpYaml.Serialization.Serializers
 			    var result = primitiveType.ParseEnum(text, out enumRemapped);
 			    if (enumRemapped)
 			    {
-			        context.SerializerContext.HasRemapOccured = true;
+			        context.SerializerContext.HasRemapOccurred = true;
 			    }
 			    return result;
 			}
