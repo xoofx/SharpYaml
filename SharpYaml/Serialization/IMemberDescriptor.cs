@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
+using System.Collections.Generic;
 
 namespace SharpYaml.Serialization
 {
@@ -120,6 +121,12 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <value><c>true</c> if [should serialize]; otherwise, <c>false</c>.</value>
 		Func<object, bool> ShouldSerialize { get; }
+
+        /// <summary>
+        /// Gets the alternative names that will map back to this member (may be null).
+        /// </summary>
+        /// <value>The alternative names that will map back to this member (may be null).</value>
+        List<string> AlternativeNames { get; }
 
 		/// <summary>
 		/// Gets or sets a custom tag to associate with this object.

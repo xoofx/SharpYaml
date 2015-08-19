@@ -80,7 +80,13 @@ namespace SharpYaml.Serialization.Serializers
 			// If type is an enum, try to parse it
 			if (type.IsEnum)
 			{
-				return Enum.Parse(type, text, false);
+			    bool enumRemapped;
+			    var result = primitiveType.ParseEnum(text, out enumRemapped);
+			    if (enumRemapped)
+			    {
+			        context.SerializerContext.HasRemapOccured = true;
+			    }
+			    return result;
 			}
 
 		    // Parse default types 

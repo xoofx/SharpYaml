@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace SharpYaml.Serialization.Descriptors
@@ -88,6 +89,9 @@ namespace SharpYaml.Serialization.Descriptors
 		public abstract bool HasSet { get; }
 		public YamlStyle Style { get; internal set; }
 		public Func<object, bool> ShouldSerialize { get; internal set; }
+
+	    public List<string> AlternativeNames { get; set; }
+
 	    public object Tag { get; set; }
 
 	    /// <summary>

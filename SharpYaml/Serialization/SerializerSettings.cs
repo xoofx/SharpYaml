@@ -97,8 +97,8 @@ namespace SharpYaml.Serialization
             NamingConvention = new DefaultNamingConvention();
 
 			// Register default mapping for map and seq
-			AssemblyRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>));
-			AssemblyRegistry.RegisterTagMapping("!!seq", typeof(IList<object>));
+			AssemblyRegistry.RegisterTagMapping("!!map", typeof(IDictionary<object, object>), false);
+			AssemblyRegistry.RegisterTagMapping("!!seq", typeof(IList<object>), false);
 		}
 
 		/// <summary>
@@ -317,14 +317,15 @@ namespace SharpYaml.Serialization
 			AssemblyRegistry.RegisterAssembly(assembly, attributeRegistry);
 		}
 
-		/// <summary>
-		/// Register a mapping between a tag and a type.
-		/// </summary>
-		/// <param name="tagName">Name of the tag.</param>
-		/// <param name="tagType">Type of the tag.</param>
-		public void RegisterTagMapping(string tagName, Type tagType)
+        /// <summary>
+        /// Register a mapping between a tag and a type.
+        /// </summary>
+        /// <param name="tagName">Name of the tag.</param>
+        /// <param name="tagType">Type of the tag.</param>
+        /// <param name="isAlias">if set to <c>true</c> the new tag name is an alias to a type that has already a tag name associated to it.</param>
+		public void RegisterTagMapping(string tagName, Type tagType, bool isAlias = false)
 		{
-			AssemblyRegistry.RegisterTagMapping(tagName, tagType);
+            AssemblyRegistry.RegisterTagMapping(tagName, tagType, isAlias);
 		}
 
 		/// <summary>

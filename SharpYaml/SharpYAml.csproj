@@ -71,6 +71,7 @@
     <Compile Include="Serialization\SerializerContextSettings.cs" />
     <Compile Include="Serialization\Serializers\DefaultObjectSerializerBackend.cs" />
     <Compile Include="Serialization\IObjectSerializerBackend.cs" />
+    <Compile Include="Serialization\YamlRemapAttribute.cs" />
     <Compile Include="YamlStyle.cs" />
     <Compile Include="Events\StreamEnd.cs" />
     <Compile Include="Events\StreamStart.cs" />

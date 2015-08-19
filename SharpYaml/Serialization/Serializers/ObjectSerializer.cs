@@ -261,6 +261,12 @@ namespace SharpYaml.Serialization.Serializers
             memberName = ReadMemberName(ref objectContext, memberScalar.Value);
             var memberAccessor = objectContext.Descriptor[memberName];
 
+            // If the member was remapped, store this in the context
+            if (objectContext.Descriptor.IsMemberRemapped(memberName))
+            {
+                objectContext.SerializerContext.HasRemapOccured = true;
+            }
+
             // Check that property exist before trying to access the descriptor
             if (memberAccessor == null)
             {

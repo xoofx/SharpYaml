@@ -44,6 +44,7 @@
 // SOFTWARE.
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace SharpYaml.Serialization.Descriptors
 {
@@ -53,6 +54,8 @@ namespace SharpYaml.Serialization.Descriptors
 	public class PrimitiveDescriptor : ObjectDescriptor
 	{
 		private static readonly List<IMemberDescriptor> EmptyMembers = new List<IMemberDescriptor>();
+
+	    private readonly Dictionary<string, object> enumRemap;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -66,6 +69,27 @@ namespace SharpYaml.Serialization.Descriptors
 		{
 			if (!IsPrimitive(type))
 				throw new ArgumentException("Type [{0}] is not a primitive");
+
+            // Handle remap for enum items
+            if (type.IsEnum)
+            {
+                foreach (var member in type.GetFields(BindingFlags.Public|BindingFlags.Static))
+                {
+                    var attributes = attributeRegistry.GetAttributes(member);
+                    foreach (var attribute in attributes)
+                    {
+                        var yamlRemap = attribute as YamlRemapAttribute;
+                        if (yamlRemap != null)
+                        {
+                            if (enumRemap == null)
+                            {
+                                enumRemap = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                            }
+                            enumRemap[yamlRemap.Name] = member.GetValue(null);
+                        }
+                    }
+                }
+            }
 		}
 
 		/// <summary>
@@ -83,6 +107,25 @@ namespace SharpYaml.Serialization.Descriptors
 			}
 			return true;
 		}
+
+        /// <summary>
+        /// Parses the enum and trying to use remap if any declared.
+        /// </summary>
+        /// <param name="enumAsText">The enum as text.</param>
+        /// <param name="remapped">if set to <c>true</c> the enum was remapped.</param>
+        /// <returns>System.Object.</returns>
+	    public object ParseEnum(string enumAsText, out bool remapped)
+	    {
+	        object value;
+            remapped = false;
+            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out value))
+            {
+                remapped = true;
+                return value;
+            }
+
+	        return Enum.Parse(Type, enumAsText, true);
+	    }
 
 		protected override System.Collections.Generic.List<IMemberDescriptor> PrepareMembers()
 		{

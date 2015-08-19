@@ -143,6 +143,12 @@ namespace SharpYaml.Serialization
 		/// </value>
 		public bool AllowErrors { get; set; }
 
+        /// <summary>
+        /// Gets a value indicating whether the deserialization has generated some remap.
+        /// </summary>
+        /// <value><c>true</c> if the deserialization has generated some remap; otherwise, <c>false</c>.</value>
+        public bool HasRemapOccured { get; internal set; }
+
 		/// <summary>
 		/// The default function to read an object from the current Yaml stream.
 		/// </summary>
@@ -206,14 +212,15 @@ namespace SharpYaml.Serialization
             return typeDescriptorFactory.Find(type, Settings.ComparerForKeySorting);
 		}
 
-		/// <summary>
-		/// Resolves a type from the specified tag.
-		/// </summary>
-		/// <param name="tagName">Name of the tag.</param>
-		/// <returns>Type.</returns>
-		public Type TypeFromTag(string tagName)
+	    /// <summary>
+	    /// Resolves a type from the specified tag.
+	    /// </summary>
+	    /// <param name="tagName">Name of the tag.</param>
+	    /// <param name="isAlias"></param>
+	    /// <returns>Type.</returns>
+	    public Type TypeFromTag(string tagName, out bool isAlias)
 		{
-			return tagTypeRegistry.TypeFromTag(tagName);
+			return tagTypeRegistry.TypeFromTag(tagName, out isAlias);
 		}
 		
 		/// <summary>

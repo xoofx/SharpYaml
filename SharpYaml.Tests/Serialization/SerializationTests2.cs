@@ -1023,6 +1023,76 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             Assert.AreEqual("Name", ((IMemberDescriptor)specialTransform.SpecialKeys[0].Item2).Name);
         }
 
+
+        [YamlTag("TestRemapObject")]
+        [YamlRemap("TestRemapObjectOld")]
+        public class TestRemapObject
+        {
+            [YamlRemap("OldName")]
+            public string Name { get; set; }
+
+            public MyRemapEnum Enum { get; set; }
+        }
+
+        [YamlTag("MyRemapEnum")]
+        public enum MyRemapEnum
+        {
+            [YamlRemap("OldValue1")]
+            Value1,
+
+            [YamlRemap("OldValue2")]
+            Value2
+        }
+
+        [Test]
+        public void TestRemap()
+        {
+            var settings = new SerializerSettings();
+            settings.RegisterAssembly(typeof (TestRemapObject).Assembly);
+
+            var serializer = new Serializer(settings);
+            SerializerContext context;
+
+            // Test no-remap
+            var myCustomObjectText = serializer.Deserialize<TestRemapObject>(@"!TestRemapObject
+Name: Test1
+Enum: Value2
+", out context);
+            Assert.AreEqual("Test1", myCustomObjectText.Name);
+            Assert.AreEqual(MyRemapEnum.Value2, myCustomObjectText.Enum);
+            Assert.IsFalse(context.HasRemapOccured);
+
+            // Test all
+            myCustomObjectText = serializer.Deserialize<TestRemapObject>(@"!TestRemapObjectOld
+OldName: Test1
+Enum: OldValue2
+", out context);
+            Assert.AreEqual("Test1", myCustomObjectText.Name);
+            Assert.AreEqual(MyRemapEnum.Value2, myCustomObjectText.Enum);
+            Assert.IsTrue(context.HasRemapOccured);
+
+            // Test HasRemapOccured for Class name
+            serializer.Deserialize<TestRemapObject>(@"!TestRemapObjectOld
+Name: Test1
+Enum: Value2
+", out context);
+            Assert.IsTrue(context.HasRemapOccured);
+
+            // Test HasRemapOccured for of property name
+            serializer.Deserialize<TestRemapObject>(@"!TestRemapObject
+OldName: Test1
+Enum: Value2
+", out context);
+            Assert.IsTrue(context.HasRemapOccured);
+
+            // Test HasRemapOccured for of enum items
+            serializer.Deserialize<TestRemapObject>(@"!TestRemapObject
+Name: Test1
+Enum: OldValue2
+", out context);
+            Assert.IsTrue(context.HasRemapOccured);
+        }
+
         public sealed class MyClassImmutable
         {
             public MyClassImmutable(string name, int value)

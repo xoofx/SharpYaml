@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization
 	internal class AssemblyRegistry : ITagTypeRegistry
 	{
 		private readonly IYamlSchema schema;
-		private readonly Dictionary<string, Type> tagToType;
+		private readonly Dictionary<string, MappedType> tagToType;
 		private readonly Dictionary<Type, string> typeToTag;
 		private readonly List<Assembly> lookupAssemblies;
 	    private readonly object lockCache = new object();
@@ -65,14 +65,14 @@ namespace SharpYaml.Serialization
 				typeof (int).Assembly,
 			};
 
-		/// <summary>
+        /// <summary>
 		/// Initializes a new instance of the <see cref="AssemblyRegistry"/> class.
 		/// </summary>
 		public AssemblyRegistry(IYamlSchema schema)
 		{
 			if (schema == null) throw new ArgumentNullException("schema");
 			this.schema = schema;
-			tagToType = new Dictionary<string, Type>();
+			tagToType = new Dictionary<string, MappedType>();
 			typeToTag = new Dictionary<Type, string>();
 			lookupAssemblies = new List<Assembly>();
             SerializableFactories = new List<IYamlSerializableFactory>();
@@ -105,11 +105,30 @@ namespace SharpYaml.Serialization
 				// Register all tags automatically.
 				foreach (var type in assembly.GetTypes())
 				{
-					var tagAttribute = attributeRegistry.GetAttribute<YamlTagAttribute>(type);
-					if (tagAttribute != null && !string.IsNullOrEmpty(tagAttribute.Tag))
-					{
-						RegisterTagMapping(tagAttribute.Tag, type);
-					}
+				    var attributes = attributeRegistry.GetAttributes(type);
+				    foreach (var attribute in attributes)
+				    {
+    				    string name = null;
+				        bool isAlias = false;
+				        var tagAttribute = attribute as YamlTagAttribute;
+				        if (tagAttribute != null)
+				        {
+				            name = tagAttribute.Tag;
+				        }
+				        else
+				        {
+                            var yamlRemap = attribute as YamlRemapAttribute;
+                            if (yamlRemap != null)
+                            {
+                                name = yamlRemap.Name;
+                                isAlias = true;
+                            }
+                        }
+				        if (!string.IsNullOrEmpty(name))
+				        {
+                            RegisterTagMapping(name, type, isAlias);
+				        }
+				    }
 
                     // Automatically register YamlSerializableFactory
 				    if (typeof (IYamlSerializableFactory).IsAssignableFrom(type) && type.GetConstructor(types) != null)
@@ -128,12 +147,13 @@ namespace SharpYaml.Serialization
 			}
 		}
 
-		/// <summary>
-		/// Register a mapping between a tag and a type.
-		/// </summary>
-		/// <param name="tag">The tag.</param>
-		/// <param name="type">The type.</param>
-		public virtual void RegisterTagMapping(string tag, Type type)
+	    /// <summary>
+	    /// Register a mapping between a tag and a type.
+	    /// </summary>
+	    /// <param name="tag">The tag.</param>
+	    /// <param name="type">The type.</param>
+	    /// <param name="alias"></param>
+	    public virtual void RegisterTagMapping(string tag, Type type, bool alias)
 		{
 			if (tag == null) throw new ArgumentNullException("tag");
 			if (type == null) throw new ArgumentNullException("type");
@@ -155,13 +175,15 @@ namespace SharpYaml.Serialization
 
 		    lock (lockCache)
 		    {
-                tagToType[tag] = type;
+                tagToType[tag] = new MappedType(type, alias);
                 typeToTag[type] = tag;
             }
 		}
 
-		public virtual Type TypeFromTag(string tag)
+		public virtual Type TypeFromTag(string tag, out bool isAlias)
 		{
+		    isAlias = false;
+
 			if (tag == null)
 			{
 				return null;
@@ -184,10 +206,12 @@ namespace SharpYaml.Serialization
 
 		    lock (lockCache)
 		    {
+		        MappedType mappedType;
 		        // Else try to find a registered alias
-		        if (tagToType.TryGetValue(shortTag, out type))
-		        {
-		            return type;
+                if (tagToType.TryGetValue(shortTag, out mappedType))
+                {
+                    isAlias = mappedType.Remapped;
+                    return mappedType.Type;
 		        }
 
 		        // Else resolve type from assembly
@@ -197,7 +221,7 @@ namespace SharpYaml.Serialization
 		        type = ResolveType(tagAsType);
 
 		        // Register a type that was found
-		        tagToType.Add(shortTag, type);
+		        tagToType.Add(shortTag, new MappedType(type, false));
 		        if (type != null && !typeToTag.ContainsKey(type))
 		        {
 		            typeToTag.Add(type, shortTag);
@@ -296,5 +320,18 @@ namespace SharpYaml.Serialization
 			}
 			return type;
 		}
+
+        struct MappedType
+        {
+            public MappedType(Type type, bool remapped)
+            {
+                Type = type;
+                Remapped = remapped;
+            }
+
+            public readonly Type Type;
+
+            public readonly bool Remapped;
+        }
 	}
 }

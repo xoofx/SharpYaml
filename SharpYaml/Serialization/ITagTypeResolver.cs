@@ -11,8 +11,9 @@ namespace SharpYaml.Serialization
         /// Finds a type from a tag, null if not found.
         /// </summary>
         /// <param name="tagName">Name of the tag.</param>
+        /// <param name="isAlias"></param>
         /// <returns>A Type or null if not found</returns>
-        Type TypeFromTag(string tagName);
+        Type TypeFromTag(string tagName, out bool isAlias);
 
         /// <summary>
         /// Finds a tag from a type, null if not found.

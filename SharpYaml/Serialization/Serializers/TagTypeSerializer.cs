@@ -77,11 +77,18 @@ namespace SharpYaml.Serialization.Serializers
 			Type typeFromTag = null;
 			if (!string.IsNullOrEmpty(node.Tag))
 			{
-                typeFromTag = objectContext.SerializerContext.TypeFromTag(node.Tag);
+			    bool remapped;
+                typeFromTag = objectContext.SerializerContext.TypeFromTag(node.Tag, out remapped);
 				if (typeFromTag == null)
 				{
 					throw new YamlException(parsingEvent.Start, parsingEvent.End, "Unable to resolve tag [{0}] to type from tag resolution or registered assemblies".DoFormat(node.Tag));
 				}
+
+                // Store the fact that remap has occured on this tag
+			    if (remapped)
+			    {
+			        objectContext.SerializerContext.HasRemapOccured = true;
+			    }
 			}
 
 			// Use typeFromTag when type are different

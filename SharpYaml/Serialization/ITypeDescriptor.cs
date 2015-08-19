@@ -83,6 +83,13 @@ namespace SharpYaml.Serialization
 		/// <returns>The member.</returns>
 		IMemberDescriptor this[string name] { get; }
 
+        /// <summary>
+        /// Determines whether the named member is remmaped.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns><c>true</c> if the named member is remmaped; otherwise, <c>false</c>.</returns>
+	    bool IsMemberRemapped(string name);
+
 		/// <summary>
 		/// Gets a value indicating whether this instance is a compiler generated type.
 		/// </summary>

@@ -61,11 +61,12 @@ namespace SharpYaml.Serialization
 		/// <param name="attributeRegistry">The attribute registry to use when quering for <see cref="YamlTagAttribute"/>.</param>
 		void RegisterAssembly(Assembly assembly, IAttributeRegistry attributeRegistry);
 
-		/// <summary>
-		/// Register a mapping between a tag and a type.
-		/// </summary>
-		/// <param name="tag">The tag.</param>
-		/// <param name="type">The type.</param>
-		void RegisterTagMapping(string tag, Type type);
+        /// <summary>
+        /// Register a mapping between a tag and a type.
+        /// </summary>
+        /// <param name="tag">The tag.</param>
+        /// <param name="type">The type.</param>
+        /// <param name="alias">if set to <c>true</c> the specified tag is an alias to an existing type that has already a tag associated with it (remap).</param>
+        void RegisterTagMapping(string tag, Type type, bool alias);
 	}
 }

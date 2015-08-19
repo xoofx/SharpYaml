@@ -67,6 +67,7 @@ namespace SharpYaml.Serialization.Descriptors
 		private YamlStyle style;
 	    private bool isSorted;
 	    private readonly IMemberNamingConvention memberNamingConvention;
+	    private HashSet<string> remapMembers;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -87,9 +88,23 @@ namespace SharpYaml.Serialization.Descriptors
             this.emitDefaultValues = emitDefaultValues;
 			this.AttributeRegistry = attributeRegistry;
 			this.type = type;
-			var styleAttribute = AttributeRegistry.GetAttribute<YamlStyleAttribute>(type);
-			this.style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
-			this.IsCompilerGenerated = AttributeRegistry.GetAttribute<CompilerGeneratedAttribute>(type) != null;
+
+            var attributes = AttributeRegistry.GetAttributes(type);
+
+            this.style = YamlStyle.Any;
+            foreach (var attribute in attributes)
+            {
+                var styleAttribute = attribute as YamlStyleAttribute;
+                if (styleAttribute != null)
+                {
+                    style = styleAttribute.Style;
+                    continue;
+                }
+                if (attribute is CompilerGeneratedAttribute)
+                {
+                    this.IsCompilerGenerated = true;
+                }
+            }
 		}
 
         /// <summary>
@@ -117,7 +132,7 @@ namespace SharpYaml.Serialization.Descriptors
             // If no members found, we don't need to build a dictionary map
             if (members.Count <= 0) return;
 
-            mapMembers = new Dictionary<string, IMemberDescriptor>(members.Count);
+            mapMembers = new Dictionary<string, IMemberDescriptor>((int)(members.Count * 1.2));
 
             foreach (var member in members)
             {
@@ -128,6 +143,28 @@ namespace SharpYaml.Serialization.Descriptors
                 }
 
                 mapMembers.Add(member.Name, member);
+
+                // If there is any alternative names, register them
+                if (member.AlternativeNames != null)
+                {
+                    foreach (var alternateName in member.AlternativeNames)
+                    {
+                        if (mapMembers.TryGetValue(alternateName, out existingMember))
+                        {
+                            throw new YamlException("Failed to get ObjectDescriptor for type [{0}]. The member [{1}] cannot be registered as a member with the same name [{2}] is already registered [{3}]".DoFormat(type.FullName, member, alternateName, existingMember));
+                        }
+                        else
+                        {
+                            if (remapMembers == null)
+                            {
+                                remapMembers = new HashSet<string>();
+                            }
+
+                            mapMembers[alternateName] = member;
+                            remapMembers.Add(alternateName);
+                        }
+                    }
+                }
             }
 	    }
 
@@ -182,14 +219,19 @@ namespace SharpYaml.Serialization.Descriptors
 			}
 		}
 
-		public bool IsCompilerGenerated { get; private set; }
+	    public bool IsMemberRemapped(string name)
+	    {
+	        return remapMembers != null && remapMembers.Contains(name);
+	    }
+
+	    public bool IsCompilerGenerated { get; private set; }
 
 		public bool Contains(string memberName)
 		{
 			return mapMembers != null && mapMembers.ContainsKey(memberName);
 		}
 
-		protected virtual List<IMemberDescriptor> PrepareMembers()
+	    protected virtual List<IMemberDescriptor> PrepareMembers()
 		{
 			// Add all public properties with a readable get method
 			var memberList = (from propertyInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
@@ -221,27 +263,66 @@ namespace SharpYaml.Serialization.Descriptors
 				return false;
 			}
 
-			// If the member has a set, this is a conventional assign method
-			if (member.HasSet)
-			{
-                member.SerializeMemberMode = memberType.IsStruct() ? SerializeMemberMode.Content : SerializeMemberMode.Assign;
-			}
-			else
-			{
-				// Else we cannot only assign its content if it is a class
-				member.SerializeMemberMode = (memberType != typeof(string) && memberType.IsClass) || memberType.IsInterface || type.IsAnonymous() ? SerializeMemberMode.Content : SerializeMemberMode.Never;
-			}
+            // Process all attributes just once instead of getting them one by one
+            var attributes = AttributeRegistry.GetAttributes(member.MemberInfo);
+		    YamlStyleAttribute styleAttribute = null;
+		    YamlMemberAttribute memberAttribute = null;
+            DefaultValueAttribute defaultValueAttribute = null;
+		    foreach (var attribute in attributes)
+		    {
+                // Member is not displayed if there is a YamlIgnore attribute on it
+                if (attribute is YamlIgnoreAttribute)
+                {
+                    return false;
+                } 
+                
+                memberAttribute = attribute as YamlMemberAttribute;
+                if (memberAttribute != null)
+                {
+                    continue;
+                }
 
-			// Member is not displayed if there is a YamlIgnore attribute on it
-			if (AttributeRegistry.GetAttribute<YamlIgnoreAttribute>(member.MemberInfo) != null)
-				return false;
+                defaultValueAttribute = attribute as DefaultValueAttribute;
+                if (defaultValueAttribute != null)
+                {
+                    continue;
+                }
+
+                styleAttribute = attribute as YamlStyleAttribute;
+                if (styleAttribute != null)
+                {
+                    continue;
+                }
+
+		        var yamlRemap = attribute as YamlRemapAttribute;
+		        if (yamlRemap != null)
+		        {
+		            if (member.AlternativeNames == null)
+		            {
+		                member.AlternativeNames = new List<string>();
+		            }
+		            if (!string.IsNullOrWhiteSpace(yamlRemap.Name))
+		            {
+		                member.AlternativeNames.Add(yamlRemap.Name);
+		            }
+		        }
+		    }
+
+            // If the member has a set, this is a conventional assign method
+            if (member.HasSet)
+            {
+                member.SerializeMemberMode = memberType.IsStruct() ? SerializeMemberMode.Content : SerializeMemberMode.Assign;
+            }
+            else
+            {
+                // Else we cannot only assign its content if it is a class
+                member.SerializeMemberMode = (memberType != typeof(string) && memberType.IsClass) || memberType.IsInterface || type.IsAnonymous() ? SerializeMemberMode.Content : SerializeMemberMode.Never;
+            }
 
 			// Gets the style
-			var styleAttribute = AttributeRegistry.GetAttribute<YamlStyleAttribute>(member.MemberInfo);
 			member.Style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
 
 			// Handle member attribute
-			var memberAttribute = AttributeRegistry.GetAttribute<YamlMemberAttribute>(member.MemberInfo);
 			if (memberAttribute != null)
 			{
 				if (!member.HasSet)
@@ -282,8 +363,6 @@ namespace SharpYaml.Serialization.Descriptors
 			if (shouldSerialize != null && shouldSerialize.ReturnType == typeof(bool) && member.ShouldSerialize == null)
 				member.ShouldSerialize = obj => (bool)shouldSerialize.Invoke(obj, EmptyObjectArray);
 
-
-			var defaultValueAttribute = AttributeRegistry.GetAttribute<DefaultValueAttribute>(member.MemberInfo);
 			if (defaultValueAttribute != null && member.ShouldSerialize == null && !emitDefaultValues)
 			{
 				object defaultValue = defaultValueAttribute.Value;
