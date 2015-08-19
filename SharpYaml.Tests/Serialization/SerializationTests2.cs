@@ -1093,6 +1093,28 @@ Enum: OldValue2
             Assert.IsTrue(context.HasRemapOccured);
         }
 
+        [YamlTag("TestWithMemberRenamed")]
+        public sealed class TestWithMemberRenamed
+        {
+            [YamlMember("~Base")]
+            [DefaultValue(null)]
+            public string Base { get; set; }
+        }
+
+        [Test]
+        public void TestYamlMember()
+        {
+            var settings = new SerializerSettings();
+            settings.RegisterAssembly(typeof(TestWithMemberRenamed).Assembly);
+
+            var value = new TestWithMemberRenamed {Base = "Test"};
+			var serializer = new Serializer(settings);
+			var text = serializer.Serialize(value);
+            Assert.True(text.Contains("~Base"));
+
+            SerialRoundTrip(settings, value);
+        }
+
         public sealed class MyClassImmutable
         {
             public MyClassImmutable(string name, int value)

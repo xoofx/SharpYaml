@@ -276,21 +276,22 @@ namespace SharpYaml.Serialization.Descriptors
                     return false;
                 } 
                 
-                memberAttribute = attribute as YamlMemberAttribute;
-                if (memberAttribute != null)
-                {
+                if (attribute is YamlMemberAttribute)
+		        {
+		            memberAttribute = (YamlMemberAttribute)attribute;
                     continue;
                 }
 
-                defaultValueAttribute = attribute as DefaultValueAttribute;
-                if (defaultValueAttribute != null)
+                ;
+                if (attribute is DefaultValueAttribute)
                 {
+                    defaultValueAttribute = (DefaultValueAttribute) attribute;
                     continue;
                 }
 
-                styleAttribute = attribute as YamlStyleAttribute;
-                if (styleAttribute != null)
+                if (attribute is YamlStyleAttribute)
                 {
+                    styleAttribute = (YamlStyleAttribute) attribute;
                     continue;
                 }
 
