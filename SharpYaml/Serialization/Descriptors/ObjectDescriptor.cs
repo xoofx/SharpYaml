@@ -282,7 +282,6 @@ namespace SharpYaml.Serialization.Descriptors
                     continue;
                 }
 
-                ;
                 if (attribute is DefaultValueAttribute)
                 {
                     defaultValueAttribute = (DefaultValueAttribute) attribute;
