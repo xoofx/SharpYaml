@@ -238,19 +238,21 @@ namespace SharpYaml.Serialization.Descriptors
 
 	    protected virtual List<IMemberDescriptor> PrepareMembers()
 		{
+			var bindingFlags = BindingFlags.Instance | BindingFlags.Public;
+			if (Category == DescriptorCategory.Object)
+				bindingFlags |= BindingFlags.NonPublic;
+
 			// Add all public properties with a readable get method
-			var memberList = (from propertyInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+			var memberList = (from propertyInfo in type.GetProperties(bindingFlags)
 							  where
-								  propertyInfo.CanRead && propertyInfo.GetGetMethod(false) != null &&
-								  propertyInfo.GetIndexParameters().Length == 0
+								  propertyInfo.CanRead && propertyInfo.GetIndexParameters().Length == 0
 							  select new PropertyDescriptor(propertyInfo, NamingConvention.Comparer)
 							  into member
 							  where PrepareMember(member)
 							  select member).Cast<IMemberDescriptor>().ToList();
 
 			// Add all public fields
-			memberList.AddRange((from fieldInfo in type.GetFields(BindingFlags.Instance | BindingFlags.Public)
-								 where fieldInfo.IsPublic
+			memberList.AddRange((from fieldInfo in type.GetFields(bindingFlags)
                                  select new FieldDescriptor(fieldInfo, NamingConvention.Comparer)
 								 into member where PrepareMember(member) select member));
 
@@ -324,12 +326,21 @@ namespace SharpYaml.Serialization.Descriptors
                 member.SerializeMemberMode = (memberType != typeof(string) && memberType.IsClass) || memberType.IsInterface || type.IsAnonymous() ? SerializeMemberMode.Content : SerializeMemberMode.Never;
             }
 
+            // If it's a private member, check it has a YamlMemberAttribute on it
+			if (!member.IsPublic)
+			{
+				if (memberAttribute == null)
+					return false;
+			}
+
 			// Gets the style
 			member.Style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
+			member.Mask = 1;
 
 			// Handle member attribute
 			if (memberAttribute != null)
 			{
+				member.Mask = memberAttribute.Mask;
 				if (!member.HasSet)
 				{
 					if (memberAttribute.SerializeMethod == SerializeMemberMode.Assign ||

@@ -97,6 +97,11 @@ namespace SharpYaml.Serialization.Descriptors
 			get { return true; }
 		}
 
+		public override bool IsPublic
+		{
+			get { return fieldInfo.IsPublic; }
+		}
+
 		/// <summary>
 		/// Returns a <see cref="System.String" /> that represents this instance.
 		/// </summary>

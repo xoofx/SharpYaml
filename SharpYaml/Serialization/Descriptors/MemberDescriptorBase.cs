@@ -87,6 +87,8 @@ namespace SharpYaml.Serialization.Descriptors
 		public abstract object Get(object thisObject);
 		public abstract void Set(object thisObject, object value);
 		public abstract bool HasSet { get; }
+		public abstract bool IsPublic { get; }
+		public uint Mask { get; internal set; }
 		public YamlStyle Style { get; internal set; }
 		public Func<object, bool> ShouldSerialize { get; internal set; }
 

@@ -111,6 +111,22 @@ namespace SharpYaml.Serialization
 		bool HasSet { get; }
 
 		/// <summary>
+		/// Gets a value indicating whether this member is public.
+		/// </summary>
+		/// <value>
+		///   <c>true</c> if this member is public; otherwise, <c>false</c>.
+		/// </value>
+		bool IsPublic { get; }
+
+		/// <summary>
+		/// Gets the serialization mask, that will be checked against the context to know if this field needs to be serialized.
+		/// </summary>
+		/// <value>
+		/// The mask.
+		/// </value>
+		uint Mask { get; }
+
+		/// <summary>
 		/// Gets the default style attached to this member.
 		/// </summary>
 		/// <value>The style.</value>

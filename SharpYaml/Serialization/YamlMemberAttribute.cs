@@ -52,8 +52,18 @@ namespace SharpYaml.Serialization
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 	public sealed class YamlMemberAttribute : Attribute
 	{
+	    public const uint DefaultMask = 1;
+
 		private readonly SerializeMemberMode serializeMethod;
 		private readonly string name;
+	    private uint mask = DefaultMask;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="YamlMemberAttribute"/> class.
+        /// </summary>
+        public YamlMemberAttribute()
+        {
+        }
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="YamlMemberAttribute"/> class.
@@ -116,5 +126,11 @@ namespace SharpYaml.Serialization
 		/// </summary>
 		/// <value>The order.</value>
 		public int? Order { get; set; }
+
+		/// <summary>
+		/// Gets the mask.
+		/// </summary>
+		/// <value>The mask.</value>
+		public uint Mask { get { return mask; } set { mask = value; } }
 	}
 }

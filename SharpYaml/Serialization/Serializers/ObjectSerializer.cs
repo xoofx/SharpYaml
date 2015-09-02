@@ -356,6 +356,9 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="member">The member.</param>
         protected virtual void WriteMember(ref ObjectContext objectContext, IMemberDescriptor member)
         {
+            // Filter members by mask
+            if ((member.Mask & objectContext.SerializerContext.MemberMask) == 0) return;
+
             // Skip any member that we won't serialize
             if (!member.ShouldSerialize(objectContext.Instance)) return;
 
