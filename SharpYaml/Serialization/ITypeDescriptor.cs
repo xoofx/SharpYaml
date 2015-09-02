@@ -71,6 +71,12 @@ namespace SharpYaml.Serialization
 		int Count { get; }
 
 		/// <summary>
+		/// Gets the category of this descriptor.
+		/// </summary>
+		/// <value>The category.</value>
+		DescriptorCategory Category { get; }
+
+		/// <summary>
 		/// Gets a value indicating whether this instance has members.
 		/// </summary>
 		/// <value><c>true</c> if this instance has members; otherwise, <c>false</c>.</value>

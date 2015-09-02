@@ -185,6 +185,11 @@ namespace SharpYaml.Serialization.Descriptors
             get { return members == null ? 0 : members.Count; }
 		}
 
+		public virtual DescriptorCategory Category
+		{
+			get { return DescriptorCategory.Object; }
+		}
+
 		public bool HasMembers
 		{
 			get { return members.Count > 0; }

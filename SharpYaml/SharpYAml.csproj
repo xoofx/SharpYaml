@@ -59,6 +59,7 @@
     <Compile Include="MemoryParser.cs" />
     <Compile Include="Serialization\AnchorEventEmitter.cs" />
     <Compile Include="Serialization\DefaultNamingConvention.cs" />
+    <Compile Include="Serialization\DescriptorCategory.cs" />
     <Compile Include="Serialization\Descriptors\DefaultKeyComparer.cs" />
     <Compile Include="Serialization\FlatNamingConvention.cs" />
     <Compile Include="Serialization\IMemberNamingConvention.cs" />
