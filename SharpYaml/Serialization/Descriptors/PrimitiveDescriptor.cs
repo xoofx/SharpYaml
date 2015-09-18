@@ -92,6 +92,11 @@ namespace SharpYaml.Serialization.Descriptors
             }
 		}
 
+		public override DescriptorCategory Category
+		{
+			get { return DescriptorCategory.Primitive; }
+		}
+
 		/// <summary>
 		/// Determines whether the specified type is a primitive.
 		/// </summary>

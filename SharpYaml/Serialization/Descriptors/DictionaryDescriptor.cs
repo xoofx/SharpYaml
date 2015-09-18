@@ -102,6 +102,11 @@ namespace SharpYaml.Serialization.Descriptors
             IsPureDictionary = Count == 0;
         }
 
+		public override DescriptorCategory Category
+		{
+			get { return DescriptorCategory.Dictionary; }
+		}
+
 	    /// <summary>
 		/// Gets a value indicating whether this instance is generic dictionary.
 		/// </summary>

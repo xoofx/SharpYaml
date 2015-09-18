@@ -69,10 +69,10 @@ namespace SharpYaml.Serialization.Descriptors
 
 			this.propertyInfo = propertyInfo;
 
-			getMethod = propertyInfo.GetGetMethod(false);
-			if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(false) != null)
+			getMethod = propertyInfo.GetGetMethod(true);
+			if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(!IsPublic) != null)
 			{
-				setMethod = propertyInfo.GetSetMethod(false);
+				setMethod = propertyInfo.GetSetMethod(!IsPublic);
 			}
 		}
 
@@ -104,6 +104,11 @@ namespace SharpYaml.Serialization.Descriptors
 		public override bool HasSet
 		{
 			get { return setMethod != null; }
+		}
+
+		public override bool IsPublic
+		{
+			get { return getMethod.IsPublic; }
 		}
 
 		/// <summary>

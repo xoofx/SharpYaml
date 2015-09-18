@@ -150,6 +150,14 @@ namespace SharpYaml.Serialization
         public bool HasRemapOccurred { get; internal set; }
 
 		/// <summary>
+		/// Gets or sets the member mask that will be used to filter <see cref="YamlMemberAttribute.Mask"/>.
+		/// </summary>
+		/// <value>
+		/// The member mask.
+		/// </value>
+		public uint MemberMask { get { return contextSettings.MemberMask; } }
+
+		/// <summary>
 		/// The default function to read an object from the current Yaml stream.
 		/// </summary>
 		/// <param name="value">The value of the receiving object, may be null.</param>

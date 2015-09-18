@@ -80,6 +80,11 @@ namespace SharpYaml.Serialization.Descriptors
 			toArrayMethod = listType.GetMethod("ToArray");
 		}
 
+		public override DescriptorCategory Category
+		{
+			get { return DescriptorCategory.Array; }
+		}
+
 		/// <summary>
 		/// Gets the type of the array element.
 		/// </summary>

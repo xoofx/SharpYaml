@@ -108,6 +108,11 @@ namespace SharpYaml.Serialization.Descriptors
             IsPureCollection = Count == 0;
 	    }
 
+		public override DescriptorCategory Category
+		{
+			get { return DescriptorCategory.Collection; }
+		}
+
 	    /// <summary>
 		/// Gets or sets the type of the element.
 		/// </summary>
