@@ -275,8 +275,8 @@ UInt64: 8
             settings.RegisterTagMapping("ObjectFloatDoublePrecision", typeof(ObjectFloatDoublePrecision));
 
             var text = @"!ObjectFloatDoublePrecision
-Float: 1E-05
 Double: 1E-05
+Float: 1E-05
 ".Trim();
 
             SerialRoundTrip(settings, text);
