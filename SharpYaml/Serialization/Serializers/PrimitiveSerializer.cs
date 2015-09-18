@@ -168,14 +168,16 @@ namespace SharpYaml.Serialization.Serializers
         /// <returns></returns>
         private string AppendDecimalPoint(string text )
         {
-            if (text.Contains("."))
+            for (int i = 0; i < text.Length; i++)
             {
-                return text;
+                var c = text[i];
+                if (c == 'e' || c == 'E' || c == '.')
+                {
+                    return text;
+                }
             }
-            else
-            {
-                return text + ".0";
-            }
+
+            return text + ".0";
         }
 
 		public override string ConvertTo(ref ObjectContext objectContext)

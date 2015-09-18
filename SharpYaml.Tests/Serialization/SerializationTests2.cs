@@ -47,6 +47,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Security.Policy;
 using NUnit.Framework;
 using SharpYaml.Serialization;
 using SharpYaml.Serialization.Serializers;
@@ -207,7 +208,7 @@ Value: World!
 
 		    public float Float { get; set; }
 
-			public double Double { get; set; }
+            public double Double { get; set; }
 
 			public MyEnum Enum { get; set; }
 
@@ -257,7 +258,31 @@ UInt64: 8
 			SerialRoundTrip(settings, text);
 		}
 
-		public class MyObjectAndCollection
+
+
+
+        public class ObjectFloatDoublePrecision
+        {
+            public float Float { get; set; }
+
+            public double Double { get; set; }
+        }
+
+        [Test]
+        public void TestFloatDoublePrecision()
+        {
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
+            settings.RegisterTagMapping("ObjectFloatDoublePrecision", typeof(ObjectFloatDoublePrecision));
+
+            var text = @"!ObjectFloatDoublePrecision
+Float: 1E-05
+Double: 1E-05
+".Trim();
+
+            SerialRoundTrip(settings, text);
+        }
+
+        public class MyObjectAndCollection
 		{
 			public MyObjectAndCollection()
 			{
