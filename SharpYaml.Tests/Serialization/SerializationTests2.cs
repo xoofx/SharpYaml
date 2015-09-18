@@ -1265,6 +1265,56 @@ Enum: OldValue2
 
             public Dictionary<string, object> Values { get; set; }
         }
+
+        [Test]
+        public void TestMaskSimple()
+        {
+            var settings = new SerializerSettings();
+            settings.RegisterTagMapping("ObjectWithMask", typeof(ObjectWithMask));
+
+            var item = new ObjectWithMask { Int1 = 1, Int2 = 2, Int3 = 3 };
+
+            var serializer = new Serializer(settings);
+            var text = serializer.Serialize(item);
+
+            var newItem = (ObjectWithMask)serializer.Deserialize(text);
+
+            // Default: mask != 1 is ignored
+            Assert.AreEqual(newItem.Int1, item.Int1);
+            Assert.AreEqual(newItem.Int2, 0);
+            Assert.AreEqual(newItem.Int3, 0);
+
+            serializer = new Serializer(settings);
+            text = serializer.Serialize(item, null, new SerializerContextSettings { MemberMask = 4 });
+
+            newItem = (ObjectWithMask)serializer.Deserialize(text);
+
+            // Only Int2 and Int3 should be serialized
+            Assert.AreEqual(newItem.Int1, 0);
+            Assert.AreEqual(newItem.Int2, item.Int2);
+            Assert.AreEqual(newItem.Int3, item.Int3);
+
+            serializer = new Serializer(settings);
+            text = serializer.Serialize(item, null, new SerializerContextSettings { MemberMask = 1 | 4 });
+
+            newItem = (ObjectWithMask)serializer.Deserialize(text);
+
+            // Everything should be serialized
+            Assert.AreEqual(newItem.Int1, item.Int1);
+            Assert.AreEqual(newItem.Int2, item.Int2);
+            Assert.AreEqual(newItem.Int3, item.Int3);
+        }
+
+        public class ObjectWithMask
+        {
+            public int Int1 { get; set; }
+
+            [YamlMember(Mask = 4)]
+            public int Int2 { get; set; }
+
+            [YamlMember(Mask = 4)]
+            internal int Int3 { get; set; }
+        }
 		
 		private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
 		{
