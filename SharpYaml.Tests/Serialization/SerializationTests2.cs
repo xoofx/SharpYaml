@@ -1315,6 +1315,61 @@ Enum: OldValue2
             [YamlMember(Mask = 4)]
             internal int Int3 { get; set; }
         }
+
+        [Test]
+        public void TestImplicitMemberType()
+        {
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
+
+            var text = @"!ClassWithImplicitMemberType
+Test:
+  String: test
+".Trim();
+
+            settings.RegisterTagMapping("ClassWithImplicitMemberType", typeof(ClassWithImplicitMemberType));
+            settings.RegisterTagMapping("ClassWithImplicitMemberTypeInner", typeof(ClassWithImplicitMemberTypeInner));
+            SerialRoundTrip(settings, text);
+        }
+
+        [Test]
+        public void TestNonImplicitMemberType()
+        {
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
+
+            var text = @"!ClassWithNonImplicitMemberType
+Test: !ClassWithImplicitMemberTypeInner
+  String: test
+".Trim();
+
+            settings.RegisterTagMapping("ClassWithNonImplicitMemberType", typeof(ClassWithNonImplicitMemberType));
+            settings.RegisterTagMapping("ClassWithImplicitMemberTypeInner", typeof(ClassWithImplicitMemberTypeInner));
+            SerialRoundTrip(settings, text);
+        }
+
+        public class ClassWithImplicitMemberType
+        {
+            public ClassWithImplicitMemberType()
+            {
+                Test = new ClassWithImplicitMemberTypeInner { String = "test" };
+            }
+
+            public object Test { get; protected set; }
+        }
+
+        public class ClassWithNonImplicitMemberType
+        {
+            public ClassWithNonImplicitMemberType()
+            {
+                Test = new ClassWithImplicitMemberTypeInner { String = "test" };
+            }
+
+            public object Test { get; set; }
+        }
+
+        public class ClassWithImplicitMemberTypeInner
+        {
+            public string String { get; set; }
+        }
 		
 		private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
 		{

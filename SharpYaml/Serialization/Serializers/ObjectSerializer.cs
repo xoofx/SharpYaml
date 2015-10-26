@@ -274,7 +274,7 @@ namespace SharpYaml.Serialization.Serializers
             }
 
             // Read the value according to the type
-            var memberValue = memberAccessor.Get(objectContext.Instance);
+            var memberValue = memberAccessor.SerializeMemberMode == SerializeMemberMode.Content ? memberAccessor.Get(objectContext.Instance) : null;
             var memberType = memberAccessor.Type;
 
             // In case of serializing a property/field which is not writeable
@@ -283,11 +283,12 @@ namespace SharpYaml.Serialization.Serializers
             if (memberValue != null)
                 memberType = memberValue.GetType();
 
+            var oldMemberValue = memberValue;
             memberValue = ReadMemberValue(ref objectContext, memberAccessor, memberValue, memberType);
 
             // Handle late binding
             // Value types need to be reassigned even if it was a Content
-            if (memberAccessor.HasSet && (memberAccessor.SerializeMemberMode != SerializeMemberMode.Content || memberAccessor.Type.IsValueType))
+            if (memberAccessor.HasSet && (memberAccessor.SerializeMemberMode != SerializeMemberMode.Content || memberAccessor.Type.IsValueType || memberValue != oldMemberValue))
             {
                 memberAccessor.Set(objectContext.Instance, memberValue);
             }
@@ -371,7 +372,7 @@ namespace SharpYaml.Serialization.Serializers
             // In case of serializing a property/field which is not writeable
             // we need to change the expected type to the actual type of the 
             // content value
-            if (member.SerializeMemberMode == SerializeMemberMode.Content)
+            if (member.SerializeMemberMode == SerializeMemberMode.Content && !member.HasSet)
             {
                 if (memberValue != null)
                 {
