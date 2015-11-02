@@ -176,7 +176,10 @@ namespace SharpYaml.Serialization
 		    lock (lockCache)
 		    {
                 tagToType[tag] = new MappedType(type, alias);
-                typeToTag[type] = tag;
+
+                // Only register types that are not aliases
+                if (!alias)
+                    typeToTag[type] = tag;
             }
 		}
 
