@@ -2,7 +2,7 @@
 <package>
   <metadata>
 	<id>SharpYaml</id>
-	<version>1.5.1</version>
+	<version>1.5.2</version>
 	<authors>Alexandre Mutel</authors>
 	<description>A YAML portable .NET library. providing parsing and serialization of object graphs.</description>
 	<summary>This package contains the YAML parser and serializer/deserializer.</summary>
