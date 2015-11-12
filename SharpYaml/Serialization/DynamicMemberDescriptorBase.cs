@@ -30,8 +30,8 @@ namespace SharpYaml.Serialization
     {
         protected DynamicMemberDescriptorBase(string name, Type type)
         {
-            if (name == null) throw new ArgumentNullException(nameof(name));
-            if (type == null) throw new ArgumentNullException(nameof(type));
+            if (name == null) throw new ArgumentNullException("name");
+            if (type == null) throw new ArgumentNullException("type");
             Name = name;
             Type = type;
             OriginalName = Name;
