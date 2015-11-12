@@ -60,6 +60,8 @@ namespace SharpYaml.Serialization
 		private readonly Dictionary<MemberInfoKey, List<Attribute>> cachedAttributes = new Dictionary<MemberInfoKey, List<Attribute>>();
 		private readonly Dictionary<MemberInfo, List<Attribute>> registeredAttributes = new Dictionary<MemberInfo, List<Attribute>>();
 
+        public Action<Type, List<IMemberDescriptor>> PrepareMembersCallback { get; set;}
+
         /// <summary>
         /// Gets or sets the attribute remapper. May be null
         /// </summary>
@@ -111,7 +113,8 @@ namespace SharpYaml.Serialization
             }
 		}
 
-		/// <summary>
+
+	    /// <summary>
 		/// Registers an attribute for the specified member. Restriction: Attributes registered this way cannot be listed in inherited attributes.
 		/// </summary>
 		/// <param name="memberInfo">The member information.</param>

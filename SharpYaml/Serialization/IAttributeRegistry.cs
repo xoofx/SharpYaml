@@ -68,6 +68,11 @@ namespace SharpYaml.Serialization
 		/// <returns>An enumeration of <see cref="Attribute"/>.</returns>
 		List<Attribute> GetAttributes(MemberInfo memberInfo, bool inherit = true);
 
+        /// <summary>
+        /// Gets or sets the prepare member callback.
+        /// </summary>
+        Action<Type, List<IMemberDescriptor>> PrepareMembersCallback { get; set; }
+
 		/// <summary>
 		/// Registers an attribute for the specified member. Restriction: Attributes registered this way cannot be listed in inherited attributes.
 		/// </summary>

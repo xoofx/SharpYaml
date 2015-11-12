@@ -47,6 +47,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Policy;
 using NUnit.Framework;
 using SharpYaml.Serialization;
@@ -259,7 +260,61 @@ UInt64: 8
 		}
 
 
+        private class MyDynamicMember : DynamicMemberDescriptorBase
+        {
+            public MyDynamicMember() : base("~Id", typeof(int))
+            {
+                DynamicIds = new Dictionary<object, int>();
+            }
 
+            public readonly Dictionary<object, int> DynamicIds;
+
+            public override object Get(object thisObject)
+            {
+                int id;
+                DynamicIds.TryGetValue(thisObject, out id);
+                return id;
+            }
+
+            public override void Set(object thisObject, object value)
+            {
+                DynamicIds[thisObject] = (int)value;
+            }
+
+            public override bool HasSet
+            {
+                get { return true; }
+            }
+        }
+
+        [Test]
+        public void TestDynamicMember()
+        {
+            var settings = new SerializerSettings();
+
+            var dynamicMember = new MyDynamicMember();
+
+            settings.Attributes.PrepareMembersCallback = (type, list) =>
+            {
+                if (typeof (MyObject) == type)
+                {
+                    // Add our dynamic member
+                    list.Add(dynamicMember);
+                }
+            };
+            settings.RegisterTagMapping("MyObject", typeof(MyObject));
+
+            var serializer = new Serializer(settings);
+            var myObject = new MyObject();
+            dynamicMember.DynamicIds[myObject] = 16;
+            var testStr = serializer.Serialize(myObject);
+
+            var myObject1 = serializer.Deserialize<MyObject>(testStr);
+
+            // Make sure that the dynamic member is actually round trip copied
+            Assert.True(dynamicMember.DynamicIds.ContainsKey(myObject1));
+            Assert.AreEqual((object)16, dynamicMember.DynamicIds[myObject1]);
+        }
 
         public class ObjectFloatDoublePrecision
         {

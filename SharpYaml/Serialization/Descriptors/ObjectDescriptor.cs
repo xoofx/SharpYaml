@@ -57,7 +57,9 @@ namespace SharpYaml.Serialization.Descriptors
 	/// </summary>
 	public class ObjectDescriptor : ITypeDescriptor
 	{
-		protected static readonly string SystemCollectionsNamespace = typeof(int).Namespace;
+        public static readonly Func<object, bool> ShouldSerializeDefault = o => true;
+
+        protected static readonly string SystemCollectionsNamespace = typeof(int).Namespace;
 
 		private readonly static object[] EmptyObjectArray = new object[0];
 		private readonly Type type;
@@ -256,7 +258,13 @@ namespace SharpYaml.Serialization.Descriptors
                                  select new FieldDescriptor(fieldInfo, NamingConvention.Comparer)
 								 into member where PrepareMember(member) select member));
 
-			return memberList;
+            // Allow to add dynamic members per type
+	        if (AttributeRegistry.PrepareMembersCallback != null)
+	        {
+	            AttributeRegistry.PrepareMembersCallback(type, memberList);
+	        }
+
+	        return memberList;
 		}
 
 		protected virtual bool PrepareMember(MemberDescriptorBase member)
@@ -389,7 +397,7 @@ namespace SharpYaml.Serialization.Descriptors
 			}
 
 			if (member.ShouldSerialize == null)
-				member.ShouldSerialize = obj => true;
+				member.ShouldSerialize = ShouldSerializeDefault;
 
 			if (memberAttribute != null && !string.IsNullOrEmpty(memberAttribute.Name))
 			{

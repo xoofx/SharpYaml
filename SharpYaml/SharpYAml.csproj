@@ -61,6 +61,7 @@
     <Compile Include="Serialization\DefaultNamingConvention.cs" />
     <Compile Include="Serialization\DescriptorCategory.cs" />
     <Compile Include="Serialization\Descriptors\DefaultKeyComparer.cs" />
+    <Compile Include="Serialization\DynamicMemberDescriptorBase.cs" />
     <Compile Include="Serialization\FlatNamingConvention.cs" />
     <Compile Include="Serialization\IMemberNamingConvention.cs" />
     <Compile Include="Serialization\IOrderedDictionary.cs" />
