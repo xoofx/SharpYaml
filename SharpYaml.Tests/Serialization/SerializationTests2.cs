@@ -265,6 +265,7 @@ UInt64: 8
             public MyDynamicMember() : base("~Id", typeof(int))
             {
                 DynamicIds = new Dictionary<object, int>();
+                Order = -1000;
             }
 
             public readonly Dictionary<object, int> DynamicIds;

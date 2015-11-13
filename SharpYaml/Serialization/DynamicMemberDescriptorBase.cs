@@ -37,23 +37,18 @@ namespace SharpYaml.Serialization
             OriginalName = Name;
             Mask = 1;
             ShouldSerialize = ObjectDescriptor.ShouldSerializeDefault;
+            DefaultNameComparer = StringComparer.OrdinalIgnoreCase;
         }
 
         public string Name { get; set; }
 
         public string OriginalName { get; set; }
 
-        public StringComparer DefaultNameComparer
-        {
-            get { return StringComparer.OrdinalIgnoreCase; }
-        }
+        public StringComparer DefaultNameComparer { get; set; }
 
         public Type Type { get; set; }
 
-        public int? Order
-        {
-            get { return null; }
-        }
+        public int? Order { get; set; }
 
         public SerializeMemberMode SerializeMemberMode { get; set; }
 
