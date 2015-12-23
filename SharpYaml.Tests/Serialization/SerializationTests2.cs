@@ -46,6 +46,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Policy;
@@ -1400,6 +1401,30 @@ Test: !ClassWithImplicitMemberTypeInner
             settings.RegisterTagMapping("ClassWithNonImplicitMemberType", typeof(ClassWithNonImplicitMemberType));
             settings.RegisterTagMapping("ClassWithImplicitMemberTypeInner", typeof(ClassWithImplicitMemberTypeInner));
             SerialRoundTrip(settings, text);
+        }
+
+
+        [Test]
+        public void TestLongIntegers()
+        {
+            var serializer = new Serializer();
+
+            var values = new List<object>();
+            int intValue = 5;
+            long longValue = 50000000000000L;
+            ulong uLongValue = ulong.MaxValue;
+            values.Add(intValue);
+            values.Add(longValue);
+            values.Add(uLongValue);
+
+            var text = serializer.Serialize(values);
+
+            var values2 = serializer.Deserialize(new StringReader(text)) as List<object>;
+            Assert.NotNull(values2);
+            Assert.AreEqual(3, values.Count);
+            Assert.AreEqual(intValue, values[0]);
+            Assert.AreEqual(longValue, values[1]);
+            Assert.AreEqual(uLongValue, values[2]);
         }
 
         public class ClassWithImplicitMemberType

@@ -314,10 +314,17 @@ namespace SharpYaml.Schemas
 		{
 			// Make sure the tag is expanded to its long form
 			var longTag = ShortenTag(tag);
-			scalarTagResolutionRules.Add(new ScalarResolutionRule<T>(longTag, regex, decode, encode));
+			scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T)m), typeof(T)));
 		}
 
-		protected void RegisterDefaultTagMapping<T>(string tag, bool isDefault = false)
+        protected void AddScalarRule(Type[] types, string tag, string regex, Func<Match, object> decode, Func<object, string> encode)
+        {
+            // Make sure the tag is expanded to its long form
+            var longTag = ShortenTag(tag);
+            scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, decode, encode, types));
+        }
+
+        protected void RegisterDefaultTagMapping<T>(string tag, bool isDefault = false)
 		{
 			if (tag == null) throw new ArgumentNullException("tag");
 			RegisterDefaultTagMapping(tag, typeof(T), isDefault);
@@ -395,64 +402,62 @@ namespace SharpYaml.Schemas
 			mapTypeToScalarResolutionRuleList.Clear();
 			foreach (var rule in scalarTagResolutionRules)
 			{
-				var type = rule.GetTypeOfValue();
-				if (!mapTypeToScalarResolutionRuleList.ContainsKey(type))
-					mapTypeToScalarResolutionRuleList[type] = new List<ScalarResolutionRule>();
-				mapTypeToScalarResolutionRuleList[type].Add(rule);
+				var types = rule.GetTypeOfValue();
+			    foreach (var type in types)
+			    {
+			        if (!mapTypeToScalarResolutionRuleList.ContainsKey(type))
+			            mapTypeToScalarResolutionRuleList[type] = new List<ScalarResolutionRule>();
+			        mapTypeToScalarResolutionRuleList[type].Add(rule);
+			    }
 			}
 
 			// Update the counter
 			updateCountter = scalarTagResolutionRules.Count;
 		}
 
-		private abstract class ScalarResolutionRule
+		private class ScalarResolutionRule
 		{
-			public string Tag { get; protected set; }
+            public ScalarResolutionRule(string shortTag, string regex, Func<Match, object> decoder, Func<object, string> encoder, params Type[] types)
+            {
+                Tag = shortTag;
+                PatternSource = regex;
+                Pattern = new Regex("^(?:" + regex + ")$");
+                this.types = types;
+                Decoder = decoder;
+                Encoder = encoder;
+            }
+
+		    private readonly Type[] types;
+		    private readonly Func<Match, object> Decoder;
+            private readonly Func<object, string> Encoder;
+
+            public string Tag { get; protected set; }
 			public Regex Pattern { get; protected set; }
 			public string PatternSource { get; protected set; }
-			public abstract object Decode(Match m);
-			public abstract string Encode(object obj);
-			public abstract Type GetTypeOfValue();
-			public abstract bool HasEncoder();
 
-			public bool IsMatch(string value)
+            public object Decode(Match m)
+            {
+                return Decoder(m);
+            }
+
+            public string Encode(object obj)
+            {
+                return Encoder(obj);
+            }
+
+            public Type[] GetTypeOfValue()
+            {
+                return types;
+            }
+
+            public bool HasEncoder()
+            {
+                return Encoder != null;
+            }
+
+            public bool IsMatch(string value)
 			{
 				return Pattern.IsMatch(value);
-			}
-		}
-
-		private class ScalarResolutionRule<T> : ScalarResolutionRule
-		{
-			public ScalarResolutionRule(string shortTag, string regex, Func<Match, T> decoder, Func<T, string> encoder)
-			{
-				Tag = shortTag;
-				PatternSource = regex;
-				Pattern = new Regex("^(?:" + regex + ")$");
-				Decoder = decoder;
-				Encoder = encoder;
-			}
-
-			private readonly Func<Match, T> Decoder;
-			private readonly Func<T, string> Encoder;
-
-			public override object Decode(Match m)
-			{
-				return Decoder(m);
-			}
-
-			public override string Encode(object obj)
-			{
-				return Encoder((T) obj);
-			}
-
-			public override Type GetTypeOfValue()
-			{
-				return typeof (T);
-			}
-
-			public override bool HasEncoder()
-			{
-				return Encoder != null;
 			}
 		}
 	}

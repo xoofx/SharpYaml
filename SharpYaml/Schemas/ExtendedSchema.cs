@@ -89,9 +89,8 @@ namespace SharpYaml.Schemas
 		protected override void PrepareScalarRules()
 		{
 			AddScalarRule<object>("!!null", @"null|Null|NULL|\~|", m => null, null);
-			AddScalarRule<int>("!!int", @"([-+]?(0|[1-9][0-9_]*))",
-							   m => Convert.ToInt32(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
-			AddScalarRule<int>("!!int", @"([-+]?)0b([01_]+)", m =>
+            AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"([-+]?(0|[1-9][0-9_]*))", DecodeInteger, null);
+            AddScalarRule<int>("!!int", @"([-+]?)0b([01_]+)", m =>
 				{
 					var v = Convert.ToInt32(m.Groups[2].Value.Replace("_", ""), 2);
 					return m.Groups[1].Value == "-" ? -v : v;

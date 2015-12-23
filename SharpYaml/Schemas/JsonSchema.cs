@@ -44,6 +44,7 @@
 // SOFTWARE.
 using System;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace SharpYaml.Schemas
 {
@@ -117,7 +118,7 @@ namespace SharpYaml.Schemas
 			AddScalarRule<bool>("!!bool", @"false", m => false, null);
 
 			// 10.2.1.3. Integer
-			AddScalarRule<int>("!!int", @"((0|-?[1-9][0-9_]*))", m => Convert.ToInt32(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
+		    AddScalarRule(new Type[] { typeof(ulong), typeof (long), typeof (int)}, "!!int", @"((0|-?[1-9][0-9_]*))", DecodeInteger, null);
 
 			// 10.2.1.4. Floating Point
 			AddScalarRule<double>("!!float", @"-?(0|[1-9][0-9]*)(\.[0-9]*)?([eE][-+]?[0-9]+)?", m => Convert.ToDouble(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
@@ -131,6 +132,25 @@ namespace SharpYaml.Schemas
 			// We are not calling the base as we want to completely override scalar rules
 			// and in order to have a more concise set of regex
 		}
+
+	    protected object DecodeInteger(Match m)
+	    {
+            var valueStr = m.Value.Replace("_", "");
+            int value;
+            // Try plain native int first 
+            if (int.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+            {
+                return value;
+            }
+            // Else long
+            long result;
+            if (long.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+            {
+                return result;
+            }
+            // Else ulong
+            return ulong.Parse(valueStr, CultureInfo.InvariantCulture);
+        }
 
 		protected override void RegisterDefaultTagMappings()
 		{
