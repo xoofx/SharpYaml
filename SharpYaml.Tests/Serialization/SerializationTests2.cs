@@ -296,9 +296,9 @@ UInt64: 8
 
             var dynamicMember = new MyDynamicMember();
 
-            settings.Attributes.PrepareMembersCallback = (type, list) =>
+            settings.Attributes.PrepareMembersCallback = (typeDesc, list) =>
             {
-                if (typeof (MyObject) == type)
+                if (typeof (MyObject) == typeDesc.Type)
                 {
                     // Add our dynamic member
                     list.Add(dynamicMember);

@@ -46,6 +46,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization
 {
@@ -60,7 +61,7 @@ namespace SharpYaml.Serialization
 		private readonly Dictionary<MemberInfoKey, List<Attribute>> cachedAttributes = new Dictionary<MemberInfoKey, List<Attribute>>();
 		private readonly Dictionary<MemberInfo, List<Attribute>> registeredAttributes = new Dictionary<MemberInfo, List<Attribute>>();
 
-        public Action<Type, List<IMemberDescriptor>> PrepareMembersCallback { get; set;}
+        public Action<ObjectDescriptor, List<IMemberDescriptor>> PrepareMembersCallback { get; set;}
 
         /// <summary>
         /// Gets or sets the attribute remapper. May be null

@@ -46,6 +46,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization
 {
@@ -71,7 +72,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Gets or sets the prepare member callback.
         /// </summary>
-        Action<Type, List<IMemberDescriptor>> PrepareMembersCallback { get; set; }
+        Action<ObjectDescriptor, List<IMemberDescriptor>> PrepareMembersCallback { get; set; }
 
 		/// <summary>
 		/// Registers an attribute for the specified member. Restriction: Attributes registered this way cannot be listed in inherited attributes.

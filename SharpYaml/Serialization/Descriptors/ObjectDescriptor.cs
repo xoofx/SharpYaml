@@ -70,8 +70,9 @@ namespace SharpYaml.Serialization.Descriptors
 	    private bool isSorted;
 	    private readonly IMemberNamingConvention memberNamingConvention;
 	    private HashSet<string> remapMembers;
+	    private List<Attribute> attributes;
 
-        /// <summary>
+	    /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
         /// </summary>
         /// <param name="attributeRegistry">The attribute registry.</param>
@@ -91,7 +92,7 @@ namespace SharpYaml.Serialization.Descriptors
 			this.AttributeRegistry = attributeRegistry;
 			this.type = type;
 
-            var attributes = AttributeRegistry.GetAttributes(type);
+            attributes = AttributeRegistry.GetAttributes(type);
 
             this.style = YamlStyle.Any;
             foreach (var attribute in attributes)
@@ -108,6 +109,14 @@ namespace SharpYaml.Serialization.Descriptors
                 }
             }
 		}
+
+        /// <summary>
+        /// Gets attributes attached to this type.
+        /// </summary>
+	    public List<Attribute> Attributes
+	    {
+	        get { return attributes; }
+	    }
 
         /// <summary>
         /// Gets the naming convention.
@@ -261,7 +270,7 @@ namespace SharpYaml.Serialization.Descriptors
             // Allow to add dynamic members per type
 	        if (AttributeRegistry.PrepareMembersCallback != null)
 	        {
-	            AttributeRegistry.PrepareMembersCallback(type, memberList);
+	            AttributeRegistry.PrepareMembersCallback(this, memberList);
 	        }
 
 	        return memberList;
