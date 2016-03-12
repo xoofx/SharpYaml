@@ -113,7 +113,7 @@ namespace SharpYaml.Serialization.Serializers
             objectContext.Writer.Emit(new SequenceStartEventInfo(value, valueType)
 				{
                     Tag = objectContext.Tag,
-					Style = arrayList.Count < objectContext.Settings.LimitPrimitiveFlowSequence ? YamlStyle.Flow : YamlStyle.Block
+					Style = objectContext.Style != YamlStyle.Any ? objectContext.Style : (arrayList.Count < objectContext.Settings.LimitPrimitiveFlowSequence ? YamlStyle.Flow : YamlStyle.Block)
 				});
 
 			foreach (var element in arrayList)
