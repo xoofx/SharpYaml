@@ -192,7 +192,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="index">The index.</param>
         protected virtual void ReadAddCollectionItem(ref ObjectContext objectContext, Type elementType, CollectionDescriptor collectionDescriptor, object thisObject, int index)
         {
-            var value = ReadCollectionItem(ref objectContext, null, elementType);
+            var value = ReadCollectionItem(ref objectContext, null, elementType, index);
             collectionDescriptor.CollectionAdd(thisObject, value);
         }
 
@@ -202,10 +202,11 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         /// <param name="value">The value.</param>
         /// <param name="itemType">Type of the item.</param>
+        /// <param name="index"></param>
         /// <returns>The item to add to the current collection.</returns>
-        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType)
+        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType, int index)
         {
-            return objectContext.ObjectSerializerBackend.ReadCollectionItem(ref objectContext, value, itemType);
+            return objectContext.ObjectSerializerBackend.ReadCollectionItem(ref objectContext, value, itemType, index);
         }
 
         /// <summary>
@@ -216,9 +217,11 @@ namespace SharpYaml.Serialization.Serializers
         {
             var collectionDescriptor = (CollectionDescriptor) objectContext.Descriptor;
             var collection = (IEnumerable) objectContext.Instance;
+            int index = 0;
 			foreach (var item in collection)
 			{
-                WriteCollectionItem(ref objectContext, item, collectionDescriptor.ElementType);
+                WriteCollectionItem(ref objectContext, item, collectionDescriptor.ElementType, index);
+			    index++;
 			}
 		}
 
@@ -228,9 +231,10 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         /// <param name="item">The item.</param>
         /// <param name="itemType">Type of the item.</param>
-        protected virtual void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType)
+        /// <param name="index"></param>
+        protected virtual void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType, int index)
         {
-            objectContext.ObjectSerializerBackend.WriteCollectionItem(ref objectContext, item, itemType);
+            objectContext.ObjectSerializerBackend.WriteCollectionItem(ref objectContext, item, itemType, index);
         }
 	}
 }

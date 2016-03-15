@@ -99,7 +99,7 @@ namespace SharpYaml.Serialization.Serializers
             return objectContext.SerializerContext.ReadYaml(memberValue, memberType);
         }
 
-        public virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType)
+        public virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType, int index)
         {
             return objectContext.SerializerContext.ReadYaml(value, itemType);
         }
@@ -130,7 +130,7 @@ namespace SharpYaml.Serialization.Serializers
             objectContext.SerializerContext.WriteYaml(memberValue, memberType, member.Style);
         }
 
-        public virtual void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType)
+        public virtual void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType, int index)
         {
             objectContext.SerializerContext.WriteYaml(item, itemType);
         }

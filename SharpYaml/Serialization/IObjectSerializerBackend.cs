@@ -68,8 +68,9 @@ namespace SharpYaml.Serialization
         /// <param name="objectContext">The object context.</param>
         /// <param name="value">The value.</param>
         /// <param name="itemType">Type of the item.</param>
+        /// <param name="index"></param>
         /// <returns>The collection item read from YAML stream.</returns>
-        object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType);
+        object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType, int index);
 
         /// <summary>
         /// Reads the dictionary item from the current YAML stream.
@@ -102,7 +103,8 @@ namespace SharpYaml.Serialization
         /// <param name="objectContext">The object context.</param>
         /// <param name="item">The item.</param>
         /// <param name="itemType">Type of the item.</param>
-        void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType);
+        /// <param name="index"></param>
+        void WriteCollectionItem(ref ObjectContext objectContext, object item, Type itemType, int index);
 
         /// <summary>
         /// Writes the dictionary item.
