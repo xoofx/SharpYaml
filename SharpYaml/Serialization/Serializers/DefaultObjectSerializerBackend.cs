@@ -88,8 +88,9 @@ namespace SharpYaml.Serialization.Serializers
             return style;
         }
 
-        public virtual string ReadMemberName(ref ObjectContext objectContext, string memberName)
+        public virtual string ReadMemberName(ref ObjectContext objectContext, string memberName, out bool skipMember)
         {
+            skipMember = false;
             return memberName;
         }
 

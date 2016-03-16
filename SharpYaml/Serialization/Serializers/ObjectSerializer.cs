@@ -220,45 +220,73 @@ namespace SharpYaml.Serialization.Serializers
             memberScalar = null;
             memberName = null;
 
-            if (objectContext.SerializerContext.AllowErrors)
+            var currentDepth = objectContext.Reader.CurrentDepth;
+            bool result = true;
+
+            bool skipMember = false;
+            try
             {
-                var currentDepth = objectContext.Reader.CurrentDepth;
-
-                bool skipMember = false;
-
-                try
+                var memberResult = TryReadMemberCore(ref objectContext, out memberScalar, out memberName);
+                if (memberResult == ReadMemberState.Skip)
                 {
-                    if (!TryReadMemberCore(ref objectContext, out memberScalar, out memberName))
+                    skipMember = true;
+                }
+                else if (memberResult == ReadMemberState.Error)
+                {
+                    if (objectContext.SerializerContext.AllowErrors)
                     {
                         skipMember = true;
                     }
+                    else
+                    {
+                        result = false;
+                    }
                 }
-                catch (YamlException ex)
+            }
+            catch (YamlException ex)
+            {
+                if (objectContext.SerializerContext.AllowErrors)
                 {
                     var logger = objectContext.SerializerContext.ContextSettings.Logger;
                     if (logger != null)
                         logger.Log(LogLevel.Warning, ex, "Ignored object member that could not be deserialized");
                     skipMember = true;
                 }
-
-                if (skipMember)
+                else
                 {
-                    objectContext.Reader.Skip(currentDepth);
+                    throw;
                 }
             }
-            else
+
+            if (skipMember)
             {
-                return TryReadMemberCore(ref objectContext, out memberScalar, out memberName);
+                objectContext.Reader.Skip(currentDepth);
             }
 
-            return true;
+            return result;
         }
 
-        private bool TryReadMemberCore(ref ObjectContext objectContext, out Scalar memberScalar, out string memberName)
+
+        private enum ReadMemberState
+        {
+            Sucess,
+            Error,
+            Skip
+        }
+
+        private ReadMemberState TryReadMemberCore(ref ObjectContext objectContext, out Scalar memberScalar, out string memberName)
         {
             // For a regular object, the key is expected to be a simple scalar
             memberScalar = objectContext.Reader.Expect<Scalar>();
-            memberName = ReadMemberName(ref objectContext, memberScalar.Value);
+            bool skipMember;
+            memberName = ReadMemberName(ref objectContext, memberScalar.Value, out skipMember);
+
+            // Do we want to skip this member?
+            if (skipMember)
+            {
+                return ReadMemberState.Skip;
+            }
+
             var memberAccessor = objectContext.Descriptor[memberName];
 
             // If the member was remapped, store this in the context
@@ -270,7 +298,7 @@ namespace SharpYaml.Serialization.Serializers
             // Check that property exist before trying to access the descriptor
             if (memberAccessor == null)
             {
-                return false;
+                return ReadMemberState.Error;
             }
 
             // Read the value according to the type
@@ -293,12 +321,12 @@ namespace SharpYaml.Serialization.Serializers
                 memberAccessor.Set(objectContext.Instance, memberValue);
             }
 
-            return true;
+            return ReadMemberState.Sucess;
         }
 
-        protected virtual string ReadMemberName(ref ObjectContext objectContext, string memberName)
+        protected virtual string ReadMemberName(ref ObjectContext objectContext, string memberName, out bool skipMember)
         {
-            return objectContext.ObjectSerializerBackend.ReadMemberName(ref objectContext, memberName);
+            return objectContext.ObjectSerializerBackend.ReadMemberName(ref objectContext, memberName, out skipMember);
         }
 
         protected virtual object ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor member,

@@ -46,8 +46,9 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="objectContext">The object context to which the member name.</param>
         /// <param name="memberName">Name of the member read from the current yaml stream.</param>
+        /// <param name="skipMember"></param>
         /// <returns>The name that will be used to get the <see cref="IMemberDescriptor"/> from the current object context.</returns>
-        string ReadMemberName(ref ObjectContext objectContext, string memberName);
+        string ReadMemberName(ref ObjectContext objectContext, string memberName, out bool skipMember);
 
         /// <summary>
         /// Reads the value for the specified member from the current YAML stream.

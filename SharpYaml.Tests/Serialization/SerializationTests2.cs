@@ -1026,8 +1026,9 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
             public List<Tuple<object, object>> SpecialKeys { get; private set; }
 
-	        public override string ReadMemberName(ref ObjectContext objectContext, string memberName)
+	        public override string ReadMemberName(ref ObjectContext objectContext, string memberName, out bool skipMember)
 	        {
+	            skipMember = false;
                 if (memberName.EndsWith("!"))
                 {
                     memberName = memberName.Substring(0, memberName.Length - 1);
@@ -1105,6 +1106,38 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             Assert.AreEqual("Name", ((IMemberDescriptor)specialTransform.SpecialKeys[0].Item2).Name);
         }
 
+
+
+        /// <summary>
+        /// Tests skipping members
+        /// </summary>
+        [Test]
+        public void TestSkipMember()
+        {
+            var specialTransform = new SkipMemberTransform();
+            var settings = new SerializerSettings
+            {
+                LimitPrimitiveFlowSequence = 4,
+                ObjectSerializerBackend = specialTransform
+            };
+            settings.RegisterTagMapping("TestRemapObject", typeof(TestRemapObject));
+
+            var serializer = new Serializer(settings);
+            var obj = serializer.Deserialize<TestRemapObject>(@"Name: Test
+Enum: Value2");
+            Assert.Null(obj.Name);
+            Assert.AreEqual(MyRemapEnum.Value2, obj.Enum);
+        }
+
+        class SkipMemberTransform : DefaultObjectSerializerBackend
+        {
+            public override string ReadMemberName(ref ObjectContext objectContext, string memberName, out bool skipMember)
+            {
+                var readMemberName = base.ReadMemberName(ref objectContext, memberName, out skipMember);
+                skipMember = memberName == "Name";
+                return readMemberName;
+            }
+        }
 
         [YamlTag("TestRemapObject")]
         [YamlRemap("TestRemapObjectOld")]
