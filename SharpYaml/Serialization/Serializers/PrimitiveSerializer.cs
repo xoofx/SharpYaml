@@ -161,21 +161,28 @@ namespace SharpYaml.Serialization.Serializers
 			throw new YamlException(scalar.Start, scalar.End, "Unable to decode scalar [{0}] not supported by current schema".DoFormat(scalar));
 		}
 
-        /// <summary>
-        /// Appends decimal point to arg if it does not exist
-        /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
-        private string AppendDecimalPoint(string text )
+	    /// <summary>
+	    /// Appends decimal point to arg if it does not exist
+	    /// </summary>
+	    /// <param name="text"></param>
+        /// <param name="hasNaN">True if the floating point type supports NaN or Infinity.</param>
+	    /// <returns></returns>
+	    private static string AppendDecimalPoint(string text, bool hasNaN)
         {
-            for (int i = 0; i < text.Length; i++)
+            for (var i = 0; i < text.Length; i++)
             {
                 var c = text[i];
+                // Do not append a decimal point if floating point type value
+                // - is in exponential form, or
+                // - already has a decimal point
                 if (c == 'e' || c == 'E' || c == '.')
                 {
                     return text;
                 }
             }
+            // Special cases for floating point type supporting NaN and Infinity
+            if (hasNaN && (string.Equals(text, "NaN") || text.Contains("Infinity")))
+                return text;
 
             return text + ".0";
         }
@@ -201,7 +208,7 @@ namespace SharpYaml.Serialization.Serializers
 			else
 			{
 				// Parse default types 
-				switch (Type.GetTypeCode(valueType))
+                switch (Type.GetTypeCode(valueType))
 				{
 					case TypeCode.String:
 					case TypeCode.Char:
@@ -237,13 +244,13 @@ namespace SharpYaml.Serialization.Serializers
 					case TypeCode.Single:
                         //Append decimal point to floating point type values 
                         //because type changes in round trip conversion if ( value * 10.0 ) % 10.0 == 0
-                        text = AppendDecimalPoint(((float)value).ToString("R", CultureInfo.InvariantCulture));
+                        text = AppendDecimalPoint(((float)value).ToString("R", CultureInfo.InvariantCulture), true);
 						break;
 					case TypeCode.Double:
-                        text = AppendDecimalPoint(((double)value).ToString("R", CultureInfo.InvariantCulture));
+                        text = AppendDecimalPoint(((double)value).ToString("R", CultureInfo.InvariantCulture), true);
 						break;
 					case TypeCode.Decimal:
-                        text = AppendDecimalPoint(((decimal)value).ToString("G", CultureInfo.InvariantCulture));
+                        text = AppendDecimalPoint(((decimal)value).ToString("G", CultureInfo.InvariantCulture), false);
 						break;
 					case TypeCode.DateTime:
 						text = ((DateTime) value).ToString("o", CultureInfo.InvariantCulture);
