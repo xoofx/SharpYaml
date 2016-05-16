@@ -339,6 +339,39 @@ Float: 1E-05
             SerialRoundTrip(settings, text);
         }
 
+        public class ObjectFloatDoubleNaNInfinity
+        {
+            public double DoubleNaN { get; set; }
+
+            public double DoubleNegativeInfinity { get; set; }
+
+            public double DoublePositiveInfinity { get; set; }
+
+            public float FloatNaN { get; set; }
+
+            public float FloatNegativeInfinity { get; set; }
+
+            public float FloatPositiveInfinity { get; set; }
+        }
+
+        [Test]
+        public void TestFloatDoubleNaNInfinity()
+        {
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
+            settings.RegisterTagMapping("ObjectFloatDoubleNaNInfinity", typeof(ObjectFloatDoubleNaNInfinity));
+
+            var text = @"!ObjectFloatDoubleNaNInfinity
+DoubleNaN: NaN
+DoubleNegativeInfinity: -Infinity
+DoublePositiveInfinity: Infinity
+FloatNaN: NaN
+FloatNegativeInfinity: -Infinity
+FloatPositiveInfinity: Infinity
+".Trim();
+
+            SerialRoundTrip(settings, text);
+        }
+
         public class MyObjectAndCollection
 		{
 			public MyObjectAndCollection()

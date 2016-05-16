@@ -58,7 +58,7 @@ namespace SharpYaml.Serialization.Serializers
 
 		public override object ConvertFrom(ref ObjectContext context, Scalar scalar)
 		{
-            var primitiveType = (PrimitiveDescriptor)context.Descriptor;
+			var primitiveType = (PrimitiveDescriptor)context.Descriptor;
 			var type = primitiveType.Type;
 			var text = scalar.Value;
 
@@ -80,21 +80,21 @@ namespace SharpYaml.Serialization.Serializers
 			// If type is an enum, try to parse it
 			if (type.IsEnum)
 			{
-			    bool enumRemapped;
-			    var result = primitiveType.ParseEnum(text, out enumRemapped);
-			    if (enumRemapped)
-			    {
-			        context.SerializerContext.HasRemapOccurred = true;
-			    }
-			    return result;
+				bool enumRemapped;
+				var result = primitiveType.ParseEnum(text, out enumRemapped);
+				if (enumRemapped)
+				{
+					context.SerializerContext.HasRemapOccurred = true;
+				}
+				return result;
 			}
 
-		    // Parse default types 
+			// Parse default types 
 			switch (Type.GetTypeCode(type))
 			{
 				case TypeCode.Boolean:
-			        object value;
-			        context.SerializerContext.Schema.TryParse(scalar, type, out value);
+					object value;
+					context.SerializerContext.Schema.TryParse(scalar, type, out value);
 					return value;
 				case TypeCode.DateTime:
 					return DateTime.Parse(text, CultureInfo.InvariantCulture);
@@ -102,9 +102,9 @@ namespace SharpYaml.Serialization.Serializers
 					return text;
 			}
 
-			if (type == typeof (TimeSpan))
+			if (type == typeof(TimeSpan))
 			{
-				return TimeSpan.Parse(text, CultureInfo.InvariantCulture);		
+				return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
 			}
 
 			// Remove _ character from numeric values
@@ -145,7 +145,7 @@ namespace SharpYaml.Serialization.Serializers
 			}
 
 			// If we are expecting a type object, return directly the string
-			if (type == typeof (object))
+			if (type == typeof(object))
 			{
 				// Try to parse the scalar directly
 				string defaultTag;
@@ -154,43 +154,43 @@ namespace SharpYaml.Serialization.Serializers
 				{
 					return scalarValue;
 				}
-				
+
 				return text;
 			}
 
 			throw new YamlException(scalar.Start, scalar.End, "Unable to decode scalar [{0}] not supported by current schema".DoFormat(scalar));
 		}
 
-	    /// <summary>
-	    /// Appends decimal point to arg if it does not exist
-	    /// </summary>
-	    /// <param name="text"></param>
-        /// <param name="hasNaN">True if the floating point type supports NaN or Infinity.</param>
-	    /// <returns></returns>
-	    private static string AppendDecimalPoint(string text, bool hasNaN)
-        {
-            for (var i = 0; i < text.Length; i++)
-            {
-                var c = text[i];
-                // Do not append a decimal point if floating point type value
-                // - is in exponential form, or
-                // - already has a decimal point
-                if (c == 'e' || c == 'E' || c == '.')
-                {
-                    return text;
-                }
-            }
-            // Special cases for floating point type supporting NaN and Infinity
-            if (hasNaN && (string.Equals(text, "NaN") || text.Contains("Infinity")))
-                return text;
+		/// <summary>
+		/// Appends decimal point to arg if it does not exist
+		/// </summary>
+		/// <param name="text"></param>
+		/// <param name="hasNaN">True if the floating point type supports NaN or Infinity.</param>
+		/// <returns></returns>
+		private static string AppendDecimalPoint(string text, bool hasNaN)
+		{
+			for (var i = 0; i < text.Length; i++)
+			{
+				var c = text[i];
+				// Do not append a decimal point if floating point type value
+				// - is in exponential form, or
+				// - already has a decimal point
+				if (c == 'e' || c == 'E' || c == '.')
+				{
+					return text;
+				}
+			}
+			// Special cases for floating point type supporting NaN and Infinity
+			if (hasNaN && (string.Equals(text, "NaN") || text.Contains("Infinity")))
+				return text;
 
-            return text + ".0";
-        }
+			return text + ".0";
+		}
 
 		public override string ConvertTo(ref ObjectContext objectContext)
 		{
 			var text = string.Empty;
-		    var value = objectContext.Instance;
+			var value = objectContext.Instance;
 
 			// Return null if expected type is an object and scalar is null
 			if (value == null)
@@ -203,60 +203,60 @@ namespace SharpYaml.Serialization.Serializers
 			// Handle string
 			if (valueType.IsEnum)
 			{
-				text = ((Enum) Enum.ToObject(valueType, value)).ToString("G");
+				text = ((Enum)Enum.ToObject(valueType, value)).ToString("G");
 			}
 			else
 			{
 				// Parse default types 
-                switch (Type.GetTypeCode(valueType))
+				switch (Type.GetTypeCode(valueType))
 				{
 					case TypeCode.String:
 					case TypeCode.Char:
 						text = value.ToString();
 						break;
 					case TypeCode.Boolean:
-						text = (bool) value ? "true" : "false";
+						text = (bool)value ? "true" : "false";
 						break;
 					case TypeCode.Byte:
-						text = ((byte) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((byte)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.SByte:
-						text = ((sbyte) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((sbyte)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.Int16:
-						text = ((short) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((short)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.UInt16:
-						text = ((ushort) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((ushort)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.Int32:
-						text = ((int) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((int)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.UInt32:
-						text = ((uint) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((uint)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.Int64:
-						text = ((long) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((long)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.UInt64:
-						text = ((ulong) value).ToString("G", CultureInfo.InvariantCulture);
+						text = ((ulong)value).ToString("G", CultureInfo.InvariantCulture);
 						break;
 					case TypeCode.Single:
-                        //Append decimal point to floating point type values 
-                        //because type changes in round trip conversion if ( value * 10.0 ) % 10.0 == 0
-                        text = AppendDecimalPoint(((float)value).ToString("R", CultureInfo.InvariantCulture), true);
+						//Append decimal point to floating point type values 
+						//because type changes in round trip conversion if ( value * 10.0 ) % 10.0 == 0
+						text = AppendDecimalPoint(((float)value).ToString("R", CultureInfo.InvariantCulture), true);
 						break;
 					case TypeCode.Double:
-                        text = AppendDecimalPoint(((double)value).ToString("R", CultureInfo.InvariantCulture), true);
+						text = AppendDecimalPoint(((double)value).ToString("R", CultureInfo.InvariantCulture), true);
 						break;
 					case TypeCode.Decimal:
-                        text = AppendDecimalPoint(((decimal)value).ToString("G", CultureInfo.InvariantCulture), false);
+						text = AppendDecimalPoint(((decimal)value).ToString("G", CultureInfo.InvariantCulture), false);
 						break;
 					case TypeCode.DateTime:
-						text = ((DateTime) value).ToString("o", CultureInfo.InvariantCulture);
+						text = ((DateTime)value).ToString("o", CultureInfo.InvariantCulture);
 						break;
 					default:
-						if (valueType == typeof (TimeSpan))
+						if (valueType == typeof(TimeSpan))
 						{
 							text = ((TimeSpan)value).ToString("G", CultureInfo.InvariantCulture);
 						}
