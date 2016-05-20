@@ -83,15 +83,15 @@ namespace SharpYaml.Serialization.Descriptors
 				keyType = interfaceType.GetGenericArguments()[0];
 				valueType = interfaceType.GetGenericArguments()[1];
 				IsGenericDictionary = true;
-				getEnumeratorGeneric = typeof (DictionaryDescriptor).GetMethod("GetGenericEnumerable").MakeGenericMethod(keyType, valueType);
+				getEnumeratorGeneric = typeof(DictionaryDescriptor).GetMethod("GetGenericEnumerable").MakeGenericMethod(keyType, valueType);
+				addMethod = interfaceType.GetMethod("Add", new[] { keyType, valueType });
 			}
 			else
 			{
 				keyType = typeof(object);
 				valueType = typeof(object);
+				addMethod = type.GetMethod("Add", new[] { keyType, valueType });
 			}
-
-			addMethod = type.GetMethod("Add", new[] { keyType, valueType });
 		}
 
 	    public override void Initialize()
