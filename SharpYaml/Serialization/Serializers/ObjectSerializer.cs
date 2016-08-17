@@ -344,11 +344,11 @@ namespace SharpYaml.Serialization.Serializers
 
             var isSequence = CheckIsSequence(ref objectContext);
 
-			// Resolve the style, use default style if not defined.
-            var style = GetStyle(ref objectContext);
-
             // Allow to create on the fly an object that will be used to serialize an object
             CreateOrTransformObjectInternal(ref objectContext);
+
+            // Resolve the style, use default style if not defined.
+            var style = GetStyle(ref objectContext);
 
             var context = objectContext.SerializerContext;
 			if (isSequence)
