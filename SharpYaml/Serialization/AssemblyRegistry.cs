@@ -195,7 +195,7 @@ namespace SharpYaml.Serialization
 			// Get the default schema type if there is any
 			var shortTag = schema.ShortenTag(tag);
 			Type type;
-			if (shortTag != tag)
+			if (shortTag != tag || shortTag.StartsWith("!!"))
 			{
 				type = schema.GetTypeForDefaultTag(shortTag);
 				if (type != null)
