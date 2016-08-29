@@ -93,10 +93,13 @@ namespace SharpYaml.Serialization.Serializers
 		{
             // Create or transform the value to deserialize
             // If the new value to serialize is not the same as the one we were expecting to serialize
-            CreateOrTransformObjectInternal(ref objectContext);
-
-			// Get the object accessor for the corresponding class
-		    if (CheckIsSequence(ref objectContext))
+		    if (CreateOrTransformObjectInternal(ref objectContext))
+		    {
+                // Route to serializer for converted type
+                objectContext.SerializerContext.Serializer.RoutingSerializer.ReadYaml(ref objectContext);
+		    }
+		    // Get the object accessor for the corresponding class
+		    else if (CheckIsSequence(ref objectContext))
 		    {
 		        ReadMembers<SequenceStart, SequenceEnd>(ref objectContext);
 		    }
@@ -105,12 +108,14 @@ namespace SharpYaml.Serialization.Serializers
 		        ReadMembers<MappingStart, MappingEnd>(ref objectContext);
 		    }
 
-			// Process members
-			return objectContext.Instance;
+            TransformObjectAfterRead(ref objectContext);
+
+            // Process members
+            return objectContext.Instance;
 		}
 
 
-        private void CreateOrTransformObjectInternal(ref ObjectContext objectContext)
+        private bool CreateOrTransformObjectInternal(ref ObjectContext objectContext)
         {
             CreateOrTransformObject(ref objectContext);
             var newValue = objectContext.Instance;
@@ -118,7 +123,10 @@ namespace SharpYaml.Serialization.Serializers
             if (newValue != null && newValue.GetType() != objectContext.Descriptor.Type)
             {
                 objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(newValue.GetType());
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
@@ -176,8 +184,6 @@ namespace SharpYaml.Serialization.Serializers
                 ReadMember(ref objectContext);
 			}
 			reader.Expect<TEnd>();
-
-            TransformObjectAfterRead(ref objectContext);
 		}
 
         /// <summary>
@@ -345,7 +351,12 @@ namespace SharpYaml.Serialization.Serializers
             var isSequence = CheckIsSequence(ref objectContext);
 
             // Allow to create on the fly an object that will be used to serialize an object
-            CreateOrTransformObjectInternal(ref objectContext);
+            if (CreateOrTransformObjectInternal(ref objectContext))
+            {
+                // Route again
+                objectContext.SerializerContext.Serializer.RoutingSerializer.WriteYaml(ref objectContext);
+                return;
+            }
 
             // Resolve the style, use default style if not defined.
             var style = GetStyle(ref objectContext);

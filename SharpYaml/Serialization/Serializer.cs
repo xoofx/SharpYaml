@@ -58,6 +58,7 @@ namespace SharpYaml.Serialization
 		private readonly SerializerSettings settings;
 
 	    internal readonly IYamlSerializable ObjectSerializer;
+	    internal readonly IYamlSerializable RoutingSerializer;
 	    internal readonly ITypeDescriptorFactory TypeDescriptorFactory;
 
 		private static readonly IYamlSerializableFactory[] DefaultFactories = new IYamlSerializableFactory[]
@@ -84,7 +85,9 @@ namespace SharpYaml.Serialization
 		{
 			this.settings = settings ?? new SerializerSettings();
             TypeDescriptorFactory = CreateTypeDescriptorFactory();
-            ObjectSerializer = CreateProcessor();
+		    RoutingSerializer routingSerializer;
+            ObjectSerializer = CreateProcessor(out routingSerializer);
+		    RoutingSerializer = routingSerializer;
 		}
 
 		/// <summary>
@@ -530,29 +533,29 @@ namespace SharpYaml.Serialization
         }
 
 
-		private IYamlSerializable CreateProcessor()
+		private IYamlSerializable CreateProcessor(out RoutingSerializer routingSerializer)
 		{
-			var routintSerializer = new RoutingSerializer();
+            routingSerializer = new RoutingSerializer();
 
 			// Add registered serializer
 			foreach (var typeAndSerializer in settings.serializers)
 			{
-				routintSerializer.AddSerializer(typeAndSerializer.Key, typeAndSerializer.Value);
+                routingSerializer.AddSerializer(typeAndSerializer.Key, typeAndSerializer.Value);
 			}
 
 			// Add registered factories
 			foreach (var factory in settings.AssemblyRegistry.SerializableFactories)
 			{
-				routintSerializer.AddSerializerFactory(factory);
+                routingSerializer.AddSerializerFactory(factory);
 			}
 
 			// Add default factories
 			foreach (var defaultFactory in DefaultFactories)
 			{
-				routintSerializer.AddSerializerFactory(defaultFactory);
+                routingSerializer.AddSerializerFactory(defaultFactory);
 			}
 
-			var typingSerializer = new TagTypeSerializer(routintSerializer);
+			var typingSerializer = new TagTypeSerializer(routingSerializer);
 			return settings.EmitAlias ? (IYamlSerializable)new AnchorSerializer(typingSerializer) : typingSerializer;
 		}
 
