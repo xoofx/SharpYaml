@@ -46,6 +46,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace SharpYaml
 {
@@ -58,25 +59,25 @@ namespace SharpYaml
 			return type.GetInterface(lookInterfaceType) != null;
 		}
 
-	    public static bool ExtendsGeneric(this Type type, Type genericType)
-	    {
-	        if (genericType == null) throw new ArgumentNullException("genericType");
-            if (!genericType.IsGenericTypeDefinition) throw new ArgumentException("Expecting a generic type definition", "genericType");
+		public static bool ExtendsGeneric(this Type type, Type genericType)
+		{
+			if (genericType == null) throw new ArgumentNullException("genericType");
+			if (!genericType.IsGenericTypeDefinition) throw new ArgumentException("Expecting a generic type definition", "genericType");
 
-	        var nextType = type;
-	        while (nextType != null)
-	        {
-                var checkType = nextType.IsGenericType ? nextType.GetGenericTypeDefinition() : nextType;
-                if (checkType == genericType)
-	            {
-	                return true;
-	            }
-	            nextType = nextType.BaseType;
-	        }
-	        return false;
-	    }
+			var nextType = type;
+			while (nextType != null)
+			{
+				var checkType = nextType.IsGenericType ? nextType.GetGenericTypeDefinition() : nextType;
+				if (checkType == genericType)
+				{
+					return true;
+				}
+				nextType = nextType.BaseType;
+			}
+			return false;
+		}
 
-	    public static Type GetInterface(this Type type, Type lookInterfaceType)
+		public static Type GetInterface(this Type type, Type lookInterfaceType)
 		{
 			if (type == null)
 				throw new ArgumentNullException("type");
@@ -109,25 +110,79 @@ namespace SharpYaml
 		/// </summary>
 		/// <param name="type">The type.</param>
 		/// <returns>The assembly qualified name of the type, but without the assembly version or public token.</returns>
-		/// <exception cref="System.InvalidOperationException">Unable to get an assembly qualified name for type [{0}].DoFormat(type)</exception>
+		/// <exception cref="InvalidOperationException">Unable to get an assembly qualified name for type.</exception>
+		/// <example>
+		///     <list type="bullet">
+		///         <item><c>typeof(string).GetShortAssemblyQualifiedName(); // System.String,mscorlib</c></item>
+		///         <item><c>typeof(string[]).GetShortAssemblyQualifiedName(); // System.String[],mscorlib</c></item>
+		///         <item><c>typeof(List&lt;string&gt;).GetShortAssemblyQualifiedName(); // System.Collection.Generics.List`1[[System.String,mscorlib]],mscorlib</c></item>
+		///     </list>
+		/// </example>
 		public static string GetShortAssemblyQualifiedName(this Type type)
 		{
-			var typeName = type.AssemblyQualifiedName;
-			if (typeName == null)
-			{
+			if (type.AssemblyQualifiedName == null)
 				throw new InvalidOperationException("Unable to get an assembly qualified name for type [{0}]".DoFormat(type));
-			}
 
-			var indexAfterType = typeName.IndexOf(',');
-			if (indexAfterType >= 0)
+			var sb = new StringBuilder();
+			DoGetShortAssemblyQualifiedName(type, sb);
+			return sb.ToString();
+		}
+
+		private static void DoGetShortAssemblyQualifiedName(Type type, StringBuilder sb, bool appendAssemblyName = true)
+		{
+			// namespace
+			sb.Append(type.Namespace).Append(".");
+			// nested declaring types
+			var declaringType = type.DeclaringType;
+			if (declaringType != null)
 			{
-				var indexAfterAssembly = typeName.IndexOf(',', indexAfterType + 1);
-				if (indexAfterAssembly >= 0)
+				var declaringTypeName = string.Empty;
+				do
 				{
-					typeName = typeName.Substring(0, indexAfterAssembly).Replace(" ", string.Empty);
-				}
+					declaringTypeName = declaringType.Name + "+" + declaringTypeName;
+					declaringType = declaringType.DeclaringType;
+				} while (declaringType != null);
+				sb.Append(declaringTypeName);
 			}
-			return typeName;
+			// type
+			var isArray = type.IsArray;
+			if (isArray)
+				type = type.GetElementType();
+			sb.Append(type.Name);
+			// generic arguments
+			if (type.IsGenericType)
+			{
+				sb.Append("[[");
+				var genericArguments = type.GetGenericArguments();
+				for (var i = 0; i < genericArguments.Length; i++)
+				{
+					if (i > 0)
+						sb.Append("],[");
+					DoGetShortAssemblyQualifiedName(genericArguments[i], sb);
+				}
+				sb.Append("]]");
+			}
+			if (isArray)
+				sb.Append("[]");
+			// assembly
+			if (appendAssemblyName)
+				sb.Append(",").Append(GetShortAssemblyName(type.Assembly));
+		}
+
+		/// <summary>
+		/// Gets the qualified name of the assembly, but without the assembly version or public token.
+		/// </summary>
+		/// <param name="assembly">The assembly.</param>
+		/// <returns>The qualified name of the assembly, but without the assembly version or public token.</returns>
+		public static string GetShortAssemblyName(this Assembly assembly)
+		{
+			var assemblyName = assembly.FullName;
+			var indexAfterAssembly = assemblyName.IndexOf(',');
+			if (indexAfterAssembly >= 0)
+			{
+				assemblyName = assemblyName.Substring(0, indexAfterAssembly);
+			}
+			return assemblyName;
 		}
 
 		/// <summary>
@@ -162,7 +217,7 @@ namespace SharpYaml
 		/// <returns><c>true</c> if the specified type is nullable; otherwise, <c>false</c>.</returns>
 		public static bool IsNullable(this Type type)
 		{
-			return Nullable.GetUnderlyingType(type) != null;			
+			return Nullable.GetUnderlyingType(type) != null;
 		}
 
 		/// <summary>

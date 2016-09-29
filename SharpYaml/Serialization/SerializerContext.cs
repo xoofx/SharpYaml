@@ -58,8 +58,8 @@ namespace SharpYaml.Serialization
 		private readonly SerializerSettings settings;
 		private readonly ITagTypeRegistry tagTypeRegistry;
 		private readonly ITypeDescriptorFactory typeDescriptorFactory;
-	    private IEmitter emitter;
-	    private readonly SerializerContextSettings contextSettings;
+		private IEmitter emitter;
+		private readonly SerializerContextSettings contextSettings;
 		internal int AnchorCount;
 
 		/// <summary>
@@ -71,13 +71,13 @@ namespace SharpYaml.Serialization
 		{
 			Serializer = serializer;
 			settings = serializer.Settings;
-		    tagTypeRegistry = settings.AssemblyRegistry;
+			tagTypeRegistry = settings.AssemblyRegistry;
 			ObjectFactory = settings.ObjectFactory;
-		    ObjectSerializerBackend = settings.ObjectSerializerBackend;
+			ObjectSerializerBackend = settings.ObjectSerializerBackend;
 			Schema = Settings.Schema;
-		    ObjectSerializer = serializer.ObjectSerializer;
+			ObjectSerializer = serializer.ObjectSerializer;
 			typeDescriptorFactory = serializer.TypeDescriptorFactory;
-		    contextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
+			contextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
 		}
 
 		/// <summary>
@@ -97,7 +97,7 @@ namespace SharpYaml.Serialization
 		/// </value>
 		public SerializerContextSettings ContextSettings
 		{
-		    get { return contextSettings; }
+			get { return contextSettings; }
 		}
 
 		/// <summary>
@@ -127,11 +127,11 @@ namespace SharpYaml.Serialization
 		/// <value>The reader.</value>
 		public EventReader Reader { get; set; }
 
-        /// <summary>
-        /// Gets the object serializer backend.
-        /// </summary>
-        /// <value>The object serializer backend.</value>
-        public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
+		/// <summary>
+		/// Gets the object serializer backend.
+		/// </summary>
+		/// <value>The object serializer backend.</value>
+		public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
 
 		private IYamlSerializable ObjectSerializer { get; set; }
 
@@ -143,11 +143,11 @@ namespace SharpYaml.Serialization
 		/// </value>
 		public bool AllowErrors { get; set; }
 
-        /// <summary>
-        /// Gets a value indicating whether the deserialization has generated some remap.
-        /// </summary>
-        /// <value><c>true</c> if the deserialization has generated some remap; otherwise, <c>false</c>.</value>
-        public bool HasRemapOccurred { get; internal set; }
+		/// <summary>
+		/// Gets a value indicating whether the deserialization has generated some remap.
+		/// </summary>
+		/// <value><c>true</c> if the deserialization has generated some remap; otherwise, <c>false</c>.</value>
+		public bool HasRemapOccurred { get; internal set; }
 
 		/// <summary>
 		/// Gets or sets the member mask that will be used to filter <see cref="YamlMemberAttribute.Mask"/>.
@@ -168,13 +168,15 @@ namespace SharpYaml.Serialization
 			var node = Reader.Parser.Current;
 			try
 			{
-                var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType));
-                return ObjectSerializer.ReadYaml(ref objectContext);
+				var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType));
+				return ObjectSerializer.ReadYaml(ref objectContext);
+			}
+			catch (YamlException)
+			{
+				throw;
 			}
 			catch (Exception ex)
 			{
-				if (ex is YamlException)
-					throw;
 				throw new YamlException(node.Start, node.End, "Error while deserializing node [{0}]".DoFormat(node), ex);
 			}
 		}
@@ -191,23 +193,23 @@ namespace SharpYaml.Serialization
 		/// <value>The writer.</value>
 		public IEventEmitter Writer { get; set; }
 
-        /// <summary>
-        /// Gets the emitter.
-        /// </summary>
-        /// <value>The emitter.</value>
-	    public IEmitter Emitter
-	    {
-	        get { return emitter; }
-	        internal set { emitter = value; }
-	    }
+		/// <summary>
+		/// Gets the emitter.
+		/// </summary>
+		/// <value>The emitter.</value>
+		public IEmitter Emitter
+		{
+			get { return emitter; }
+			internal set { emitter = value; }
+		}
 
-	    /// <summary>
+		/// <summary>
 		/// The default function to write an object to Yaml
 		/// </summary>
 		public void WriteYaml(object value, Type expectedType, YamlStyle style = YamlStyle.Any)
 		{
-            var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType)) { Style = style };
-            ObjectSerializer.WriteYaml(ref objectContext);
+			var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType)) { Style = style };
+			ObjectSerializer.WriteYaml(ref objectContext);
 		}
 
 		/// <summary>
@@ -217,16 +219,16 @@ namespace SharpYaml.Serialization
 		/// <returns>An instance of <see cref="ITypeDescriptor"/>.</returns>
 		public ITypeDescriptor FindTypeDescriptor(Type type)
 		{
-            return typeDescriptorFactory.Find(type, Settings.ComparerForKeySorting);
+			return typeDescriptorFactory.Find(type, Settings.ComparerForKeySorting);
 		}
 
-	    /// <summary>
-	    /// Resolves a type from the specified tag.
-	    /// </summary>
-	    /// <param name="tagName">Name of the tag.</param>
-	    /// <param name="isAlias"></param>
-	    /// <returns>Type.</returns>
-	    public Type TypeFromTag(string tagName, out bool isAlias)
+		/// <summary>
+		/// Resolves a type from the specified tag.
+		/// </summary>
+		/// <param name="tagName">Name of the tag.</param>
+		/// <param name="isAlias"></param>
+		/// <returns>Type.</returns>
+		public Type TypeFromTag(string tagName, out bool isAlias)
 		{
 			return tagTypeRegistry.TypeFromTag(tagName, out isAlias);
 		}
