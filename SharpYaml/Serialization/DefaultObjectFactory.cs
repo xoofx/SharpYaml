@@ -46,6 +46,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Serialization
@@ -78,10 +79,10 @@ namespace SharpYaml.Serialization
                 return null;
 
             // TODO change this code. Make it configurable?
-            if (type.IsInterface)
+            if (type.GetTypeInfo().IsInterface)
             {
                 Type implementationType;
-                if (type.IsGenericType)
+                if (type.GetTypeInfo().IsGenericType)
                 {
                     if (DefaultInterfaceImplementations.TryGetValue(type.GetGenericTypeDefinition(), out implementationType))
                     {
@@ -107,7 +108,7 @@ namespace SharpYaml.Serialization
             if (PrimitiveDescriptor.IsPrimitive(type) || type.IsArray)
                 return null;
 
-            return type.GetConstructor(EmptyTypes) != null || type.IsValueType ? Activator.CreateInstance(type) : null;
+            return type.GetConstructor(EmptyTypes) != null || type.GetTypeInfo().IsValueType ? Activator.CreateInstance(type) : null;
         }
     }
 }

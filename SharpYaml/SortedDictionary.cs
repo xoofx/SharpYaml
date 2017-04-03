@@ -47,6 +47,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace SharpYaml
 {
@@ -371,7 +372,7 @@ namespace SharpYaml
 
         private static void VerifyValueType(object value)
         {
-            if ((value is TValue) || (value == null && !typeof(TValue).IsValueType))
+            if ((value is TValue) || (value == null && !typeof(TValue).GetTypeInfo().IsValueType))
             {
                 return;
             }

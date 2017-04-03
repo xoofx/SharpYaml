@@ -63,7 +63,7 @@ namespace SharpYaml.Serialization
 
         private static readonly List<Assembly> DefaultLookupAssemblies = new List<Assembly>()
         {
-            typeof(int).Assembly,
+            typeof(int).GetTypeInfo().Assembly,
         };
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace SharpYaml.Serialization
                 // Register all tags automatically.
                 foreach (var type in assembly.GetTypes())
                 {
-                    var attributes = attributeRegistry.GetAttributes(type);
+                    var attributes = attributeRegistry.GetAttributes(type.GetTypeInfo());
                     foreach (var attribute in attributes)
                     {
                         string name = null;

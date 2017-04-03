@@ -45,6 +45,7 @@
 
 using System;
 using System.Globalization;
+using System.Reflection;
 using SharpYaml.Events;
 using SharpYaml.Serialization.Descriptors;
 
@@ -79,7 +80,7 @@ namespace SharpYaml.Serialization.Serializers
             }
 
             // If type is an enum, try to parse it
-            if (type.IsEnum)
+            if (type.GetTypeInfo().IsEnum)
             {
                 bool enumRemapped;
                 var result = primitiveType.ParseEnum(text, out enumRemapped);
@@ -105,7 +106,11 @@ namespace SharpYaml.Serialization.Serializers
 
             if (type == typeof(TimeSpan))
             {
+#if NET35
+                return TimeSpan.Parse(text);
+#else
                 return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
+#endif
             }
 
             // Remove _ character from numeric values
@@ -120,7 +125,6 @@ namespace SharpYaml.Serialization.Serializers
                         throw new YamlException(scalar.Start, scalar.End, "Unable to decode char from [{0}]. Expecting a string of length == 1".DoFormat(text));
                     }
                     return text.ToCharArray()[0];
-                    break;
                 case TypeCode.Byte:
                     return byte.Parse(text, CultureInfo.InvariantCulture);
                 case TypeCode.SByte:
@@ -202,7 +206,7 @@ namespace SharpYaml.Serialization.Serializers
             var valueType = value.GetType();
 
             // Handle string
-            if (valueType.IsEnum)
+            if (valueType.GetTypeInfo().IsEnum)
             {
                 text = ((Enum) Enum.ToObject(valueType, value)).ToString("G");
             }
@@ -259,7 +263,11 @@ namespace SharpYaml.Serialization.Serializers
                     default:
                         if (valueType == typeof(TimeSpan))
                         {
+#if NET35
+                            text = string.Format("{0:G}",((TimeSpan) value));
+#else
                             text = ((TimeSpan) value).ToString("G", CultureInfo.InvariantCulture);
+#endif
                         }
                         break;
                 }

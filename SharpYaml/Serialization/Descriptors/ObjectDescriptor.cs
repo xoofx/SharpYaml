@@ -96,7 +96,7 @@ namespace SharpYaml.Serialization.Descriptors
             this.AttributeRegistry = attributeRegistry;
             this.type = type;
 
-            attributes = AttributeRegistry.GetAttributes(type);
+            attributes = AttributeRegistry.GetAttributes(type.GetTypeInfo());
 
             this.style = YamlStyle.Any;
             foreach (var attribute in attributes)
@@ -245,11 +245,14 @@ namespace SharpYaml.Serialization.Descriptors
                 select member).Cast<IMemberDescriptor>().ToList();
 
             // Add all public fields
-            memberList.AddRange((from fieldInfo in type.GetFields(bindingFlags)
+            foreach (var item in (from fieldInfo in type.GetFields(bindingFlags)
                 select new FieldDescriptor(fieldInfo, NamingConvention.Comparer)
                 into member
                 where PrepareMember(member)
-                select member));
+                select member))
+            {
+                memberList.Add(item);
+            }
 
             // Allow to add dynamic members per type
             if (AttributeRegistry.PrepareMembersCallback != null)
@@ -309,7 +312,7 @@ namespace SharpYaml.Serialization.Descriptors
                     {
                         member.AlternativeNames = new List<string>();
                     }
-                    if (!string.IsNullOrWhiteSpace(yamlRemap.Name))
+                    if (!string.IsNullOrEmpty(yamlRemap.Name))
                     {
                         member.AlternativeNames.Add(yamlRemap.Name);
                     }
@@ -324,7 +327,7 @@ namespace SharpYaml.Serialization.Descriptors
             else
             {
                 // Else we cannot only assign its content if it is a class
-                member.SerializeMemberMode = (memberType != typeof(string) && memberType.IsClass) || memberType.IsInterface || type.IsAnonymous() ? SerializeMemberMode.Content : SerializeMemberMode.Never;
+                member.SerializeMemberMode = (memberType != typeof(string) && memberType.GetTypeInfo().IsClass) || memberType.GetTypeInfo().IsInterface || type.IsAnonymous() ? SerializeMemberMode.Content : SerializeMemberMode.Never;
             }
 
             // If it's a private member, check it has a YamlMemberAttribute on it
@@ -345,7 +348,7 @@ namespace SharpYaml.Serialization.Descriptors
                 if (!member.HasSet)
                 {
                     if (memberAttribute.SerializeMethod == SerializeMemberMode.Assign ||
-                        (memberType.IsValueType && member.SerializeMemberMode == SerializeMemberMode.Content))
+                        (memberType.GetTypeInfo().IsValueType && member.SerializeMemberMode == SerializeMemberMode.Content))
                         throw new ArgumentException("{0} {1} is not writeable by {2}.".DoFormat(memberType.FullName, member.OriginalName, memberAttribute.SerializeMethod.ToString()));
                 }
 

@@ -90,7 +90,7 @@ namespace SharpYaml.Serialization
                 }
 
                 // Else retrieve all default attributes
-                var defaultAttributes = Attribute.GetCustomAttributes(memberInfo, inherit);
+                var defaultAttributes = memberInfo.GetCustomAttributes(inherit).OfType<Attribute>();
                 attributes = defaultAttributes.ToList();
 
                 // And add registered attributes

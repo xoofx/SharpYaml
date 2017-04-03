@@ -44,6 +44,7 @@
 // SOFTWARE.
 
 using System;
+using System.Reflection;
 using SharpYaml.Events;
 using SharpYaml.Serialization.Logging;
 
@@ -322,7 +323,7 @@ namespace SharpYaml.Serialization.Serializers
 
             // Handle late binding
             // Value types need to be reassigned even if it was a Content
-            if (memberAccessor.HasSet && (memberAccessor.SerializeMemberMode != SerializeMemberMode.Content || memberAccessor.Type.IsValueType || memberValue != oldMemberValue))
+            if (memberAccessor.HasSet && (memberAccessor.SerializeMemberMode != SerializeMemberMode.Content || memberAccessor.Type.GetTypeInfo().IsValueType || memberValue != oldMemberValue))
             {
                 memberAccessor.Set(objectContext.Instance, memberValue);
             }

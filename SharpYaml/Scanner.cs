@@ -1571,10 +1571,10 @@ namespace SharpYaml
             Skip();
 
             // Consume the content of the quoted scalar.
-            scanScalarValue.Clear();
-            scanScalarWhitespaces.Clear();
-            scanScalarLeadingBreak.Clear();
-            scanScalarTrailingBreaks.Clear();
+            scanScalarValue.Length = 0;
+            scanScalarWhitespaces.Length = 0;
+            scanScalarLeadingBreak.Length = 0;
+            scanScalarTrailingBreaks.Length = 0;
             for (;;)
             {
                 // Check that there are no document indicators at the beginning of the line.

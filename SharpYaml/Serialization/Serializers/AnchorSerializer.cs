@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using SharpYaml.Events;
 
 namespace SharpYaml.Serialization.Serializers
@@ -109,7 +110,7 @@ namespace SharpYaml.Serialization.Serializers
 
             // Only write anchors for object (and not value types)
             bool isAnchorable = false;
-            if (value != null && !value.GetType().IsValueType)
+            if (value != null && !value.GetType().GetTypeInfo().IsValueType)
             {
                 var typeCode = Type.GetTypeCode(value.GetType());
                 switch (typeCode)
