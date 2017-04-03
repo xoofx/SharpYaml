@@ -5,7 +5,9 @@ install:
 - ps: >-
     nuget restore
 
-    $env:SHARPYAML_VERSION_SUFFIX = "alpha-$env:APPVEYOR_BUILD_NUMBER"
+    $env:SHARPYAML_BUILD_NUMBER = ([int]$env:APPVEYOR_BUILD_NUMBER).ToString("000")
+   
+    $env:SHARPYAML_VERSION_SUFFIX = "pre$env:SHARPYAML_BUILD_NUMBER"
 
     $env:appveyor_nuget_push = 'false'
 
