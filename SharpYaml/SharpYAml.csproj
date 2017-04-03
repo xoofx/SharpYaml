@@ -37,6 +37,7 @@
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <NoWarn>CS1591</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyOriginatorKeyFile>..\SharpYaml.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
