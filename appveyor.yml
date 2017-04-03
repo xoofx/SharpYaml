@@ -4,11 +4,13 @@ configuration: Release
 install:
 - ps: >-
     nuget restore
+
     $env:appveyor_nuget_push = 'false'
+    
     if($env:appveyor_repo_tag -eq 'True') {
     	if($env:appveyor_repo_tag_name -match '^v[0-9]') {
-    		$env:appveyor_nuget_push = 'true'
-    	}
+         $env:appveyor_nuget_push = 'true'
+      }
     }
 build:
   project: SharpYaml.sln
