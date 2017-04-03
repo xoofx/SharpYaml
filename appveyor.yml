@@ -10,9 +10,9 @@ install:
     $env:appveyor_nuget_push = 'false'
 
     if(-Not $env:APPVEYOR_PULL_REQUEST_NUMBER) {
+      $env:appveyor_nuget_push = 'true'
       if($env:appveyor_repo_tag -eq 'True') {
     	  if($env:appveyor_repo_tag_name -match '^v[0-9]') {
-           $env:appveyor_nuget_push = 'true'
            $env:SHARPYAML_VERSION_SUFFIX = ""
         }
       }
