@@ -1,6 +1,6 @@
-# SharpYaml
+# SharpYaml [![Build status](https://ci.appveyor.com/api/projects/status/github/xoofx/sharpyaml?svg=true)](https://ci.appveyor.com/project/xoofx/sharpyaml/branch/master)  [![NuGet](https://img.shields.io/nuget/v/SharpYaml.svg)](https://www.nuget.org/packages/SharpYaml/)
 
-**SharpYaml** is a .NET library that provides a **YAML parser and serialization engine** for .NET objects.
+**SharpYaml** is a .NET library that provides a **YAML parser and serialization engine** for .NET objects, **compatible with CoreCLR**.
 
 ## Usage
 
@@ -27,7 +27,8 @@ SharpYaml is a fork of [YamlDotNet](http://www.aaubry.net/yamldotnet.aspx) and i
    - `.NET PCL Profile 328` (`portable-net40+sl5+win8+wpa81+wp8`)
    - `.NET 4.5+`
    - `.NET Standard 1.6+` (CoreCLR)
- - Completely rewritten serialization/deserialization engine
+ - Memory allocation and GC pressure improved
+  - Completely rewritten serialization/deserialization engine
  - A single interface `IYamlSerializable` for implementing custom serializers, along `IYamlSerializableFactory` to allow dynamic creation of serializers. Registration can be done through `SerializerSettings.RegisterSerializer` and `SerializerSettings.RegisterSerializerFactory`
    - Can inherit from `ScalarSerializerBase` to provide custom serialization to/from a Yaml scalar 
  - Supports for custom collection that contains user properties to serialize along the collection.
@@ -38,10 +39,11 @@ SharpYaml is a fork of [YamlDotNet](http://www.aaubry.net/yamldotnet.aspx) and i
    - Several options and settings: `EmitAlias`, `IndentLess`, `SortKeyForMapping`, `EmitJsonComptible`, `EmitCapacityForList`, `LimitPrimitiveFlowSequence`, `EmitDefaultValues`
    - Add supports for overriding the Yaml style of serialization (block or flow) with `SerializerSettings.DefaultStyle` and `SerializerSettings.DynamicStyleFormat`  
  - Supports for registering an assembly when discovering types to deserialize through `SerializerSettings.RegisterAssembly`
- - Memory allocation and GC pressure improved
+ - Supports a `IObjectSerializerBackend` that allows to hook a global rewriting for all YAML serialization types (scalar, sequence, mapping) when serializing/deserializing to/from a .NET type.
+ 
+## Download
 
-## Available from Nuget 
-You can download **SharpYaml** binaries directly from [nuget](http://www.nuget.org/packages?q=sharpyaml).
+SharpYaml is available on [![NuGet](https://img.shields.io/nuget/v/SharpYaml.svg)](https://www.nuget.org/packages/SharpYaml/)
 
 ## License
 MIT
