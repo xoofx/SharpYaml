@@ -113,16 +113,7 @@ namespace SharpYaml
             public ScalarStyle style;
         }
 
-        private bool IsUnicode
-        {
-            get
-            {
-                return
-                    output.Encoding == Encoding.UTF8 ||
-                    output.Encoding == Encoding.Unicode ||
-                    output.Encoding == Encoding.BigEndianUnicode;
-            }
-        }
+        private readonly bool isUnicode;
 
         private ScalarData scalarData;
 
@@ -162,6 +153,7 @@ namespace SharpYaml
             this.forceIndentLess = forceIndentLess;
 
             this.output = output;
+            this.isUnicode = output.Encoding.WebName.StartsWith("utf", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -357,6 +349,22 @@ namespace SharpYaml
             CharacterAnalyzer<StringLookAheadBuffer> buffer = new CharacterAnalyzer<StringLookAheadBuffer>(new StringLookAheadBuffer(value));
             bool followed_by_whitespace = buffer.IsBlankOrBreakOrZero(1);
 
+            // If the output is not detected as unicode, check if the value to encode contains 
+            // special characters that would require special encoding
+            if (!isUnicode)
+            {
+                try
+                {
+                    var encodedBytes = output.Encoding.GetBytes(value);
+                    var decodedString = output.Encoding.GetString(encodedBytes, 0, encodedBytes.Length);
+                    special_characters = decodedString != value;
+                }
+                catch (EncoderFallbackException)
+                {
+                    special_characters = true;
+                }
+            }
+
             bool isFirst = true;
             while (!buffer.EndOfInput)
             {
@@ -406,8 +414,7 @@ namespace SharpYaml
                     }
                 }
 
-
-                if (!buffer.IsPrintable() || (!buffer.IsAscii() && !IsUnicode))
+                if (!special_characters && !buffer.IsPrintable())
                 {
                     special_characters = true;
                 }
@@ -1233,16 +1240,25 @@ namespace SharpYaml
                                 Write('x');
                                 Write(code.ToString("X02", CultureInfo.InvariantCulture));
                             }
+                            else if (CharHelper.IsHighSurrogate(character))
+                            {
+                                char nextChar;
+                                if (index + 1 < value.Length && CharHelper.IsLowSurrogate(nextChar = value[index + 1]))
+                                {
+                                    Write('U');
+                                    Write(CharHelper.ConvertToUtf32(character, nextChar).ToString("X08", CultureInfo.InvariantCulture));
+                                    index++;
+                                }
+                                else
+                                {
+                                    throw new YamlException($"Unable to encode character low surrogate after high surrogate [{character}] at position {index+1} of text `{value}`");
+                                }
+                            }
                             else
                             {
-                                //if (code <= 0xFFFF) {
                                 Write('u');
                                 Write(code.ToString("X04", CultureInfo.InvariantCulture));
                             }
-                            //else {
-                            //	Write('U');
-                            //	Write(code.ToString("X08"));
-                            //}
                             break;
                     }
                     previous_space = false;
@@ -1788,7 +1804,7 @@ namespace SharpYaml
 
             if (analyzer.IsSpace() || analyzer.IsBreak())
             {
-                string indent_hint = string.Format(CultureInfo.InvariantCulture, "{0}\0", bestIndent);
+                string indent_hint = string.Format(CultureInfo.InvariantCulture, "{0}", bestIndent);
                 WriteIndicator(indent_hint, false, false, false);
             }
 

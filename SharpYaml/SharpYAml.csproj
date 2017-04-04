@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>SharpYaml</PackageId>
-    <VersionPrefix>1.6.0</VersionPrefix>
+    <VersionPrefix>1.6.1</VersionPrefix>
     <AssemblyName>SharpYaml</AssemblyName>
     <AssemblyTitle>SharpYaml</AssemblyTitle>
     <RootNamespace>SharpYaml</RootNamespace>
@@ -12,12 +12,18 @@
     <Copyright>Alexandre Mutel</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <PackageTags>yaml;parser;yml</PackageTags>
-    <PackageReleaseNotes>- Add support for CoreCLR (netstandard1.6+)</PackageReleaseNotes>
+    <PackageReleaseNotes>
+&gt; 1.6.1
+- Improve support for unicode escape characters
+&gt; 1.6.0      
+- Add support for CoreCLR (netstandard1.6+)
+    </PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/xoofx/SharpYaml</PackageProjectUrl>
     <PackageLicenseUrl>https://github.com/xoofx/SharpYaml/blob/master/LICENSE.txt</PackageLicenseUrl>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>git://github.com/xoofx/SharpYaml</RepositoryUrl>
     <NetStandardImplicitPackageVersion>1.6.1</NetStandardImplicitPackageVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'net35' ">
@@ -53,8 +59,10 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'portable-net40+sl5+win8+wpa81+wp8'">
+    <DefineConstants>$(DefineConstants);PROFILE328</DefineConstants>
     <TargetFrameworkIdentifier>.NETPortable</TargetFrameworkIdentifier>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>Profile328</TargetFrameworkProfile>
   </PropertyGroup>
+
 </Project>

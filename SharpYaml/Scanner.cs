@@ -1666,7 +1666,7 @@ namespace SharpYaml
 
                         if (codeLength > 0)
                         {
-                            uint character = 0;
+                            int character = 0;
 
                             // Scan the character value.
 
@@ -1676,7 +1676,7 @@ namespace SharpYaml
                                 {
                                     throw new SyntaxErrorException(start, mark, "While parsing a quoted scalar, did not find expected hexdecimal number.");
                                 }
-                                character = (uint) ((character << 4) + analyzer.AsHex(k));
+                                character = (character << 4) + analyzer.AsHex(k);
                             }
 
                             // Check the value and write the character.
@@ -1686,7 +1686,7 @@ namespace SharpYaml
                                 throw new SyntaxErrorException(start, mark, "While parsing a quoted scalar, find invalid Unicode character escape code.");
                             }
 
-                            scanScalarValue.Append((char) character);
+                            scanScalarValue.Append(CharHelper.ConvertFromUtf32(character));
 
                             // Advance the pointer.
 
@@ -2146,12 +2146,13 @@ namespace SharpYaml
         /// <summary>
         /// Decode an URI-escape sequence corresponding to a single UTF-8 character.
         /// </summary>
-        private char ScanUriEscapes(Mark start)
+        private string ScanUriEscapes(Mark start)
         {
             // Decode the required number of characters.
 
-            List<byte> charBytes = new List<byte>();
+            byte[] charBytes = null;
             int width = 0;
+            int index = 0;
             do
             {
                 // Check for a URI-escaped octet.
@@ -2178,6 +2179,8 @@ namespace SharpYaml
                     {
                         throw new SyntaxErrorException(start, mark, "While parsing a tag, find an incorrect leading UTF-8 octet.");
                     }
+
+                    charBytes = new byte[width];
                 }
                 else
                 {
@@ -2189,23 +2192,21 @@ namespace SharpYaml
                     }
                 }
 
-                // Copy the octet and move the pointers.
-
-                charBytes.Add((byte) octet);
+                charBytes[index++] = (byte)octet;
 
                 Skip();
                 Skip();
                 Skip();
             } while (--width > 0);
 
-            char[] characters = Encoding.UTF8.GetChars(charBytes.ToArray());
+            var str = Encoding.UTF8.GetString(charBytes, 0, index);
 
-            if (characters.Length != 1)
+            if (str.Length == 0 || str.Length > 2)
             {
                 throw new SyntaxErrorException(start, mark, "While parsing a tag, find an incorrect UTF-8 sequence.");
             }
 
-            return characters[0];
+            return str;
         }
 
         /// <summary>

@@ -62,6 +62,16 @@ namespace SharpYaml.Tests.Serialization
     public class SerializationTests : YamlTest
     {
         [Test]
+        public void UnicodeEscapes()
+        {
+            var serializer = new Serializer();
+            var value = serializer.Deserialize(@"- ""Test\U00010905Yo\u2665""");
+            var result = ((IEnumerable<object>)value).First();
+            var expected = "Test\U00010905Yo♥";
+            Assert.AreEqual(expected, result);
+        }
+
+        [Test]
         public void Roundtrip()
         {
             var settings = new SerializerSettings();

@@ -43,8 +43,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using NUnit.Framework;
 using SharpYaml.Events;
 using SharpYaml.Serialization;
@@ -135,6 +138,43 @@ namespace SharpYaml.Tests
         public void EmitExample14()
         {
             ParseAndEmit("test14.yaml");
+        }
+
+        [Test]
+        public void EmitUnicode()
+        {
+            var encoding = Encoding.GetEncoding(28595); // Cyrillic
+            var stream = new MemoryStream();
+            var input = "Гранит дзень";
+            using (var writer = new StreamWriter(stream, encoding))
+            {
+                var emitter = new Emitter(writer);
+                emitter.Emit(new StreamStart());
+                emitter.Emit(new DocumentStart(null, null, true));
+                emitter.Emit(new Scalar(input, ScalarStyle.SingleQuoted));
+                emitter.Emit(new DocumentEnd(true));
+            }
+            var result = encoding.GetString(stream.ToArray()).Trim();
+            Assert.AreEqual("'" + input + "'", result);
+        }
+
+
+        [Test]
+        public void EmitUnicodeEscapes()
+        {
+            var encoding = new UTF8Encoding(false);
+            var stream = new MemoryStream();
+            var input = "Test\U00010905Yo♥";
+            using (var writer = new StreamWriter(stream, encoding) )
+            {
+                var emitter = new Emitter(writer);
+                emitter.Emit(new StreamStart());
+                emitter.Emit(new DocumentStart(null, null, true));
+                emitter.Emit(new Scalar(input, ScalarStyle.DoubleQuoted));
+                emitter.Emit(new DocumentEnd(true));
+            }
+            var result = encoding.GetString(stream.ToArray()).Trim();
+            Assert.AreEqual("\"Test\\xD802\\xDD05Yo♥\"", result);
         }
 
         private void ParseAndEmit(string name)
