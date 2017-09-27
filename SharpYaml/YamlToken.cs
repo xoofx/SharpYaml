@@ -37,10 +37,20 @@ namespace SharpYaml.YamlToken {
         }
 
         public void WriteTo(IEmitter emitter, bool suppressDocumentTags = false) {
-            foreach (var evnt in EnumerateEvents()) {
+            var events = EnumerateEvents().ToList();
+
+            // Emitter will throw an exception if we attempt to use it without
+            // starting StremStart and DocumentStart events.
+            if (!(events[0] is StreamStart))
+                events.Insert(0, new StreamStart());
+
+            if (!(events[1] is DocumentStart))
+                events.Insert(1, new DocumentStart());
+
+            foreach (var evnt in events) {
                 if (suppressDocumentTags) {
                     var document = evnt as DocumentStart;
-                    if (document != null) {
+                    if (document != null && document.Tags != null) {
                         document.Tags.Clear();
                     }
                 }

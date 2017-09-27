@@ -152,6 +152,8 @@ namespace SharpYaml.Tests {
             var stream = YamlStream.Load(fileStream);
 
             Assert.AreEqual("[item 1, item 2, item 3]", stream.ToString());
+            Assert.AreEqual("[item 1, item 2, item 3]", stream[0].Contents.ToString());
+            Assert.AreEqual("item 1", ((YamlSequence) stream[0].Contents)[0].ToString());
         }
     }
 }
