@@ -226,12 +226,14 @@ namespace SharpYaml.YamlToken {
             yield return documentEnd;
         }
 
-        public DocumentStart DocumentStart {
+        public DocumentStart DocumentStart1 {
             get => documentStart;
+            set => documentStart = value;
         }
 
-        public DocumentEnd DocumentEnd {
+        public DocumentEnd DocumentEnd1 {
             get => documentEnd;
+            set => documentEnd = value;
         }
 
         public YamlToken Contents {
@@ -261,7 +263,13 @@ namespace SharpYaml.YamlToken {
 
         private List<YamlToken> contents;
 
-        public YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlToken> contents) {
+        public YamlSequence() {
+            sequenceStart = new SequenceStart();
+            sequenceEnd = new SequenceEnd();
+            contents = new List<YamlToken>();
+        }
+
+        YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlToken> contents) {
             this.sequenceStart = sequenceStart;
             this.sequenceEnd = sequenceEnd;
             this.contents = contents;
@@ -369,11 +377,23 @@ namespace SharpYaml.YamlToken {
         private List<YamlToken> keys;
         private Dictionary<YamlToken, YamlToken> contents;
 
+        public YamlMapping() {
+            mappingStart = new MappingStart();
+            mappingEnd = new MappingEnd();
+            keys = new List<YamlToken>();
+            contents = new Dictionary<YamlToken, YamlToken>();
+        }
+
         YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlToken> keys, Dictionary<YamlToken, YamlToken> contents) {
             this.mappingStart = mappingStart;
             this.mappingEnd = mappingEnd;
             this.keys = keys;
             this.contents = contents;
+        }
+
+        public MappingStart MappingStart {
+            get => mappingStart;
+            set => mappingStart = value;
         }
 
         public static YamlMapping Load(EventReader eventReader) {
