@@ -467,7 +467,17 @@ namespace SharpYaml.YamlToken {
 
         public YamlToken this[YamlToken key] {
             get { return contents[key]; }
-            set { contents[key] = value; }
+            set {
+                if (!contents.ContainsKey(key))
+                    keys.Add(key);
+
+                contents[key] = value;
+            }
+        }
+
+        public YamlToken this[string key] {
+            get { return this[new YamlValue(key)]; }
+            set { this[new YamlValue(key)] = value; }
         }
 
         public ICollection<YamlToken> Keys { get { return keys; } }

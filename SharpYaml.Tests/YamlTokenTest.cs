@@ -113,5 +113,21 @@ namespace SharpYaml.Tests {
 
             Assert.AreNotEqual(serialized.ToString(), serialized3.ToString());
         }
+
+        [Test]
+        public void MappingStringKey() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            Assert.AreEqual("value 2", ((YamlMapping) ((YamlMapping) stream[0].Contents)[2].Value)["key 2"].ToObject<string>());
+
+            ((YamlMapping)((YamlMapping)stream[0].Contents)[2].Value)["key 3"] = new YamlValue("value 3");
+
+            Assert.AreEqual("key 3", ((YamlMapping)((YamlMapping)stream[0].Contents)[2].Value)[2].Key.ToObject<string>());
+            Assert.AreEqual("value 3", ((YamlMapping) ((YamlMapping) stream[0].Contents)[2].Value)[2].Value.ToObject<string>());
+        }
     }
 }
