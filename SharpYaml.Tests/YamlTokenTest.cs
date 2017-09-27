@@ -129,5 +129,17 @@ namespace SharpYaml.Tests {
             Assert.AreEqual("key 3", ((YamlMapping)((YamlMapping)stream[0].Contents)[2].Value)[2].Key.ToObject<string>());
             Assert.AreEqual("value 3", ((YamlMapping) ((YamlMapping) stream[0].Contents)[2].Value)[2].Value.ToObject<string>());
         }
+
+
+        [Test]
+        public void AllowMissingKeyLookup() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            Assert.IsNull(((YamlMapping) stream[0].Contents)["Bla"]);
+        }
     }
 }
