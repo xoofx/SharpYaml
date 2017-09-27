@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using SharpYaml;
+using System.Linq;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization;
@@ -52,7 +52,7 @@ namespace SharpYaml.YamlToken {
             var s = new Serializer(settings);
 
             var context = new SerializerContext(s, null) { Reader = new EventReader(new MemoryParser(EnumerateEvents())) };
-            return (T) context.ReadYaml(null, typeof(T));
+            return (T)context.ReadYaml(null, typeof(T));
         }
 
         class MemoryEmitter : IEmitter {
@@ -72,6 +72,8 @@ namespace SharpYaml.YamlToken {
 
             return ReadToken(new EventReader(new MemoryParser(emitter.Events)));
         }
+
+        public abstract YamlToken DeepClone();
     }
 
     public abstract class YamlContainer : YamlToken {
@@ -120,7 +122,7 @@ namespace SharpYaml.YamlToken {
                     yield return evnt;
                 }
             }
-                
+
 
             yield return streamEnd;
         }
@@ -172,6 +174,12 @@ namespace SharpYaml.YamlToken {
         public YamlDocument this[int index] {
             get { return documents[index]; }
             set { documents[index] = value; }
+        }
+
+        public override YamlToken DeepClone() {
+            return new YamlStream(new StreamStart(streamStart.Start, streamStart.End),
+                                  new StreamEnd(streamEnd.Start, streamEnd.End),
+                                  documents.Select(d => (YamlDocument)d.DeepClone()).ToList());
         }
     }
 
@@ -229,6 +237,21 @@ namespace SharpYaml.YamlToken {
         public YamlToken Contents {
             get { return contents; }
             set { contents = value; }
+        }
+
+        public override YamlToken DeepClone() {
+            var documentVersionCopy = documentStart.Version == null
+                ? null
+                : new VersionDirective(documentStart.Version.Version, documentStart.Version.Start, documentStart.Version.End);
+
+            var documentTagsCopy = documentStart.Tags == null ? null : new TagDirectiveCollection(documentStart.Tags);
+
+            var documentStartCopy = new DocumentStart(documentVersionCopy, documentTagsCopy, documentStart.IsImplicit,
+                                documentStart.Start, documentStart.End);
+
+            var documentEndCopy = new DocumentEnd(documentEnd.IsImplicit, documentEnd.Start, documentEnd.End);
+
+            return new YamlDocument(documentStartCopy, documentEndCopy, Contents?.DeepClone());
         }
     }
 
@@ -323,6 +346,19 @@ namespace SharpYaml.YamlToken {
         public YamlToken this[int index] {
             get { return contents[index]; }
             set { contents[index] = value; }
+        }
+
+        public override YamlToken DeepClone() {
+            var sequenceStartCopy = new SequenceStart(sequenceStart.Anchor, 
+                                                      sequenceStart.Tag, 
+                                                      sequenceStart.IsImplicit, 
+                                                      sequenceStart.Style, 
+                                                      sequenceStart.Start, 
+                                                      sequenceStart.End);
+
+            var sequenceEndCopy = new SequenceEnd(sequenceEnd.Start, sequenceEnd.End);
+
+            return new YamlSequence(sequenceStartCopy, sequenceEndCopy, contents.Select(c => c.DeepClone()).ToList());
         }
     }
 
@@ -442,7 +478,7 @@ namespace SharpYaml.YamlToken {
         }
 
         public void Insert(int index, KeyValuePair<YamlToken, YamlToken> item) {
-            if(contents.ContainsKey(item.Key))
+            if (contents.ContainsKey(item.Key))
                 throw new Exception("Key already present.");
 
             keys.Insert(index, item.Key);
@@ -456,7 +492,7 @@ namespace SharpYaml.YamlToken {
         }
 
         public KeyValuePair<YamlToken, YamlToken> this[int index] {
-            get { return new KeyValuePair<YamlToken, YamlToken>(keys[index], contents[keys[index]]);}
+            get { return new KeyValuePair<YamlToken, YamlToken>(keys[index], contents[keys[index]]); }
             set {
                 if (keys[index] != value.Key && contents.ContainsKey(value.Key))
                     throw new Exception("Key already present at a different index.");
@@ -468,6 +504,22 @@ namespace SharpYaml.YamlToken {
                 keys[index] = value.Key;
                 contents[value.Key] = value.Value;
             }
+        }
+
+        public override YamlToken DeepClone() {
+            var mappingStartCopy = new MappingStart(mappingStart.Anchor, 
+                                                    mappingStart.Tag,
+                                                    mappingStart.IsImplicit,
+                                                    mappingStart.Style,
+                                                    mappingStart.Start,
+                                                    mappingStart.End);
+
+            var mappingEndCopy = new MappingEnd(mappingEnd.Start, mappingEnd.End);
+
+            return new YamlMapping(mappingStartCopy,
+                                   mappingEndCopy,
+                                   keys.Select(k => k.DeepClone()).ToList(),
+                                   contents.ToDictionary(kv => kv.Key.DeepClone(), kv => kv.Value.DeepClone()));
         }
     }
 
@@ -482,7 +534,7 @@ namespace SharpYaml.YamlToken {
             var valueString = PrimitiveSerializer.ConvertValue(value);
             if (schema == null)
                 schema = new CoreSchema();
-                
+
             scalar = new Scalar(schema.GetDefaultTag(value.GetType()), valueString);
         }
 
@@ -504,11 +556,22 @@ namespace SharpYaml.YamlToken {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return Equals((YamlValue) obj);
+            return Equals((YamlValue)obj);
         }
 
         public override int GetHashCode() {
             return (scalar != null ? scalar.Value.GetHashCode() : 0);
+        }
+
+        public override YamlToken DeepClone() {
+            return new YamlValue(new Scalar(scalar.Anchor,
+                                            scalar.Tag,
+                                            scalar.Value,
+                                            scalar.Style,
+                                            scalar.IsPlainImplicit,
+                                            scalar.IsQuotedImplicit,
+                                            scalar.Start,
+                                            scalar.End));
         }
     }
 }

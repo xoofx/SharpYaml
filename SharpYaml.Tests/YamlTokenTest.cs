@@ -87,5 +87,31 @@ namespace SharpYaml.Tests {
 
             Assert.AreEqual("[item 4, item 5, item 6]", serialized.ToString().Trim());
         }
+
+        [Test]
+        public void DeepClone() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            var serialized = new StringBuilder();
+            stream.WriteTo(new StringWriter(serialized), true);
+
+            var clone = (YamlStream) stream.DeepClone();
+
+            ((YamlMapping) ((YamlMapping) clone[0].Contents)[2].Value)[new YamlValue("key 2")] = new YamlValue("value 3");
+
+            var serialized2 = new StringBuilder();
+            stream.WriteTo(new StringWriter(serialized2), true);
+
+            Assert.AreEqual(serialized.ToString(), serialized2.ToString());
+
+            var serialized3 = new StringBuilder();
+            clone.WriteTo(new StringWriter(serialized3), true);
+
+            Assert.AreNotEqual(serialized.ToString(), serialized3.ToString());
+        }
     }
 }
