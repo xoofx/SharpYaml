@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization;
@@ -46,6 +47,12 @@ namespace SharpYaml.YamlToken {
 
                 emitter.Emit(evnt);
             }
+        }
+
+        public override string ToString() {
+            var sb = new StringBuilder();
+            WriteTo(new StringWriter(sb), true);
+            return sb.ToString().Trim();
         }
 
         public T ToObject<T>(SerializerSettings settings = null) {

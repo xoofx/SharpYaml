@@ -141,5 +141,17 @@ namespace SharpYaml.Tests {
 
             Assert.IsNull(((YamlMapping) stream[0].Contents)["Bla"]);
         }
+
+
+        [Test]
+        public void ToStringTest() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test8.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            Assert.AreEqual("[item 1, item 2, item 3]", stream.ToString());
+        }
     }
 }
