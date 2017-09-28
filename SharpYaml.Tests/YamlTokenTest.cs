@@ -197,5 +197,24 @@ namespace SharpYaml.Tests {
 
             Assert.AreEqual(typeof(Dictionary<string, double>), dict2.GetType());
         }
+
+
+        [Test]
+        public void ScalarStyleTest() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test6.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            var value = ((YamlValue)stream[0].Contents);
+            Assert.AreEqual(ScalarStyle.DoubleQuoted, value.Style);
+
+            value.Style = ScalarStyle.Plain;
+
+            var serialized = new StringBuilder();
+            stream.WriteTo(new StringWriter(serialized), true);
+            Assert.IsTrue(serialized.ToString().StartsWith("!!float 3.14"));
+        }
     }
 }
