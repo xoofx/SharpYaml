@@ -216,5 +216,24 @@ namespace SharpYaml.Tests {
             stream.WriteTo(new StringWriter(serialized), true);
             Assert.IsTrue(serialized.ToString().StartsWith("!!float 3.14"));
         }
+
+        [Test]
+        public void IsCanonicalTest() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test6.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            var value = ((YamlValue)stream[0].Contents);
+            Assert.IsTrue(value.IsCanonical);
+
+            value.IsPlainImplicit = true;
+            value.Style = ScalarStyle.Plain;
+
+            var serialized = new StringBuilder();
+            stream.WriteTo(new StringWriter(serialized), true);
+            Assert.IsTrue(serialized.ToString().StartsWith("3.14"));
+        }
     }
 }

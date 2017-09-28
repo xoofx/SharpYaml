@@ -96,10 +96,12 @@ namespace SharpYaml.YamlToken {
     public abstract class YamlElement : YamlToken {
         public abstract string Anchor { get; set; }
         public abstract string Tag { get; set; }
+        public abstract bool IsCanonical { get; }
     }
 
     public abstract class YamlContainer : YamlElement {
         public abstract YamlStyle Style { get; set; }
+        public abstract bool IsImplicit { get; set; }
     }
 
     public class YamlStream : YamlToken, IList<YamlDocument> {
@@ -242,12 +244,12 @@ namespace SharpYaml.YamlToken {
             yield return documentEnd;
         }
 
-        public DocumentStart DocumentStart1 {
+        public DocumentStart DocumentStart {
             get => documentStart;
             set => documentStart = value;
         }
 
-        public DocumentEnd DocumentEnd1 {
+        public DocumentEnd DocumentEnd {
             get => documentEnd;
             set => documentEnd = value;
         }
@@ -327,6 +329,20 @@ namespace SharpYaml.YamlToken {
                                                   sequenceStart.Tag,
                                                   sequenceStart.IsImplicit,
                                                   value,
+                                                  sequenceStart.Start,
+                                                  sequenceStart.End);
+            }
+        }
+
+        public override bool IsCanonical { get { return sequenceStart.IsCanonical; } }
+
+        public override bool IsImplicit {
+            get { return sequenceStart.IsImplicit; }
+            set {
+                sequenceStart = new SequenceStart(sequenceStart.Anchor,
+                                                  sequenceStart.Tag,
+                                                  value,
+                                                  sequenceStart.Style,
                                                   sequenceStart.Start,
                                                   sequenceStart.End);
             }
@@ -479,6 +495,20 @@ namespace SharpYaml.YamlToken {
                                                 mappingStart.Tag,
                                                 mappingStart.IsImplicit,
                                                 value,
+                                                mappingStart.Start,
+                                                mappingStart.End);
+            }
+        }
+
+        public override bool IsCanonical { get { return mappingStart.IsCanonical; } }
+
+        public override bool IsImplicit {
+            get { return mappingStart.IsImplicit; }
+            set {
+                mappingStart = new MappingStart(mappingStart.Anchor,
+                                                mappingStart.Tag,
+                                                value,
+                                                mappingStart.Style,
                                                 mappingStart.Start,
                                                 mappingStart.End);
             }
@@ -735,6 +765,36 @@ namespace SharpYaml.YamlToken {
                                     scalar.IsQuotedImplicit,
                                     scalar.Start,
                                     scalar.End);
+            }
+        }
+
+        public override bool IsCanonical { get { return scalar.IsCanonical; } }
+
+        public bool IsPlainImplicit {
+            get { return scalar.IsPlainImplicit; }
+            set {
+                scalar = new Scalar(scalar.Anchor,
+                                    scalar.Tag,
+                                    scalar.Value,
+                                    scalar.Style,
+                                    value,
+                                    scalar.IsQuotedImplicit,
+                                    scalar.Start,
+                                    scalar.End);
+            }
+        }
+
+        public bool IsQuotedImplicit {
+            get { return scalar.IsQuotedImplicit; }
+            set {
+                scalar = new Scalar(scalar.Anchor,
+                    scalar.Tag,
+                    scalar.Value,
+                    scalar.Style,
+                    scalar.IsPlainImplicit,
+                    value,
+                    scalar.Start,
+                    scalar.End);
             }
         }
     }
