@@ -17,7 +17,7 @@ using StreamStart = SharpYaml.Events.StreamStart;
 
 namespace SharpYaml.YamlToken {
     public abstract class YamlToken {
-        protected static YamlToken ReadToken(EventReader eventReader) {
+        protected static YamlElement ReadElement(EventReader eventReader) {
             if (eventReader.Accept<MappingStart>())
                 return YamlMapping.Load(eventReader);
 
@@ -80,24 +80,29 @@ namespace SharpYaml.YamlToken {
             }
         }
 
-        public static YamlToken FromObject(object value, SerializerSettings settings = null, Type expectedType = null) {
+        public static YamlElement FromObject(object value, SerializerSettings settings = null, Type expectedType = null) {
             var s = new Serializer(settings);
 
             var emitter = new MemoryEmitter();
             var context = new SerializerContext(s, null) { Writer = new WriterEventEmitter(emitter) };
             context.WriteYaml(value, expectedType);
 
-            return ReadToken(new EventReader(new MemoryParser(emitter.Events)));
+            return ReadElement(new EventReader(new MemoryParser(emitter.Events)));
         }
 
         public abstract YamlToken DeepClone();
     }
 
-    public abstract class YamlContainer : YamlToken {
-
+    public abstract class YamlElement : YamlToken {
+        public abstract string Anchor { get; set; }
+        public abstract string Tag { get; set; }
     }
 
-    public class YamlStream : YamlContainer, IList<YamlDocument> {
+    public abstract class YamlContainer : YamlElement {
+        public abstract YamlStyle Style { get; set; }
+    }
+
+    public class YamlStream : YamlToken, IList<YamlDocument> {
         private StreamStart streamStart;
         private StreamEnd streamEnd;
 
@@ -200,18 +205,18 @@ namespace SharpYaml.YamlToken {
         }
     }
 
-    public class YamlDocument : YamlContainer {
+    public class YamlDocument : YamlToken {
         private DocumentStart documentStart;
         private DocumentEnd documentEnd;
 
-        private YamlToken contents;
+        private YamlElement contents;
 
         public YamlDocument() {
             documentStart = new DocumentStart(null, new TagDirectiveCollection(), true);
             documentEnd = new DocumentEnd(true);
         }
 
-        YamlDocument(DocumentStart documentStart, DocumentEnd documentEnd, YamlToken contents) {
+        YamlDocument(DocumentStart documentStart, DocumentEnd documentEnd, YamlElement contents) {
             this.documentStart = documentStart;
             this.documentEnd = documentEnd;
             this.contents = contents;
@@ -220,13 +225,7 @@ namespace SharpYaml.YamlToken {
         public static YamlDocument Load(EventReader eventReader) {
             var documentStart = eventReader.Allow<DocumentStart>();
 
-            YamlToken contents = null;
-            if (eventReader.Accept<MappingStart>())
-                contents = YamlMapping.Load(eventReader);
-            else if (eventReader.Accept<SequenceStart>())
-                contents = YamlSequence.Load(eventReader);
-            else if (eventReader.Accept<Scalar>())
-                contents = YamlValue.Load(eventReader);
+            var contents = ReadElement(eventReader);
 
             var documentEnd = eventReader.Allow<DocumentEnd>();
 
@@ -253,7 +252,7 @@ namespace SharpYaml.YamlToken {
             set => documentEnd = value;
         }
 
-        public YamlToken Contents {
+        public YamlElement Contents {
             get { return contents; }
             set { contents = value; }
         }
@@ -270,23 +269,23 @@ namespace SharpYaml.YamlToken {
 
             var documentEndCopy = new DocumentEnd(documentEnd.IsImplicit, documentEnd.Start, documentEnd.End);
 
-            return new YamlDocument(documentStartCopy, documentEndCopy, Contents?.DeepClone());
+            return new YamlDocument(documentStartCopy, documentEndCopy, (YamlElement) Contents?.DeepClone());
         }
     }
 
-    public class YamlSequence : YamlContainer, IList<YamlToken> {
+    public class YamlSequence : YamlContainer, IList<YamlElement> {
         private SequenceStart sequenceStart;
         private SequenceEnd sequenceEnd;
 
-        private List<YamlToken> contents;
+        private List<YamlElement> contents;
 
         public YamlSequence() {
             sequenceStart = new SequenceStart();
             sequenceEnd = new SequenceEnd();
-            contents = new List<YamlToken>();
+            contents = new List<YamlElement>();
         }
 
-        YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlToken> contents) {
+        YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents) {
             this.sequenceStart = sequenceStart;
             this.sequenceEnd = sequenceEnd;
             this.contents = contents;
@@ -297,12 +296,48 @@ namespace SharpYaml.YamlToken {
             set => sequenceStart = value;
         }
 
+        public override string Anchor {
+            get { return sequenceStart.Anchor; }
+            set {
+                sequenceStart = new SequenceStart(value,
+                                                 sequenceStart.Tag,
+                                                 sequenceStart.IsImplicit,
+                                                 sequenceStart.Style,
+                                                 sequenceStart.Start,
+                                                 sequenceStart.End);
+            }
+        }
+
+        public override string Tag {
+            get { return sequenceStart.Tag; }
+            set {
+                sequenceStart = new SequenceStart(sequenceStart.Anchor,
+                                                  value,
+                                                  sequenceStart.IsImplicit,
+                                                  sequenceStart.Style,
+                                                  sequenceStart.Start,
+                                                  sequenceStart.End);
+            }
+        }
+
+        public override YamlStyle Style {
+            get { return sequenceStart.Style; }
+            set {
+                sequenceStart = new SequenceStart(sequenceStart.Anchor,
+                                                  sequenceStart.Tag,
+                                                  sequenceStart.IsImplicit,
+                                                  value,
+                                                  sequenceStart.Start,
+                                                  sequenceStart.End);
+            }
+        }
+
         public static YamlSequence Load(EventReader eventReader) {
             var sequenceStart = eventReader.Allow<SequenceStart>();
 
-            var contents = new List<YamlToken>();
+            var contents = new List<YamlElement>();
             while (!eventReader.Accept<SequenceEnd>()) {
-                var item = ReadToken(eventReader);
+                var item = ReadElement(eventReader);
                 if (item != null)
                     contents.Add(item);
             }
@@ -328,11 +363,11 @@ namespace SharpYaml.YamlToken {
             return GetEnumerator();
         }
 
-        public IEnumerator<YamlToken> GetEnumerator() {
+        public IEnumerator<YamlElement> GetEnumerator() {
             return contents.GetEnumerator();
         }
 
-        public void Add(YamlToken item) {
+        public void Add(YamlElement item) {
             contents.Add(item);
         }
 
@@ -340,15 +375,15 @@ namespace SharpYaml.YamlToken {
             contents.Clear();
         }
 
-        public bool Contains(YamlToken item) {
+        public bool Contains(YamlElement item) {
             return contents.Contains(item);
         }
 
-        public void CopyTo(YamlToken[] array, int arrayIndex) {
+        public void CopyTo(YamlElement[] array, int arrayIndex) {
             contents.CopyTo(array, arrayIndex);
         }
 
-        public bool Remove(YamlToken item) {
+        public bool Remove(YamlElement item) {
             return contents.Remove(item);
         }
 
@@ -356,11 +391,11 @@ namespace SharpYaml.YamlToken {
 
         public bool IsReadOnly { get { return false; } }
 
-        public int IndexOf(YamlToken item) {
+        public int IndexOf(YamlElement item) {
             return contents.IndexOf(item);
         }
 
-        public void Insert(int index, YamlToken item) {
+        public void Insert(int index, YamlElement item) {
             contents.Insert(index, item);
         }
 
@@ -368,7 +403,7 @@ namespace SharpYaml.YamlToken {
             contents.RemoveAt(index);
         }
 
-        public YamlToken this[int index] {
+        public YamlElement this[int index] {
             get { return contents[index]; }
             set { contents[index] = value; }
         }
@@ -383,25 +418,25 @@ namespace SharpYaml.YamlToken {
 
             var sequenceEndCopy = new SequenceEnd(sequenceEnd.Start, sequenceEnd.End);
 
-            return new YamlSequence(sequenceStartCopy, sequenceEndCopy, contents.Select(c => c.DeepClone()).ToList());
+            return new YamlSequence(sequenceStartCopy, sequenceEndCopy, contents.Select(c => (YamlElement) c.DeepClone()).ToList());
         }
     }
 
-    public class YamlMapping : YamlContainer, IDictionary<YamlToken, YamlToken>, IList<KeyValuePair<YamlToken, YamlToken>> {
+    public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement>, IList<KeyValuePair<YamlElement, YamlElement>> {
         private MappingStart mappingStart;
         private MappingEnd mappingEnd;
 
-        private List<YamlToken> keys;
-        private Dictionary<YamlToken, YamlToken> contents;
+        private List<YamlElement> keys;
+        private Dictionary<YamlElement, YamlElement> contents;
 
         public YamlMapping() {
             mappingStart = new MappingStart();
             mappingEnd = new MappingEnd();
-            keys = new List<YamlToken>();
-            contents = new Dictionary<YamlToken, YamlToken>();
+            keys = new List<YamlElement>();
+            contents = new Dictionary<YamlElement, YamlElement>();
         }
 
-        YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlToken> keys, Dictionary<YamlToken, YamlToken> contents) {
+        YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement> contents) {
             this.mappingStart = mappingStart;
             this.mappingEnd = mappingEnd;
             this.keys = keys;
@@ -413,14 +448,50 @@ namespace SharpYaml.YamlToken {
             set => mappingStart = value;
         }
 
+        public override string Anchor {
+            get { return mappingStart.Anchor; }
+            set {
+                mappingStart = new MappingStart(value,
+                                                mappingStart.Tag,
+                                                mappingStart.IsImplicit,
+                                                mappingStart.Style,
+                                                mappingStart.Start,
+                                                mappingStart.End);
+            }
+        }
+
+        public override string Tag {
+            get { return mappingStart.Tag; }
+            set {
+                mappingStart = new MappingStart(mappingStart.Anchor,
+                                                value,
+                                                mappingStart.IsImplicit,
+                                                mappingStart.Style,
+                                                mappingStart.Start,
+                                                mappingStart.End);
+            }
+        }
+
+        public override YamlStyle Style {
+            get { return mappingStart.Style; }
+            set {
+                mappingStart = new MappingStart(mappingStart.Anchor,
+                                                mappingStart.Tag,
+                                                mappingStart.IsImplicit,
+                                                value,
+                                                mappingStart.Start,
+                                                mappingStart.End);
+            }
+        }
+
         public static YamlMapping Load(EventReader eventReader) {
             var mappingStart = eventReader.Allow<MappingStart>();
 
-            List<YamlToken> keys = new List<YamlToken>();
-            Dictionary<YamlToken, YamlToken> contents = new Dictionary<YamlToken, YamlToken>();
+            List<YamlElement> keys = new List<YamlElement>();
+            Dictionary<YamlElement, YamlElement> contents = new Dictionary<YamlElement, YamlElement>();
             while (!eventReader.Accept<MappingEnd>()) {
-                var key = ReadToken(eventReader);
-                var value = ReadToken(eventReader);
+                var key = ReadElement(eventReader);
+                var value = ReadElement(eventReader);
 
                 if (value == null)
                     throw new Exception();
@@ -452,11 +523,11 @@ namespace SharpYaml.YamlToken {
             return GetEnumerator();
         }
 
-        public IEnumerator<KeyValuePair<YamlToken, YamlToken>> GetEnumerator() {
+        public IEnumerator<KeyValuePair<YamlElement, YamlElement>> GetEnumerator() {
             return contents.GetEnumerator();
         }
 
-        void ICollection<KeyValuePair<YamlToken, YamlToken>>.Add(KeyValuePair<YamlToken, YamlToken> item) {
+        void ICollection<KeyValuePair<YamlElement, YamlElement>>.Add(KeyValuePair<YamlElement, YamlElement> item) {
             Add(item.Key, item.Value);
         }
 
@@ -465,31 +536,31 @@ namespace SharpYaml.YamlToken {
             keys.Clear();
         }
 
-        bool ICollection<KeyValuePair<YamlToken, YamlToken>>.Contains(KeyValuePair<YamlToken, YamlToken> item) {
+        bool ICollection<KeyValuePair<YamlElement, YamlElement>>.Contains(KeyValuePair<YamlElement, YamlElement> item) {
             return contents.ContainsKey(item.Key);
         }
 
-        void ICollection<KeyValuePair<YamlToken, YamlToken>>.CopyTo(KeyValuePair<YamlToken, YamlToken>[] array, int arrayIndex) {
-            ((ICollection<KeyValuePair<YamlToken, YamlToken>>)contents).CopyTo(array, arrayIndex);
+        void ICollection<KeyValuePair<YamlElement, YamlElement>>.CopyTo(KeyValuePair<YamlElement, YamlElement>[] array, int arrayIndex) {
+            ((ICollection<KeyValuePair<YamlElement, YamlElement>>)contents).CopyTo(array, arrayIndex);
         }
 
-        bool ICollection<KeyValuePair<YamlToken, YamlToken>>.Remove(KeyValuePair<YamlToken, YamlToken> item) {
+        bool ICollection<KeyValuePair<YamlElement, YamlElement>>.Remove(KeyValuePair<YamlElement, YamlElement> item) {
             return Remove(item.Key);
         }
 
         public int Count { get { return contents.Count; } }
         public bool IsReadOnly { get { return false; } }
 
-        public void Add(YamlToken key, YamlToken value) {
+        public void Add(YamlElement key, YamlElement value) {
             contents.Add(key, value);
             keys.Add(key);
         }
 
-        public bool ContainsKey(YamlToken key) {
+        public bool ContainsKey(YamlElement key) {
             return contents.ContainsKey(key);
         }
 
-        public bool Remove(YamlToken key) {
+        public bool Remove(YamlElement key) {
             if (contents.Remove(key)) {
                 keys.Remove(key);
                 return true;
@@ -498,11 +569,11 @@ namespace SharpYaml.YamlToken {
             return false;
         }
 
-        public bool TryGetValue(YamlToken key, out YamlToken value) {
+        public bool TryGetValue(YamlElement key, out YamlElement value) {
             return contents.TryGetValue(key, out value);
         }
 
-        public YamlToken this[YamlToken key] {
+        public YamlElement this[YamlElement key] {
             get {
                 if (!contents.ContainsKey(key))
                     return null;
@@ -516,19 +587,19 @@ namespace SharpYaml.YamlToken {
             }
         }
 
-        public YamlToken this[string key] {
+        public YamlElement this[string key] {
             get { return this[new YamlValue(key)]; }
             set { this[new YamlValue(key)] = value; }
         }
 
-        public ICollection<YamlToken> Keys { get { return keys; } }
-        public ICollection<YamlToken> Values { get { return contents.Values; } }
+        public ICollection<YamlElement> Keys { get { return keys; } }
+        public ICollection<YamlElement> Values { get { return contents.Values; } }
 
-        public int IndexOf(KeyValuePair<YamlToken, YamlToken> item) {
+        public int IndexOf(KeyValuePair<YamlElement, YamlElement> item) {
             return keys.IndexOf(item.Key);
         }
 
-        public void Insert(int index, KeyValuePair<YamlToken, YamlToken> item) {
+        public void Insert(int index, KeyValuePair<YamlElement, YamlElement> item) {
             if (contents.ContainsKey(item.Key))
                 throw new Exception("Key already present.");
 
@@ -542,8 +613,8 @@ namespace SharpYaml.YamlToken {
             contents.Remove(key);
         }
 
-        public KeyValuePair<YamlToken, YamlToken> this[int index] {
-            get { return new KeyValuePair<YamlToken, YamlToken>(keys[index], contents[keys[index]]); }
+        public KeyValuePair<YamlElement, YamlElement> this[int index] {
+            get { return new KeyValuePair<YamlElement, YamlElement>(keys[index], contents[keys[index]]); }
             set {
                 if (keys[index] != value.Key && contents.ContainsKey(value.Key))
                     throw new Exception("Key already present at a different index.");
@@ -569,12 +640,12 @@ namespace SharpYaml.YamlToken {
 
             return new YamlMapping(mappingStartCopy,
                                    mappingEndCopy,
-                                   keys.Select(k => k.DeepClone()).ToList(),
-                                   contents.ToDictionary(kv => kv.Key.DeepClone(), kv => kv.Value.DeepClone()));
+                                   keys.Select(k => (YamlElement) k.DeepClone()).ToList(),
+                                   contents.ToDictionary(kv => (YamlElement) kv.Key.DeepClone(), kv => (YamlElement) kv.Value.DeepClone()));
         }
     }
 
-    public class YamlValue : YamlToken {
+    public class YamlValue : YamlElement {
         private Scalar scalar;
 
         YamlValue(Scalar scalar) {
@@ -623,6 +694,34 @@ namespace SharpYaml.YamlToken {
                                             scalar.IsQuotedImplicit,
                                             scalar.Start,
                                             scalar.End));
+        }
+
+        public override string Anchor {
+            get { return scalar.Anchor; }
+            set {
+                scalar = new Scalar(value,
+                                    scalar.Tag,
+                                    scalar.Value,
+                                    scalar.Style,
+                                    scalar.IsPlainImplicit,
+                                    scalar.IsQuotedImplicit,
+                                    scalar.Start,
+                                    scalar.End);
+            }
+        }
+
+        public override string Tag {
+            get { return scalar.Tag; }
+            set {
+                scalar = new Scalar(scalar.Anchor,
+                                    value,
+                                    scalar.Value,
+                                    scalar.Style,
+                                    scalar.IsPlainImplicit,
+                                    scalar.IsQuotedImplicit,
+                                    scalar.Start,
+                                    scalar.End);
+            }
         }
     }
 }

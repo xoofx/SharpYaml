@@ -26,7 +26,7 @@ namespace SharpYaml.Tests {
 
             var firstCollectionIndicatorValue = collectionIndicators[firstCollectionIndicator];
 
-            collectionIndicators[0] = new KeyValuePair<YamlToken.YamlToken, YamlToken.YamlToken>(
+            collectionIndicators[0] = new KeyValuePair<YamlElement, YamlElement>(
                 new YamlValue(":-)"),
                 firstCollectionIndicatorValue
             );
@@ -99,9 +99,9 @@ namespace SharpYaml.Tests {
             var serialized = new StringBuilder();
             stream.WriteTo(new StringWriter(serialized), true);
 
-            var clone = (YamlStream) stream.DeepClone();
+            var clone = (YamlStream)stream.DeepClone();
 
-            ((YamlMapping) ((YamlMapping) clone[0].Contents)[2].Value)[new YamlValue("key 2")] = new YamlValue("value 3");
+            ((YamlMapping)((YamlMapping)clone[0].Contents)[2].Value)[new YamlValue("key 2")] = new YamlValue("value 3");
 
             var serialized2 = new StringBuilder();
             stream.WriteTo(new StringWriter(serialized2), true);
@@ -122,12 +122,12 @@ namespace SharpYaml.Tests {
             var fileStream = new StreamReader(file);
             var stream = YamlStream.Load(fileStream);
 
-            Assert.AreEqual("value 2", ((YamlMapping) ((YamlMapping) stream[0].Contents)[2].Value)["key 2"].ToObject<string>());
+            Assert.AreEqual("value 2", ((YamlMapping)((YamlMapping)stream[0].Contents)[2].Value)["key 2"].ToObject<string>());
 
             ((YamlMapping)((YamlMapping)stream[0].Contents)[2].Value)["key 3"] = new YamlValue("value 3");
 
             Assert.AreEqual("key 3", ((YamlMapping)((YamlMapping)stream[0].Contents)[2].Value)[2].Key.ToObject<string>());
-            Assert.AreEqual("value 3", ((YamlMapping) ((YamlMapping) stream[0].Contents)[2].Value)[2].Value.ToObject<string>());
+            Assert.AreEqual("value 3", ((YamlMapping)((YamlMapping)stream[0].Contents)[2].Value)[2].Value.ToObject<string>());
         }
 
 
@@ -139,7 +139,7 @@ namespace SharpYaml.Tests {
             var fileStream = new StreamReader(file);
             var stream = YamlStream.Load(fileStream);
 
-            Assert.IsNull(((YamlMapping) stream[0].Contents)["Bla"]);
+            Assert.IsNull(((YamlMapping)stream[0].Contents)["Bla"]);
         }
 
 
@@ -153,7 +153,49 @@ namespace SharpYaml.Tests {
 
             Assert.AreEqual("[item 1, item 2, item 3]", stream.ToString());
             Assert.AreEqual("[item 1, item 2, item 3]", stream[0].Contents.ToString());
-            Assert.AreEqual("item 1", ((YamlSequence) stream[0].Contents)[0].ToString());
+            Assert.AreEqual("item 1", ((YamlSequence)stream[0].Contents)[0].ToString());
+        }
+
+        [Test]
+        public void StyleTest() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test10.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            var seq = (YamlSequence)(YamlContainer)stream[0].Contents;
+            Assert.AreEqual(YamlStyle.Block, seq.Style);
+            Assert.AreEqual(YamlStyle.Block, ((YamlContainer)seq[2]).Style);
+            Assert.AreEqual(YamlStyle.Block, ((YamlContainer)seq[3]).Style);
+
+            seq.Style = YamlStyle.Flow;
+            ((YamlContainer)seq[2]).Style = YamlStyle.Flow;
+            ((YamlContainer)seq[3]).Style = YamlStyle.Flow;
+
+            var serialized = new StringBuilder();
+            stream.WriteTo(new StringWriter(serialized), true);
+            Assert.AreEqual(1, serialized.ToString().Split(new[] { "\r\n" }, System.StringSplitOptions.RemoveEmptyEntries).Length);
+        }
+
+        [Test]
+        public void TagTest() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.dictionaryExplicit.yaml");
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream);
+
+            var dict = stream[0].Contents.ToObject<object>();
+
+            Assert.AreEqual(typeof(Dictionary<string, int>), dict.GetType());
+            Assert.AreEqual("!System.Collections.Generic.Dictionary`2[System.String,System.Int32],mscorlib", stream[0].Contents.Tag);
+
+            stream[0].Contents.Tag = "!System.Collections.Generic.Dictionary`2[System.String,System.Double],mscorlib";
+
+            var dict2 = stream[0].Contents.ToObject<object>();
+
+            Assert.AreEqual(typeof(Dictionary<string, double>), dict2.GetType());
         }
     }
 }
