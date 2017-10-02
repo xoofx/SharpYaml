@@ -192,10 +192,12 @@ namespace SharpYaml.Serialization.Serializers
             return text + ".0";
         }
 
-        public override string ConvertTo(ref ObjectContext objectContext)
-        {
+        public override string ConvertTo(ref ObjectContext objectContext) {
+            return ConvertValue(objectContext.Instance);
+        }
+
+        public static string ConvertValue(object value) {
             var text = string.Empty;
-            var value = objectContext.Instance;
 
             // Return null if expected type is an object and scalar is null
             if (value == null)
