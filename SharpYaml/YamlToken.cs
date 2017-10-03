@@ -797,5 +797,19 @@ namespace SharpYaml.YamlToken {
                     scalar.End);
             }
         }
+
+        public string Value {
+            get { return scalar.Value; }
+            set {
+                scalar = new Scalar(scalar.Anchor,
+                    scalar.Tag,
+                    value,
+                    scalar.Style,
+                    scalar.IsPlainImplicit,
+                    scalar.IsQuotedImplicit,
+                    scalar.Start,
+                    scalar.End);
+            }
+        }
     }
 }
