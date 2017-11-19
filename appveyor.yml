@@ -7,15 +7,13 @@ install:
 
     $env:SHARPYAML_BUILD_NUMBER = ([int]$env:APPVEYOR_BUILD_NUMBER).ToString("000")
    
-    $env:SHARPYAML_VERSION_SUFFIX = "pre$env:SHARPYAML_BUILD_NUMBER"
-
     $env:appveyor_nuget_push = 'false'
 
     if(-Not $env:APPVEYOR_PULL_REQUEST_NUMBER) {
-      $env:appveyor_nuget_push = 'true'
       if($env:appveyor_repo_tag -eq 'True') {
     	  if($env:appveyor_repo_tag_name -match '^v[0-9]') {
            $env:SHARPYAML_VERSION_SUFFIX = ""
+           $env:appveyor_nuget_push = 'true'
         }
       }
     }
@@ -23,7 +21,7 @@ build:
   project: SharpYaml.sln
   verbosity: minimal
 before_package:
-- cmd: msbuild /t:pack /p:VersionSuffix="%SHARPYAML_VERSION_SUFFIX%" /p:Configuration=Release SharpYaml/SharpYaml.csproj
+- cmd: msbuild /t:pack /p:Configuration=Release SharpYaml/SharpYaml.csproj
 artifacts:
 - path: SharpYaml\Bin\Release\*.nupkg
   name: SharpYaml Nugets

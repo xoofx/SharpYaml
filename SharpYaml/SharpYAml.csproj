@@ -14,7 +14,8 @@
     <PackageTags>yaml;parser;yml</PackageTags>
     <PackageReleaseNotes>
 &gt; 1.6.2
--Add YamlToken hierarchy to allow modification of the parse tree.
+- Add YamlNode hierarchy to allow modification of the parse tree.
+- Add support for Guid and DateTimeOffset
 &gt; 1.6.1
 - Improve support for unicode escape characters
 &gt; 1.6.0      
