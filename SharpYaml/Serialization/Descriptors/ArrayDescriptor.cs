@@ -56,8 +56,6 @@ namespace SharpYaml.Serialization.Descriptors
     public class ArrayDescriptor : ObjectDescriptor
     {
         private readonly Type elementType;
-        private readonly Type listType;
-        private readonly MethodInfo toArrayMethod;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -78,8 +76,6 @@ namespace SharpYaml.Serialization.Descriptors
             }
 
             elementType = type.GetElementType();
-            listType = typeof(List<>).MakeGenericType(ElementType);
-            toArrayMethod = listType.GetMethod("ToArray");
         }
 
         public override DescriptorCategory Category { get { return DescriptorCategory.Array; } }
