@@ -106,7 +106,7 @@ namespace SharpYaml.Serialization.Descriptors
             {
                 case TypeCode.Object:
                 case TypeCode.Empty:
-                    return type == typeof(object) || type == typeof(TimeSpan);
+                    return type == typeof(object) || type == typeof(TimeSpan) || type == typeof(Guid) || type == typeof(DateTimeOffset);
             }
             return true;
         }

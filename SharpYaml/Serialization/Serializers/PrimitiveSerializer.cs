@@ -112,6 +112,18 @@ namespace SharpYaml.Serialization.Serializers
                 return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
 #endif
             }
+            else if (type == typeof(DateTimeOffset))
+            {
+#if NET35
+                return DateTimeOffset.Parse(text);
+#else
+                return DateTimeOffset.Parse(text, CultureInfo.InvariantCulture);
+#endif
+            }
+            else if (type == typeof(Guid))
+            {
+                return new Guid(text);
+            }
 
             // Remove _ character from numeric values
             text = text.Replace("_", string.Empty);
@@ -270,6 +282,18 @@ namespace SharpYaml.Serialization.Serializers
 #else
                             text = ((TimeSpan) value).ToString("G", CultureInfo.InvariantCulture);
 #endif
+                        }
+                        else if (valueType == typeof(DateTimeOffset))
+                        {
+#if NET35
+                            text = string.Format("{0:o}", ((DateTimeOffset) value));
+#else
+                            text = ((DateTimeOffset) value).ToString("o", CultureInfo.InvariantCulture);
+#endif
+                        }
+                        else if (valueType == typeof(Guid))
+                        {
+                            text = ((Guid)value).ToString();
                         }
                         break;
                 }

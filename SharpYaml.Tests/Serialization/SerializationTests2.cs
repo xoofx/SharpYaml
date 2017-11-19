@@ -47,6 +47,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -222,6 +223,12 @@ Value: World!
             public int[] Array { get; set; }
 
             public int[] ArrayContent { get; private set; }
+
+            public Guid Guid { get; set; }
+
+            public DateTime DateTime { get; set; }
+
+            public DateTimeOffset DateTimeOffset { get; set; }
         }
 
         [Test]
@@ -235,11 +242,14 @@ ArrayContent: [1, 2]
 Bool: true
 BoolFalse: false
 Byte: 2
+DateTime: 2017-11-20T01:02:03.0000000
+DateTimeOffset: 2017-11-20T01:02:03.0040000+00:00
 Decimal: 4623451.0232342352463856744563
 Double: 6.6
 Enum: B
 EnumWithFlags: A, B
 Float: 5.5
+Guid: cdd23e22-cf88-4978-8ce2-72beb1cf48e6
 Int16: 3
 Int32: 5
 Int64: 7
@@ -249,7 +259,6 @@ UInt16: 4
 UInt32: 6
 UInt64: 8
 ".Trim();
-
             var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 20};
             settings.RegisterTagMapping("MyObject", typeof(MyObject));
             SerialRoundTrip(settings, text);
