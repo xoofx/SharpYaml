@@ -5,11 +5,11 @@ using System.Text;
 using NUnit.Framework;
 using SharpYaml.Events;
 using SharpYaml.Serialization;
-using SharpYaml.YamlToken;
-using YamlStream = SharpYaml.YamlToken.YamlStream;
+using SharpYaml.Model;
+using YamlStream = SharpYaml.Model.YamlStream;
 
 namespace SharpYaml.Tests {
-    public class YamlTokenTest {
+    public class YamlNodeTest {
         [Test]
         public void ReadYamlReference() {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -72,10 +72,10 @@ namespace SharpYaml.Tests {
         [Test]
         public void FromObject() {
             var stream = new YamlStream();
-            var document = new YamlToken.YamlDocument();
+            var document = new Model.YamlDocument();
             stream.Add(document);
 
-            var sequence = (YamlSequence)YamlToken.YamlToken.FromObject(new[] { "item 4", "item 5", "item 6" }, new SerializerSettings { EmitAlias = false }, typeof(string[]));
+            var sequence = (YamlSequence)Model.YamlNode.FromObject(new[] { "item 4", "item 5", "item 6" }, new SerializerSettings { EmitAlias = false }, typeof(string[]));
 
             sequence.SequenceStart = new SequenceStart(sequence.SequenceStart.Anchor, sequence.SequenceStart.Tag, true, YamlStyle.Flow);
 

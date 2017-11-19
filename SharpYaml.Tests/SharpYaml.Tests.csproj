@@ -69,7 +69,7 @@
     <Compile Include="Serialization\TracingVisitor.cs" />
     <Compile Include="Serialization\YamlStreamTests.cs" />
     <Compile Include="YamlTest.cs" />
-    <Compile Include="YamlTokenTest.cs" />
+    <Compile Include="YamlNodeTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="files\backreference.yaml" />
