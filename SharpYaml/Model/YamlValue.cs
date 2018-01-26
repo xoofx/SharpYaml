@@ -51,21 +51,6 @@ namespace SharpYaml.Model
             yield return _scalar;
         }
 
-        protected bool Equals(YamlValue other) {
-            return Equals(_scalar.Value, other._scalar.Value);
-        }
-
-        public override bool Equals(object obj) {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((YamlValue)obj);
-        }
-
-        public override int GetHashCode() {
-            return _scalar?.Value?.GetHashCode() ?? 0;
-        }
-
         public override YamlNode DeepClone() {
             return new YamlValue(new Scalar(_scalar.Anchor,
                 _scalar.Tag,

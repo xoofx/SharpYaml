@@ -23,14 +23,15 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpYaml.Events;
 
-namespace SharpYaml.Model
-{
+namespace SharpYaml.Model {
     public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement>, IList<KeyValuePair<YamlElement, YamlElement>> {
         private MappingStart _mappingStart;
         private readonly MappingEnd _mappingEnd;
 
         private readonly List<YamlElement> _keys;
         private readonly Dictionary<YamlElement, YamlElement> _contents;
+
+        private Dictionary<string, YamlValue> stringKeys;
 
         public YamlMapping() {
             _mappingStart = new MappingStart();
@@ -40,10 +41,10 @@ namespace SharpYaml.Model
         }
 
         YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement> contents) {
-            this._mappingStart = mappingStart;
+            MappingStart = mappingStart;
             this._mappingEnd = mappingEnd;
-            this._keys = keys;
-            this._contents = contents;
+            _keys = keys;
+            _contents = contents;
         }
 
         public MappingStart MappingStart {
@@ -54,7 +55,7 @@ namespace SharpYaml.Model
         public override string Anchor {
             get { return _mappingStart.Anchor; }
             set {
-                _mappingStart = new MappingStart(value,
+                MappingStart = new MappingStart(value,
                     _mappingStart.Tag,
                     _mappingStart.IsImplicit,
                     _mappingStart.Style,
@@ -66,7 +67,7 @@ namespace SharpYaml.Model
         public override string Tag {
             get { return _mappingStart.Tag; }
             set {
-                _mappingStart = new MappingStart(_mappingStart.Anchor,
+                MappingStart = new MappingStart(_mappingStart.Anchor,
                     value,
                     _mappingStart.IsImplicit,
                     _mappingStart.Style,
@@ -78,7 +79,7 @@ namespace SharpYaml.Model
         public override YamlStyle Style {
             get { return _mappingStart.Style; }
             set {
-                _mappingStart = new MappingStart(_mappingStart.Anchor,
+                MappingStart = new MappingStart(_mappingStart.Anchor,
                     _mappingStart.Tag,
                     _mappingStart.IsImplicit,
                     value,
@@ -92,7 +93,7 @@ namespace SharpYaml.Model
         public override bool IsImplicit {
             get { return _mappingStart.IsImplicit; }
             set {
-                _mappingStart = new MappingStart(_mappingStart.Anchor,
+                MappingStart = new MappingStart(_mappingStart.Anchor,
                     _mappingStart.Tag,
                     value,
                     _mappingStart.Style,
@@ -151,6 +152,8 @@ namespace SharpYaml.Model
         public void Clear() {
             _contents.Clear();
             _keys.Clear();
+
+            stringKeys = null;
         }
 
         bool ICollection<KeyValuePair<YamlElement, YamlElement>>.Contains(KeyValuePair<YamlElement, YamlElement> item) {
@@ -171,6 +174,10 @@ namespace SharpYaml.Model
         public void Add(YamlElement key, YamlElement value) {
             _contents.Add(key, value);
             _keys.Add(key);
+
+            if (stringKeys != null && key is YamlValue) {
+                stringKeys[((YamlValue)key).Value] = (YamlValue)key;
+            }
         }
 
         public bool ContainsKey(YamlElement key) {
@@ -178,8 +185,26 @@ namespace SharpYaml.Model
         }
 
         public bool Remove(YamlElement key) {
-            if (_contents.Remove(key)) {
-                _keys.Remove(key);
+            var index = _keys.IndexOf(key);
+            if (index >= 0) {
+                RemoveAt(index);
+                return true;
+            }
+
+            return false;
+        }
+
+
+        public bool Remove(string key) {
+            if (stringKeys == null)
+                stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+            YamlValue yaml;
+            if (!stringKeys.TryGetValue(key, out yaml))
+                return false;
+
+            if (Remove(yaml)) {
+                stringKeys.Remove(key);
                 return true;
             }
 
@@ -197,16 +222,38 @@ namespace SharpYaml.Model
                 return _contents[key];
             }
             set {
-                if (!_contents.ContainsKey(key))
+                var keyAdded = false;
+                if (!_contents.ContainsKey(key)) {
                     _keys.Add(key);
+                    
+                    if (stringKeys != null && key is YamlValue) {
+                        stringKeys[((YamlValue)key).Value] = (YamlValue)key;
+                    }
+                }
 
                 _contents[key] = value;
             }
         }
 
         public YamlElement this[string key] {
-            get { return this[new YamlValue(key)]; }
-            set { this[new YamlValue(key)] = value; }
+            get {
+                if (stringKeys == null)
+                    stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+                if (!stringKeys.ContainsKey(key))
+                    return null;
+
+                return this[stringKeys[key]];
+            }
+            set {
+                if (stringKeys == null)
+                    stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+                if (!stringKeys.ContainsKey(key))
+                    stringKeys[key] = new YamlValue(key);
+
+                this[stringKeys[key]] = value;
+            }
         }
 
         public ICollection<YamlElement> Keys { get { return _keys; } }
@@ -222,12 +269,22 @@ namespace SharpYaml.Model
 
             _keys.Insert(index, item.Key);
             _contents[item.Key] = item.Value;
+
+            if (stringKeys != null && item.Key is YamlValue) {
+                stringKeys[((YamlValue)item.Key).Value] = (YamlValue)item.Key;
+            }
         }
 
         public void RemoveAt(int index) {
             var key = _keys[index];
+            var value = _contents[key];
+
             _keys.RemoveAt(index);
             _contents.Remove(key);
+
+            if (stringKeys != null && key is YamlValue) {
+                stringKeys.Remove(((YamlValue)key).Value);
+            }
         }
 
         public KeyValuePair<YamlElement, YamlElement> this[int index] {
@@ -236,8 +293,18 @@ namespace SharpYaml.Model
                 if (_keys[index] != value.Key && _contents.ContainsKey(value.Key))
                     throw new Exception("Key already present at a different index.");
 
+                var oldKey = _keys[index];
+
                 if (_keys[index] != value.Key) {
                     _contents.Remove(_keys[index]);
+                }
+
+                if (stringKeys != null && oldKey is YamlValue) {
+                    stringKeys[((YamlValue)oldKey).Value] = (YamlValue)oldKey;
+                }
+
+                if (stringKeys != null && value.Key is YamlValue) {
+                    stringKeys[((YamlValue)value.Key).Value] = (YamlValue)value.Key;
                 }
 
                 _keys[index] = value.Key;
@@ -246,7 +313,7 @@ namespace SharpYaml.Model
         }
 
         public override YamlNode DeepClone() {
-            var mappingStartCopy = new MappingStart(_mappingStart.Anchor, 
+            var mappingStartCopy = new MappingStart(_mappingStart.Anchor,
                 _mappingStart.Tag,
                 _mappingStart.IsImplicit,
                 _mappingStart.Style,
@@ -255,10 +322,17 @@ namespace SharpYaml.Model
 
             var mappingEndCopy = new MappingEnd(_mappingEnd.Start, _mappingEnd.End);
 
+            var cloneKeys = _keys.Select(k => (YamlElement)k.DeepClone()).ToList();
+
+            var cloneContents = new Dictionary<YamlElement, YamlElement>();
+
+            for (var i = 0; i < _keys.Count; i++)
+                cloneContents[cloneKeys[i]] = (YamlElement)_contents[_keys[i]].DeepClone();
+
             return new YamlMapping(mappingStartCopy,
                 mappingEndCopy,
-                _keys.Select(k => (YamlElement) k.DeepClone()).ToList(),
-                _contents.ToDictionary(kv => (YamlElement) kv.Key.DeepClone(), kv => (YamlElement) kv.Value.DeepClone()));
+                cloneKeys,
+                cloneContents);
         }
     }
 }

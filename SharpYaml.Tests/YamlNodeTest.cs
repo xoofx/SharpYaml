@@ -18,7 +18,7 @@ namespace SharpYaml.Tests {
             var fileStream = new StreamReader(file);
             var stream = YamlStream.Load(fileStream);
 
-            var collectionIndicators = ((YamlMapping)((YamlMapping)stream[0].Contents)[new YamlValue("Collection indicators")]);
+            var collectionIndicators = ((YamlMapping)((YamlMapping)stream[0].Contents)["Collection indicators"]);
 
             var firstCollectionIndicator = collectionIndicators.Keys.First();
 
@@ -37,7 +37,7 @@ namespace SharpYaml.Tests {
 
             stream = YamlStream.Load(new StringReader(serialized.ToString()));
 
-            collectionIndicators = ((YamlMapping)((YamlMapping)stream[0].Contents)[new YamlValue("Collection indicators")]);
+            collectionIndicators = ((YamlMapping)((YamlMapping)stream[0].Contents)["Collection indicators"]);
 
             firstCollectionIndicator = collectionIndicators.Keys.First();
 
