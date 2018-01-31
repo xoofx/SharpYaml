@@ -35,20 +35,22 @@ namespace SharpYaml.Model
             _documentEnd = new DocumentEnd(true);
         }
 
-        YamlDocument(DocumentStart documentStart, DocumentEnd documentEnd, YamlElement contents) {
-            this._documentStart = documentStart;
-            this._documentEnd = documentEnd;
-            this._contents = contents;
+        YamlDocument(DocumentStart documentStart, DocumentEnd documentEnd, YamlElement contents, YamlNodeTracker tracker) {
+            Tracker = tracker;
+
+            DocumentStart = documentStart;
+            DocumentEnd = documentEnd;
+            Contents = contents;
         }
 
-        public static YamlDocument Load(EventReader eventReader) {
+        public static YamlDocument Load(EventReader eventReader, YamlNodeTracker tracker = null) {
             var documentStart = eventReader.Allow<DocumentStart>();
 
-            var contents = ReadElement(eventReader);
+            var contents = ReadElement(eventReader, tracker);
 
             var documentEnd = eventReader.Allow<DocumentEnd>();
 
-            return new YamlDocument(documentStart, documentEnd, contents);
+            return new YamlDocument(documentStart, documentEnd, contents, tracker);
         }
 
         public override IEnumerable<ParsingEvent> EnumerateEvents() {
@@ -63,17 +65,40 @@ namespace SharpYaml.Model
 
         public DocumentStart DocumentStart {
             get => _documentStart;
-            set => _documentStart = value;
+            set {
+                var oldValue = _documentStart;
+
+                _documentStart = value;
+
+                if (Tracker != null)
+                    Tracker.OnDocumentStartChanged(this, oldValue, value);
+            }
         }
 
         public DocumentEnd DocumentEnd {
             get => _documentEnd;
-            set => _documentEnd = value;
+            set {
+                var oldValue = _documentEnd;
+
+                _documentEnd = value;
+
+                if (Tracker != null)
+                    Tracker.OnDocumentEndChanged(this, oldValue, value);
+            }
         }
 
         public YamlElement Contents {
             get { return _contents; }
-            set { _contents = value; }
+            set {
+                var oldValue = _contents;
+
+                _contents = value;
+
+                if (Tracker != null) {
+                    value.Tracker = Tracker;
+                    Tracker.OnDocumentContentsChanged(this, oldValue, value);
+                }
+            }
         }
 
         public override YamlNode DeepClone() {
@@ -88,7 +113,7 @@ namespace SharpYaml.Model
 
             var documentEndCopy = new DocumentEnd(_documentEnd.IsImplicit, _documentEnd.Start, _documentEnd.End);
 
-            return new YamlDocument(documentStartCopy, documentEndCopy, (YamlElement) Contents?.DeepClone());
+            return new YamlDocument(documentStartCopy, documentEndCopy, (YamlElement) Contents?.DeepClone(), Tracker);
         }
     }
 }

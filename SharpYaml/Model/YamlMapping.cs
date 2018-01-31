@@ -40,16 +40,34 @@ namespace SharpYaml.Model {
             _contents = new Dictionary<YamlElement, YamlElement>();
         }
 
-        YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement> contents) {
+        YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement> contents, YamlNodeTracker tracker) {
+            Tracker = tracker;
+
             MappingStart = mappingStart;
             this._mappingEnd = mappingEnd;
-            _keys = keys;
-            _contents = contents;
+
+            if (Tracker == null) {
+                _keys = keys;
+                _contents = contents;
+            }
+            else {
+                _keys = new List<YamlElement>();
+                _contents = new Dictionary<YamlElement, YamlElement>();
+                foreach (var key in keys)
+                    Add(key, contents[key]);
+            }
         }
 
         public MappingStart MappingStart {
             get => _mappingStart;
-            set => _mappingStart = value;
+            set {
+                var oldValue = _mappingStart;
+
+                _mappingStart = value;
+
+                if (Tracker != null)
+                    Tracker.OnMappingStartChanged(this, oldValue, value);
+            }
         }
 
         public override string Anchor {
@@ -102,14 +120,14 @@ namespace SharpYaml.Model {
             }
         }
 
-        public static YamlMapping Load(EventReader eventReader) {
+        public static YamlMapping Load(EventReader eventReader, YamlNodeTracker tracker) {
             var mappingStart = eventReader.Allow<MappingStart>();
 
             List<YamlElement> keys = new List<YamlElement>();
             Dictionary<YamlElement, YamlElement> contents = new Dictionary<YamlElement, YamlElement>();
             while (!eventReader.Accept<MappingEnd>()) {
-                var key = ReadElement(eventReader);
-                var value = ReadElement(eventReader);
+                var key = ReadElement(eventReader, tracker);
+                var value = ReadElement(eventReader, tracker);
 
                 if (value == null)
                     throw new Exception();
@@ -120,7 +138,7 @@ namespace SharpYaml.Model {
 
             var mappingEnd = eventReader.Allow<MappingEnd>();
 
-            return new YamlMapping(mappingStart, mappingEnd, keys, contents);
+            return new YamlMapping(mappingStart, mappingEnd, keys, contents, tracker);
         }
 
         public override IEnumerable<ParsingEvent> EnumerateEvents() {
@@ -150,10 +168,17 @@ namespace SharpYaml.Model {
         }
 
         public void Clear() {
+            var values = Tracker == null ? null : this.ToList();
+
             _contents.Clear();
             _keys.Clear();
 
             stringKeys = null;
+
+            if (Tracker != null) {
+                for (int i = values.Count; i >= 0; i--)
+                    Tracker.OnMappingRemovePair(this, values[i], i);
+            }
         }
 
         bool ICollection<KeyValuePair<YamlElement, YamlElement>>.Contains(KeyValuePair<YamlElement, YamlElement> item) {
@@ -176,12 +201,26 @@ namespace SharpYaml.Model {
             _keys.Add(key);
 
             if (stringKeys != null && key is YamlValue) {
-                stringKeys[((YamlValue)key).Value] = (YamlValue)key;
+                stringKeys[((YamlValue) key).Value] = (YamlValue) key;
+            }
+
+            if (Tracker != null) {
+                key.Tracker = Tracker;
+                value.Tracker = Tracker;
+
+                Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement>(key, value), _keys.Count - 1);
             }
         }
 
         public bool ContainsKey(YamlElement key) {
             return _contents.ContainsKey(key);
+        }
+
+        public bool ContainsKey(string key) {
+            if (stringKeys == null)
+                stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+            return stringKeys.ContainsKey(key);
         }
 
         public bool Remove(YamlElement key) {
@@ -215,6 +254,19 @@ namespace SharpYaml.Model {
             return _contents.TryGetValue(key, out value);
         }
 
+        public bool TryGetValue(string key, out YamlElement value) {
+            if (stringKeys == null)
+                stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+            YamlValue yamlKey;
+            if (!stringKeys.TryGetValue(key, out yamlKey)) {
+                value = null;
+                return false;
+            }
+
+            return TryGetValue(yamlKey, out value);
+        }
+
         public YamlElement this[YamlElement key] {
             get {
                 if (!_contents.ContainsKey(key))
@@ -225,6 +277,16 @@ namespace SharpYaml.Model {
                 var keyAdded = false;
                 if (!_contents.ContainsKey(key)) {
                     _keys.Add(key);
+                    keyAdded = true;
+
+                    if (stringKeys != null && key is YamlValue) {
+                        stringKeys[((YamlValue)key).Value] = (YamlValue)key;
+                    }
+                }
+
+                YamlElement oldContents = null;
+                if (!keyAdded && Tracker != null) {
+                    oldContents = _contents[key];
                     
                     if (stringKeys != null && key is YamlValue) {
                         stringKeys[((YamlValue)key).Value] = (YamlValue)key;
@@ -232,6 +294,21 @@ namespace SharpYaml.Model {
                 }
 
                 _contents[key] = value;
+
+                if (Tracker != null) {
+                    if (keyAdded) {
+                        key.Tracker = Tracker;
+                        value.Tracker = Tracker;
+                        Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement>(key, value),
+                            _keys.Count - 1);
+                    }
+                    else {
+                        value.Tracker = Tracker;
+                        Tracker.OnMappingPairChanged(this, _keys.IndexOf(key),
+                            new KeyValuePair<YamlElement, YamlElement>(key, oldContents),
+                            new KeyValuePair<YamlElement, YamlElement>(key, value));
+                    }
+                }
             }
         }
 
@@ -249,9 +326,9 @@ namespace SharpYaml.Model {
                 if (stringKeys == null)
                     stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-                if (!stringKeys.ContainsKey(key))
+                if (!stringKeys.ContainsKey(key)) 
                     stringKeys[key] = new YamlValue(key);
-
+                
                 this[stringKeys[key]] = value;
             }
         }
@@ -271,7 +348,13 @@ namespace SharpYaml.Model {
             _contents[item.Key] = item.Value;
 
             if (stringKeys != null && item.Key is YamlValue) {
-                stringKeys[((YamlValue)item.Key).Value] = (YamlValue)item.Key;
+                stringKeys[((YamlValue)item.Key).Value] = (YamlValue) item.Key;
+            }
+
+            if (Tracker != null) {
+                item.Key.Tracker = Tracker;
+                item.Value.Tracker = Tracker;
+                Tracker.OnMappingAddPair(this, item, index);
             }
         }
 
@@ -283,8 +366,11 @@ namespace SharpYaml.Model {
             _contents.Remove(key);
 
             if (stringKeys != null && key is YamlValue) {
-                stringKeys.Remove(((YamlValue)key).Value);
+                stringKeys.Remove(((YamlValue) key).Value);
             }
+
+            if (Tracker != null)
+                Tracker.OnMappingRemovePair(this, new KeyValuePair<YamlElement, YamlElement>(key, value), index);
         }
 
         public KeyValuePair<YamlElement, YamlElement> this[int index] {
@@ -294,6 +380,7 @@ namespace SharpYaml.Model {
                     throw new Exception("Key already present at a different index.");
 
                 var oldKey = _keys[index];
+                var oldValue = _contents[oldKey];
 
                 if (_keys[index] != value.Key) {
                     _contents.Remove(_keys[index]);
@@ -309,6 +396,15 @@ namespace SharpYaml.Model {
 
                 _keys[index] = value.Key;
                 _contents[value.Key] = value.Value;
+
+
+                if (Tracker != null) {
+                    value.Key.Tracker = Tracker;
+                    value.Value.Tracker = Tracker;
+                    Tracker.OnMappingPairChanged(this, index,
+                        new KeyValuePair<YamlElement, YamlElement>(oldKey, oldValue),
+                        value);
+                }
             }
         }
 
@@ -322,17 +418,18 @@ namespace SharpYaml.Model {
 
             var mappingEndCopy = new MappingEnd(_mappingEnd.Start, _mappingEnd.End);
 
-            var cloneKeys = _keys.Select(k => (YamlElement)k.DeepClone()).ToList();
+            var cloneKeys = _keys.Select(k => (YamlElement) k.DeepClone()).ToList();
 
             var cloneContents = new Dictionary<YamlElement, YamlElement>();
 
             for (var i = 0; i < _keys.Count; i++)
-                cloneContents[cloneKeys[i]] = (YamlElement)_contents[_keys[i]].DeepClone();
+                cloneContents[cloneKeys[i]] = (YamlElement) _contents[_keys[i]].DeepClone();
 
             return new YamlMapping(mappingStartCopy,
                 mappingEndCopy,
                 cloneKeys,
-                cloneContents);
+                cloneContents,
+                Tracker);
         }
     }
 }

@@ -30,15 +30,17 @@ using StreamStart = SharpYaml.Events.StreamStart;
 
 namespace SharpYaml.Model {
     public abstract class YamlNode {
-        protected static YamlElement ReadElement(EventReader eventReader) {
+        public YamlNodeTracker Tracker { get; internal set; }
+
+        protected static YamlElement ReadElement(EventReader eventReader, YamlNodeTracker tracker = null) {
             if (eventReader.Accept<MappingStart>())
-                return YamlMapping.Load(eventReader);
+                return YamlMapping.Load(eventReader, tracker);
 
             if (eventReader.Accept<SequenceStart>())
-                return YamlSequence.Load(eventReader);
+                return YamlSequence.Load(eventReader, tracker);
 
             if (eventReader.Accept<Scalar>())
-                return YamlValue.Load(eventReader);
+                return YamlValue.Load(eventReader, tracker);
 
             return null;
         }
