@@ -36,21 +36,39 @@ namespace SharpYaml.Model
             _contents = new List<YamlElement>();
         }
 
-        YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents) {
+        YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents, YamlNodeTracker tracker) {
+            Tracker = tracker;
+
             this._sequenceStart = sequenceStart;
+
+            if (Tracker != null)
+                Tracker.OnSequenceStartChanged(this, null, sequenceStart);
+
             this._sequenceEnd = sequenceEnd;
-            this._contents = contents;
+
+            if (Tracker == null)
+                _contents = contents;
+            else {
+                _contents = new List<YamlElement>();
+                foreach (var item in contents)
+                    Add(item);
+            }
         }
 
         public SequenceStart SequenceStart {
             get => _sequenceStart;
-            set => _sequenceStart = value;
+            set {
+                _sequenceStart = value;
+
+                if (Tracker != null)
+                    Tracker.OnSequenceStartChanged(this, _sequenceStart, value);
+            }
         }
 
         public override string Anchor {
             get { return _sequenceStart.Anchor; }
             set {
-                _sequenceStart = new SequenceStart(value,
+                SequenceStart = new SequenceStart(value,
                     _sequenceStart.Tag,
                     _sequenceStart.IsImplicit,
                     _sequenceStart.Style,
@@ -62,7 +80,7 @@ namespace SharpYaml.Model
         public override string Tag {
             get { return _sequenceStart.Tag; }
             set {
-                _sequenceStart = new SequenceStart(_sequenceStart.Anchor,
+                SequenceStart = new SequenceStart(_sequenceStart.Anchor,
                     value,
                     _sequenceStart.IsImplicit,
                     _sequenceStart.Style,
@@ -74,7 +92,7 @@ namespace SharpYaml.Model
         public override YamlStyle Style {
             get { return _sequenceStart.Style; }
             set {
-                _sequenceStart = new SequenceStart(_sequenceStart.Anchor,
+                SequenceStart = new SequenceStart(_sequenceStart.Anchor,
                     _sequenceStart.Tag,
                     _sequenceStart.IsImplicit,
                     value,
@@ -88,7 +106,7 @@ namespace SharpYaml.Model
         public override bool IsImplicit {
             get { return _sequenceStart.IsImplicit; }
             set {
-                _sequenceStart = new SequenceStart(_sequenceStart.Anchor,
+                SequenceStart = new SequenceStart(_sequenceStart.Anchor,
                     _sequenceStart.Tag,
                     value,
                     _sequenceStart.Style,
@@ -97,19 +115,19 @@ namespace SharpYaml.Model
             }
         }
 
-        public static YamlSequence Load(EventReader eventReader) {
+        public static YamlSequence Load(EventReader eventReader, YamlNodeTracker tracker = null) {
             var sequenceStart = eventReader.Allow<SequenceStart>();
 
             var contents = new List<YamlElement>();
             while (!eventReader.Accept<SequenceEnd>()) {
-                var item = ReadElement(eventReader);
+                var item = ReadElement(eventReader, tracker);
                 if (item != null)
                     contents.Add(item);
             }
 
             var sequenceEnd = eventReader.Allow<SequenceEnd>();
 
-            return new YamlSequence(sequenceStart, sequenceEnd, contents);
+            return new YamlSequence(sequenceStart, sequenceEnd, contents, tracker);
         }
 
         public override IEnumerable<ParsingEvent> EnumerateEvents() {
@@ -134,10 +152,22 @@ namespace SharpYaml.Model
 
         public void Add(YamlElement item) {
             _contents.Add(item);
+
+            if (Tracker != null) {
+                item.Tracker = Tracker;
+                Tracker.OnSequenceAddElement(this, item, _contents.Count - 1);
+            }
         }
 
         public void Clear() {
+            var copy = Tracker == null ? null : new List<YamlElement>(_contents);
+
             _contents.Clear();
+
+            if (Tracker != null) {
+                for (int i = copy.Count; i >= 0; i--)
+                    Tracker.OnSequenceRemoveElement(this, copy[i], i);
+            }
         }
 
         public bool Contains(YamlElement item) {
@@ -149,7 +179,13 @@ namespace SharpYaml.Model
         }
 
         public bool Remove(YamlElement item) {
-            return _contents.Remove(item);
+            var index = IndexOf(item);
+            if (index >= 0) {
+                RemoveAt(index);
+                return true;
+            }
+
+            return false;
         }
 
         public int Count { get { return _contents.Count; } }
@@ -162,15 +198,34 @@ namespace SharpYaml.Model
 
         public void Insert(int index, YamlElement item) {
             _contents.Insert(index, item);
+
+            if (Tracker != null) {
+                item.Tracker = Tracker;
+                Tracker.OnSequenceAddElement(this, item, index);
+            }
         }
 
         public void RemoveAt(int index) {
+            var oldValue = _contents[index];
+
             _contents.RemoveAt(index);
+
+            if (Tracker != null)
+                Tracker.OnSequenceRemoveElement(this, oldValue, index);
         }
 
         public YamlElement this[int index] {
             get { return _contents[index]; }
-            set { _contents[index] = value; }
+            set {
+                var oldValue = _contents[index];
+
+                _contents[index] = value;
+
+                if (Tracker != null) {
+                    value.Tracker = Tracker;
+                    Tracker.OnSequenceElementChanged(this, index, oldValue, value);
+                }
+            }
         }
 
         public override YamlNode DeepClone() {
@@ -183,7 +238,7 @@ namespace SharpYaml.Model
 
             var sequenceEndCopy = new SequenceEnd(_sequenceEnd.Start, _sequenceEnd.End);
 
-            return new YamlSequence(sequenceStartCopy, sequenceEndCopy, _contents.Select(c => (YamlElement) c.DeepClone()).ToList());
+            return new YamlSequence(sequenceStartCopy, sequenceEndCopy, _contents.Select(c => (YamlElement) c.DeepClone()).ToList(), Tracker);
         }
     }
 }

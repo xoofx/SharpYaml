@@ -31,32 +31,42 @@ namespace SharpYaml.Model
 
         private readonly List<YamlDocument> _documents;
 
-        public YamlStream() {
+        public YamlStream(YamlNodeTracker tracker = null) {
             _streamStart = new StreamStart();
             _streamEnd = new StreamEnd();
             _documents = new List<YamlDocument>();
+            Tracker = tracker;
         }
 
-        YamlStream(StreamStart streamStart, StreamEnd streamEnd, List<YamlDocument> documents) {
+        YamlStream(StreamStart streamStart, StreamEnd streamEnd, List<YamlDocument> documents, YamlNodeTracker tracker = null) {
+            Tracker = tracker;
+
             this._streamStart = streamStart;
             this._streamEnd = streamEnd;
-            this._documents = documents;
+
+            if (Tracker == null)
+                _documents = documents;
+            else {
+                _documents = new List<YamlDocument>();
+                foreach (var document in documents)
+                    Add(document);
+            }
         }
 
-        public static YamlStream Load(TextReader stream) {
-            return Load(new EventReader(new Parser(stream)));
+        public static YamlStream Load(TextReader stream, YamlNodeTracker tracker = null) {
+            return Load(new EventReader(new Parser(stream)), tracker);
         }
 
-        public static YamlStream Load(EventReader eventReader) {
+        public static YamlStream Load(EventReader eventReader, YamlNodeTracker tracker = null) {
             var streamStart = eventReader.Allow<StreamStart>();
 
             var documents = new List<YamlDocument>();
             while (!eventReader.Accept<StreamEnd>())
-                documents.Add(YamlDocument.Load(eventReader));
+                documents.Add(YamlDocument.Load(eventReader, tracker));
 
             var streamEnd = eventReader.Allow<StreamEnd>();
 
-            return new YamlStream(streamStart, streamEnd, documents);
+            return new YamlStream(streamStart, streamEnd, documents, tracker);
         }
 
         public override IEnumerable<ParsingEvent> EnumerateEvents() {
@@ -82,10 +92,22 @@ namespace SharpYaml.Model
 
         public void Add(YamlDocument item) {
             _documents.Add(item);
+
+            if (Tracker != null) {
+                item.Tracker = Tracker;
+                Tracker.OnStreamAddDocument(this, item, _documents.Count - 1);
+            }
         }
 
         public void Clear() {
+            var copy = Tracker == null ? null : new List<YamlDocument>(_documents);
+
             _documents.Clear();
+
+            if (Tracker != null) {
+                for (int i = copy.Count; i >= 0; i--)
+                    Tracker.OnStreamRemoveDocument(this, copy[i], i);
+            }
         }
 
         public bool Contains(YamlDocument item) {
@@ -97,7 +119,13 @@ namespace SharpYaml.Model
         }
 
         public bool Remove(YamlDocument item) {
-            return _documents.Remove(item);
+            var index = IndexOf(item);
+            if (index >= 0) {
+                RemoveAt(index);
+                return true;
+            }
+
+            return false;
         }
 
         public int Count { get { return _documents.Count; } }
@@ -110,15 +138,34 @@ namespace SharpYaml.Model
 
         public void Insert(int index, YamlDocument item) {
             _documents.Insert(index, item);
+
+            if (Tracker != null) {
+                item.Tracker = Tracker;
+                Tracker.OnStreamAddDocument(this, item, index);
+            }
         }
 
         public void RemoveAt(int index) {
+            var oldValue = _documents[index];
+
             _documents.RemoveAt(index);
+
+            if (Tracker != null)
+                Tracker.OnStreamRemoveDocument(this, oldValue, index);
         }
 
         public YamlDocument this[int index] {
             get { return _documents[index]; }
-            set { _documents[index] = value; }
+            set {
+                var oldValue = _documents[index];
+
+                _documents[index] = value;
+
+                if (Tracker != null) {
+                    value.Tracker = Tracker;
+                    Tracker.OnStreamDocumentChanged(this, index, oldValue, value);
+                }
+            }
         }
 
         public override YamlNode DeepClone() {

@@ -29,8 +29,10 @@ namespace SharpYaml.Model
     public class YamlValue : YamlElement {
         private Scalar _scalar;
 
-        YamlValue(Scalar scalar) {
-            _scalar = scalar ?? throw new ArgumentNullException(nameof(scalar));
+        YamlValue(Scalar scalar, YamlNodeTracker tracker) {
+            Tracker = tracker;
+
+            Scalar = scalar ?? throw new ArgumentNullException(nameof(scalar));
         }
 
         public YamlValue(object value, IYamlSchema schema = null) {
@@ -38,13 +40,25 @@ namespace SharpYaml.Model
             if (schema == null)
                 schema = new CoreSchema();
 
-            _scalar = new Scalar(schema.GetDefaultTag(value.GetType()), valueString);
+            Scalar = new Scalar(schema.GetDefaultTag(value.GetType()), valueString);
         }
 
-        public static YamlValue Load(EventReader eventReader) {
+        private Scalar Scalar {
+            get { return _scalar; }
+            set {
+                var oldScalar = _scalar;
+
+                _scalar = value;
+
+                if (Tracker != null)
+                    Tracker.OnValueScalarPropertiesChanged(this, oldScalar, value);
+            }
+        }
+
+        public static YamlValue Load(EventReader eventReader, YamlNodeTracker tracker = null) {
             var scalar = eventReader.Allow<Scalar>();
 
-            return new YamlValue(scalar);
+            return new YamlValue(scalar, tracker);
         }
 
         public override IEnumerable<ParsingEvent> EnumerateEvents() {
@@ -59,13 +73,14 @@ namespace SharpYaml.Model
                 _scalar.IsPlainImplicit,
                 _scalar.IsQuotedImplicit,
                 _scalar.Start,
-                _scalar.End));
+                _scalar.End),
+                Tracker);
         }
 
         public override string Anchor {
             get { return _scalar.Anchor; }
             set {
-                _scalar = new Scalar(value,
+                Scalar = new Scalar(value,
                     _scalar.Tag,
                     _scalar.Value,
                     _scalar.Style,
@@ -79,7 +94,7 @@ namespace SharpYaml.Model
         public override string Tag {
             get { return _scalar.Tag; }
             set {
-                _scalar = new Scalar(_scalar.Anchor,
+                Scalar = new Scalar(_scalar.Anchor,
                     value,
                     _scalar.Value,
                     _scalar.Style,
@@ -93,7 +108,7 @@ namespace SharpYaml.Model
         public ScalarStyle Style {
             get { return _scalar.Style; }
             set {
-                _scalar = new Scalar(_scalar.Anchor,
+                Scalar = new Scalar(_scalar.Anchor,
                     _scalar.Tag,
                     _scalar.Value,
                     value,
@@ -109,7 +124,7 @@ namespace SharpYaml.Model
         public bool IsPlainImplicit {
             get { return _scalar.IsPlainImplicit; }
             set {
-                _scalar = new Scalar(_scalar.Anchor,
+                Scalar = new Scalar(_scalar.Anchor,
                     _scalar.Tag,
                     _scalar.Value,
                     _scalar.Style,
@@ -123,7 +138,7 @@ namespace SharpYaml.Model
         public bool IsQuotedImplicit {
             get { return _scalar.IsQuotedImplicit; }
             set {
-                _scalar = new Scalar(_scalar.Anchor,
+                Scalar = new Scalar(_scalar.Anchor,
                     _scalar.Tag,
                     _scalar.Value,
                     _scalar.Style,
@@ -137,7 +152,9 @@ namespace SharpYaml.Model
         public string Value {
             get { return _scalar.Value; }
             set {
-                _scalar = new Scalar(_scalar.Anchor,
+                var oldValue = _scalar.Value;
+
+                Scalar = new Scalar(_scalar.Anchor,
                     _scalar.Tag,
                     value,
                     _scalar.Style,
@@ -145,6 +162,9 @@ namespace SharpYaml.Model
                     _scalar.IsQuotedImplicit,
                     _scalar.Start,
                     _scalar.End);
+
+                if (Tracker != null)
+                    Tracker.OnValueScalarChanged(this, oldValue, value);
             }
         }
     }

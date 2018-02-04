@@ -68,6 +68,7 @@
     <Compile Include="Serialization\SerializationTests.cs" />
     <Compile Include="Serialization\TracingVisitor.cs" />
     <Compile Include="Serialization\YamlStreamTests.cs" />
+    <Compile Include="YamlNodeTrackerTest.cs" />
     <Compile Include="YamlTest.cs" />
     <Compile Include="YamlNodeTest.cs" />
   </ItemGroup>
