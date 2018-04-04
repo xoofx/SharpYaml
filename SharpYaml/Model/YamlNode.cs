@@ -80,11 +80,17 @@ namespace SharpYaml.Model {
             return sb.ToString().Trim();
         }
 
-        public T ToObject<T>(SerializerSettings settings = null) {
+        public T ToObject<T>(SerializerSettings settings = null)
+        {
+            return (T) ToObject(typeof(T), settings);
+        }
+
+        public object ToObject(Type type, SerializerSettings settings = null)
+        {
             var s = new Serializer(settings);
 
             var context = new SerializerContext(s, null) { Reader = new EventReader(new MemoryParser(EnumerateEvents())) };
-            return (T)context.ReadYaml(null, typeof(T));
+            return context.ReadYaml(null, type);
         }
 
         class MemoryEmitter : IEmitter {
