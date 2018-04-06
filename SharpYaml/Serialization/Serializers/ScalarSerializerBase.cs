@@ -76,7 +76,7 @@ namespace SharpYaml.Serialization.Serializers
 
 
             // Parse default types 
-            switch (Type.GetTypeCode(typeOfValue))
+            switch (typeOfValue.GetTypeCode())
             {
                 case TypeCode.Object:
                 case TypeCode.String:

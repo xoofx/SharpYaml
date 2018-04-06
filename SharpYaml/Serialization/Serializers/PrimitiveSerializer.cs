@@ -67,7 +67,7 @@ namespace SharpYaml.Serialization.Serializers
             // Return null if expected type is an object and scalar is null
             if (text == null)
             {
-                switch (Type.GetTypeCode(type))
+                switch (type.GetTypeCode())
                 {
                     case TypeCode.Object:
                     case TypeCode.Empty:
@@ -92,7 +92,7 @@ namespace SharpYaml.Serialization.Serializers
             }
 
             // Parse default types 
-            switch (Type.GetTypeCode(type))
+            switch (type.GetTypeCode())
             {
                 case TypeCode.Boolean:
                     object value;
@@ -129,7 +129,7 @@ namespace SharpYaml.Serialization.Serializers
             text = text.Replace("_", string.Empty);
 
             // Parse default types 
-            switch (Type.GetTypeCode(type))
+            switch (type.GetTypeCode())
             {
                 case TypeCode.Char:
                     if (text.Length != 1)
@@ -227,7 +227,7 @@ namespace SharpYaml.Serialization.Serializers
             else
             {
                 // Parse default types 
-                switch (Type.GetTypeCode(valueType))
+                switch (valueType.GetTypeCode())
                 {
                     case TypeCode.String:
                     case TypeCode.Char:

@@ -112,7 +112,7 @@ namespace SharpYaml.Serialization.Serializers
             bool isAnchorable = false;
             if (value != null && !value.GetType().GetTypeInfo().IsValueType)
             {
-                var typeCode = Type.GetTypeCode(value.GetType());
+                var typeCode = value.GetType().GetTypeCode();
                 switch (typeCode)
                 {
                     case TypeCode.Object:
