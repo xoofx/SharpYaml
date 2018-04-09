@@ -71,23 +71,22 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(expected, result);
         }
 
-        [Test]
-        public void Roundtrip()
+        private void Roundtrip<T>(SerializerSettings settings)
+            where T : new()
         {
-            var settings = new SerializerSettings();
             settings.RegisterAssembly(typeof(SerializationTests).Assembly);
             var serializer = new Serializer(settings);
 
             var buffer = new StringWriter();
-            var original = new X();
+            var original = new T();
             serializer.Serialize(buffer, original);
 
             Dump.WriteLine(buffer);
 
             var bufferText = buffer.ToString();
-            var copy = serializer.Deserialize<X>(bufferText);
+            var copy = serializer.Deserialize<T>(bufferText);
 
-            foreach (var property in typeof(X).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            foreach (var property in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (property.CanRead && property.CanWrite)
                 {
@@ -97,33 +96,15 @@ namespace SharpYaml.Tests.Serialization
                 }
             }
         }
+
+        [Test]
+        public void Roundtrip()
+            => Roundtrip<X>(new SerializerSettings());
 
         [Test]
         public void RoundtripWithDefaults()
-        {
-            var settings = new SerializerSettings() {EmitDefaultValues = true};
-            settings.RegisterAssembly(typeof(SerializationTests).Assembly);
-            var serializer = new Serializer(settings);
+            => Roundtrip<X>(new SerializerSettings() {EmitDefaultValues = true});
 
-            var buffer = new StringWriter();
-            var original = new X();
-            serializer.Serialize(buffer, original);
-
-            Dump.WriteLine(buffer);
-
-            var bufferText = buffer.ToString();
-            var copy = serializer.Deserialize<X>(bufferText);
-
-            foreach (var property in typeof(X).GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            {
-                if (property.CanRead && property.CanWrite)
-                {
-                    Assert.AreEqual(
-                        property.GetValue(original, null),
-                        property.GetValue(copy, null));
-                }
-            }
-        }
 
         [Test]
         public void CircularReference()
