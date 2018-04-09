@@ -105,6 +105,9 @@ namespace SharpYaml.Tests.Serialization
         public void RoundtripWithDefaults()
             => Roundtrip<X>(new SerializerSettings() {EmitDefaultValues = true});
 
+        [Test]
+        public void RoundtripFloatingPointEdgeCases()
+            => Roundtrip<FloatingPointEdgeCases>(new SerializerSettings());
 
         [Test]
         public void CircularReference()
@@ -960,10 +963,50 @@ Mother:
                 MyTimeSpan = TimeSpan.FromHours(1);
                 MyPoint = new Point(100, 200);
                 MyNullableWithValue = 8;
+            }
+        }
 
-                // This value is used because it fails to round-trip with the "R" format specifier on x64 systems
-                // See https://github.com/dotnet/coreclr/issues/13106 for details.
-                HighPrecisionDouble = 0.84551240822557006;
+        private class FloatingPointEdgeCases
+        {
+            // This value is used because it fails to round-trip with the "R" format specifier on x64 systems
+            // See https://github.com/dotnet/coreclr/issues/13106 for details.
+            public double HighPrecisionDouble { get; set; } = 0.84551240822557006;
+
+            public double DoubleMax { get; set; } = Double.MaxValue;
+            public double DoubleMin { get; set; } = Double.MinValue;
+            public double DoubleEpsilon { get; set; } = Double.Epsilon;
+
+            public float FloatMax { get; set; } = Single.MaxValue;
+            public float FloatMin { get; set; } = Single.MinValue;
+            public float FloatEpsilon { get; set; } = Single.Epsilon;
+
+            public double DoubleAlmostMax { get; set; }
+            public double DoubleAlmostMin { get; set; }
+
+            public float FloatAlmostMax { get; set; }
+            public float FloatAlmostMin { get; set; }
+
+            public double DoublePositiveInfinity { get; set; } = Double.PositiveInfinity;
+            public double DoubleNegativeInfinity { get; set; } = Double.NegativeInfinity;
+            public double DoubleNaN { get; set; } = Double.NaN;
+
+            public float FloatPositiveInfinity { get; set; } = Single.PositiveInfinity;
+            public float FloatNegativeInfinity { get; set; } = Single.NegativeInfinity;
+            public float FloatNaN { get; set; } = Single.NaN;
+
+            public FloatingPointEdgeCases()
+            {
+                ulong doubleAlmostMaxRaw = BitConverter.ToUInt64(BitConverter.GetBytes(Double.MaxValue), 0) - 1u;
+                DoubleAlmostMax = BitConverter.ToDouble(BitConverter.GetBytes(doubleAlmostMaxRaw), 0);
+
+                ulong doubleAlmostMinRaw = BitConverter.ToUInt64(BitConverter.GetBytes(Double.MinValue), 0) + 1u;
+                DoubleAlmostMin = BitConverter.ToDouble(BitConverter.GetBytes(doubleAlmostMinRaw), 0);
+
+                uint floatAlmostMaxRaw = BitConverter.ToUInt32(BitConverter.GetBytes(Single.MaxValue), 0) - 1;
+                FloatAlmostMax = BitConverter.ToSingle(BitConverter.GetBytes(floatAlmostMaxRaw), 0);
+
+                uint floatAlmostMinRaw = BitConverter.ToUInt32(BitConverter.GetBytes(Single.MinValue), 0) + 1;
+                FloatAlmostMin = BitConverter.ToSingle(BitConverter.GetBytes(floatAlmostMinRaw), 0);
             }
         }
     }
