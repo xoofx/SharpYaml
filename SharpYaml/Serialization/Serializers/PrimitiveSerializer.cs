@@ -261,12 +261,17 @@ namespace SharpYaml.Serialization.Serializers
                         text = ((ulong) value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.Single:
-                        //Append decimal point to floating point type values 
-                        //because type changes in round trip conversion if ( value * 10.0 ) % 10.0 == 0
-                        text = AppendDecimalPoint(((float) value).ToString("R", CultureInfo.InvariantCulture), true);
+                        // Append decimal point to floating point type values 
+                        // because type changes in round trip conversion if ( value * 10.0 ) % 10.0 == 0
+                        //
+                        // G9 is used instead of R as per the following documentation:
+                        // https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-numeric-format-strings#the-round-trip-r-format-specifier
+                        // R can cause issues on x64 systems, see https://github.com/dotnet/coreclr/issues/13106 for details.
+                        text = AppendDecimalPoint(((float) value).ToString("G9", CultureInfo.InvariantCulture), true);
                         break;
                     case TypeCode.Double:
-                        text = AppendDecimalPoint(((double) value).ToString("R", CultureInfo.InvariantCulture), true);
+                        // G17 is used instead of R due to issues on x64 systems. See documentation on TypeCode.Single case above.
+                        text = AppendDecimalPoint(((double) value).ToString("G17", CultureInfo.InvariantCulture), true);
                         break;
                     case TypeCode.Decimal:
                         text = AppendDecimalPoint(((decimal) value).ToString("G", CultureInfo.InvariantCulture), false);
