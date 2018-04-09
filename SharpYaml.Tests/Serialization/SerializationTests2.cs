@@ -245,7 +245,7 @@ Byte: 2
 DateTime: 2017-11-20T01:02:03.0000000
 DateTimeOffset: 2017-11-20T01:02:03.0040000+00:00
 Decimal: 4623451.0232342352463856744563
-Double: 6.6
+Double: 6.5999999999999996
 Enum: B
 EnumWithFlags: A, B
 Float: 5.5
@@ -333,8 +333,8 @@ UInt64: 8
             settings.RegisterTagMapping("ObjectFloatDoublePrecision", typeof(ObjectFloatDoublePrecision));
 
             var text = @"!ObjectFloatDoublePrecision
-Double: 1E-05
-Float: 1E-05
+Double: 1.0000000000000001E-05
+Float: 9.99999975E-06
 ".Trim();
 
             SerialRoundTrip(settings, text);
