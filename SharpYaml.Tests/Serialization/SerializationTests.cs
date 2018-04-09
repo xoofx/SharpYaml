@@ -968,6 +968,8 @@ Mother:
             [DefaultValue(null)]
             public int? MyNullableWithoutValue { get; set; }
 
+            public double HighPrecisionDouble { get; set; }
+
             public X()
             {
                 MyInt = 1234;
@@ -977,6 +979,10 @@ Mother:
                 MyTimeSpan = TimeSpan.FromHours(1);
                 MyPoint = new Point(100, 200);
                 MyNullableWithValue = 8;
+
+                // This value is used because it fails to round-trip with the "R" format specifier on x64 systems
+                // See https://github.com/dotnet/coreclr/issues/13106 for details.
+                HighPrecisionDouble = 0.84551240822557006;
             }
         }
     }
