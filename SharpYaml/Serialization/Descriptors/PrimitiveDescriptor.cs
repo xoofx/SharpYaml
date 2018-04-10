@@ -102,7 +102,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// <returns><c>true</c> if the specified type is primitive; otherwise, <c>false</c>.</returns>
         public static bool IsPrimitive(Type type)
         {
-            switch (Type.GetTypeCode(type))
+            switch (type.GetTypeCode())
             {
                 case TypeCode.Object:
                 case TypeCode.Empty:

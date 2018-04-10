@@ -68,7 +68,7 @@ namespace SharpYaml.Serialization
             eventInfo.Style = ScalarStyle.Plain;
 
             var typeCode = eventInfo.SourceValue != null
-                ? Type.GetTypeCode(eventInfo.SourceType)
+                ? eventInfo.SourceType.GetTypeCode()
                 : TypeCode.Empty;
 
             switch (typeCode)
