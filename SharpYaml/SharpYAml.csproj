@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>SharpYaml</PackageId>
-    <VersionPrefix>1.6.2</VersionPrefix>
+    <VersionPrefix>1.6.3</VersionPrefix>
     <AssemblyName>SharpYaml</AssemblyName>
     <AssemblyTitle>SharpYaml</AssemblyTitle>
     <RootNamespace>SharpYaml</RootNamespace>
@@ -12,15 +12,7 @@
     <Copyright>Alexandre Mutel</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <PackageTags>yaml;parser;yml</PackageTags>
-    <PackageReleaseNotes>
-&gt; 1.6.2
-- Add YamlNode hierarchy to allow modification of the parse tree.
-- Add support for Guid and DateTimeOffset
-&gt; 1.6.1
-- Improve support for unicode escape characters
-&gt; 1.6.0      
-- Add support for CoreCLR (netstandard1.6+)
-    </PackageReleaseNotes>
+    <PackageReleaseNotes>https://github.com/xoofx/SharpYaml/blob/master/changelog.md</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/xoofx/SharpYaml</PackageProjectUrl>
     <PackageLicenseUrl>https://github.com/xoofx/SharpYaml/blob/master/LICENSE.txt</PackageLicenseUrl>
     <RepositoryType>git</RepositoryType>
