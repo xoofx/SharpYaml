@@ -7,6 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		appveyor.yml = appveyor.yml
+		changelog.md = changelog.md
 		LICENSE.txt = LICENSE.txt
 		README.md = README.md
 		SharpYaml.snk = SharpYaml.snk
@@ -33,5 +34,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0A312C2D-1546-432C-A204-3B19F2FE84EC}
 	EndGlobalSection
 EndGlobal
