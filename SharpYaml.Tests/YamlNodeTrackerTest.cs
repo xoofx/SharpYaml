@@ -143,5 +143,38 @@ namespace SharpYaml.Tests {
             Assert.AreEqual("A", ((MappingPairAdded)receivedArgs).Child.Key.ToString());
             Assert.AreEqual("5", ((MappingPairAdded) receivedArgs).Child.Value.ToString());
         }
+
+
+        [Test]
+        public void TrackerAssignmentTest() {
+            var tracker = new YamlNodeTracker();
+            var stream = new YamlStream(tracker);
+
+            var document = new YamlDocument();
+            var sequence = new YamlSequence();
+            document.Contents = sequence;
+
+            var mapping = new YamlMapping();
+            sequence.Add(mapping);
+
+            var key = new YamlValue("key");
+            var value = new YamlValue("value");
+
+            mapping[key] = value;
+
+            Assert.IsNull(document.Tracker);
+            Assert.IsNull(sequence.Tracker);
+            Assert.IsNull(mapping.Tracker);
+            Assert.IsNull(key.Tracker);
+            Assert.IsNull(value.Tracker);
+
+            stream.Add(document);
+
+            Assert.AreEqual(tracker, document.Tracker);
+            Assert.AreEqual(tracker, sequence.Tracker);
+            Assert.AreEqual(tracker, mapping.Tracker);
+            Assert.AreEqual(tracker, key.Tracker);
+            Assert.AreEqual(tracker, value.Tracker);
+        }
     }
 }
