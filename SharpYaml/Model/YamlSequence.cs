@@ -37,22 +37,20 @@ namespace SharpYaml.Model
         }
 
         YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents, YamlNodeTracker tracker) {
-            Tracker = tracker;
-
-            this._sequenceStart = sequenceStart;
-
-            if (Tracker != null)
-                Tracker.OnSequenceStartChanged(this, null, sequenceStart);
-
-            this._sequenceEnd = sequenceEnd;
-
-            if (Tracker == null)
+            if (tracker == null)
                 _contents = contents;
             else {
                 _contents = new List<YamlElement>();
+
+                Tracker = tracker;
+
                 foreach (var item in contents)
                     Add(item);
             }
+
+            SequenceStart = sequenceStart;
+            
+            this._sequenceEnd = sequenceEnd;
         }
 
         public SequenceStart SequenceStart {
@@ -156,6 +154,19 @@ namespace SharpYaml.Model
             if (Tracker != null) {
                 item.Tracker = Tracker;
                 Tracker.OnSequenceAddElement(this, item, _contents.Count - 1);
+            }
+        }
+
+        public override YamlNodeTracker Tracker {
+            get { return base.Tracker; }
+            internal set {
+                base.Tracker = value;
+
+                for (var index = 0; index < _contents.Count; index++) {
+                    var item = _contents[index];
+                    item.Tracker = value;
+                    Tracker.OnSequenceAddElement(this, item, index);
+                }
             }
         }
 

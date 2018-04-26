@@ -25,7 +25,7 @@ namespace SharpYaml.Tests {
             var fileStream = new StreamReader(file);
             YamlStream.Load(fileStream, tracker);
 
-            Assert.AreEqual(9, childrenAdded);
+            Assert.AreEqual(29, childrenAdded);
         }
 
         [Test]
@@ -142,6 +142,58 @@ namespace SharpYaml.Tests {
             Assert.AreEqual(new Model.Path(stream, new [] { new ChildIndex(0, false), new ChildIndex(-1, false) }), ((MappingPairAdded)receivedArgs).ParentPaths[0]);
             Assert.AreEqual("A", ((MappingPairAdded)receivedArgs).Child.Key.ToString());
             Assert.AreEqual("5", ((MappingPairAdded) receivedArgs).Child.Value.ToString());
+        }
+
+
+        [Test]
+        public void TrackerAssignmentTest() {
+            var tracker = new YamlNodeTracker();
+            var stream = new YamlStream(tracker);
+
+            var document = new YamlDocument();
+            var sequence = new YamlSequence();
+            document.Contents = sequence;
+
+            var mapping = new YamlMapping();
+            sequence.Add(mapping);
+
+            var key = new YamlValue("key");
+            var value = new YamlValue("value");
+
+            var eventList = new List<TrackerEventArgs>();
+
+            tracker.TrackerEvent += (sender, args) => eventList.Add(args);
+
+            mapping[key] = value;
+
+            Assert.IsNull(document.Tracker);
+            Assert.IsNull(sequence.Tracker);
+            Assert.IsNull(mapping.Tracker);
+            Assert.IsNull(key.Tracker);
+            Assert.IsNull(value.Tracker);
+
+            stream.Add(document);
+
+            Assert.AreEqual(tracker, document.Tracker);
+            Assert.AreEqual(tracker, sequence.Tracker);
+            Assert.AreEqual(tracker, mapping.Tracker);
+            Assert.AreEqual(tracker, key.Tracker);
+            Assert.AreEqual(tracker, value.Tracker);
+
+            Assert.AreEqual(4, eventList.Count);
+            Assert.IsTrue(eventList[0] is MappingPairAdded);
+            Assert.IsTrue(eventList[1] is SequenceElementAdded);
+            Assert.IsTrue(eventList[2] is DocumentContentsChanged);
+            Assert.IsTrue(eventList[3] is StreamDocumentAdded);
+
+            eventList.Clear();
+
+            var key2 = new YamlValue("key2");
+            var value2 = new YamlValue("value2");
+            mapping[key2] = value2;
+
+            Assert.AreEqual(1, eventList.Count);
+            Assert.IsTrue(eventList[0] is MappingPairAdded);
         }
     }
 }
