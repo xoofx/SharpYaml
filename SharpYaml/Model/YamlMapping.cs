@@ -41,21 +41,21 @@ namespace SharpYaml.Model {
         }
 
         YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement> contents, YamlNodeTracker tracker) {
-            Tracker = tracker;
-
-            MappingStart = mappingStart;
-            this._mappingEnd = mappingEnd;
-
-            if (Tracker == null) {
+            if (tracker == null) {
                 _keys = keys;
                 _contents = contents;
-            }
-            else {
+            } else {
                 _keys = new List<YamlElement>();
                 _contents = new Dictionary<YamlElement, YamlElement>();
+
+                Tracker = tracker;
+
                 foreach (var key in keys)
                     Add(key, contents[key]);
             }
+
+            MappingStart = mappingStart;
+            this._mappingEnd = mappingEnd;
         }
 
         public MappingStart MappingStart {
@@ -209,6 +209,18 @@ namespace SharpYaml.Model {
                 value.Tracker = Tracker;
 
                 Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement>(key, value), _keys.Count - 1);
+            }
+        }
+
+        public override YamlNodeTracker Tracker {
+            get { return base.Tracker; }
+            internal set {
+                base.Tracker = value;
+
+                foreach (var pair in _contents) {
+                    pair.Key.Tracker = value;
+                    pair.Value.Tracker = value;
+                }
             }
         }
 

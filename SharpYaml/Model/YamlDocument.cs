@@ -101,6 +101,16 @@ namespace SharpYaml.Model
             }
         }
 
+        public override YamlNodeTracker Tracker {
+            get { return base.Tracker; }
+            internal set {
+                base.Tracker = value;
+
+                if (_contents != null)
+                    _contents.Tracker = value;
+            }
+        }
+
         public override YamlNode DeepClone() {
             var documentVersionCopy = _documentStart.Version == null
                 ? null

@@ -39,15 +39,16 @@ namespace SharpYaml.Model
         }
 
         YamlStream(StreamStart streamStart, StreamEnd streamEnd, List<YamlDocument> documents, YamlNodeTracker tracker = null) {
-            Tracker = tracker;
-
             this._streamStart = streamStart;
             this._streamEnd = streamEnd;
 
-            if (Tracker == null)
+            if (tracker == null)
                 _documents = documents;
             else {
                 _documents = new List<YamlDocument>();
+
+                Tracker = tracker;
+
                 foreach (var document in documents)
                     Add(document);
             }
@@ -96,6 +97,16 @@ namespace SharpYaml.Model
             if (Tracker != null) {
                 item.Tracker = Tracker;
                 Tracker.OnStreamAddDocument(this, item, _documents.Count - 1);
+            }
+        }
+        
+        public override YamlNodeTracker Tracker {
+            get { return base.Tracker; }
+            internal set {
+                base.Tracker = value;
+
+                foreach (var item in _documents)
+                    item.Tracker = value;
             }
         }
 
