@@ -25,7 +25,7 @@ namespace SharpYaml.Tests {
             var fileStream = new StreamReader(file);
             YamlStream.Load(fileStream, tracker);
 
-            Assert.AreEqual(29, childrenAdded);
+            Assert.AreEqual(9, childrenAdded);
         }
 
         [Test]

@@ -103,6 +103,9 @@ namespace SharpYaml.Model
         public override YamlNodeTracker Tracker {
             get { return base.Tracker; }
             internal set {
+                if (Tracker == value)
+                    return;
+
                 base.Tracker = value;
 
                 for (var index = 0; index < _documents.Count; index++) {
