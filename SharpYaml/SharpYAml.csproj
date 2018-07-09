@@ -7,7 +7,7 @@
     <AssemblyTitle>SharpYaml</AssemblyTitle>
     <RootNamespace>SharpYaml</RootNamespace>
     <Description>A YAML portable .NET library. providing parsing and serialization of object graphs, compatible with CoreCLR.</Description>
-    <TargetFrameworks>net35;net45;portable40-net40+sl5+win8+wp8+wpa81;netstandard1.3;netstandard1.6</TargetFrameworks>
+    <TargetFrameworks>net35;net45;portable40-net40+sl5+win8+wp8+wpa81;netstandard1.3;netstandard1.6;netstandard2.0</TargetFrameworks>
     <Authors>Alexandre Mutel</Authors>
     <Copyright>Alexandre Mutel</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -41,6 +41,10 @@
     <PackageReference Include="System.Reflection.TypeExtensions" Version="4.3.0" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.3.0" />
+  </ItemGroup>
+
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <NoWarn>CS1591</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -54,6 +58,10 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard1.6'">
+    <DefineConstants>$(DefineConstants);NETSTANDARD1_6;NETPOST45</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <DefineConstants>$(DefineConstants);NETSTANDARD1_6;NETPOST45</DefineConstants>
   </PropertyGroup>
 
