@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.4
+- .NETStandart 2.0 supports
+- Fix ChildIndex.Resolve avoids OutOfRangeExceptions, returns null instead (#57)
+- Enable SourceLink (#58)
+- Fix tracker on YamlDocument (#53)
+
 ## 1.6.3
 - .NETStandart 1.3 supports
 - Add better high-precision double to round-trip 

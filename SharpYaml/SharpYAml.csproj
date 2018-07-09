@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>SharpYaml</PackageId>
-    <VersionPrefix>1.6.3</VersionPrefix>
+    <VersionPrefix>1.6.4</VersionPrefix>
     <AssemblyName>SharpYaml</AssemblyName>
     <AssemblyTitle>SharpYaml</AssemblyTitle>
     <RootNamespace>SharpYaml</RootNamespace>
