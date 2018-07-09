@@ -19,6 +19,8 @@ namespace SharpYaml.Model {
             if (stream != null) {
                 if (IsKey)
                     return null;
+                if (Index < 0 || Index >= stream.Count)
+                    return null;
                 return stream[Index];
             }
 
@@ -33,12 +35,15 @@ namespace SharpYaml.Model {
             if (sequence != null) {
                 if (IsKey)
                     return null;
-
+                if (Index < 0 || Index >= sequence.Count)
+                    return null;
                 return sequence[Index];
             }
 
             var mapping = parent as YamlMapping;
             if (mapping != null) {
+                if (Index < 0 || Index >= mapping.Count)
+                    return null;
                 return IsKey
                     ? mapping[Index].Key
                     : mapping[Index].Value;
