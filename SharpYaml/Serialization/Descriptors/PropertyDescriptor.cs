@@ -72,9 +72,9 @@ namespace SharpYaml.Serialization.Descriptors
             this.propertyInfo = propertyInfo;
 
             getMethod = propertyInfo.GetGetMethod(true);
-            if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(!IsPublic) != null)
+            if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(true) != null)
             {
-                setMethod = propertyInfo.GetSetMethod(!IsPublic);
+                setMethod = propertyInfo.GetSetMethod(true);
             }
         }
 
