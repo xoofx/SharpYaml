@@ -83,6 +83,39 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
+        public void DisposeTest() {
+            // In .NET versions higher than 3.5, the parents dictionary is replaced with
+            // ConditionalWeakTable, allowing tracked YAML nodes to be freed properly.
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test4.yaml");
+
+            var childrenAdded = 0;
+
+            var tracker = new YamlNodeTracker();
+
+            tracker.TrackerEvent += (sender, args) => {
+                if (args.EventType == TrackerEventType.MappingPairAdded ||
+                    args.EventType == TrackerEventType.SequenceElementAdded ||
+                    args.EventType == TrackerEventType.StreamDocumentAdded)
+                    childrenAdded++;
+            };
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream, tracker);
+
+            var weakRef = new System.WeakReference(stream);
+
+            stream = null;
+
+            System.GC.Collect();
+            System.GC.WaitForFullGCComplete();
+            System.GC.WaitForPendingFinalizers();
+
+            Assert.AreEqual(null, stream);
+            Assert.IsFalse(weakRef.IsAlive);
+        }
+
+        [Test]
         public void SubscriberTest() {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test12.yaml");

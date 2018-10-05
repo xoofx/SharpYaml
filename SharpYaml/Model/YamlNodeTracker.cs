@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using SharpYaml.Events;
+using System.Runtime.CompilerServices;
 
 namespace SharpYaml.Model {
     public struct ChildIndex {
@@ -342,13 +343,17 @@ namespace SharpYaml.Model {
             }
         }
 
+#if NET35
         Dictionary<YamlNode, HashSet<ParentAndIndex>> parents = new Dictionary<YamlNode, HashSet<ParentAndIndex>>();
-
+#else
+        private ConditionalWeakTable<YamlNode, HashSet<ParentAndIndex>> parents = new ConditionalWeakTable<YamlNode, HashSet<ParentAndIndex>>();
+#endif
+        
         void AddChild(YamlNode child, YamlNode parent, ChildIndex relationship) {
             HashSet<ParentAndIndex> set;
             if (!parents.TryGetValue(child, out set)) {
                 set = new HashSet<ParentAndIndex>();
-                parents[child] = set;
+                parents.Add(child, set);
             }
 
             set.Add(new ParentAndIndex(parent, relationship));
