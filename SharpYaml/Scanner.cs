@@ -108,6 +108,7 @@ namespace SharpYaml
             codes.Add('"', '"');
             codes.Add('\'', '\'');
             codes.Add('\\', '\\');
+            codes.Add('/', '/');            
             codes.Add('N', '\x85');
             codes.Add('_', '\xA0');
             codes.Add('L', '\x2028');
