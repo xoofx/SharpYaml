@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.6.5
+- Support for escaping slash for JSON Compatibility (PR https://github.com/xoofx/SharpYaml/pull/66)
+
 ## 1.6.4
 - .NETStandart 2.0 supports
 - Fix ChildIndex.Resolve avoids OutOfRangeExceptions, returns null instead (#57)
