@@ -328,6 +328,30 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
+
+        [Test]
+        public void VerifyTokensOnExample15() {
+            AssertSequenceOfTokensFrom(ScannerFor("test15.yaml"),
+                StreamStart,
+                FlowMappingStart,
+                Key,
+                PlainScalar("field1"),
+                Value,
+                DoubleQuotedScalar("R \ud83d\ude0e"),
+                FlowEntry,
+                Key,
+                PlainScalar("field2"),
+                Value,
+                DoubleQuotedScalar("R \u0100\u0101"),
+                FlowEntry,
+                Key,
+                PlainScalar("field3"),
+                Value,
+                DoubleQuotedScalar("R \u0100\ud83d\ude0e\u0101"),
+                FlowMappingEnd,
+                StreamEnd);
+        }
+
         private Scanner ScannerFor(string name)
         {
             return new Scanner(YamlFile(name));

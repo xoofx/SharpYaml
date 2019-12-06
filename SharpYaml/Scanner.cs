@@ -85,7 +85,7 @@ namespace SharpYaml
         private int flowLevel;
         private int tokensParsed;
 
-        private const int MaxBufferLength = 8;
+        private const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
         private readonly CharacterAnalyzer<LookAheadBuffer> analyzer;
         private bool tokenAvailable;
 
@@ -1684,10 +1684,32 @@ namespace SharpYaml
 
                             if ((character >= 0xD800 && character <= 0xDFFF) || character > 0x10FFFF)
                             {
-                                throw new SyntaxErrorException(start, mark, "While parsing a quoted scalar, find invalid Unicode character escape code.");
-                            }
+                                var foundNextCharacter = true;
+                                int nextCharacter = 0;
 
-                            scanScalarValue.Append(CharHelper.ConvertFromUtf32(character));
+                                // We might be dealing with a surrogate pair - try to read the next unicode character.
+                                if (codeLength == 4 && analyzer.Check('\\', codeLength) && analyzer.Check('u', codeLength + 1)) {
+                                    for (int k = 0; k < codeLength; ++k) {
+                                        if (!analyzer.IsHex(k + codeLength + 2)) {
+                                            foundNextCharacter = false;
+                                            break;
+                                        }
+                                        nextCharacter = (nextCharacter << 4) + analyzer.AsHex(k + codeLength + 2);
+                                    }
+
+                                    if (foundNextCharacter) {
+                                        for (int k = 0; k < codeLength + 2; ++k)
+                                            Skip();
+                                    }
+                                } else 
+                                    foundNextCharacter = false;
+
+                                if (foundNextCharacter)
+                                    scanScalarValue.Append(CharHelper.ConvertFromUtf32(CharHelper.ConvertToUtf32((char)character, (char)nextCharacter)));
+                                else
+                                    throw new SyntaxErrorException(start, mark, "While parsing a quoted scalar, find invalid Unicode character escape code.");
+                            } else 
+                                scanScalarValue.Append(CharHelper.ConvertFromUtf32(character));
 
                             // Advance the pointer.
 
