@@ -68,9 +68,12 @@ namespace SharpYaml.Serialization.Serializers
                     }
                 }
 
-                style = objectContext.Instance == null || count >= objectContext.SerializerContext.Settings.LimitPrimitiveFlowSequence || !isPrimitiveElementType
-                    ? YamlStyle.Block
-                    : YamlStyle.Flow;
+                if (isPrimitiveElementType)
+                {
+                    style = objectContext.Instance == null || count >= objectContext.SerializerContext.Settings.LimitPrimitiveFlowSequence
+                        ? YamlStyle.Block
+                        : YamlStyle.Flow;
+                }
             }
 
             // If not defined, get the default style
