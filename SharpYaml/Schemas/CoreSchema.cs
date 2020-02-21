@@ -58,11 +58,7 @@ namespace SharpYaml.Schemas
     /// </remarks>
     public class CoreSchema : JsonSchema
     {
-        public static CoreSchema Instance { get; }
-
-        static CoreSchema() {
-            Instance = new CoreSchema();
-        }
+        public static readonly CoreSchema Instance = new CoreSchema();
 
         protected override void PrepareScalarRules()
         {
