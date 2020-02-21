@@ -1038,6 +1038,29 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             Assert.AreEqual(textReference, text);
         }
 
+        /// <summary>
+        /// Tests the default style.
+        /// </summary>
+        [Test]
+        public void TestDefaultStyle()
+        {
+            var testObject = new
+            {
+                Name = "John Doe",
+                Value = 42,
+                Items = new[] { 1, 2, 3 },
+            };
+
+            var settings1 = new SerializerSettings {DefaultStyle = YamlStyle.Flow};
+            var serializer1 = new Serializer(settings1);
+            var yaml1 = serializer1.Serialize(testObject);
+            Assert.AreEqual("{Items: [1, 2, 3], Name: John Doe, Value: 42}\r\n", yaml1);
+
+            var settings2 = new SerializerSettings {DefaultStyle = YamlStyle.Block};
+            var serializer2 = new Serializer(settings2);
+            var yaml2 = serializer2.Serialize(testObject);
+            Assert.AreEqual("Items:\r\n  - 1\r\n  - 2\r\n  - 3\r\nName: John Doe\r\nValue: 42\r\n", yaml2);
+        }
 
         public class ClassWithKeyTransform
         {
