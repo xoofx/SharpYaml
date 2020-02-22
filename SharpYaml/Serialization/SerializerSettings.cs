@@ -89,7 +89,7 @@ namespace SharpYaml.Serialization
             SpecialCollectionMember = "~Items";
             LimitPrimitiveFlowSequence = 0;
             DefaultStyle = YamlStyle.Block;
-            this.schema = schema ?? new CoreSchema();
+            this.schema = schema ?? CoreSchema.Instance;
             AssemblyRegistry = new AssemblyRegistry(Schema);
             attributeRegistry = new AttributeRegistry();
             ObjectFactory = new DefaultObjectFactory();
