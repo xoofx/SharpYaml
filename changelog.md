@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.6
+- Handle parsing unicode surrogate pairs.
+- Fix serialization with DefaultStyle set to Flow
+- Make CoreSchema a singleton so that PrepareScalarRules only runs once.
+
 ## 1.6.5
 - Support for escaping slash for JSON Compatibility (PR https://github.com/xoofx/SharpYaml/pull/66)
 
