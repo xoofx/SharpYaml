@@ -1,4 +1,4 @@
-# SharpYaml [![Build status](https://ci.appveyor.com/api/projects/status/github/xoofx/sharpyaml?svg=true)](https://ci.appveyor.com/project/xoofx/sharpyaml/branch/master)  [![NuGet](https://img.shields.io/nuget/v/SharpYaml.svg)](https://www.nuget.org/packages/SharpYaml/)
+# SharpYaml [![Build Status](https://github.com/xoofx/SharpYaml/workflows/ci/badge.svg?branch=master)](https://github.com/xoofx/SharpYaml/actions)  [![NuGet](https://img.shields.io/nuget/v/SharpYaml.svg)](https://www.nuget.org/packages/SharpYaml/)
 
 **SharpYaml** is a .NET library that provides a **YAML parser and serialization engine** for .NET objects, **compatible with CoreCLR**.
 

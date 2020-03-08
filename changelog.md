@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.0 (8 Mar 2020)
+- Handle parsing unicode surrogate pairs.
+- Fix serialization with DefaultStyle set to Flow (#70)
+- Make CoreSchema a singleton so that PrepareScalarRules only runs once.
+
 ## 1.6.6
 - Handle parsing unicode surrogate pairs.
 - Fix serialization with DefaultStyle set to Flow
