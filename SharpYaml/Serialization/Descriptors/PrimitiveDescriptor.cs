@@ -66,7 +66,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="namingConvention">The naming convention.</param>
         /// <exception cref="System.ArgumentException">Type [{0}] is not a primitive</exception>
         public PrimitiveDescriptor(IAttributeRegistry attributeRegistry, Type type, IMemberNamingConvention namingConvention)
-            : base(attributeRegistry, type, false, namingConvention)
+            : base(attributeRegistry, type, false, false, namingConvention)
         {
             if (!IsPrimitive(type))
                 throw new ArgumentException("Type [{0}] is not a primitive");

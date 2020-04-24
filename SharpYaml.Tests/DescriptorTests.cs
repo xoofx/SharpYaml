@@ -105,7 +105,7 @@ namespace SharpYaml.Tests
             // Rename ItemRenamed2 to Item2
             attributeRegistry.Register(typeof(TestObject).GetProperty("ItemRenamed2"), new YamlMemberAttribute("Item2"));
 
-            var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObject), false, new DefaultNamingConvention());
+            var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObject), false, false, new DefaultNamingConvention());
             descriptor.Initialize();
 
             // Verify members
@@ -168,7 +168,7 @@ namespace SharpYaml.Tests
         public void TestObjectWithCustomNamingConvention()
         {
             var attributeRegistry = new AttributeRegistry();
-            var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObjectNamingConvention), false, new FlatNamingConvention());
+            var descriptor = new ObjectDescriptor(attributeRegistry, typeof(TestObjectNamingConvention), false, false, new FlatNamingConvention());
             descriptor.Initialize();
 
             descriptor.SortMembers(new DefaultKeyComparer());
@@ -194,7 +194,7 @@ namespace SharpYaml.Tests
         public void TestCollectionDescriptor()
         {
             var attributeRegistry = new AttributeRegistry();
-            var descriptor = new CollectionDescriptor(attributeRegistry, typeof(List<string>), false, new DefaultNamingConvention());
+            var descriptor = new CollectionDescriptor(attributeRegistry, typeof(List<string>), false, false, new DefaultNamingConvention());
             descriptor.Initialize();
 
             // No Capacity as a member
@@ -202,7 +202,7 @@ namespace SharpYaml.Tests
             Assert.True(descriptor.IsPureCollection);
             Assert.AreEqual(typeof(string), descriptor.ElementType);
 
-            descriptor = new CollectionDescriptor(attributeRegistry, typeof(NonPureCollection), false,
+            descriptor = new CollectionDescriptor(attributeRegistry, typeof(NonPureCollection), false, false,
                 new DefaultNamingConvention());
             descriptor.Initialize();
 
@@ -211,7 +211,7 @@ namespace SharpYaml.Tests
             Assert.False(descriptor.IsPureCollection);
             Assert.AreEqual(typeof(int), descriptor.ElementType);
 
-            descriptor = new CollectionDescriptor(attributeRegistry, typeof(ArrayList), false, new DefaultNamingConvention());
+            descriptor = new CollectionDescriptor(attributeRegistry, typeof(ArrayList), false, false, new DefaultNamingConvention());
             descriptor.Initialize();
 
             // No Capacity
@@ -232,7 +232,7 @@ namespace SharpYaml.Tests
         public void TestDictionaryDescriptor()
         {
             var attributeRegistry = new AttributeRegistry();
-            var descriptor = new DictionaryDescriptor(attributeRegistry, typeof(Dictionary<int, string>), false,
+            var descriptor = new DictionaryDescriptor(attributeRegistry, typeof(Dictionary<int, string>), false, false,
                 new DefaultNamingConvention());
             descriptor.Initialize();
 
@@ -241,7 +241,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(typeof(int), descriptor.KeyType);
             Assert.AreEqual(typeof(string), descriptor.ValueType);
 
-            descriptor = new DictionaryDescriptor(attributeRegistry, typeof(NonPureDictionary), false,
+            descriptor = new DictionaryDescriptor(attributeRegistry, typeof(NonPureDictionary), false, false,
                 new DefaultNamingConvention());
             descriptor.Initialize();
             Assert.AreEqual(1, descriptor.Count);

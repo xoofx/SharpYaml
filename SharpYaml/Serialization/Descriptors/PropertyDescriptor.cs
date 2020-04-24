@@ -62,8 +62,9 @@ namespace SharpYaml.Serialization.Descriptors
         /// </summary>
         /// <param name="propertyInfo">The property information.</param>
         /// <param name="defaultNameComparer">The default name comparer.</param>
+        /// <param name="respectPrivateSetters"></param>
         /// <exception cref="System.ArgumentNullException">propertyInfo</exception>
-        public PropertyDescriptor(PropertyInfo propertyInfo, StringComparer defaultNameComparer)
+        public PropertyDescriptor(PropertyInfo propertyInfo, StringComparer defaultNameComparer, bool respectPrivateSetters)
             : base(propertyInfo, defaultNameComparer)
         {
             if (propertyInfo == null)
@@ -72,9 +73,9 @@ namespace SharpYaml.Serialization.Descriptors
             this.propertyInfo = propertyInfo;
 
             getMethod = propertyInfo.GetGetMethod(true);
-            if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(true) != null)
+            if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic) != null)
             {
-                setMethod = propertyInfo.GetSetMethod(true);
+                setMethod = propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic);
             }
         }
 

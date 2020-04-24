@@ -67,6 +67,7 @@ namespace SharpYaml.Serialization.Descriptors
         private List<IMemberDescriptor> members;
         private Dictionary<string, IMemberDescriptor> mapMembers;
         private readonly bool emitDefaultValues;
+        private readonly bool respectPrivateSetters;
         private YamlStyle style;
         private bool isSorted;
         private readonly IMemberNamingConvention memberNamingConvention;
@@ -79,10 +80,11 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="attributeRegistry">The attribute registry.</param>
         /// <param name="type">The type.</param>
         /// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
+        /// <param name="respectPrivateSetters">If set to <c>true</c> will de/serialize properties with private setters.</param>
         /// <param name="namingConvention">The naming convention.</param>
         /// <exception cref="System.ArgumentNullException">type</exception>
         /// <exception cref="YamlException">type</exception>
-        public ObjectDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, IMemberNamingConvention namingConvention)
+        public ObjectDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, bool respectPrivateSetters, IMemberNamingConvention namingConvention)
         {
             if (attributeRegistry == null)
                 throw new ArgumentNullException("attributeRegistry");
@@ -93,6 +95,7 @@ namespace SharpYaml.Serialization.Descriptors
 
             this.memberNamingConvention = namingConvention;
             this.emitDefaultValues = emitDefaultValues;
+            this.respectPrivateSetters = respectPrivateSetters;
             this.AttributeRegistry = attributeRegistry;
             this.type = type;
 
@@ -239,7 +242,7 @@ namespace SharpYaml.Serialization.Descriptors
             var memberList = (from propertyInfo in type.GetProperties(bindingFlags)
                 where
                     propertyInfo.CanRead && propertyInfo.GetIndexParameters().Length == 0
-                select new PropertyDescriptor(propertyInfo, NamingConvention.Comparer)
+                select new PropertyDescriptor(propertyInfo, NamingConvention.Comparer, respectPrivateSetters)
                 into member
                 where PrepareMember(member)
                 select member).Cast<IMemberDescriptor>().ToList();

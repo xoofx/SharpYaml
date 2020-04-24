@@ -71,10 +71,11 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(expected, result);
         }
 
-        private void Roundtrip<T>(SerializerSettings settings)
+        private void Roundtrip<T>(SerializerSettings settings, bool respectPrivateSetters = false)
             where T : new()
         {
             settings.RegisterAssembly(typeof(SerializationTests).Assembly);
+            settings.RespectPrivateSetters = respectPrivateSetters;
             var serializer = new Serializer(settings);
 
             var buffer = new StringWriter();
@@ -88,11 +89,12 @@ namespace SharpYaml.Tests.Serialization
 
             foreach (var property in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                if (property.CanRead && property.CanWrite)
+                if (property.CanRead && (respectPrivateSetters ? property.GetSetMethod(true) != null : property.CanWrite))
                 {
                     Assert.AreEqual(
                         property.GetValue(original, null),
-                        property.GetValue(copy, null));
+                        property.GetValue(copy, null),
+                        "Property " + property.Name);
                 }
             }
         }
@@ -106,8 +108,43 @@ namespace SharpYaml.Tests.Serialization
             => Roundtrip<X>(new SerializerSettings() {EmitDefaultValues = true});
 
         [Test]
+        public void RoundtripWithRespectPrivateSetters()
+            => Roundtrip<PrivateSetters>(new SerializerSettings() {EmitDefaultValues = true}, true);
+
+        [Test]
         public void RoundtripFloatingPointEdgeCases()
             => Roundtrip<FloatingPointEdgeCases>(new SerializerSettings());
+
+        [Test]
+        public void RoundtripNoPrivateSetters()
+        {
+            var settings = new SerializerSettings();
+            settings.RegisterAssembly(typeof(SerializationTests).Assembly);
+            var serializer = new Serializer(settings);
+
+            var modified = new PrivateSetters();
+            modified.ModifyPrivateProperties();
+            
+            var buffer = new StringWriter();
+            serializer.Serialize(buffer, modified);
+
+            Dump.WriteLine(buffer);
+
+            var deserialized = serializer.Deserialize<PrivateSetters>(buffer.ToString());
+
+            foreach (var property in typeof(PrivateSetters).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (property.CanRead && property.GetSetMethod(false) == null)
+                {
+                    Console.WriteLine("Property " + property.Name + " / " + property.GetValue(modified, null) + " / " + property.GetValue(deserialized, null));
+
+                    Assert.AreNotEqual(
+                        property.GetValue(modified, null),
+                        property.GetValue(deserialized, null),
+                        "Property " + property.Name);
+                }
+            }
+        }
 
         [Test]
         public void CircularReference()
@@ -953,7 +990,7 @@ Mother:
             public int? MyNullableWithoutValue { get; set; }
 
             public double HighPrecisionDouble { get; set; }
-
+            
             public X()
             {
                 MyInt = 1234;
@@ -963,6 +1000,32 @@ Mother:
                 MyTimeSpan = TimeSpan.FromHours(1);
                 MyPoint = new Point(100, 200);
                 MyNullableWithValue = 8;
+            }
+        }
+
+        private class PrivateSetters : X
+        {
+            public double MyDoublePrivate { get; private set; }
+            public string MyStringPrivate { get; private set; }
+            public DateTime MyDatePrivate { get; private set; }
+            public int? MyNullableWithoutValuePrivate { get; private set; }
+            public int? MyNullableWithValuePrivate { get; private set; }
+
+            public PrivateSetters() : base()
+            {
+                MyDoublePrivate = 6789.1011;
+                MyStringPrivate = "Hello world";
+                MyDatePrivate = DateTime.Now;
+                MyNullableWithValuePrivate = 8;
+            }
+
+            public void ModifyPrivateProperties()
+            {
+                MyDoublePrivate += 25235.12421;
+                MyStringPrivate += "(NOT)";
+                MyDatePrivate = MyDatePrivate.Subtract(TimeSpan.FromHours(50));
+                MyNullableWithoutValuePrivate = 500;
+                MyNullableWithValuePrivate += 16;
             }
         }
 
