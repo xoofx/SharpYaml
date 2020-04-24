@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.0 (8 Mar 2020)
+- Add PascalCase and CamelCase naming convention support
+
+## 1.6.6
+- Handle parsing unicode surrogate pairs.
+- Fix serialization with DefaultStyle set to Flow
+- Make CoreSchema a singleton so that PrepareScalarRules only runs once.
+
+## 1.6.5
+- Support for escaping slash for JSON Compatibility (PR https://github.com/xoofx/SharpYaml/pull/66)
+
 ## 1.6.4
 - .NETStandart 2.0 supports
 - Fix ChildIndex.Resolve avoids OutOfRangeExceptions, returns null instead (#57)
