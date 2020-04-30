@@ -65,7 +65,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="namingConvention">The naming convention.</param>
         /// <exception cref="System.ArgumentException">Expecting arrat type;type</exception>
         public ArrayDescriptor(IAttributeRegistry attributeRegistry, Type type, IMemberNamingConvention namingConvention)
-            : base(attributeRegistry, type, false, namingConvention)
+            : base(attributeRegistry, type, false, false, namingConvention)
         {
             if (!type.IsArray)
                 throw new ArgumentException("Expecting array type", "type");

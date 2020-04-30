@@ -69,10 +69,11 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="attributeRegistry">The attribute registry.</param>
         /// <param name="type">The type.</param>
         /// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
+        /// <param name="respectPrivateSetters">If set to <c>true</c> will de/serialize properties with private setters.</param>
         /// <param name="namingConvention">The naming convention.</param>
         /// <exception cref="System.ArgumentException">Expecting a type inheriting from System.Collections.IDictionary;type</exception>
-        public DictionaryDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, IMemberNamingConvention namingConvention)
-            : base(attributeRegistry, type, emitDefaultValues, namingConvention)
+        public DictionaryDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, bool respectPrivateSetters, IMemberNamingConvention namingConvention)
+            : base(attributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention)
         {
             if (!IsDictionary(type))
                 throw new ArgumentException("Expecting a type inheriting from System.Collections.IDictionary", "type");

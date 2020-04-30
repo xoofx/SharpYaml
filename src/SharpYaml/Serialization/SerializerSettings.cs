@@ -173,6 +173,12 @@ namespace SharpYaml.Serialization
         public bool EmitDefaultValues { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether to serialize and deserialize properties with private setters (but visible getters). Default is false.
+        /// </summary>
+        /// <value><c>true</c> if to emit default value; otherwise, <c>false</c>.</value>
+        public bool RespectPrivateSetters { get; set; }
+
+        /// <summary>
         /// Gets or sets the default key comparer used to sort members (<see cref="IMemberDescriptor"/>) or
         /// dictionary keys, when serializing objects as YAML mappings. Default is <see cref="DefaultKeyComparer"/>. 
         /// To disable the default comparer, this value can be set to null.

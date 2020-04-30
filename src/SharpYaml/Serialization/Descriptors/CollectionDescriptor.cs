@@ -71,8 +71,8 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="emitDefaultValues">if set to <c>true</c> [emit default values].</param>
         /// <param name="namingConvention">The naming convention.</param>
         /// <exception cref="System.ArgumentException">Expecting a type inheriting from System.Collections.ICollection;type</exception>
-        public CollectionDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, IMemberNamingConvention namingConvention)
-            : base(attributeRegistry, type, emitDefaultValues, namingConvention)
+        public CollectionDescriptor(IAttributeRegistry attributeRegistry, Type type, bool emitDefaultValues, bool respectPrivateSetters, IMemberNamingConvention namingConvention)
+            : base(attributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention)
         {
             if (!IsCollection(type))
                 throw new ArgumentException("Expecting a type inheriting from System.Collections.ICollection", "type");
