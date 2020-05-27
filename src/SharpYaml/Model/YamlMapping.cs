@@ -87,7 +87,7 @@ namespace SharpYaml.Model {
             set {
                 MappingStart = new MappingStart(_mappingStart.Anchor,
                     value,
-                    _mappingStart.IsImplicit,
+                    string.IsNullOrEmpty(value),
                     _mappingStart.Style,
                     _mappingStart.Start,
                     _mappingStart.End);
@@ -176,7 +176,7 @@ namespace SharpYaml.Model {
             stringKeys = null;
 
             if (Tracker != null) {
-                for (int i = values.Count; i >= 0; i--)
+                for (int i = values.Count - 1; i >= 0; i--)
                     Tracker.OnMappingRemovePair(this, values[i], i);
             }
         }

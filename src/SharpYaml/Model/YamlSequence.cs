@@ -80,7 +80,7 @@ namespace SharpYaml.Model
             set {
                 SequenceStart = new SequenceStart(_sequenceStart.Anchor,
                     value,
-                    _sequenceStart.IsImplicit,
+                    string.IsNullOrEmpty(value),
                     _sequenceStart.Style,
                     _sequenceStart.Start,
                     _sequenceStart.End);
@@ -179,7 +179,7 @@ namespace SharpYaml.Model
             _contents.Clear();
 
             if (Tracker != null) {
-                for (int i = copy.Count; i >= 0; i--)
+                for (int i = copy.Count - 1; i >= 0; i--)
                     Tracker.OnSequenceRemoveElement(this, copy[i], i);
             }
         }
