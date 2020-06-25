@@ -38,7 +38,7 @@ namespace SharpYaml.Model
         public YamlValue(object value, IYamlSchema schema = null) {
             var valueString = PrimitiveSerializer.ConvertValue(value);
             if (schema == null)
-                schema = new CoreSchema();
+                schema = CoreSchema.Instance;
 
             Scalar = new Scalar(schema.GetDefaultTag(value.GetType()), valueString);
         }
