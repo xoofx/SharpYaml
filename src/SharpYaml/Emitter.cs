@@ -83,6 +83,7 @@ namespace SharpYaml
         private bool isWhitespace;
         private bool isIndentation;
         private bool forceIndentLess;
+        private bool emitKeyQuoted;
 
         private bool isOpenEnded;
 
@@ -128,12 +129,13 @@ namespace SharpYaml
         /// <param name="bestWidth">The preferred text width.</param>
         /// <param name="isCanonical">If true, write the output in canonical form.</param>
         /// <param name="forceIndentLess">if set to <c>true</c> [always indent].</param>
+        /// <param name="emitKeyQuoted">if set to <c>true</c> always emit keys double quoted.</param>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// bestIndent
         /// or
         /// bestWidth;The bestWidth parameter must be greater than bestIndent * 2.
         /// </exception>
-        public Emitter(TextWriter output, int bestIndent = MinBestIndent, int bestWidth = int.MaxValue, bool isCanonical = false, bool forceIndentLess = false)
+        public Emitter(TextWriter output, int bestIndent = MinBestIndent, int bestWidth = int.MaxValue, bool isCanonical = false, bool forceIndentLess = false, bool emitKeyQuoted = false)
         {
             if (bestIndent < MinBestIndent || bestIndent > MaxBestIndent)
             {
@@ -151,6 +153,7 @@ namespace SharpYaml
 
             this.isCanonical = isCanonical;
             this.forceIndentLess = forceIndentLess;
+            this.emitKeyQuoted = emitKeyQuoted;
 
             this.output = output;
             this.isUnicode = output.Encoding.WebName.StartsWith("utf", StringComparison.OrdinalIgnoreCase);
@@ -1447,7 +1450,7 @@ namespace SharpYaml
                 style = ScalarStyle.DoubleQuoted;
             }
 
-            if (isSimpleKeyContext && scalarData.isMultiline)
+            if (isSimpleKeyContext && (scalarData.isMultiline || emitKeyQuoted))
             {
                 style = ScalarStyle.DoubleQuoted;
             }

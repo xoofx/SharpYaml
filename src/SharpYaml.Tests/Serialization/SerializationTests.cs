@@ -505,6 +505,25 @@ namespace SharpYaml.Tests.Serialization
         }
 
         [Test]
+        public void JsonKeysAreQuoted() {
+            var settings = new SerializerSettings() { EmitDefaultValues = true, EmitJsonComptible = true, EmitTags = false };
+            var serializer = new Serializer(settings);
+
+            var buffer = new StringWriter();
+            
+            serializer.Serialize(buffer, new Dictionary<int, int> {{ 5, 10 } });
+
+            Dump.WriteLine(buffer);
+            var bufferText = buffer.ToString();
+            Assert.AreEqual("{\"5\": 10}", bufferText.Trim());
+
+            var dict = serializer.Deserialize<Dictionary<int, int>>(bufferText);
+            Assert.AreEqual(1, dict.Count);
+            Assert.AreEqual(5, dict.First().Key);
+            Assert.AreEqual(10, dict.First().Value);
+        }
+
+        [Test]
         public void DeserializationOfNullWorksInJson()
         {
             var settings = new SerializerSettings() {EmitDefaultValues = true, EmitJsonComptible = true};
