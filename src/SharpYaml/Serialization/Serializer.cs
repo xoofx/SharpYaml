@@ -165,7 +165,7 @@ namespace SharpYaml.Serialization
         /// <param name="graph">The object to serialize.</param>
         public void Serialize(TextWriter writer, object graph)
         {
-            Serialize(new Emitter(writer, Settings.PreferredIndent), graph);
+            Serialize(new Emitter(writer, Settings.PreferredIndent, emitKeyQuoted:Settings.EmitJsonComptible), graph);
         }
 
         /// <summary>
@@ -177,7 +177,7 @@ namespace SharpYaml.Serialization
         /// <param name="contextSettings">The context settings.</param>
         public void Serialize(TextWriter writer, object graph, Type type, SerializerContextSettings contextSettings = null)
         {
-            Serialize(new Emitter(writer, Settings.PreferredIndent), graph, type, contextSettings);
+            Serialize(new Emitter(writer, Settings.PreferredIndent, emitKeyQuoted: Settings.EmitJsonComptible), graph, type, contextSettings);
         }
 
         /// <summary>
