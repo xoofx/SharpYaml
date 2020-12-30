@@ -385,6 +385,15 @@ namespace SharpYaml.Model {
                 set.Remove(new ParentAndIndex(parent, relationship));
         }
 
+        void ShiftChild(YamlNode child, YamlNode parent, ChildIndex relationship, int shift) {
+            HashSet<ParentAndIndex> set;
+            if (!parents.TryGetValue(child, out set))
+                return;
+
+            set.Remove(new ParentAndIndex(parent, relationship));
+            set.Add(new ParentAndIndex(parent, new ChildIndex(relationship.Index + shift, relationship.IsKey)));
+        }
+        
         public IList<Path> GetPaths(YamlNode child) {
             if (child is YamlStream)
                 return new Path[0];
@@ -413,15 +422,29 @@ namespace SharpYaml.Model {
             return result;
         }
 
-        internal void OnStreamAddDocument(YamlStream sender, YamlDocument newDocument, int index) {
+        internal void OnStreamAddDocument(YamlStream sender, YamlDocument newDocument, int index, IEnumerable<YamlDocument> nextChildren) {
             var paths = GetPaths(sender);
             AddChild(newDocument, sender, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                var nextIndex = index;
+                foreach (var nextChild in nextChildren)
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex++, false), 1);
+            }
+            
             OnTrackerEvent(new StreamDocumentAdded(sender, paths, newDocument, index));
         }
 
-        internal void OnStreamRemoveDocument(YamlStream sender, YamlDocument removedDocument, int index) {
+        internal void OnStreamRemoveDocument(YamlStream sender, YamlDocument removedDocument, int index, IEnumerable<YamlDocument> nextChildren) {
             var paths = GetPaths(sender);
             RemoveChild(removedDocument, sender, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                var nextIndex = index + 1;
+                foreach (var nextChild in nextChildren)
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex++, false), -1);
+            }
+
             OnTrackerEvent(new StreamDocumentRemoved(sender, paths, removedDocument, index));
         }
 
@@ -474,15 +497,29 @@ namespace SharpYaml.Model {
             OnTrackerEvent(new SequenceStartChanged(sender, GetPaths(sender), oldValue, newValue));
         }
 
-        internal void OnSequenceAddElement(YamlSequence sender, YamlElement newElement, int index) {
+        internal void OnSequenceAddElement(YamlSequence sender, YamlElement newElement, int index, IEnumerable<YamlElement> nextChildren) {
             var paths = GetPaths(sender);
             AddChild(newElement, sender, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                var nextIndex = index;
+                foreach (var nextChild in nextChildren) 
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex++, false), 1);
+            }
+            
             OnTrackerEvent(new SequenceElementAdded(sender, paths, newElement, index));
         }
 
-        internal void OnSequenceRemoveElement(YamlSequence sender, YamlElement removedElement, int index) {
+        internal void OnSequenceRemoveElement(YamlSequence sender, YamlElement removedElement, int index, IEnumerable<YamlElement> nextChildren) {
             var paths = GetPaths(sender);
             RemoveChild(removedElement, sender, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                var nextIndex = index + 1;
+                foreach (var nextChild in nextChildren)
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex++, false), -1);
+            }
+
             OnTrackerEvent(new SequenceElementRemoved(sender, paths, removedElement, index));
         }
 
@@ -505,20 +542,36 @@ namespace SharpYaml.Model {
             OnTrackerEvent(new MappingStartChanged(sender, GetPaths(sender), oldValue, newValue));
         }
 
-        internal void OnMappingAddPair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> newPair, int index) {
+        internal void OnMappingAddPair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> newPair, int index, IEnumerable<KeyValuePair<YamlElement, YamlElement>> nextChildren) {
             var paths = GetPaths(sender);
 
             AddChild(newPair.Key, sender, new ChildIndex(index, true));
             AddChild(newPair.Value, sender, new ChildIndex(index, false));
 
+            if (nextChildren != null) {
+                var nextIndex = index;
+                foreach (var nextChild in nextChildren) {
+                    ShiftChild(nextChild.Key, sender, new ChildIndex(nextIndex, true), 1);
+                    ShiftChild(nextChild.Value, sender, new ChildIndex(nextIndex++, false), 1);
+                }
+            }
+
             OnTrackerEvent(new MappingPairAdded(sender, paths, newPair, index));
         }
 
-        internal void OnMappingRemovePair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> removedPair, int index) {
+        internal void OnMappingRemovePair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> removedPair, int index, IEnumerable<KeyValuePair<YamlElement, YamlElement>> nextChildren) {
             var paths = GetPaths(sender);
 
             RemoveChild(removedPair.Key, sender, new ChildIndex(index, true));
             RemoveChild(removedPair.Value, sender, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                var nextIndex = index + 1;
+                foreach (var nextChild in nextChildren) {
+                    ShiftChild(nextChild.Key, sender, new ChildIndex(nextIndex, true), -1);
+                    ShiftChild(nextChild.Value, sender, new ChildIndex(nextIndex++, false), -1);
+                }
+            }
 
             OnTrackerEvent(new MappingPairRemoved(sender, paths, removedPair, index));
         }
