@@ -148,9 +148,9 @@ namespace SharpYaml.Model {
             if (Tracker != null) {
                 item.Tracker = Tracker;
 
-                IEnumerable<YamlDocument> nextDocuments = null;
+                ICollection<YamlDocument> nextDocuments = null;
                 if (index < _documents.Count - 1)
-                    nextDocuments = _documents.Skip(index + 1);
+                    nextDocuments = _documents.Skip(index + 1).ToArray();
                 
                 Tracker.OnStreamAddDocument(this, item, index, nextDocuments);
             }

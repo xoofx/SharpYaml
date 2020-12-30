@@ -206,9 +206,9 @@ namespace SharpYaml.Model
             if (Tracker != null) {
                 item.Tracker = Tracker;
 
-                IEnumerable<YamlElement> nextChildren = null;
+                ICollection<YamlElement> nextChildren = null;
                 if (index < _contents.Count - 1)
-                    nextChildren = _contents.Skip(index + 1);
+                    nextChildren = _contents.Skip(index + 1).ToArray();
                 
                 Tracker.OnSequenceAddElement(this, item, index, nextChildren);
             }

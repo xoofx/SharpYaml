@@ -174,7 +174,7 @@ namespace SharpYaml.Tests {
             Assert.IsTrue(receivedArgs is MappingPairAdded);
             Assert.AreEqual(TrackerEventType.MappingPairAdded, ((MappingPairAdded)receivedArgs).EventType);
             Assert.AreEqual(0, ((MappingPairAdded)receivedArgs).Index);
-            Assert.AreEqual(new Model.Path(stream, new[] { new ChildIndex(0, false), new ChildIndex(-1, false) }), ((MappingPairAdded)receivedArgs).ParentPaths[0]);
+            Assert.AreEqual(new Path(stream, new[] { new ChildIndex(0, false), new ChildIndex(-1, false) }), ((MappingPairAdded)receivedArgs).ParentPaths[0]);
             Assert.AreEqual("A", ((MappingPairAdded)receivedArgs).Child.Key.ToString());
             Assert.AreEqual("5", ((MappingPairAdded)receivedArgs).Child.Value.ToString());
         }
@@ -339,6 +339,66 @@ namespace SharpYaml.Tests {
 
             Assert.AreEqual(val, modifiedPath.Resolve());
             Assert.AreEqual(3, modifiedPath.Indices[0].Index); // Index of the sequence is now 3.
+        }
+
+        [Test]
+        public void UpdateSubscriberNextChildrenTest() {
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
+
+            var tracker = new YamlNodeTracker();
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream, tracker);
+            var rootMapping = (YamlMapping) stream[0].Contents;
+            var val = (YamlValue) rootMapping["a simple key"];
+            var map = (YamlMapping) rootMapping["a mapping"];
+            var seq = (YamlSequence)rootMapping["a sequence"];
+            
+            var subscriber = new SubscriberHandler();
+            tracker.Subscribe(subscriber, tracker.GetPaths(seq)[0], "A");
+            tracker.Subscribe(subscriber, tracker.GetPaths(map)[0], "B");
+            tracker.Subscribe(subscriber, tracker.GetPaths(val)[0], "C");
+            
+            seq[0] = new YamlValue("New item");
+            map["bla"] = new YamlValue("New item");
+            val.Tag = "bla";
+
+            Assert.AreEqual(1, subscriber.ACalls);
+            Assert.AreEqual(1, subscriber.BCalls);
+            Assert.AreEqual(1, subscriber.CCalls);
+
+            rootMapping.Remove("a simple key");
+
+            seq[0] = new YamlValue("New item 2");
+
+            // Make sure we're still subscribed.
+            Assert.AreEqual(2, subscriber.ACalls);
+            Assert.AreEqual(1, subscriber.BCalls);
+
+            map["bla"] = new YamlValue("New item 2");
+
+            // Make sure we're still subscribed.
+            Assert.AreEqual(2, subscriber.ACalls);
+            Assert.AreEqual(2, subscriber.BCalls);
+            
+            // C should get unsubscribed and not get any seq or map changes.
+            Assert.AreEqual(1, subscriber.CCalls);
+
+            rootMapping.Insert(0, new KeyValuePair<YamlElement, YamlElement>(new YamlValue("a mapping 1"), new YamlMapping()));
+            
+            seq[0] = new YamlValue("New item 3");
+            
+            // Make sure we're still subscribed.
+            Assert.AreEqual(3, subscriber.ACalls);
+            Assert.AreEqual(2, subscriber.BCalls);
+            
+            map["bla"] = new YamlValue("New item 3");
+
+            // Make sure we're still subscribed.
+            Assert.AreEqual(3, subscriber.ACalls);
+            Assert.AreEqual(3, subscriber.BCalls);
+            Assert.AreEqual(1, subscriber.CCalls);
         }
     }
 }

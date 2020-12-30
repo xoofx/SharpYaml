@@ -362,9 +362,9 @@ namespace SharpYaml.Model {
                 item.Key.Tracker = Tracker;
                 item.Value.Tracker = Tracker;
 
-                IEnumerable<KeyValuePair<YamlElement, YamlElement>> nextChildren = null;
+                ICollection<KeyValuePair<YamlElement, YamlElement>> nextChildren = null;
                 if (index < _contents.Count - 1)
-                    nextChildren = this.Skip(index + 1);
+                    nextChildren = this.Skip(index + 1).ToArray();
                 
                 Tracker.OnMappingAddPair(this, item, index, nextChildren);
             }
