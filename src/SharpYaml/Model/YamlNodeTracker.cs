@@ -122,7 +122,7 @@ namespace SharpYaml.Model {
             return new Path(Root, Indices.Take(Indices.Length - 1).ToArray());
         }
     }
-
+    
     public enum TrackerEventType {
         StreamDocumentAdded,
         StreamDocumentRemoved,
@@ -409,7 +409,11 @@ namespace SharpYaml.Model {
                 var childPath = parentPath.Clone();
                 childPath.Append(childIndex);
 
-                subscribers.Remove(childPath);
+                foreach (var subpath in pathTrie.GetSubpaths(childPath)) {
+                    subscribers.Remove(subpath);
+                }
+
+                pathTrie.Remove(childPath, true);
             }
         }
 
@@ -424,15 +428,23 @@ namespace SharpYaml.Model {
                 var oldPaths = GetPaths(child);
 
                 foreach (var oldPath in oldPaths) {
-                    Dictionary<WeakReference, string> subs;
-                    if (!subscribers.TryGetValue(oldPath, out subs))
-                        continue;
+                    var newPaths = new List<Path>();
+                    foreach (var subpath in pathTrie.GetSubpaths(oldPath)) {
+                        Dictionary<WeakReference, string> subs;
+                        if (!subscribers.TryGetValue(subpath, out subs))
+                            continue;
 
-                    var newPath = oldPath.Clone();
-                    newPath.Indices[newPath.Indices.Length - 1] = newChildIndex;
+                        var newPath = subpath.Clone();
+                        newPath.Indices[oldPath.Indices.Length - 1] = newChildIndex;
 
-                    subscribers.Remove(oldPath);
-                    subscribers[newPath] = subs;
+                        subscribers.Remove(oldPath);
+                        subscribers[newPath] = subs;
+                        newPaths.Add(newPath);
+                    }
+
+                    pathTrie.Remove(oldPath, true);
+                    foreach (var newPath in newPaths)
+                        pathTrie.Add(newPath);
                 }
             }
 
@@ -712,6 +724,7 @@ namespace SharpYaml.Model {
 
         private Dictionary<Path, Dictionary<WeakReference, string>> subscribers;
         private Dictionary<WeakReference, string> noFilterSubscribers;
+        private PathTrie pathTrie;
 
         void CompactSubscribers() {
             foreach (var path in subscribers.Keys.ToArray()) {
@@ -722,8 +735,10 @@ namespace SharpYaml.Model {
                         dict.Remove(key);
                 }
 
-                if (dict.Count == 0)
+                if (dict.Count == 0) {
                     subscribers.Remove(path);
+                    pathTrie.Remove(path, false);
+                }
             }
 
             foreach (var key in noFilterSubscribers.Keys.ToArray()) {
@@ -736,6 +751,7 @@ namespace SharpYaml.Model {
             if (subscribers == null) {
                 subscribers = new Dictionary<Path, Dictionary<WeakReference, string>>();
                 noFilterSubscribers = new Dictionary<WeakReference, string>();
+                pathTrie = new PathTrie();
             }
 
             CompactSubscribers();
@@ -745,6 +761,7 @@ namespace SharpYaml.Model {
                 if (!subscribers.TryGetValue(filterPath.Value, out dict)) {
                     dict = new Dictionary<WeakReference, string>();
                     subscribers[filterPath.Value] = dict;
+                    pathTrie.Add(filterPath.Value);
                 }
             }
             else

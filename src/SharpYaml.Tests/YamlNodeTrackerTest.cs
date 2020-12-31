@@ -400,5 +400,46 @@ namespace SharpYaml.Tests {
             Assert.AreEqual(3, subscriber.BCalls);
             Assert.AreEqual(1, subscriber.CCalls);
         }
+
+
+        [Test]
+        public void UpdateSubscriberNextChildrenTest2() {
+            // As the indices of the parents change, the children also need to get re-subscribed.
+            var file = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
+
+            var tracker = new YamlNodeTracker();
+
+            var fileStream = new StreamReader(file);
+            var stream = YamlStream.Load(fileStream, tracker);
+            var rootMapping = (YamlMapping)stream[0].Contents;
+            var map = (YamlMapping)rootMapping["a mapping"];
+            var seq = (YamlSequence)rootMapping["a sequence"];
+            
+            var subscriber = new SubscriberHandler();
+            tracker.Subscribe(subscriber, tracker.GetPaths(map["key 1"])[0], "A");
+            tracker.Subscribe(subscriber, tracker.GetPaths(seq[0])[0], "B");
+
+            map["key 1"].Tag = "bla";
+            seq[0].Tag = "bla";
+
+            Assert.AreEqual(1, subscriber.ACalls);
+            Assert.AreEqual(1, subscriber.BCalls);
+
+            rootMapping.Remove(map);
+
+            seq[0].Tag = "bla2";
+
+            // Make sure B is still subscribed and A isn't.
+            Assert.AreEqual(1, subscriber.ACalls);
+            Assert.AreEqual(2, subscriber.BCalls);
+            
+            rootMapping.Insert(0, new KeyValuePair<YamlElement, YamlElement>(new YamlValue("a mapping 1"), new YamlMapping()));
+
+            seq[0].Tag = "bla3";
+
+            Assert.AreEqual(1, subscriber.ACalls);
+            Assert.AreEqual(3, subscriber.BCalls);
+        }
     }
 }
