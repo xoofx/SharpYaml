@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Reflection;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization.Descriptors;
@@ -84,7 +85,7 @@ namespace SharpYaml.Serialization
             EmitAlias = true;
             EmitTags = true;
             SortKeyForMapping = true;
-            EmitJsonComptible = false;
+            EmitJsonCompatible = false;
             EmitCapacityForList = false;
             SpecialCollectionMember = "~Items";
             LimitPrimitiveFlowSequence = 0;
@@ -150,8 +151,19 @@ namespace SharpYaml.Serialization
         /// Gets or sets a value indicating whether to emit JSON compatible YAML.
         /// </summary>
         /// <value><c>true</c> if to emit JSON compatible YAML; otherwise, <c>false</c>.</value>
-        public bool EmitJsonComptible { get; set; }
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public bool EmitJsonComptible 
+        {
+            get => EmitJsonCompatible;
+            set => EmitJsonCompatible = value; 
+        }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether to emit JSON compatible YAML.
+        /// </summary>
+        /// <value><c>true</c> if to emit JSON compatible YAML; otherwise, <c>false</c>.</value>
+        public bool EmitJsonCompatible { get; set; }
+        
         /// <summary>
         /// Gets or sets a value indicating whether the property <see cref="List{T}.Capacity" /> should be emitted. Default is false.
         /// </summary>
