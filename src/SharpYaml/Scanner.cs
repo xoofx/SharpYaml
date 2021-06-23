@@ -55,7 +55,7 @@ namespace SharpYaml
     /// <summary>
     /// Converts a sequence of characters into a sequence of YAML tokens.
     /// </summary>
-    public class Scanner
+    public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     {
         private const int MaxVersionNumberLength = 9;
 
@@ -85,8 +85,8 @@ namespace SharpYaml
         private int flowLevel;
         private int tokensParsed;
 
-        private const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
-        private readonly CharacterAnalyzer<LookAheadBuffer> analyzer;
+        public const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
+        private readonly CharacterAnalyzer<TBuffer> analyzer;
         private bool tokenAvailable;
 
         private static readonly IDictionary<char, char> simpleEscapeCodes = InitializeSimpleEscapeCodes();
@@ -139,10 +139,10 @@ namespace SharpYaml
         /// <summary>
         /// Initializes a new instance of the <see cref="Scanner"/> class.
         /// </summary>
-        /// <param name="input">The input.</param>
-        public Scanner(TextReader input)
+        /// <param name="buffer">The buffer.</param>
+        public Scanner(TBuffer buffer)
         {
-            analyzer = new CharacterAnalyzer<LookAheadBuffer>(new LookAheadBuffer(input, MaxBufferLength));
+            analyzer = new CharacterAnalyzer<TBuffer>(buffer);
             mark.Column = 0;
             mark.Line = 0;
         }

@@ -55,7 +55,7 @@ namespace SharpYaml.Model
         }
 
         public static YamlStream Load(TextReader stream, YamlNodeTracker tracker = null) {
-            return Load(new EventReader(new Parser(stream)), tracker);
+            return Load(new EventReader(Parser.CreateParser(stream)), tracker);
         }
 
         public static YamlStream Load(EventReader eventReader, YamlNodeTracker tracker = null) {

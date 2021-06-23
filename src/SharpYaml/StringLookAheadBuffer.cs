@@ -82,5 +82,7 @@ namespace SharpYaml
             }
             currentIndex += length;
         }
+
+        public void Cache(int length) { }
     }
 }

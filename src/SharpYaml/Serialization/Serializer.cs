@@ -306,7 +306,7 @@ namespace SharpYaml.Serialization
         {
             if (reader == null)
                 throw new ArgumentNullException("reader");
-            return Deserialize(new EventReader(new Parser(reader)), expectedType, existingObject, contextSettings);
+            return Deserialize(new EventReader(Parser.CreateParser(reader)), expectedType, existingObject, contextSettings);
         }
 
         /// <summary>
@@ -323,7 +323,7 @@ namespace SharpYaml.Serialization
         {
             if (reader == null)
                 throw new ArgumentNullException("reader");
-            return Deserialize(new EventReader(new Parser(reader)), expectedType, existingObject, contextSettings, out context);
+            return Deserialize(new EventReader(Parser.CreateParser(reader)), expectedType, existingObject, contextSettings, out context);
         }
 
         /// <summary>

@@ -60,16 +60,26 @@ using StreamStart = SharpYaml.Tokens.StreamStart;
 
 namespace SharpYaml
 {
+    public static class Parser {
+        public static IParser CreateParser(TextReader reader) {
+            var stringReader = reader as StringReader;
+            if (stringReader != null)
+                return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()));
+
+            else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength));
+        }
+    }
+    
     /// <summary>
     /// Parses YAML streams.
     /// </summary>
-    public class Parser : IParser
+    public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
     {
         private readonly Stack<ParserState> states = new Stack<ParserState>();
         private readonly TagDirectiveCollection tagDirectives = new TagDirectiveCollection();
         private ParserState state;
 
-        private readonly Scanner scanner;
+        private readonly Scanner<TBuffer> scanner;
         private Event current;
 
         private Token currentToken;
@@ -85,14 +95,14 @@ namespace SharpYaml
             }
             return currentToken;
         }
-
+        
         /// <summary>
         /// Initializes a new instance of the <see cref="IParser"/> class.
         /// </summary>
-        /// <param name="input">The input where the YAML stream is to be read.</param>
-        public Parser(TextReader input)
+        /// <param name="buffer">The input where the YAML stream is to be read.</param>
+        public Parser(TBuffer buffer)
         {
-            scanner = new Scanner(input);
+            scanner = new Scanner<TBuffer>(buffer);
         }
 
         /// <summary>

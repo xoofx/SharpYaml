@@ -47,7 +47,7 @@ using System;
 
 namespace SharpYaml
 {
-    internal interface ILookAheadBuffer
+    public interface ILookAheadBuffer
     {
         /// <summary>
         /// Gets a value indicating whether the end of the input reader has been reached.
@@ -64,5 +64,13 @@ namespace SharpYaml
         /// obtained first by calling the <see cref="Peek"/> method.
         /// </summary>
         void Skip(int length);
+
+        /// <summary>
+        /// Reads characters until at least <paramref name="length"/> characters are in the buffer.
+        /// </summary>
+        /// <param name="length">
+        /// Number of characters to cache.
+        /// </param>
+        void Cache(int length);
     }
 }

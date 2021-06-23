@@ -730,7 +730,7 @@ Name: Andy
 Name: Brad
 ...";
             var serializer = new Serializer();
-            var reader = new EventReader(new Parser(new StringReader(yaml)));
+            var reader = new EventReader(Parser.CreateParser(new StringReader(yaml)));
 
             reader.Expect<StreamStart>();
 
@@ -754,7 +754,7 @@ Name: Brad
 Name: Charles
 ...";
             var serializer = new Serializer();
-            var reader = new EventReader(new Parser(new StringReader(yaml)));
+            var reader = new EventReader(Parser.CreateParser(new StringReader(yaml)));
 
             reader.Allow<StreamStart>();
 

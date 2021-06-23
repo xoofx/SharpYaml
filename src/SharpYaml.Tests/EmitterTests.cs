@@ -183,7 +183,7 @@ namespace SharpYaml.Tests
             var testText = YamlFile(name).ReadToEnd();
 
             var output = new StringWriter();
-            IParser parser = new Parser(new StringReader(testText));
+            IParser parser = Parser.CreateParser(new StringReader(testText));
             IEmitter emitter = new Emitter(output, 2, int.MaxValue, false);
             Dump.WriteLine("= Parse and emit yaml file [" + name + "] =");
             while (parser.MoveNext())
