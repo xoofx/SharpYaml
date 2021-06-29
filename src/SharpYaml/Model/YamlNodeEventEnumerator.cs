@@ -17,17 +17,9 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
 using SharpYaml.Events;
-using SharpYaml.Serialization;
-using DocumentStart = SharpYaml.Events.DocumentStart;
-using Scalar = SharpYaml.Events.Scalar;
-using StreamStart = SharpYaml.Events.StreamStart;
 
 namespace SharpYaml.Model {
     public struct YamlNodeEventEnumerator : IEnumerable<ParsingEvent>, IEnumerator<ParsingEvent> {
@@ -57,11 +49,6 @@ namespace SharpYaml.Model {
             if (currentNode == null)
                 return false;
             
-            if (nodePath == null) {
-                nodePath = new Stack<YamlNode>();
-                indexPath = new Stack<int>();
-            }
-            
             if (currentNode is YamlStream stream) {
                 if (currentIndex == -1) {
                     Current = stream.StreamStart;
@@ -70,11 +57,7 @@ namespace SharpYaml.Model {
                 } 
                 
                 if (currentIndex < stream.Count) {
-                    nodePath.Push(currentNode);
-                    indexPath.Push(currentIndex);
-                    currentNode = stream[currentIndex];
-                    currentIndex = -1;
-                    MoveNext();
+                    Push(stream[currentIndex]);
                     return true;
                 } 
                   
@@ -91,11 +74,7 @@ namespace SharpYaml.Model {
                 }
 
                 if (currentIndex < 1) {
-                    nodePath.Push(currentNode);
-                    indexPath.Push(currentIndex);
-                    currentNode = document.Contents;
-                    currentIndex = -1;
-                    MoveNext();
+                    Push(document.Contents);
                     return true;
                 }
 
@@ -112,16 +91,10 @@ namespace SharpYaml.Model {
                 }
 
                 if (currentIndex < mapping.Count * 2) {
-                    nodePath.Push(currentNode);
-                    indexPath.Push(currentIndex);
-                    if (currentIndex % 2 == 0) {
-                        currentNode = ((List<YamlElement>) mapping.Keys)[currentIndex / 2];
-                        currentIndex = -1;
-                    } else {
-                        currentNode = mapping[(currentIndex - 1) / 2].Value;
-                        currentIndex = -1;
-                    }
-                    MoveNext();
+                    if (currentIndex % 2 == 0) 
+                        Push(((List<YamlElement>) mapping.Keys)[currentIndex / 2]);
+                    else
+                        Push(mapping[(currentIndex - 1) / 2].Value);
                     return true;
                 }
 
@@ -138,11 +111,7 @@ namespace SharpYaml.Model {
                 }
 
                 if (currentIndex < sequence.Count) {
-                    nodePath.Push(currentNode);
-                    indexPath.Push(currentIndex);
-                    currentNode = sequence[currentIndex];
-                    currentIndex = -1;
-                    MoveNext();
+                    Push(sequence[currentIndex]);
                     return true;
                 }
 
@@ -158,6 +127,25 @@ namespace SharpYaml.Model {
             }
 
             return false;
+        }
+
+        void Push(YamlNode nextNode) {
+            if (nextNode is YamlValue value) {
+                Current = value.Scalar;
+                currentIndex++;
+                return;
+            }
+
+            if (nodePath == null) {
+                nodePath = new Stack<YamlNode>();
+                indexPath = new Stack<int>();
+            }
+            
+            nodePath.Push(currentNode);
+            indexPath.Push(currentIndex);
+            currentNode = nextNode;
+            currentIndex = -1;
+            MoveNext();
         }
 
         void Pop() {
