@@ -1829,9 +1829,9 @@ namespace SharpYaml
         private Token ScanPlainScalar()
         {
             StringBuilder value = new StringBuilder();
-            StringBuilder whitespaces = new StringBuilder();
-            StringBuilder leadingBreak = new StringBuilder();
-            StringBuilder trailingBreaks = new StringBuilder();
+            StringBuilder whitespaces = null;
+            StringBuilder leadingBreak = null;
+            StringBuilder trailingBreaks = null;
 
             bool hasLeadingBlanks = false;
             int currentIndent = indent + 1;
@@ -1876,7 +1876,7 @@ namespace SharpYaml
 
                     // Check if we need to join whitespaces and breaks.
 
-                    if (hasLeadingBlanks || whitespaces.Length > 0)
+                    if (hasLeadingBlanks || whitespaces?.Length > 0)
                     {
                         if (hasLeadingBlanks)
                         {
@@ -1884,7 +1884,7 @@ namespace SharpYaml
 
                             if (StartsWith(leadingBreak, '\n'))
                             {
-                                if (trailingBreaks.Length == 0)
+                                if (trailingBreaks?.Length == 0)
                                 {
                                     value.Append(' ');
                                 }
@@ -1900,7 +1900,8 @@ namespace SharpYaml
                             }
 
                             leadingBreak.Length = 0;
-                            trailingBreaks.Length = 0;
+                            if (trailingBreaks != null)
+                                trailingBreaks.Length = 0;
 
                             hasLeadingBlanks = false;
                         }
@@ -1940,8 +1941,9 @@ namespace SharpYaml
 
                         // Consume a space or a tab character.
 
-                        if (!hasLeadingBlanks)
-                        {
+                        if (!hasLeadingBlanks) {
+                            if (whitespaces == null)
+                                whitespaces = new StringBuilder();
                             whitespaces.Append(ReadCurrentCharacter());
                         }
                         else
@@ -1955,12 +1957,16 @@ namespace SharpYaml
 
                         if (!hasLeadingBlanks)
                         {
-                            whitespaces.Length = 0;
+                            if (whitespaces != null)
+                                whitespaces.Length = 0;
+                            if (leadingBreak == null)
+                                leadingBreak = new StringBuilder();
                             leadingBreak.Append(ReadLine());
                             hasLeadingBlanks = true;
                         }
-                        else
-                        {
+                        else {
+                            if (trailingBreaks == null)
+                                trailingBreaks = new StringBuilder();
                             trailingBreaks.Append(ReadLine());
                         }
                     }
