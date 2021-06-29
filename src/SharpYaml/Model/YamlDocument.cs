@@ -53,16 +53,6 @@ namespace SharpYaml.Model
             return new YamlDocument(documentStart, documentEnd, contents, tracker);
         }
 
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _documentStart;
-
-            foreach (var evnt in _contents.EnumerateEvents()) {
-                yield return evnt;
-            }
-
-            yield return _documentEnd;
-        }
-
         public DocumentStart DocumentStart {
             get => _documentStart;
             set {

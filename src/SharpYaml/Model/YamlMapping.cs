@@ -69,6 +69,8 @@ namespace SharpYaml.Model {
                     Tracker.OnMappingStartChanged(this, oldValue, value);
             }
         }
+        
+        internal MappingEnd MappingEnd { get { return _mappingEnd;  } }
 
         public override string Anchor {
             get { return _mappingStart.Anchor; }
@@ -140,21 +142,7 @@ namespace SharpYaml.Model {
 
             return new YamlMapping(mappingStart, mappingEnd, keys, contents, tracker);
         }
-
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _mappingStart;
-
-            foreach (var key in _keys) {
-                foreach (var evnt in key.EnumerateEvents())
-                    yield return evnt;
-
-                foreach (var evnt in _contents[key].EnumerateEvents())
-                    yield return evnt;
-            }
-
-            yield return _mappingEnd;
-        }
-
+        
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }

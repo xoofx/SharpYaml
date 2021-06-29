@@ -54,6 +54,9 @@ namespace SharpYaml.Model
             }
         }
 
+        internal StreamStart StreamStart { get { return _streamStart; } }
+        internal StreamEnd StreamEnd { get { return _streamEnd; } }
+
         public static YamlStream Load(TextReader stream, YamlNodeTracker tracker = null) {
             return Load(new EventReader(Parser.CreateParser(stream)), tracker);
         }
@@ -68,19 +71,6 @@ namespace SharpYaml.Model
             var streamEnd = eventReader.Allow<StreamEnd>();
 
             return new YamlStream(streamStart, streamEnd, documents, tracker);
-        }
-
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _streamStart;
-
-            foreach (var document in _documents) {
-                foreach (var evnt in document.EnumerateEvents()) {
-                    yield return evnt;
-                }
-            }
-
-
-            yield return _streamEnd;
         }
 
         IEnumerator IEnumerable.GetEnumerator() {

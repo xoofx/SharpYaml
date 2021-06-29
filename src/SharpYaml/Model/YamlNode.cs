@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -29,7 +30,7 @@ using Scalar = SharpYaml.Events.Scalar;
 using StreamStart = SharpYaml.Events.StreamStart;
 
 namespace SharpYaml.Model {
-    public abstract class YamlNode {
+     public abstract class YamlNode {
         public virtual YamlNodeTracker Tracker { get; internal set; }
 
         protected static YamlElement ReadElement(EventReader eventReader, YamlNodeTracker tracker = null) {
@@ -45,7 +46,9 @@ namespace SharpYaml.Model {
             return null;
         }
 
-        public abstract IEnumerable<ParsingEvent> EnumerateEvents();
+        public IEnumerable<ParsingEvent> EnumerateEvents() {
+            return new YamlNodeEventEnumerator(this);
+        }
 
         public void WriteTo(TextWriter writer, bool suppressDocumentTags = false) {
             WriteTo(new Emitter(writer), suppressDocumentTags);

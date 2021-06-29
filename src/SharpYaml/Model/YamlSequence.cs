@@ -62,6 +62,8 @@ namespace SharpYaml.Model
                     Tracker.OnSequenceStartChanged(this, _sequenceStart, value);
             }
         }
+        
+        internal SequenceEnd SequenceEnd { get { return _sequenceEnd; } }
 
         public override string Anchor {
             get { return _sequenceStart.Anchor; }
@@ -126,18 +128,6 @@ namespace SharpYaml.Model
             var sequenceEnd = eventReader.Allow<SequenceEnd>();
 
             return new YamlSequence(sequenceStart, sequenceEnd, contents, tracker);
-        }
-
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _sequenceStart;
-
-            foreach (var item in _contents) {
-                foreach (var evnt in item.EnumerateEvents()) {
-                    yield return evnt;
-                }
-            }
-
-            yield return _sequenceEnd;
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
