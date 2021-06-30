@@ -56,20 +56,18 @@ namespace SharpYaml
         private int line;
         private int column;
 
+        public Mark(int index, int line, int column) {
+            this.index = index;
+            this.line = line;
+            this.column = column;
+        }
+
         /// <summary>
         /// Gets / sets the absolute offset in the file
         /// </summary>
         public int Index
         {
             get { return index; }
-            set
-            {
-                if (value < 0)
-                {
-                    throw new ArgumentOutOfRangeException("value", "Index must be greater than or equal to zero.");
-                }
-                index = value;
-            }
         }
 
         /// <summary>
@@ -78,14 +76,6 @@ namespace SharpYaml
         public int Line
         {
             get { return line; }
-            set
-            {
-                if (value < 0)
-                {
-                    throw new ArgumentOutOfRangeException("value", "Line must be greater than or equal to zero.");
-                }
-                line = value;
-            }
         }
 
         /// <summary>
@@ -94,14 +84,6 @@ namespace SharpYaml
         public int Column
         {
             get { return column; }
-            set
-            {
-                if (value < 0)
-                {
-                    throw new ArgumentOutOfRangeException("value", "Column must be greater than or equal to zero.");
-                }
-                column = value;
-            }
         }
 
         /// <summary>
