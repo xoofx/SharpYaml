@@ -22,14 +22,14 @@ using System.Collections.Generic;
 using SharpYaml.Events;
 
 namespace SharpYaml.Model {
-    public struct YamlNodeEventEnumerator : IEnumerable<ParsingEvent>, IEnumerator<ParsingEvent> {
-        private YamlNode root;
+    public sealed class YamlNodeEventEnumerator : IEnumerable<ParsingEvent>, IEnumerator<ParsingEvent> {
+        private readonly YamlNode root;
         private YamlNode currentNode;
         private int currentIndex;
         private Stack<YamlNode> nodePath;
         private Stack<int> indexPath;
 
-        public YamlNodeEventEnumerator(YamlNode root) : this() {
+        public YamlNodeEventEnumerator(YamlNode root) {
             this.root = root;
             currentNode = root;
             currentIndex = -1;
