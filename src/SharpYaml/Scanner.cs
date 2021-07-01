@@ -1829,10 +1829,10 @@ namespace SharpYaml
         /// </summary>
         private Token ScanPlainScalar()
         {
-            StringBuilder value = new StringBuilder();
-            StringBuilder whitespaces = null;
-            StringBuilder leadingBreak = null;
-            StringBuilder trailingBreaks = null;
+            scanScalarValue.Length = 0;
+            scanScalarWhitespaces.Length = 0;
+            scanScalarLeadingBreak.Length = 0;
+            scanScalarTrailingBreaks.Length = 0;
 
             bool hasLeadingBlanks = false;
             int currentIndent = indent + 1;
@@ -1877,45 +1877,44 @@ namespace SharpYaml
 
                     // Check if we need to join whitespaces and breaks.
 
-                    if (hasLeadingBlanks || whitespaces?.Length > 0)
+                    if (hasLeadingBlanks || scanScalarWhitespaces.Length > 0)
                     {
                         if (hasLeadingBlanks)
                         {
                             // Do we need to fold line breaks?
 
-                            if (StartsWith(leadingBreak, '\n'))
+                            if (StartsWith(scanScalarLeadingBreak, '\n'))
                             {
-                                if (trailingBreaks?.Length == 0)
+                                if (scanScalarTrailingBreaks.Length == 0)
                                 {
-                                    value.Append(' ');
+                                    scanScalarValue.Append(' ');
                                 }
                                 else
                                 {
-                                    value.Append(trailingBreaks);
+                                    scanScalarValue.Append(scanScalarTrailingBreaks);
                                 }
                             }
                             else
                             {
-                                value.Append(leadingBreak);
-                                value.Append(trailingBreaks);
+                                scanScalarValue.Append(scanScalarLeadingBreak);
+                                scanScalarValue.Append(scanScalarTrailingBreaks);
                             }
 
-                            leadingBreak.Length = 0;
-                            if (trailingBreaks != null)
-                                trailingBreaks.Length = 0;
+                            scanScalarLeadingBreak.Length = 0;
+                            scanScalarTrailingBreaks.Length = 0;
 
                             hasLeadingBlanks = false;
                         }
                         else
                         {
-                            value.Append(whitespaces);
-                            whitespaces.Length = 0;
+                            scanScalarValue.Append(scanScalarWhitespaces);
+                            scanScalarWhitespaces.Length = 0;
                         }
                     }
 
                     // Copy the character.
 
-                    value.Append(ReadCurrentCharacter());
+                    scanScalarValue.Append(ReadCurrentCharacter());
 
                     end = CurrentPosition;
                 }
@@ -1943,9 +1942,7 @@ namespace SharpYaml
                         // Consume a space or a tab character.
 
                         if (!hasLeadingBlanks) {
-                            if (whitespaces == null)
-                                whitespaces = new StringBuilder();
-                            whitespaces.Append(ReadCurrentCharacter());
+                            scanScalarWhitespaces.Append(ReadCurrentCharacter());
                         }
                         else
                         {
@@ -1958,17 +1955,12 @@ namespace SharpYaml
 
                         if (!hasLeadingBlanks)
                         {
-                            if (whitespaces != null)
-                                whitespaces.Length = 0;
-                            if (leadingBreak == null)
-                                leadingBreak = new StringBuilder();
-                            leadingBreak.Append(ReadLine());
+                            scanScalarWhitespaces.Length = 0;
+                            scanScalarLeadingBreak.Append(ReadLine());
                             hasLeadingBlanks = true;
                         }
                         else {
-                            if (trailingBreaks == null)
-                                trailingBreaks = new StringBuilder();
-                            trailingBreaks.Append(ReadLine());
+                            scanScalarTrailingBreaks.Append(ReadLine());
                         }
                     }
                 }
@@ -1990,7 +1982,7 @@ namespace SharpYaml
 
             // Create a token.
 
-            return new Scalar(value.ToString(), ScalarStyle.Plain, start, end);
+            return new Scalar(scanScalarValue.ToString(), ScalarStyle.Plain, start, end);
         }
 
 
