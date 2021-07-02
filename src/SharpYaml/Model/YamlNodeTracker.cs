@@ -359,9 +359,13 @@ namespace SharpYaml.Model {
                 return;
             }
 
-            if (set is ParentAndIndex[]) {
+            var array = set as ParentAndIndex[];
+            if (array != null) {
+                if (array[0].Equals(pi))
+                    return;
+                
                 var newSet = new HashSet<ParentAndIndex>();
-                newSet.Add(set.First());
+                newSet.Add(array[0]);
                 parents.Remove(child);
                 set = newSet;
                 parents.Add(child, set);
