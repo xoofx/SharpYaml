@@ -114,6 +114,6 @@ namespace SharpYaml.Model {
             return ReadElement(new EventReader(new MemoryParser(emitter.Events)));
         }
 
-        public abstract YamlNode DeepClone();
+        public abstract YamlNode DeepClone(YamlNodeTracker tracker = null);
     }
 }

@@ -106,7 +106,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNode DeepClone() {
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
             var documentVersionCopy = _documentStart.Version == null
                 ? null
                 : new VersionDirective(_documentStart.Version.Version, _documentStart.Version.Start, _documentStart.Version.End);
@@ -118,7 +118,7 @@ namespace SharpYaml.Model
 
             var documentEndCopy = new DocumentEnd(_documentEnd.IsImplicit, _documentEnd.Start, _documentEnd.End);
 
-            return new YamlDocument(documentStartCopy, documentEndCopy, (YamlElement) Contents?.DeepClone(), Tracker);
+            return new YamlDocument(documentStartCopy, documentEndCopy, (YamlElement) Contents?.DeepClone(), tracker);
         }
     }
 }

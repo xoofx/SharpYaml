@@ -175,10 +175,11 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNode DeepClone() {
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
             return new YamlStream(new StreamStart(_streamStart.Start, _streamStart.End),
                 new StreamEnd(_streamEnd.Start, _streamEnd.End),
-                _documents.Select(d => (YamlDocument)d.DeepClone()).ToList());
+                _documents.Select(d => (YamlDocument)d.DeepClone(tracker)).ToList(), 
+                tracker);
         }
     }
 }

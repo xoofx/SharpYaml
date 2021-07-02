@@ -415,7 +415,7 @@ namespace SharpYaml.Model {
             }
         }
 
-        public override YamlNode DeepClone() {
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
             var mappingStartCopy = new MappingStart(_mappingStart.Anchor,
                 _mappingStart.Tag,
                 _mappingStart.IsImplicit,
@@ -436,7 +436,7 @@ namespace SharpYaml.Model {
                 mappingEndCopy,
                 cloneKeys,
                 cloneContents,
-                Tracker);
+                tracker);
         }
     }
 }
