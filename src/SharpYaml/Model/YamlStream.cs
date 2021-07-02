@@ -23,8 +23,7 @@ using System.IO;
 using System.Linq;
 using SharpYaml.Events;
 
-namespace SharpYaml.Model
-{
+namespace SharpYaml.Model {
     public class YamlStream : YamlNode, IList<YamlDocument> {
         private readonly StreamStart _streamStart;
         private readonly StreamEnd _streamEnd;
@@ -89,7 +88,7 @@ namespace SharpYaml.Model
                 Tracker.OnStreamAddDocument(this, item, _documents.Count - 1);
             }
         }
-        
+
         public override YamlNodeTracker Tracker {
             get { return base.Tracker; }
             internal set {
@@ -176,10 +175,11 @@ namespace SharpYaml.Model
         }
 
         public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
-            return new YamlStream(new StreamStart(_streamStart.Start, _streamStart.End),
-                new StreamEnd(_streamEnd.Start, _streamEnd.End),
-                _documents.Select(d => (YamlDocument)d.DeepClone(tracker)).ToList(), 
-                tracker);
+            var documentsClone = new List<YamlDocument>(_documents.Count);
+            for (var i = 0; i < _documents.Count; i++)
+                documentsClone.Add((YamlDocument)_documents[i].DeepClone());
+
+            return new YamlStream(_streamStart, _streamEnd, documentsClone, tracker);
         }
     }
 }

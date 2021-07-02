@@ -50,7 +50,7 @@ namespace SharpYaml.Events
     /// <summary>
     /// Represents a stream start event.
     /// </summary>
-    public class StreamStart : ParsingEvent
+    public sealed class StreamStart : ParsingEvent
     {
         /// <summary>
         /// Gets a value indicating the variation of depth caused by this event.

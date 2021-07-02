@@ -51,7 +51,7 @@ namespace SharpYaml.Events
     /// <summary>
     /// Represents a mapping start event.
     /// </summary>
-    public class MappingStart : NodeEvent
+    public sealed class MappingStart : NodeEvent
     {
         /// <summary>
         /// Gets a value indicating the variation of depth caused by this event.

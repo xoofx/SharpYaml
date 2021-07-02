@@ -107,18 +107,7 @@ namespace SharpYaml.Model
         }
 
         public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
-            var documentVersionCopy = _documentStart.Version == null
-                ? null
-                : new VersionDirective(_documentStart.Version.Version, _documentStart.Version.Start, _documentStart.Version.End);
-
-            var documentTagsCopy = _documentStart.Tags == null ? null : new TagDirectiveCollection(_documentStart.Tags);
-
-            var documentStartCopy = new DocumentStart(documentVersionCopy, documentTagsCopy, _documentStart.IsImplicit,
-                _documentStart.Start, _documentStart.End);
-
-            var documentEndCopy = new DocumentEnd(_documentEnd.IsImplicit, _documentEnd.Start, _documentEnd.End);
-
-            return new YamlDocument(documentStartCopy, documentEndCopy, (YamlElement) Contents?.DeepClone(), tracker);
+            return new YamlDocument(_documentStart, _documentEnd, (YamlElement) Contents?.DeepClone(), tracker);
         }
     }
 }

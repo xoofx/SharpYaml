@@ -416,25 +416,18 @@ namespace SharpYaml.Model {
         }
 
         public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
-            var mappingStartCopy = new MappingStart(_mappingStart.Anchor,
-                _mappingStart.Tag,
-                _mappingStart.IsImplicit,
-                _mappingStart.Style,
-                _mappingStart.Start,
-                _mappingStart.End);
-
-            var mappingEndCopy = new MappingEnd(_mappingEnd.Start, _mappingEnd.End);
-
-            var cloneKeys = _keys.Select(k => (YamlElement) k.DeepClone()).ToList();
+            var keysClone = new List<YamlElement>(_keys.Count);
+            for (var i = 0; i < _keys.Count; i++)
+                keysClone.Add((YamlElement)_keys[i].DeepClone());
 
             var cloneContents = new Dictionary<YamlElement, YamlElement>();
 
             for (var i = 0; i < _keys.Count; i++)
-                cloneContents[cloneKeys[i]] = (YamlElement) _contents[_keys[i]].DeepClone();
+                cloneContents[keysClone[i]] = (YamlElement) _contents[_keys[i]].DeepClone();
 
-            return new YamlMapping(mappingStartCopy,
-                mappingEndCopy,
-                cloneKeys,
+            return new YamlMapping(_mappingStart,
+                _mappingEnd,
+                keysClone,
                 cloneContents,
                 tracker);
         }

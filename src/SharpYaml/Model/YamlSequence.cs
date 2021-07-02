@@ -233,16 +233,11 @@ namespace SharpYaml.Model
         }
 
         public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
-            var sequenceStartCopy = new SequenceStart(_sequenceStart.Anchor, 
-                _sequenceStart.Tag, 
-                _sequenceStart.IsImplicit, 
-                _sequenceStart.Style, 
-                _sequenceStart.Start, 
-                _sequenceStart.End);
+            var contentsClone = new List<YamlElement>(_contents.Count);
+            for (var i = 0; i < _contents.Count; i++)
+                contentsClone.Add((YamlElement) _contents[i].DeepClone());
 
-            var sequenceEndCopy = new SequenceEnd(_sequenceEnd.Start, _sequenceEnd.End);
-
-            return new YamlSequence(sequenceStartCopy, sequenceEndCopy, _contents.Select(c => (YamlElement) c.DeepClone()).ToList(), tracker);
+            return new YamlSequence(_sequenceStart, _sequenceEnd, contentsClone, tracker);
         }
     }
 }

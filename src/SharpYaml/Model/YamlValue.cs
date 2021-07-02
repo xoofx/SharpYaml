@@ -62,15 +62,7 @@ namespace SharpYaml.Model
         }
 
         public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
-            return new YamlValue(new Scalar(_scalar.Anchor,
-                _scalar.Tag,
-                _scalar.Value,
-                _scalar.Style,
-                _scalar.IsPlainImplicit,
-                _scalar.IsQuotedImplicit,
-                _scalar.Start,
-                _scalar.End),
-                tracker);
+            return new YamlValue(_scalar, tracker);
         }
 
         public override string Anchor {
