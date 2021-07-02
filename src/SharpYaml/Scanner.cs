@@ -89,7 +89,7 @@ namespace SharpYaml
         private int tokensParsed;
 
         public const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
-        private readonly CharacterAnalyzer<TBuffer> analyzer;
+        private readonly TBuffer analyzer;
         private bool tokenAvailable;
 
         private static readonly IDictionary<char, char> simpleEscapeCodes = InitializeSimpleEscapeCodes();
@@ -145,7 +145,7 @@ namespace SharpYaml
         /// <param name="buffer">The buffer.</param>
         public Scanner(TBuffer buffer)
         {
-            analyzer = new CharacterAnalyzer<TBuffer>(buffer);
+            analyzer = buffer;
         }
 
         private Token current;
@@ -305,11 +305,11 @@ namespace SharpYaml
             // of the longest indicators ('--- ' and '... ').
 
 
-            analyzer.Buffer.Cache(4);
+            analyzer.Cache(4);
 
             // Is it the end of the stream?
 
-            if (analyzer.Buffer.EndOfInput)
+            if (analyzer.EndOfInput)
             {
                 FetchStreamEnd();
                 return;
@@ -533,7 +533,7 @@ namespace SharpYaml
         {
             ++index;
             ++column;
-            analyzer.Buffer.Skip(1);
+            analyzer.Skip(1);
         }
 
         private void SkipLine()
@@ -543,14 +543,14 @@ namespace SharpYaml
                 index += 2;
                 column = 0;
                 ++line;
-                analyzer.Buffer.Skip(2);
+                analyzer.Skip(2);
             }
             else if (analyzer.IsBreak())
             {
                 ++index;
                 column = 0;
                 ++line;
-                analyzer.Buffer.Skip(1);
+                analyzer.Skip(1);
             }
             else if (!analyzer.IsZero())
             {

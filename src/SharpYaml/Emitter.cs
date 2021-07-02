@@ -349,7 +349,7 @@ namespace SharpYaml
 
             bool preceeded_by_whitespace = true;
 
-            CharacterAnalyzer<StringLookAheadBuffer> buffer = new CharacterAnalyzer<StringLookAheadBuffer>(new StringLookAheadBuffer(value));
+            StringLookAheadBuffer buffer = new StringLookAheadBuffer(value);
             bool followed_by_whitespace = buffer.IsBlankOrBreakOrZero(1);
 
             // If the output is not detected as unicode, check if the value to encode contains 
@@ -433,7 +433,7 @@ namespace SharpYaml
                     {
                         leading_space = true;
                     }
-                    if (buffer.Buffer.Position >= buffer.Buffer.Length - 1)
+                    if (buffer.Position >= buffer.Length - 1)
                     {
                         trailing_space = true;
                     }
@@ -452,7 +452,7 @@ namespace SharpYaml
                     {
                         leading_break = true;
                     }
-                    if (buffer.Buffer.Position >= buffer.Buffer.Length - 1)
+                    if (buffer.Position >= buffer.Length - 1)
                     {
                         trailing_break = true;
                     }
@@ -1803,7 +1803,7 @@ namespace SharpYaml
 
         private void WriteBlockScalarHints(string value)
         {
-            var analyzer = new CharacterAnalyzer<StringLookAheadBuffer>(new StringLookAheadBuffer(value));
+            var analyzer = new StringLookAheadBuffer(value);
 
             if (analyzer.IsSpace() || analyzer.IsBreak())
             {
