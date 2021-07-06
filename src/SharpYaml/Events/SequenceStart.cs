@@ -51,7 +51,7 @@ namespace SharpYaml.Events
     /// <summary>
     /// Represents a sequence start event.
     /// </summary>
-    public class SequenceStart : NodeEvent
+    public sealed class SequenceStart : NodeEvent
     {
         /// <summary>
         /// Gets a value indicating the variation of depth caused by this event.

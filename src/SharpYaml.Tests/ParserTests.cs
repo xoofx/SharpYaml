@@ -333,7 +333,7 @@ namespace SharpYaml.Tests
 
         private IParser ParserFor(string name)
         {
-            return new Parser(YamlFile(name));
+            return Parser.CreateParser(YamlFile(name));
         }
 
         private void AssertSequenceOfEventsFrom(IParser parser, params ParsingEvent[] events)

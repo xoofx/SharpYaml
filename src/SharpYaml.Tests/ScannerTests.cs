@@ -74,7 +74,7 @@ namespace SharpYaml.Tests
         [Test]
         public void VerifyTokensOnExample3()
         {
-            Scanner scanner = ScannerFor("test3.yaml");
+            var scanner = ScannerFor("test3.yaml");
             AssertSequenceOfTokensFrom(scanner,
                 StreamStart,
                 DocumentStart,
@@ -352,12 +352,12 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        private Scanner ScannerFor(string name)
+        private Scanner<LookAheadBuffer> ScannerFor(string name)
         {
-            return new Scanner(YamlFile(name));
+            return new Scanner<LookAheadBuffer>(new LookAheadBuffer(YamlFile(name), Scanner<LookAheadBuffer>.MaxBufferLength));
         }
 
-        private void AssertSequenceOfTokensFrom(Scanner scanner, params Token[] tokens)
+        private void AssertSequenceOfTokensFrom(Scanner<LookAheadBuffer> scanner, params Token[] tokens)
         {
             var tokenNumber = 1;
             foreach (var expected in tokens)

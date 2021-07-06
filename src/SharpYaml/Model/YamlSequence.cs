@@ -62,6 +62,8 @@ namespace SharpYaml.Model
                     Tracker.OnSequenceStartChanged(this, _sequenceStart, value);
             }
         }
+        
+        internal SequenceEnd SequenceEnd { get { return _sequenceEnd; } }
 
         public override string Anchor {
             get { return _sequenceStart.Anchor; }
@@ -126,18 +128,6 @@ namespace SharpYaml.Model
             var sequenceEnd = eventReader.Allow<SequenceEnd>();
 
             return new YamlSequence(sequenceStart, sequenceEnd, contents, tracker);
-        }
-
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _sequenceStart;
-
-            foreach (var item in _contents) {
-                foreach (var evnt in item.EnumerateEvents()) {
-                    yield return evnt;
-                }
-            }
-
-            yield return _sequenceEnd;
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
@@ -242,17 +232,12 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNode DeepClone() {
-            var sequenceStartCopy = new SequenceStart(_sequenceStart.Anchor, 
-                _sequenceStart.Tag, 
-                _sequenceStart.IsImplicit, 
-                _sequenceStart.Style, 
-                _sequenceStart.Start, 
-                _sequenceStart.End);
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
+            var contentsClone = new List<YamlElement>(_contents.Count);
+            for (var i = 0; i < _contents.Count; i++)
+                contentsClone.Add((YamlElement) _contents[i].DeepClone());
 
-            var sequenceEndCopy = new SequenceEnd(_sequenceEnd.Start, _sequenceEnd.End);
-
-            return new YamlSequence(sequenceStartCopy, sequenceEndCopy, _contents.Select(c => (YamlElement) c.DeepClone()).ToList(), Tracker);
+            return new YamlSequence(_sequenceStart, _sequenceEnd, contentsClone, tracker);
         }
     }
 }

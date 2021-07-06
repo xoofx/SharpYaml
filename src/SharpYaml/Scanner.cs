@@ -55,7 +55,7 @@ namespace SharpYaml
     /// <summary>
     /// Converts a sequence of characters into a sequence of YAML tokens.
     /// </summary>
-    public class Scanner
+    public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     {
         private const int MaxVersionNumberLength = 9;
 
@@ -74,19 +74,22 @@ namespace SharpYaml
         private bool streamEndProduced;
         private int indent = -1;
         private bool simpleKeyAllowed;
-        private Mark mark;
 
+        private int index = 0;
+        private int line = 0;
+        private int column = 0;
+        
         /// <summary>
         /// Gets the current position inside the input stream.
         /// </summary>
         /// <value>The current position.</value>
-        public Mark CurrentPosition { get { return mark; } }
+        public Mark CurrentPosition { get { return new Mark(index, line, column); } }
 
         private int flowLevel;
         private int tokensParsed;
 
-        private const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
-        private readonly CharacterAnalyzer<LookAheadBuffer> analyzer;
+        public const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
+        private readonly TBuffer analyzer;
         private bool tokenAvailable;
 
         private static readonly IDictionary<char, char> simpleEscapeCodes = InitializeSimpleEscapeCodes();
@@ -139,12 +142,10 @@ namespace SharpYaml
         /// <summary>
         /// Initializes a new instance of the <see cref="Scanner"/> class.
         /// </summary>
-        /// <param name="input">The input.</param>
-        public Scanner(TextReader input)
+        /// <param name="buffer">The buffer.</param>
+        public Scanner(TBuffer buffer)
         {
-            analyzer = new CharacterAnalyzer<LookAheadBuffer>(new LookAheadBuffer(input, MaxBufferLength));
-            mark.Column = 0;
-            mark.Line = 0;
+            analyzer = buffer;
         }
 
         private Token current;
@@ -263,13 +264,13 @@ namespace SharpYaml
                 //  - is shorter than 1024 characters.
 
 
-                if (key.IsPossible && (key.Mark.Line < mark.Line || key.Mark.Index + 1024 < mark.Index))
+                if (key.IsPossible && (key.Mark.Line < line || key.Mark.Index + 1024 < index))
                 {
                     // Check if the potential simple key to be removed is required.
 
                     if (key.IsRequired)
                     {
-                        throw new SyntaxErrorException(mark, mark, "While scanning a simple key, could not find expected ':'.");
+                        throw new SyntaxErrorException(CurrentPosition, CurrentPosition, "While scanning a simple key, could not find expected ':'.");
                     }
 
                     key.IsPossible = false;
@@ -297,18 +298,18 @@ namespace SharpYaml
 
             // Check the indentation level against the current column.
 
-            UnrollIndent(mark.Column);
+            UnrollIndent(column);
 
 
             // Ensure that the buffer contains at least 4 characters.  4 is the length
             // of the longest indicators ('--- ' and '... ').
 
 
-            analyzer.Buffer.Cache(4);
+            analyzer.Cache(4);
 
             // Is it the end of the stream?
 
-            if (analyzer.Buffer.EndOfInput)
+            if (analyzer.EndOfInput)
             {
                 FetchStreamEnd();
                 return;
@@ -316,7 +317,7 @@ namespace SharpYaml
 
             // Is it a directive?
 
-            if (mark.Column == 0 && analyzer.Check('%'))
+            if (column == 0 && analyzer.Check('%'))
             {
                 FetchDirective();
                 return;
@@ -325,7 +326,7 @@ namespace SharpYaml
             // Is it the document start indicator?
 
             bool isDocumentStart =
-                mark.Column == 0 &&
+                column == 0 &&
                 analyzer.Check('-', 0) &&
                 analyzer.Check('-', 1) &&
                 analyzer.Check('-', 2) &&
@@ -340,7 +341,7 @@ namespace SharpYaml
             // Is it the document end indicator?
 
             bool isDocumentEnd =
-                mark.Column == 0 &&
+                column == 0 &&
                 analyzer.Check('.', 0) &&
                 analyzer.Check('.', 1) &&
                 analyzer.Check('.', 2) &&
@@ -505,7 +506,7 @@ namespace SharpYaml
             }
 
             // If we don't determine the token type so far, it is an error.
-            throw new SyntaxErrorException(mark, mark, "While scanning for the next token, find character that cannot start any token.");
+            throw new SyntaxErrorException(CurrentPosition, CurrentPosition, "While scanning for the next token, find character that cannot start any token.");
         }
 
         private bool CheckWhiteSpace()
@@ -515,7 +516,7 @@ namespace SharpYaml
 
         private bool IsDocumentIndicator()
         {
-            if (mark.Column == 0 && analyzer.IsBlankOrBreakOrZero(3))
+            if (column == 0 && analyzer.IsBlankOrBreakOrZero(3))
             {
                 bool isDocumentStart = analyzer.Check('-', 0) && analyzer.Check('-', 1) && analyzer.Check('-', 2);
                 bool isDocumentEnd = analyzer.Check('.', 0) && analyzer.Check('.', 1) && analyzer.Check('.', 2);
@@ -530,26 +531,26 @@ namespace SharpYaml
 
         private void Skip()
         {
-            ++mark.Index;
-            ++mark.Column;
-            analyzer.Buffer.Skip(1);
+            ++index;
+            ++column;
+            analyzer.Skip(1);
         }
 
         private void SkipLine()
         {
             if (analyzer.IsCrLf())
             {
-                mark.Index += 2;
-                mark.Column = 0;
-                ++mark.Line;
-                analyzer.Buffer.Skip(2);
+                index += 2;
+                column = 0;
+                ++line;
+                analyzer.Skip(2);
             }
             else if (analyzer.IsBreak())
             {
-                ++mark.Index;
-                mark.Column = 0;
-                ++mark.Line;
-                analyzer.Buffer.Skip(1);
+                ++index;
+                column = 0;
+                ++line;
+                analyzer.Skip(1);
             }
             else if (!analyzer.IsZero())
             {
@@ -625,7 +626,7 @@ namespace SharpYaml
 
             // Create the STREAM-START token and append it to the queue.
 
-            tokens.Enqueue(new StreamStart(mark, mark));
+            tokens.Enqueue(new StreamStart(CurrentPosition, CurrentPosition));
         }
 
         /// <summary>
@@ -648,7 +649,7 @@ namespace SharpYaml
             {
                 // Create a token and append it to the queue.
 
-                tokens.Enqueue(new BlockEnd(mark, mark));
+                tokens.Enqueue(new BlockEnd(CurrentPosition, CurrentPosition));
 
                 // Pop the indentation level.
 
@@ -663,10 +664,10 @@ namespace SharpYaml
         {
             // Force new line.
 
-            if (mark.Column != 0)
+            if (column != 0)
             {
-                mark.Column = 0;
-                ++mark.Line;
+                column = 0;
+                ++line;
             }
 
             // Reset the indentation level.
@@ -682,7 +683,7 @@ namespace SharpYaml
             // Create the STREAM-END token and append it to the queue.
 
             streamEndProduced = true;
-            tokens.Enqueue(new StreamEnd(mark, mark));
+            tokens.Enqueue(new StreamEnd(CurrentPosition, CurrentPosition));
         }
 
         private void FetchDirective()
@@ -719,7 +720,7 @@ namespace SharpYaml
         {
             // Eat '%'.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
 
             Skip();
 
@@ -741,7 +742,7 @@ namespace SharpYaml
                     break;
 
                 default:
-                    throw new SyntaxErrorException(start, mark, "While scanning a directive, find uknown directive name.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While scanning a directive, find uknown directive name.");
             }
 
             // Eat the rest of the line including any comments.
@@ -763,7 +764,7 @@ namespace SharpYaml
 
             if (!analyzer.IsBreakOrZero())
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a directive, did not find expected comment or line break.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a directive, did not find expected comment or line break.");
             }
 
             // Eat a line break.
@@ -793,13 +794,13 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
 
             Skip();
             Skip();
             Skip();
 
-            Token token = isStartToken ? (Token) new DocumentStart(start, mark) : new DocumentEnd(start, start);
+            Token token = isStartToken ? (Token) new DocumentStart(start, CurrentPosition) : new DocumentEnd(start, start);
             tokens.Enqueue(token);
         }
 
@@ -822,7 +823,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
             Skip();
 
             // Create the FLOW-SEQUENCE-START of FLOW-MAPPING-START token.
@@ -873,7 +874,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
             Skip();
 
             Token token;
@@ -917,12 +918,12 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
             Skip();
 
             // Create the FLOW-ENTRY token and append it to the queue.
 
-            tokens.Enqueue(new FlowEntry(start, mark));
+            tokens.Enqueue(new FlowEntry(start, CurrentPosition));
         }
 
         /// <summary>
@@ -938,11 +939,11 @@ namespace SharpYaml
 
                 if (!simpleKeyAllowed)
                 {
-                    throw new SyntaxErrorException(mark, mark, "Block sequence entries are not allowed in this context.");
+                    throw new SyntaxErrorException(CurrentPosition, CurrentPosition, "Block sequence entries are not allowed in this context.");
                 }
 
                 // Add the BLOCK-SEQUENCE-START token if needed.
-                RollIndent(mark.Column, -1, true, mark);
+                RollIndent(column, -1, true, CurrentPosition);
             }
             else
             {
@@ -961,12 +962,12 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
             Skip();
 
             // Create the BLOCK-ENTRY token and append it to the queue.
 
-            tokens.Enqueue(new BlockEntry(start, mark));
+            tokens.Enqueue(new BlockEntry(start, CurrentPosition));
         }
 
         /// <summary>
@@ -982,12 +983,12 @@ namespace SharpYaml
 
                 if (!simpleKeyAllowed)
                 {
-                    throw new SyntaxErrorException(mark, mark, "Mapping keys are not allowed in this context.");
+                    throw new SyntaxErrorException(CurrentPosition, CurrentPosition, "Mapping keys are not allowed in this context.");
                 }
 
                 // Add the BLOCK-MAPPING-START token if needed.
 
-                RollIndent(mark.Column, -1, false, mark);
+                RollIndent(column, -1, false, CurrentPosition);
             }
 
             // Reset any potential simple keys on the current flow level.
@@ -1000,12 +1001,12 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
             Skip();
 
             // Create the KEY token and append it to the queue.
 
-            tokens.Enqueue(new Key(start, mark));
+            tokens.Enqueue(new Key(start, CurrentPosition));
         }
 
         /// <summary>
@@ -1047,12 +1048,12 @@ namespace SharpYaml
 
                     if (!simpleKeyAllowed)
                     {
-                        throw new SyntaxErrorException(mark, mark, "Mapping values are not allowed in this context.");
+                        throw new SyntaxErrorException(CurrentPosition, CurrentPosition, "Mapping values are not allowed in this context.");
                     }
 
                     // Add the BLOCK-MAPPING-START token if needed.
 
-                    RollIndent(mark.Column, -1, false, mark);
+                    RollIndent(column, -1, false, CurrentPosition);
                 }
 
                 // Simple keys after ':' are allowed in the block context.
@@ -1062,12 +1063,12 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
             Skip();
 
             // Create the VALUE token and append it to the queue.
 
-            tokens.Enqueue(new Value(start, mark));
+            tokens.Enqueue(new Value(start, CurrentPosition));
         }
 
         /// <summary>
@@ -1139,7 +1140,7 @@ namespace SharpYaml
         {
             // Eat the indicator character.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
 
             Skip();
 
@@ -1160,18 +1161,18 @@ namespace SharpYaml
 
             if (value.Length == 0 || !(analyzer.IsBlankOrBreakOrZero() || analyzer.Check("?:,]}%@`")))
             {
-                throw new SyntaxErrorException(start, mark, "While scanning an anchor or alias, did not find expected alphabetic or numeric character.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning an anchor or alias, did not find expected alphabetic or numeric character.");
             }
 
             // Create a token.
 
             if (isAlias)
             {
-                return new AnchorAlias(value.ToString(), start, mark);
+                return new AnchorAlias(value.ToString(), start, CurrentPosition);
             }
             else
             {
-                return new Anchor(value.ToString(), start, mark);
+                return new Anchor(value.ToString(), start, CurrentPosition);
             }
         }
 
@@ -1198,7 +1199,7 @@ namespace SharpYaml
         /// </summary>
         Token ScanTag()
         {
-            Mark start = mark;
+            Mark start = CurrentPosition;
 
             // Check if the tag is in the canonical form.
 
@@ -1224,7 +1225,7 @@ namespace SharpYaml
 
                 if (!analyzer.Check('>'))
                 {
-                    throw new SyntaxErrorException(start, mark, "While scanning a tag, did not find the expected '>'.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While scanning a tag, did not find the expected '>'.");
                 }
 
                 Skip();
@@ -1274,12 +1275,12 @@ namespace SharpYaml
 
             if (!analyzer.IsBlankOrBreakOrZero())
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a tag, did not find expected whitespace or line break.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a tag, did not find expected whitespace or line break.");
             }
 
             // Create a token.
 
-            return new Tag(handle, suffix, start, mark);
+            return new Tag(handle, suffix, start, CurrentPosition);
         }
 
         /// <summary>
@@ -1316,7 +1317,7 @@ namespace SharpYaml
 
             // Eat the indicator '|' or '>'.
 
-            Mark start = mark;
+            Mark start = CurrentPosition;
 
             Skip();
 
@@ -1338,7 +1339,7 @@ namespace SharpYaml
 
                     if (analyzer.Check('0'))
                     {
-                        throw new SyntaxErrorException(start, mark, "While scanning a block scalar, find an intendation indicator equal to 0.");
+                        throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, find an intendation indicator equal to 0.");
                     }
 
                     // Get the intendation level and eat the indicator.
@@ -1355,7 +1356,7 @@ namespace SharpYaml
             {
                 if (analyzer.Check('0'))
                 {
-                    throw new SyntaxErrorException(start, mark, "While scanning a block scalar, find an intendation indicator equal to 0.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, find an intendation indicator equal to 0.");
                 }
 
                 increment = analyzer.AsDigit();
@@ -1389,7 +1390,7 @@ namespace SharpYaml
 
             if (!analyzer.IsBreakOrZero())
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a block scalar, did not find expected comment or line break.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, did not find expected comment or line break.");
             }
 
             // Eat a line break.
@@ -1399,7 +1400,7 @@ namespace SharpYaml
                 SkipLine();
             }
 
-            Mark end = mark;
+            Mark end = CurrentPosition;
 
             // Set the intendation level if it was specified.
 
@@ -1414,7 +1415,7 @@ namespace SharpYaml
 
             // Scan the block scalar content.
 
-            while (mark.Column == currentIndent && !analyzer.IsZero())
+            while (column == currentIndent && !analyzer.IsZero())
             {
                 // We are at the beginning of a non-empty line.
 
@@ -1492,7 +1493,7 @@ namespace SharpYaml
         {
             int maxIndent = 0;
 
-            end = mark;
+            end = CurrentPosition;
 
             // Eat the intendation spaces and line breaks.
 
@@ -1500,21 +1501,21 @@ namespace SharpYaml
             {
                 // Eat the intendation spaces.
 
-                while ((currentIndent == 0 || mark.Column < currentIndent) && analyzer.IsSpace())
+                while ((currentIndent == 0 || column < currentIndent) && analyzer.IsSpace())
                 {
                     Skip();
                 }
 
-                if (mark.Column > maxIndent)
+                if (column > maxIndent)
                 {
-                    maxIndent = mark.Column;
+                    maxIndent = column;
                 }
 
                 // Check for a tab character messing the intendation.
 
-                if ((currentIndent == 0 || mark.Column < currentIndent) && analyzer.IsTab())
+                if ((currentIndent == 0 || column < currentIndent) && analyzer.IsTab())
                 {
-                    throw new SyntaxErrorException(start, mark, "While scanning a block scalar, find a tab character where an intendation space is expected.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, find a tab character where an intendation space is expected.");
                 }
 
                 // Have we find a non-empty line?
@@ -1528,7 +1529,7 @@ namespace SharpYaml
 
                 breaks.Append(ReadLine());
 
-                end = mark;
+                end = CurrentPosition;
             }
 
             // Determine the indentation level if needed.
@@ -1566,8 +1567,8 @@ namespace SharpYaml
         {
             // Eat the left quote.
 
-            Mark start = mark;
-            Mark end = mark;
+            Mark start = CurrentPosition;
+            Mark end = CurrentPosition;
 
             Skip();
 
@@ -1582,14 +1583,14 @@ namespace SharpYaml
 
                 if (IsDocumentIndicator())
                 {
-                    throw new SyntaxErrorException(start, mark, "While scanning a quoted scalar, find unexpected document indicator.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While scanning a quoted scalar, find unexpected document indicator.");
                 }
 
                 // Check for EOF.
 
                 if (analyzer.IsZero())
                 {
-                    throw new SyntaxErrorException(start, mark, "While scanning a quoted scalar, find unexpected end of stream.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While scanning a quoted scalar, find unexpected end of stream.");
                 }
 
                 // Consume non-blank characters.
@@ -1655,7 +1656,7 @@ namespace SharpYaml
                                 }
                                 else
                                 {
-                                    throw new SyntaxErrorException(start, mark, "While parsing a quoted scalar, find unknown escape character.");
+                                    throw new SyntaxErrorException(start, CurrentPosition, "While parsing a quoted scalar, find unknown escape character.");
                                 }
                                 break;
                         }
@@ -1675,7 +1676,7 @@ namespace SharpYaml
                             {
                                 if (!analyzer.IsHex(k))
                                 {
-                                    throw new SyntaxErrorException(start, mark, "While parsing a quoted scalar, did not find expected hexdecimal number.");
+                                    throw new SyntaxErrorException(start, CurrentPosition, "While parsing a quoted scalar, did not find expected hexdecimal number.");
                                 }
                                 character = (character << 4) + analyzer.AsHex(k);
                             }
@@ -1707,7 +1708,7 @@ namespace SharpYaml
                                 if (foundNextCharacter)
                                     scanScalarValue.Append(CharHelper.ConvertFromUtf32(CharHelper.ConvertToUtf32((char)character, (char)nextCharacter)));
                                 else
-                                    throw new SyntaxErrorException(start, mark, "While parsing a quoted scalar, find invalid Unicode character escape code.");
+                                    throw new SyntaxErrorException(start, CurrentPosition, "While parsing a quoted scalar, find invalid Unicode character escape code.");
                             } else 
                                 scanScalarValue.Append(CharHelper.ConvertFromUtf32(character));
 
@@ -1801,7 +1802,7 @@ namespace SharpYaml
             // Eat the right quote.
             Skip();
 
-            end = mark;
+            end = CurrentPosition;
             return new Scalar(scanScalarValue.ToString(), isSingleQuoted ? ScalarStyle.SingleQuoted : ScalarStyle.DoubleQuoted, start, end);
         }
 
@@ -1828,16 +1829,16 @@ namespace SharpYaml
         /// </summary>
         private Token ScanPlainScalar()
         {
-            StringBuilder value = new StringBuilder();
-            StringBuilder whitespaces = new StringBuilder();
-            StringBuilder leadingBreak = new StringBuilder();
-            StringBuilder trailingBreaks = new StringBuilder();
+            scanScalarValue.Length = 0;
+            scanScalarWhitespaces.Length = 0;
+            scanScalarLeadingBreak.Length = 0;
+            scanScalarTrailingBreaks.Length = 0;
 
             bool hasLeadingBlanks = false;
             int currentIndent = indent + 1;
 
-            Mark start = mark;
-            Mark end = mark;
+            Mark start = CurrentPosition;
+            Mark end = CurrentPosition;
 
             // Consume the content of the plain scalar.
 
@@ -1864,7 +1865,7 @@ namespace SharpYaml
 
                     if (flowLevel > 0 && analyzer.Check(':') && !analyzer.IsBlankOrBreakOrZero(1))
                     {
-                        throw new SyntaxErrorException(start, mark, "While scanning a plain scalar, find unexpected ':'.");
+                        throw new SyntaxErrorException(start, CurrentPosition, "While scanning a plain scalar, find unexpected ':'.");
                     }
 
                     // Check for indicators that may end a plain scalar.
@@ -1876,46 +1877,46 @@ namespace SharpYaml
 
                     // Check if we need to join whitespaces and breaks.
 
-                    if (hasLeadingBlanks || whitespaces.Length > 0)
+                    if (hasLeadingBlanks || scanScalarWhitespaces.Length > 0)
                     {
                         if (hasLeadingBlanks)
                         {
                             // Do we need to fold line breaks?
 
-                            if (StartsWith(leadingBreak, '\n'))
+                            if (StartsWith(scanScalarLeadingBreak, '\n'))
                             {
-                                if (trailingBreaks.Length == 0)
+                                if (scanScalarTrailingBreaks.Length == 0)
                                 {
-                                    value.Append(' ');
+                                    scanScalarValue.Append(' ');
                                 }
                                 else
                                 {
-                                    value.Append(trailingBreaks);
+                                    scanScalarValue.Append(scanScalarTrailingBreaks);
                                 }
                             }
                             else
                             {
-                                value.Append(leadingBreak);
-                                value.Append(trailingBreaks);
+                                scanScalarValue.Append(scanScalarLeadingBreak);
+                                scanScalarValue.Append(scanScalarTrailingBreaks);
                             }
 
-                            leadingBreak.Length = 0;
-                            trailingBreaks.Length = 0;
+                            scanScalarLeadingBreak.Length = 0;
+                            scanScalarTrailingBreaks.Length = 0;
 
                             hasLeadingBlanks = false;
                         }
                         else
                         {
-                            value.Append(whitespaces);
-                            whitespaces.Length = 0;
+                            scanScalarValue.Append(scanScalarWhitespaces);
+                            scanScalarWhitespaces.Length = 0;
                         }
                     }
 
                     // Copy the character.
 
-                    value.Append(ReadCurrentCharacter());
+                    scanScalarValue.Append(ReadCurrentCharacter());
 
-                    end = mark;
+                    end = CurrentPosition;
                 }
 
                 // Is it the end?
@@ -1933,16 +1934,15 @@ namespace SharpYaml
                     {
                         // Check for tab character that abuse intendation.
 
-                        if (hasLeadingBlanks && mark.Column < currentIndent && analyzer.IsTab())
+                        if (hasLeadingBlanks && column < currentIndent && analyzer.IsTab())
                         {
-                            throw new SyntaxErrorException(start, mark, "While scanning a plain scalar, find a tab character that violate intendation.");
+                            throw new SyntaxErrorException(start, CurrentPosition, "While scanning a plain scalar, find a tab character that violate intendation.");
                         }
 
                         // Consume a space or a tab character.
 
-                        if (!hasLeadingBlanks)
-                        {
-                            whitespaces.Append(ReadCurrentCharacter());
+                        if (!hasLeadingBlanks) {
+                            scanScalarWhitespaces.Append(ReadCurrentCharacter());
                         }
                         else
                         {
@@ -1955,20 +1955,19 @@ namespace SharpYaml
 
                         if (!hasLeadingBlanks)
                         {
-                            whitespaces.Length = 0;
-                            leadingBreak.Append(ReadLine());
+                            scanScalarWhitespaces.Length = 0;
+                            scanScalarLeadingBreak.Append(ReadLine());
                             hasLeadingBlanks = true;
                         }
-                        else
-                        {
-                            trailingBreaks.Append(ReadLine());
+                        else {
+                            scanScalarTrailingBreaks.Append(ReadLine());
                         }
                     }
                 }
 
                 // Check intendation level.
 
-                if (flowLevel == 0 && mark.Column < currentIndent)
+                if (flowLevel == 0 && column < currentIndent)
                 {
                     break;
                 }
@@ -1983,7 +1982,7 @@ namespace SharpYaml
 
             // Create a token.
 
-            return new Scalar(value.ToString(), ScalarStyle.Plain, start, end);
+            return new Scalar(scanScalarValue.ToString(), ScalarStyle.Plain, start, end);
         }
 
 
@@ -2030,14 +2029,14 @@ namespace SharpYaml
 
             if (name.Length == 0)
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a directive, could not find expected directive name.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a directive, could not find expected directive name.");
             }
 
             // Check for an blank character after the name.
 
             if (!analyzer.IsBlankOrBreakOrZero())
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a directive, find unexpected non-alphabetical character.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a directive, find unexpected non-alphabetical character.");
             }
 
             return name.ToString();
@@ -2072,7 +2071,7 @@ namespace SharpYaml
 
             if (!analyzer.Check('.'))
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a %YAML directive, did not find expected digit or '.' character.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %YAML directive, did not find expected digit or '.' character.");
             }
 
             Skip();
@@ -2103,7 +2102,7 @@ namespace SharpYaml
 
             if (!analyzer.IsBlank())
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a %TAG directive, did not find expected whitespace.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %TAG directive, did not find expected whitespace.");
             }
 
             SkipWhitespaces();
@@ -2116,7 +2115,7 @@ namespace SharpYaml
 
             if (!analyzer.IsBlankOrBreakOrZero())
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a %TAG directive, did not find expected whitespace or line break.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %TAG directive, did not find expected whitespace or line break.");
             }
 
             return new TagDirective(handle, prefix, start, start);
@@ -2160,7 +2159,7 @@ namespace SharpYaml
 
             if (tag.Length == 0)
             {
-                throw new SyntaxErrorException(start, mark, "While parsing a tag, did not find expected tag URI.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag, did not find expected tag URI.");
             }
 
             return tag.ToString();
@@ -2182,7 +2181,7 @@ namespace SharpYaml
 
                 if (!(analyzer.Check('%') && analyzer.IsHex(1) && analyzer.IsHex(2)))
                 {
-                    throw new SyntaxErrorException(start, mark, "While parsing a tag, did not find URI escaped octet.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag, did not find URI escaped octet.");
                 }
 
                 // Get the octet.
@@ -2200,7 +2199,7 @@ namespace SharpYaml
 
                     if (width == 0)
                     {
-                        throw new SyntaxErrorException(start, mark, "While parsing a tag, find an incorrect leading UTF-8 octet.");
+                        throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag, find an incorrect leading UTF-8 octet.");
                     }
 
                     charBytes = new byte[width];
@@ -2211,7 +2210,7 @@ namespace SharpYaml
 
                     if ((octet & 0xC0) != 0x80)
                     {
-                        throw new SyntaxErrorException(start, mark, "While parsing a tag, find an incorrect trailing UTF-8 octet.");
+                        throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag, find an incorrect trailing UTF-8 octet.");
                     }
                 }
 
@@ -2226,7 +2225,7 @@ namespace SharpYaml
 
             if (str.Length == 0 || str.Length > 2)
             {
-                throw new SyntaxErrorException(start, mark, "While parsing a tag, find an incorrect UTF-8 sequence.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag, find an incorrect UTF-8 sequence.");
             }
 
             return str;
@@ -2241,7 +2240,7 @@ namespace SharpYaml
 
             if (!analyzer.Check('!'))
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a tag, did not find expected '!'.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a tag, did not find expected '!'.");
             }
 
             // Copy the '!' character.
@@ -2271,7 +2270,7 @@ namespace SharpYaml
 
                 if (isDirective && (tagHandle.Length != 1 || tagHandle[0] != '!'))
                 {
-                    throw new SyntaxErrorException(start, mark, "While parsing a tag directive, did not find expected '!'.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag directive, did not find expected '!'.");
                 }
             }
 
@@ -2300,7 +2299,7 @@ namespace SharpYaml
 
                 if (++length > MaxVersionNumberLength)
                 {
-                    throw new SyntaxErrorException(start, mark, "While scanning a %YAML directive, find extremely long version number.");
+                    throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %YAML directive, find extremely long version number.");
                 }
 
                 value = value*10 + analyzer.AsDigit();
@@ -2312,7 +2311,7 @@ namespace SharpYaml
 
             if (length == 0)
             {
-                throw new SyntaxErrorException(start, mark, "While scanning a %YAML directive, did not find expected version number.");
+                throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %YAML directive, did not find expected version number.");
             }
 
             return value;
@@ -2329,7 +2328,7 @@ namespace SharpYaml
             // level.
 
 
-            bool isRequired = (flowLevel == 0 && indent == mark.Column);
+            bool isRequired = (flowLevel == 0 && indent == column);
 
 
             // A simple key is required only when it is the first token in the current
@@ -2344,7 +2343,7 @@ namespace SharpYaml
 
             if (simpleKeyAllowed)
             {
-                SimpleKey key = new SimpleKey(true, isRequired, tokensParsed + tokens.Count, mark);
+                SimpleKey key = new SimpleKey(true, isRequired, tokensParsed + tokens.Count, CurrentPosition);
 
                 RemoveSimpleKey();
 

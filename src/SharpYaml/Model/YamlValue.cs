@@ -43,7 +43,7 @@ namespace SharpYaml.Model
             Scalar = new Scalar(schema.GetDefaultTag(value.GetType()), valueString);
         }
 
-        private Scalar Scalar {
+        internal Scalar Scalar {
             get { return _scalar; }
             set {
                 var oldScalar = _scalar;
@@ -61,20 +61,8 @@ namespace SharpYaml.Model
             return new YamlValue(scalar, tracker);
         }
 
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _scalar;
-        }
-
-        public override YamlNode DeepClone() {
-            return new YamlValue(new Scalar(_scalar.Anchor,
-                _scalar.Tag,
-                _scalar.Value,
-                _scalar.Style,
-                _scalar.IsPlainImplicit,
-                _scalar.IsQuotedImplicit,
-                _scalar.Start,
-                _scalar.End),
-                Tracker);
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
+            return new YamlValue(_scalar, tracker);
         }
 
         public override string Anchor {

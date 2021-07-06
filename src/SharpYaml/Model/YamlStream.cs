@@ -23,8 +23,7 @@ using System.IO;
 using System.Linq;
 using SharpYaml.Events;
 
-namespace SharpYaml.Model
-{
+namespace SharpYaml.Model {
     public class YamlStream : YamlNode, IList<YamlDocument> {
         private readonly StreamStart _streamStart;
         private readonly StreamEnd _streamEnd;
@@ -54,8 +53,11 @@ namespace SharpYaml.Model
             }
         }
 
+        internal StreamStart StreamStart { get { return _streamStart; } }
+        internal StreamEnd StreamEnd { get { return _streamEnd; } }
+
         public static YamlStream Load(TextReader stream, YamlNodeTracker tracker = null) {
-            return Load(new EventReader(new Parser(stream)), tracker);
+            return Load(new EventReader(Parser.CreateParser(stream)), tracker);
         }
 
         public static YamlStream Load(EventReader eventReader, YamlNodeTracker tracker = null) {
@@ -68,19 +70,6 @@ namespace SharpYaml.Model
             var streamEnd = eventReader.Allow<StreamEnd>();
 
             return new YamlStream(streamStart, streamEnd, documents, tracker);
-        }
-
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _streamStart;
-
-            foreach (var document in _documents) {
-                foreach (var evnt in document.EnumerateEvents()) {
-                    yield return evnt;
-                }
-            }
-
-
-            yield return _streamEnd;
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
@@ -99,7 +88,7 @@ namespace SharpYaml.Model
                 Tracker.OnStreamAddDocument(this, item, _documents.Count - 1);
             }
         }
-        
+
         public override YamlNodeTracker Tracker {
             get { return base.Tracker; }
             internal set {
@@ -185,10 +174,12 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNode DeepClone() {
-            return new YamlStream(new StreamStart(_streamStart.Start, _streamStart.End),
-                new StreamEnd(_streamEnd.Start, _streamEnd.End),
-                _documents.Select(d => (YamlDocument)d.DeepClone()).ToList());
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
+            var documentsClone = new List<YamlDocument>(_documents.Count);
+            for (var i = 0; i < _documents.Count; i++)
+                documentsClone.Add((YamlDocument)_documents[i].DeepClone());
+
+            return new YamlStream(_streamStart, _streamEnd, documentsClone, tracker);
         }
     }
 }

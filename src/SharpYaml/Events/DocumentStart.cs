@@ -52,7 +52,7 @@ namespace SharpYaml.Events
     /// <summary>
     /// Represents a document start event.
     /// </summary>
-    public class DocumentStart : ParsingEvent
+    public sealed class DocumentStart : ParsingEvent
     {
         /// <summary>
         /// Gets a value indicating the variation of depth caused by this event.

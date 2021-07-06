@@ -51,7 +51,7 @@ namespace SharpYaml.Events
     /// <summary>
     /// Represents a scalar event.
     /// </summary>
-    public class Scalar : NodeEvent
+    public sealed class Scalar : NodeEvent
     {
         private string value;
 
@@ -71,7 +71,7 @@ namespace SharpYaml.Events
         /// Gets the value.
         /// </summary>
         /// <value>The value.</value>
-        public string Value { get { return value; } set { this.value = value; } }
+        public string Value { get { return value; } }
 
         private readonly ScalarStyle style;
 

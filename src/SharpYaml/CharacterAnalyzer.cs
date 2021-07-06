@@ -48,34 +48,13 @@ using System.Diagnostics;
 
 namespace SharpYaml
 {
-    internal class CharacterAnalyzer<TBuffer> where TBuffer : ILookAheadBuffer
+    internal static class CharacterAnalyzer
     {
-        private readonly TBuffer buffer;
-
-        public CharacterAnalyzer(TBuffer buffer)
-        {
-            this.buffer = buffer;
-        }
-
-        public TBuffer Buffer { get { return buffer; } }
-
-        public bool EndOfInput { get { return buffer.EndOfInput; } }
-
-        public char Peek(int offset)
-        {
-            return buffer.Peek(offset);
-        }
-
-        public void Skip(int length)
-        {
-            buffer.Skip(length);
-        }
-
         /// <summary>
         /// Check if the character at the specified position is an alphabetical
         /// character, a digit, '_', or '-'.
         /// </summary>
-        public bool IsAlpha(int offset)
+        public static bool IsAlpha(ILookAheadBuffer buffer, int offset)
         {
             char character = buffer.Peek(offset);
             return
@@ -86,66 +65,66 @@ namespace SharpYaml
                 character == '-';
         }
 
-        public bool IsAlpha()
+        public static bool IsAlpha(this ILookAheadBuffer buffer)
         {
-            return IsAlpha(0);
+            return IsAlpha(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character is ASCII.
         /// </summary>
-        public bool IsAscii(int offset)
+        public static bool IsAscii(this ILookAheadBuffer buffer, int offset)
         {
             return buffer.Peek(offset) <= '\x7F';
         }
 
-        public bool IsAscii()
+        public static bool IsAscii(this ILookAheadBuffer buffer)
         {
-            return IsAscii(0);
+            return IsAscii(buffer, 0);
         }
 
-        public bool IsPrintable(int offset)
+        public static bool IsPrintable(this ILookAheadBuffer buffer, int offset)
         {
             char character = buffer.Peek(offset);
             return Emitter.IsPrintable(character);
         }
 
-        public bool IsPrintable()
+        public static bool IsPrintable(this ILookAheadBuffer buffer)
         {
-            return IsPrintable(0);
+            return IsPrintable(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character at the specified position is a digit.
         /// </summary>
-        public bool IsDigit(int offset)
+        public static bool IsDigit(this ILookAheadBuffer buffer, int offset)
         {
             char character = buffer.Peek(offset);
             return character >= '0' && character <= '9';
         }
 
-        public bool IsDigit()
+        public static bool IsDigit(this ILookAheadBuffer buffer)
         {
-            return IsDigit(0);
+            return IsDigit(buffer, 0);
         }
 
         /// <summary>
         /// Get the value of a digit.
         /// </summary>
-        public int AsDigit(int offset)
+        public static int AsDigit(this ILookAheadBuffer buffer, int offset)
         {
             return buffer.Peek(offset) - '0';
         }
 
-        public int AsDigit()
+        public static int AsDigit(this ILookAheadBuffer buffer)
         {
-            return AsDigit(0);
+            return AsDigit(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character at the specified position is a hex-digit.
         /// </summary>
-        public bool IsHex(int offset)
+        public static bool IsHex(this ILookAheadBuffer buffer, int offset)
         {
             char character = buffer.Peek(offset);
             return
@@ -157,7 +136,7 @@ namespace SharpYaml
         /// <summary>
         /// Get the value of a hex-digit.
         /// </summary>
-        public int AsHex(int offset)
+        public static int AsHex(this ILookAheadBuffer buffer, int offset)
         {
             char character = buffer.Peek(offset);
 
@@ -175,120 +154,120 @@ namespace SharpYaml
             }
         }
 
-        public bool IsSpace(int offset)
+        public static bool IsSpace(this ILookAheadBuffer buffer, int offset)
         {
-            return Check(' ', offset);
+            return Check(buffer, ' ', offset);
         }
 
-        public bool IsSpace()
+        public static bool IsSpace(this ILookAheadBuffer buffer)
         {
-            return IsSpace(0);
+            return IsSpace(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character at the specified position is NUL.
         /// </summary>
-        public bool IsZero(int offset)
+        public static bool IsZero(this ILookAheadBuffer buffer, int offset)
         {
-            return Check('\0', offset);
+            return Check(buffer, '\0', offset);
         }
 
-        public bool IsZero()
+        public static bool IsZero(this ILookAheadBuffer buffer)
         {
-            return IsZero(0);
+            return IsZero(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character at the specified position is tab.
         /// </summary>
-        public bool IsTab(int offset)
+        public static bool IsTab(this ILookAheadBuffer buffer, int offset)
         {
-            return Check('\t', offset);
+            return Check(buffer, '\t', offset);
         }
 
-        public bool IsTab()
+        public static bool IsTab(this ILookAheadBuffer buffer)
         {
-            return IsTab(0);
+            return IsTab(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character at the specified position is blank (space or tab).
         /// </summary>
-        public bool IsBlank(int offset)
+        public static bool IsBlank(this ILookAheadBuffer buffer, int offset)
         {
-            return IsSpace(offset) || IsTab(offset);
+            return IsSpace(buffer, offset) || IsTab(buffer, offset);
         }
 
-        public bool IsBlank()
+        public static bool IsBlank(this ILookAheadBuffer buffer)
         {
-            return IsBlank(0);
+            return IsBlank(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character at the specified position is a line break.
         /// </summary>
-        public bool IsBreak(int offset)
+        public static bool IsBreak(this ILookAheadBuffer buffer, int offset)
         {
-            return Check("\r\n\x85\x2028\x2029", offset);
+            return Check(buffer, "\r\n\x85\x2028\x2029", offset);
         }
 
-        public bool IsBreak()
+        public static bool IsBreak(this ILookAheadBuffer buffer)
         {
-            return IsBreak(0);
+            return IsBreak(buffer, 0);
         }
 
-        public bool IsCrLf(int offset)
+        public static bool IsCrLf(this ILookAheadBuffer buffer, int offset)
         {
-            return Check('\r', offset) && Check('\n', offset + 1);
+            return Check(buffer, '\r', offset) && Check(buffer, '\n', offset + 1);
         }
 
-        public bool IsCrLf()
+        public static bool IsCrLf(this ILookAheadBuffer buffer)
         {
-            return IsCrLf(0);
+            return IsCrLf(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character is a line break or NUL.
         /// </summary>
-        public bool IsBreakOrZero(int offset)
+        public static bool IsBreakOrZero(this ILookAheadBuffer buffer, int offset)
         {
-            return IsBreak(offset) || IsZero(offset);
+            return IsBreak(buffer, offset) || IsZero(buffer, offset);
         }
 
-        public bool IsBreakOrZero()
+        public static bool IsBreakOrZero(this ILookAheadBuffer buffer)
         {
-            return IsBreakOrZero(0);
+            return IsBreakOrZero(buffer, 0);
         }
 
         /// <summary>
         /// Check if the character is a line break, space, tab, or NUL.
         /// </summary>
-        public bool IsBlankOrBreakOrZero(int offset)
+        public static bool IsBlankOrBreakOrZero(this ILookAheadBuffer buffer, int offset)
         {
-            return IsBlank(offset) || IsBreakOrZero(offset);
+            return IsBlank(buffer, offset) || IsBreakOrZero(buffer, offset);
         }
 
-        public bool IsBlankOrBreakOrZero()
+        public static bool IsBlankOrBreakOrZero(this ILookAheadBuffer buffer)
         {
-            return IsBlankOrBreakOrZero(0);
+            return IsBlankOrBreakOrZero(buffer, 0);
         }
 
-        public bool Check(char expected)
+        public static bool Check(this ILookAheadBuffer buffer, char expected)
         {
-            return Check(expected, 0);
+            return Check(buffer, expected, 0);
         }
 
-        public bool Check(char expected, int offset)
+        public static bool Check(this ILookAheadBuffer buffer, char expected, int offset)
         {
             return buffer.Peek(offset) == expected;
         }
 
-        public bool Check(string expectedCharacters)
+        public static bool Check(this ILookAheadBuffer buffer, string expectedCharacters)
         {
-            return Check(expectedCharacters, 0);
+            return Check(buffer, expectedCharacters, 0);
         }
 
-        public bool Check(string expectedCharacters, int offset)
+        public static bool Check(this ILookAheadBuffer buffer, string expectedCharacters, int offset)
         {
             Debug.Assert(expectedCharacters.Length > 1, "Use Check(char, int) instead.");
 

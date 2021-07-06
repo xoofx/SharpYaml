@@ -106,7 +106,7 @@ namespace SharpYaml.Serialization
         {
             documents.Clear();
 
-            var parser = new Parser(input);
+            var parser = Parser.CreateParser(input);
 
             EventReader events = new EventReader(parser);
             events.Expect<StreamStart>();

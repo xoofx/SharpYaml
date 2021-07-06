@@ -69,6 +69,8 @@ namespace SharpYaml.Model {
                     Tracker.OnMappingStartChanged(this, oldValue, value);
             }
         }
+        
+        internal MappingEnd MappingEnd { get { return _mappingEnd;  } }
 
         public override string Anchor {
             get { return _mappingStart.Anchor; }
@@ -140,21 +142,7 @@ namespace SharpYaml.Model {
 
             return new YamlMapping(mappingStart, mappingEnd, keys, contents, tracker);
         }
-
-        public override IEnumerable<ParsingEvent> EnumerateEvents() {
-            yield return _mappingStart;
-
-            foreach (var key in _keys) {
-                foreach (var evnt in key.EnumerateEvents())
-                    yield return evnt;
-
-                foreach (var evnt in _contents[key].EnumerateEvents())
-                    yield return evnt;
-            }
-
-            yield return _mappingEnd;
-        }
-
+        
         IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
@@ -427,28 +415,21 @@ namespace SharpYaml.Model {
             }
         }
 
-        public override YamlNode DeepClone() {
-            var mappingStartCopy = new MappingStart(_mappingStart.Anchor,
-                _mappingStart.Tag,
-                _mappingStart.IsImplicit,
-                _mappingStart.Style,
-                _mappingStart.Start,
-                _mappingStart.End);
-
-            var mappingEndCopy = new MappingEnd(_mappingEnd.Start, _mappingEnd.End);
-
-            var cloneKeys = _keys.Select(k => (YamlElement) k.DeepClone()).ToList();
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
+            var keysClone = new List<YamlElement>(_keys.Count);
+            for (var i = 0; i < _keys.Count; i++)
+                keysClone.Add((YamlElement)_keys[i].DeepClone());
 
             var cloneContents = new Dictionary<YamlElement, YamlElement>();
 
             for (var i = 0; i < _keys.Count; i++)
-                cloneContents[cloneKeys[i]] = (YamlElement) _contents[_keys[i]].DeepClone();
+                cloneContents[keysClone[i]] = (YamlElement) _contents[_keys[i]].DeepClone();
 
-            return new YamlMapping(mappingStartCopy,
-                mappingEndCopy,
-                cloneKeys,
+            return new YamlMapping(_mappingStart,
+                _mappingEnd,
+                keysClone,
                 cloneContents,
-                Tracker);
+                tracker);
         }
     }
 }

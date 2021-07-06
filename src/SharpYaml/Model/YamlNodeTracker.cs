@@ -344,34 +344,52 @@ namespace SharpYaml.Model {
         }
 
 #if NET35
-        Dictionary<YamlNode, HashSet<ParentAndIndex>> parents = new Dictionary<YamlNode, HashSet<ParentAndIndex>>();
+        Dictionary<YamlNode, ICollection<ParentAndIndex>> parents = new Dictionary<YamlNode, ICollection<ParentAndIndex>>();
 #else
-        private ConditionalWeakTable<YamlNode, HashSet<ParentAndIndex>> parents = new ConditionalWeakTable<YamlNode, HashSet<ParentAndIndex>>();
+        private ConditionalWeakTable<YamlNode, ICollection<ParentAndIndex>> parents = new ConditionalWeakTable<YamlNode, ICollection<ParentAndIndex>>();
 #endif
         
         void AddChild(YamlNode child, YamlNode parent, ChildIndex relationship) {
-            HashSet<ParentAndIndex> set;
+            var pi = new ParentAndIndex(parent, relationship);
+
+            ICollection<ParentAndIndex> set;
             if (!parents.TryGetValue(child, out set)) {
-                set = new HashSet<ParentAndIndex>();
+                set = new[] { pi };
+                parents.Add(child, set);
+                return;
+            }
+
+            var array = set as ParentAndIndex[];
+            if (array != null) {
+                if (array[0].Equals(pi))
+                    return;
+                
+                var newSet = new HashSet<ParentAndIndex>();
+                newSet.Add(array[0]);
+                parents.Remove(child);
+                set = newSet;
                 parents.Add(child, set);
             }
 
-            set.Add(new ParentAndIndex(parent, relationship));
+            set.Add(pi);
         }
 
         void RemoveChild(YamlNode child, YamlNode parent, ChildIndex relationship) {
-            HashSet<ParentAndIndex> set;
+            ICollection<ParentAndIndex> set;
             if (!parents.TryGetValue(child, out set))
                 return;
 
-            set.Remove(new ParentAndIndex(parent, relationship));
+            if (set is ParentAndIndex[])
+                parents.Remove(child);
+            else
+                set.Remove(new ParentAndIndex(parent, relationship));
         }
 
         public IList<Path> GetPaths(YamlNode child) {
             if (child is YamlStream)
                 return new Path[0];
 
-            HashSet<ParentAndIndex> relationships;
+            ICollection<ParentAndIndex> relationships;
             if (!parents.TryGetValue(child, out relationships))
                 return new Path[0];
 
