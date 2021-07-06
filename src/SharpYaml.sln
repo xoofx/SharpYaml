@@ -8,13 +8,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\.gitignore = ..\.gitignore
 		..\changelog.md = ..\changelog.md
 		..\.github\workflows\ci.yml = ..\.github\workflows\ci.yml
+		global.json = global.json
 		..\LICENSE.txt = ..\LICENSE.txt
 		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpYaml", "SharpYaml\SharpYaml.csproj", "{BF32DE1B-6276-4341-B212-F8862ADBBA7A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpYaml.Tests", "SharpYaml.Tests\SharpYaml.Tests.csproj", "{16D8043D-C3DB-4868-BFF3-B2EBDF537AAA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpYaml.Tests", "SharpYaml.Tests\SharpYaml.Tests.csproj", "{16D8043D-C3DB-4868-BFF3-B2EBDF537AAA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
