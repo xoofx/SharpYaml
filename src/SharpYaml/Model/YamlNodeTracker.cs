@@ -418,7 +418,7 @@ namespace SharpYaml.Model {
         }
 
         void ShiftChild(YamlNode child, YamlNode parent, ChildIndex relationship, int shift) {
-            HashSet<ParentAndIndex> set;
+            ICollection<ParentAndIndex> set;
             if (!parents.TryGetValue(child, out set))
                 return;
 
@@ -448,8 +448,13 @@ namespace SharpYaml.Model {
                 }
             }
 
-            set.Remove(new ParentAndIndex(parent, relationship));
-            set.Add(new ParentAndIndex(parent, newChildIndex));
+            var array = set as ParentAndIndex[];
+            if (array != null) {
+                array[0] = new ParentAndIndex(parent, newChildIndex);
+            } else {
+                set.Remove(new ParentAndIndex(parent, relationship));
+                set.Add(new ParentAndIndex(parent, newChildIndex));
+            }
         }
 
         public IList<Path> GetPaths(YamlNode child) {
