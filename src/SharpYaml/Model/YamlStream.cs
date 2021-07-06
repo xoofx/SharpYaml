@@ -85,7 +85,7 @@ namespace SharpYaml.Model {
 
             if (Tracker != null) {
                 item.Tracker = Tracker;
-                Tracker.OnStreamAddDocument(this, item, _documents.Count - 1);
+                Tracker.OnStreamAddDocument(this, item, _documents.Count - 1, null);
             }
         }
 
@@ -100,7 +100,7 @@ namespace SharpYaml.Model {
                 for (var index = 0; index < _documents.Count; index++) {
                     var item = _documents[index];
                     item.Tracker = value;
-                    Tracker.OnStreamAddDocument(this, item, index);
+                    Tracker.OnStreamAddDocument(this, item, index, null);
                 }
             }
         }
@@ -112,7 +112,7 @@ namespace SharpYaml.Model {
 
             if (Tracker != null) {
                 for (int i = copy.Count; i >= 0; i--)
-                    Tracker.OnStreamRemoveDocument(this, copy[i], i);
+                    Tracker.OnStreamRemoveDocument(this, copy[i], i, null);
             }
         }
 
@@ -147,7 +147,12 @@ namespace SharpYaml.Model {
 
             if (Tracker != null) {
                 item.Tracker = Tracker;
-                Tracker.OnStreamAddDocument(this, item, index);
+
+                ICollection<YamlDocument> nextDocuments = null;
+                if (index < _documents.Count - 1)
+                    nextDocuments = _documents.Skip(index + 1).ToArray();
+                
+                Tracker.OnStreamAddDocument(this, item, index, nextDocuments);
             }
         }
 
@@ -156,8 +161,13 @@ namespace SharpYaml.Model {
 
             _documents.RemoveAt(index);
 
-            if (Tracker != null)
-                Tracker.OnStreamRemoveDocument(this, oldValue, index);
+            if (Tracker != null) {
+                IEnumerable<YamlDocument> nextDocuments = null;
+                if (index < _documents.Count)
+                    nextDocuments = _documents.Skip(index);
+                
+                Tracker.OnStreamRemoveDocument(this, oldValue, index, nextDocuments);
+            }
         }
 
         public YamlDocument this[int index] {

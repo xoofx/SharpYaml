@@ -105,8 +105,24 @@ namespace SharpYaml.Model {
                 return Indices == null ? rootHashCode : Indices.Aggregate(rootHashCode, (a, b) => a ^ (b.GetHashCode() * 397));
             }
         }
-    }
 
+        public Path Clone() {
+            return new Path(Root, Indices.ToArray());
+        }
+        
+        public void Append(ChildIndex childIndex) {
+            Array.Resize(ref Indices, Indices.Length + 1);
+            Indices[Indices.Length - 1] = childIndex;
+        }
+
+        public Path? GetParentPath() {
+            if (Indices.Length == 0)
+                return null;
+            
+            return new Path(Root, Indices.Take(Indices.Length - 1).ToArray());
+        }
+    }
+    
     public enum TrackerEventType {
         StreamDocumentAdded,
         StreamDocumentRemoved,
@@ -348,7 +364,7 @@ namespace SharpYaml.Model {
 #else
         private ConditionalWeakTable<YamlNode, ICollection<ParentAndIndex>> parents = new ConditionalWeakTable<YamlNode, ICollection<ParentAndIndex>>();
 #endif
-        
+
         void AddChild(YamlNode child, YamlNode parent, ChildIndex relationship) {
             var pi = new ParentAndIndex(parent, relationship);
 
@@ -385,6 +401,62 @@ namespace SharpYaml.Model {
                 set.Remove(new ParentAndIndex(parent, relationship));
         }
 
+        void RemoveChildSubscribers(IList<Path> parentPaths, ChildIndex childIndex) {
+            if (subscribers == null)
+                return;
+
+            foreach (var parentPath in parentPaths) {
+                var childPath = parentPath.Clone();
+                childPath.Append(childIndex);
+
+                foreach (var subpath in pathTrie.GetSubpaths(childPath)) {
+                    subscribers.Remove(subpath);
+                }
+
+                pathTrie.Remove(childPath, true);
+            }
+        }
+
+        void ShiftChild(YamlNode child, YamlNode parent, ChildIndex relationship, int shift) {
+            ICollection<ParentAndIndex> set;
+            if (!parents.TryGetValue(child, out set))
+                return;
+
+            var newChildIndex = new ChildIndex(relationship.Index + shift, relationship.IsKey);
+
+            if (subscribers != null) {
+                var oldPaths = GetPaths(child);
+
+                foreach (var oldPath in oldPaths) {
+                    var newPaths = new List<Path>();
+                    foreach (var subpath in pathTrie.GetSubpaths(oldPath)) {
+                        Dictionary<WeakReference, string> subs;
+                        if (!subscribers.TryGetValue(subpath, out subs))
+                            continue;
+
+                        var newPath = subpath.Clone();
+                        newPath.Indices[oldPath.Indices.Length - 1] = newChildIndex;
+
+                        subscribers.Remove(oldPath);
+                        subscribers[newPath] = subs;
+                        newPaths.Add(newPath);
+                    }
+
+                    pathTrie.Remove(oldPath, true);
+                    foreach (var newPath in newPaths)
+                        pathTrie.Add(newPath);
+                }
+            }
+
+            var array = set as ParentAndIndex[];
+            if (array != null) {
+                array[0] = new ParentAndIndex(parent, newChildIndex);
+            } else {
+                set.Remove(new ParentAndIndex(parent, relationship));
+                set.Add(new ParentAndIndex(parent, newChildIndex));
+            }
+        }
+
         public IList<Path> GetPaths(YamlNode child) {
             if (child is YamlStream)
                 return new Path[0];
@@ -401,8 +473,7 @@ namespace SharpYaml.Model {
                 if (prePaths.Count > 0) {
                     foreach (var prePath in prePaths) {
                         var path = prePath;
-                        Array.Resize(ref path.Indices, path.Indices.Length + 1);
-                        path.Indices[path.Indices.Length - 1] = childRelationship.Index;
+                        path.Append(childRelationship.Index);
                         result.Add(path);
                     }
                 }
@@ -413,16 +484,33 @@ namespace SharpYaml.Model {
             return result;
         }
 
-        internal void OnStreamAddDocument(YamlStream sender, YamlDocument newDocument, int index) {
+        internal void OnStreamAddDocument(YamlStream sender, YamlDocument newDocument, int index, ICollection<YamlDocument> nextChildren) {
             var paths = GetPaths(sender);
             AddChild(newDocument, sender, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                // Need to iterate children in reverse so that the subscribers don't get mixed up as each index is incremented.
+                var nextIndex = index + nextChildren.Count - 1;
+                foreach (var nextChild in nextChildren.Reverse())
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex--, false), 1);
+            }
+            
             OnTrackerEvent(new StreamDocumentAdded(sender, paths, newDocument, index));
         }
 
-        internal void OnStreamRemoveDocument(YamlStream sender, YamlDocument removedDocument, int index) {
+        internal void OnStreamRemoveDocument(YamlStream sender, YamlDocument removedDocument, int index, IEnumerable<YamlDocument> nextChildren) {
             var paths = GetPaths(sender);
             RemoveChild(removedDocument, sender, new ChildIndex(index, false));
+
             OnTrackerEvent(new StreamDocumentRemoved(sender, paths, removedDocument, index));
+
+            RemoveChildSubscribers(paths, new ChildIndex(index, false));
+            
+            if (nextChildren != null) {
+                var nextIndex = index + 1;
+                foreach (var nextChild in nextChildren)
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex++, false), -1);
+            }
         }
 
         internal void OnStreamDocumentChanged(YamlStream sender, int index, YamlDocument oldDocument, YamlDocument newDocument) {
@@ -474,16 +562,33 @@ namespace SharpYaml.Model {
             OnTrackerEvent(new SequenceStartChanged(sender, GetPaths(sender), oldValue, newValue));
         }
 
-        internal void OnSequenceAddElement(YamlSequence sender, YamlElement newElement, int index) {
+        internal void OnSequenceAddElement(YamlSequence sender, YamlElement newElement, int index, ICollection<YamlElement> nextChildren) {
             var paths = GetPaths(sender);
             AddChild(newElement, sender, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                // Need to iterate children in reverse so that the subscribers don't get mixed up as each index is incremented.
+                var nextIndex = index + nextChildren.Count - 1;
+                foreach (var nextChild in nextChildren.Reverse()) 
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex--, false), 1);
+            }
+            
             OnTrackerEvent(new SequenceElementAdded(sender, paths, newElement, index));
         }
 
-        internal void OnSequenceRemoveElement(YamlSequence sender, YamlElement removedElement, int index) {
+        internal void OnSequenceRemoveElement(YamlSequence sender, YamlElement removedElement, int index, IEnumerable<YamlElement> nextChildren) {
             var paths = GetPaths(sender);
             RemoveChild(removedElement, sender, new ChildIndex(index, false));
+            
             OnTrackerEvent(new SequenceElementRemoved(sender, paths, removedElement, index));
+            
+            RemoveChildSubscribers(paths, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                var nextIndex = index + 1;
+                foreach (var nextChild in nextChildren)
+                    ShiftChild(nextChild, sender, new ChildIndex(nextIndex++, false), -1);
+            }
         }
 
         internal void OnSequenceElementChanged(YamlSequence sender, int index, YamlElement oldElement, YamlElement newElement) {
@@ -505,22 +610,42 @@ namespace SharpYaml.Model {
             OnTrackerEvent(new MappingStartChanged(sender, GetPaths(sender), oldValue, newValue));
         }
 
-        internal void OnMappingAddPair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> newPair, int index) {
+        internal void OnMappingAddPair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> newPair, int index, ICollection<KeyValuePair<YamlElement, YamlElement>> nextChildren) {
             var paths = GetPaths(sender);
 
             AddChild(newPair.Key, sender, new ChildIndex(index, true));
             AddChild(newPair.Value, sender, new ChildIndex(index, false));
 
+            if (nextChildren != null) {
+                // Need to iterate children in reverse so that the subscribers don't get mixed up as each index is incremented.
+                var nextIndex = index + nextChildren.Count - 1;
+                foreach (var nextChild in nextChildren.Reverse()) {
+                    ShiftChild(nextChild.Key, sender, new ChildIndex(nextIndex, true), 1);
+                    ShiftChild(nextChild.Value, sender, new ChildIndex(nextIndex--, false), 1);
+                }
+            }
+
             OnTrackerEvent(new MappingPairAdded(sender, paths, newPair, index));
         }
 
-        internal void OnMappingRemovePair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> removedPair, int index) {
+        internal void OnMappingRemovePair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> removedPair, int index, IEnumerable<KeyValuePair<YamlElement, YamlElement>> nextChildren) {
             var paths = GetPaths(sender);
 
             RemoveChild(removedPair.Key, sender, new ChildIndex(index, true));
             RemoveChild(removedPair.Value, sender, new ChildIndex(index, false));
-
+            
             OnTrackerEvent(new MappingPairRemoved(sender, paths, removedPair, index));
+
+            RemoveChildSubscribers(paths, new ChildIndex(index, true));
+            RemoveChildSubscribers(paths, new ChildIndex(index, false));
+
+            if (nextChildren != null) {
+                var nextIndex = index + 1;
+                foreach (var nextChild in nextChildren) {
+                    ShiftChild(nextChild.Key, sender, new ChildIndex(nextIndex, true), -1);
+                    ShiftChild(nextChild.Value, sender, new ChildIndex(nextIndex++, false), -1);
+                }
+            }
         }
 
         internal void OnMappingPairChanged(YamlMapping sender, int index, KeyValuePair<YamlElement, YamlElement> oldPair, KeyValuePair<YamlElement, YamlElement> newPair) {
@@ -567,11 +692,11 @@ namespace SharpYaml.Model {
                 foreach (var path in eventArgs.ParentPaths) {
                     allPaths.Add(path);
 
-                    var parentPath = path;
-                    while (parentPath.Indices.Length > 0) {
-                        parentPath = new Path(parentPath.Root, parentPath.Indices.Take(parentPath.Indices.Length - 1).ToArray());
-                        allPaths.Add(parentPath);
-                    }
+                    Path? parentPath = path;
+                    do {
+                        allPaths.Add(parentPath.Value);
+                        parentPath = parentPath.Value.GetParentPath();
+                    } while (parentPath != null);
                 }
 
                 foreach (var path in allPaths) {
@@ -604,6 +729,7 @@ namespace SharpYaml.Model {
 
         private Dictionary<Path, Dictionary<WeakReference, string>> subscribers;
         private Dictionary<WeakReference, string> noFilterSubscribers;
+        private PathTrie pathTrie;
 
         void CompactSubscribers() {
             foreach (var path in subscribers.Keys.ToArray()) {
@@ -614,8 +740,10 @@ namespace SharpYaml.Model {
                         dict.Remove(key);
                 }
 
-                if (dict.Count == 0)
+                if (dict.Count == 0) {
                     subscribers.Remove(path);
+                    pathTrie.Remove(path, false);
+                }
             }
 
             foreach (var key in noFilterSubscribers.Keys.ToArray()) {
@@ -628,6 +756,7 @@ namespace SharpYaml.Model {
             if (subscribers == null) {
                 subscribers = new Dictionary<Path, Dictionary<WeakReference, string>>();
                 noFilterSubscribers = new Dictionary<WeakReference, string>();
+                pathTrie = new PathTrie();
             }
 
             CompactSubscribers();
@@ -637,6 +766,7 @@ namespace SharpYaml.Model {
                 if (!subscribers.TryGetValue(filterPath.Value, out dict)) {
                     dict = new Dictionary<WeakReference, string>();
                     subscribers[filterPath.Value] = dict;
+                    pathTrie.Add(filterPath.Value);
                 }
             }
             else
