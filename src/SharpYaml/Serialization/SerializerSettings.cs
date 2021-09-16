@@ -120,6 +120,11 @@ namespace SharpYaml.Serialization
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether to ignore unmatched properties. Default is false.
+        /// </summary>
+        public bool IgnoreUnmatchedProperties { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether to emit anchor alias. Default is true.
         /// </summary>
         /// <value><c>true</c> to emit anchor alias; otherwise, <c>false</c>.</value>
