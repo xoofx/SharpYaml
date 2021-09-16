@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.0 (16 Sep 2021)
+- Add `SerializerSettings.RespectPrivateSetters` (PR https://github.com/xoofx/SharpYaml/pull/61)
+- Fix clearing of mapping/sequence, and update IsImplicit when setting Tag (PR https://github.com/xoofx/SharpYaml/pull/78)
+- Always enclose keys in quotes when emitting JSON (PR https://github.com/xoofx/SharpYaml/pull/82)
+- Optimize memory usage (PR https://github.com/xoofx/SharpYaml/pull/87)
+- Fix EmitJsonComptible typo by hiding old member and adding fixed one (PR https://github.com/xoofx/SharpYaml/pull/86)
+- When an item is inserted/removed from a container, update the indices of the subsequent children in the tracker (PR https://github.com/xoofx/SharpYaml/pull/84)
+- Allow to Ignore unmapped properties in YAML `SerializerSettings.IgnoreUnmatchedProperties` (PR https://github.com/xoofx/SharpYaml/pull/91)
+- Remove dependency on System.Reflection.TypeExtensions from netstandad2.0 (PR https://github.com/xoofx/SharpYaml/pull/92)
+
 ## 1.7.0 (8 Mar 2020)
 - Add PascalCase and CamelCase naming convention support
 
