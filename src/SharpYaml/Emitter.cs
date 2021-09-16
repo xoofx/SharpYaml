@@ -87,6 +87,48 @@ namespace SharpYaml
 
         private bool isOpenEnded;
 
+        private readonly MutableStringLookAheadBuffer buffer = new MutableStringLookAheadBuffer();
+
+
+        private class MutableStringLookAheadBuffer : ILookAheadBuffer {
+            private string value;
+            private int currentIndex;
+
+            public string Value {
+                get { return value; }
+                set {
+                    this.value = value;
+                    currentIndex = 0;
+                }
+            }
+
+            public int Length { get { return value?.Length ?? 0; } }
+
+            public int Position { get { return currentIndex; } }
+
+            public bool IsOutside(int index) {
+                return value == null || index >= value.Length;
+            }
+
+            public bool EndOfInput { get { return IsOutside(currentIndex); } }
+
+            public MutableStringLookAheadBuffer() { }
+
+            public char Peek(int offset) {
+                int index = currentIndex + offset;
+                return value[index];
+            }
+
+            public void Skip(int length) {
+                if (length < 0) {
+                    throw new ArgumentOutOfRangeException("length", "The length must be positive.");
+                }
+                currentIndex += length;
+            }
+
+            public void Cache(int length) { }
+        }
+
         private struct AnchorData
         {
             public string anchor;
@@ -349,8 +391,8 @@ namespace SharpYaml
 
             bool preceeded_by_whitespace = true;
 
-            StringLookAheadBuffer buffer = new StringLookAheadBuffer(value);
-            bool followed_by_whitespace = buffer.IsBlankOrBreakOrZero(1);
+            buffer.Value = value;
+            bool followed_by_whitespace = buffer.IsOutside(buffer.Position + 1) || buffer.IsBlankOrBreakOrZero(1);
 
             // If the output is not detected as unicode, check if the value to encode contains 
             // special characters that would require special encoding
@@ -474,7 +516,7 @@ namespace SharpYaml
                 buffer.Skip(1);
                 if (!buffer.EndOfInput)
                 {
-                    followed_by_whitespace = buffer.IsBlankOrBreakOrZero(1);
+                    followed_by_whitespace = buffer.IsOutside(buffer.Position + 1) || buffer.IsBlankOrBreakOrZero(1);
                 }
                 isFirst = false;
             }
