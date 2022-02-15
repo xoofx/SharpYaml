@@ -196,6 +196,11 @@ namespace SharpYaml.Serialization
         public bool RespectPrivateSetters { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether to ignore serialization of properties with null values. Default is false.
+        /// </summary>
+        public bool IgnoreNulls { get; set; }
+
+        /// <summary>
         /// Gets or sets the default key comparer used to sort members (<see cref="IMemberDescriptor"/>) or
         /// dictionary keys, when serializing objects as YAML mappings. Default is <see cref="DefaultKeyComparer"/>. 
         /// To disable the default comparer, this value can be set to null.

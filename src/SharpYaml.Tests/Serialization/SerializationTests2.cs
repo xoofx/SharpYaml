@@ -1543,6 +1543,36 @@ Test: !ClassWithImplicitMemberTypeInner
             public string String { get; set; }
         }
 
+        [Test]
+        public void TestIgnoreNulls()
+        {
+            var serializer = new Serializer();
+            serializer.Settings.IgnoreNulls = true;
+            var testObject = new ClassToIgnoreNulls()
+            {
+                Id = 10,
+                Nullable = 3,
+            };
+
+            var text = serializer.Serialize(testObject);
+            Assert.False(text.Contains("Name: null"));
+
+            var deserialized = serializer.Deserialize(new StringReader(text)) as ClassToIgnoreNulls;
+            Assert.NotNull(deserialized);
+            Assert.AreEqual(testObject.Id, deserialized.Id);
+            Assert.Null(deserialized.DontSerializeWhenNull);
+            Assert.AreEqual(testObject.Nullable, deserialized.Nullable);
+        }
+
+        public class ClassToIgnoreNulls
+        {
+            public int Id { get; set; }
+
+            public string DontSerializeWhenNull { get; set; }
+
+            public int? Nullable { get; set; }
+        }
+
         private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
         {
             var serializer = new Serializer(settings);
