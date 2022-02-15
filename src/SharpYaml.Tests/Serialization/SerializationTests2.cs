@@ -1555,7 +1555,7 @@ Test: !ClassWithImplicitMemberTypeInner
             };
 
             var text = serializer.Serialize(testObject);
-            Assert.False(text.Contains("Name: null"));
+            Assert.False(text.Contains("DontSerializeWhenNull: null"));
 
             var deserialized = serializer.Deserialize(new StringReader(text)) as ClassToIgnoreNulls;
             Assert.NotNull(deserialized);
