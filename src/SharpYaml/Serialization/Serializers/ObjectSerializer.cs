@@ -406,10 +406,13 @@ namespace SharpYaml.Serialization.Serializers
             if (!member.ShouldSerialize(objectContext.Instance))
                 return;
 
+            var memberValue = member.Get(objectContext.Instance);
+            if (memberValue == null && objectContext.Settings.IgnoreNulls)
+                return;
+
             // Emit the key name
             WriteMemberName(ref objectContext, member, member.Name);
 
-            var memberValue = member.Get(objectContext.Instance);
             var memberType = member.Type;
 
             // In case of serializing a property/field which is not writeable
