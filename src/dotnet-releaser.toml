@@ -1,0 +1,6 @@
+# configuration file for dotnet-releaser
+[msbuild]
+project = "SharpYaml.sln"
+[github]
+user = "xoofx"
+repo = "SharpYaml"
