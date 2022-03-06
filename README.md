@@ -22,11 +22,7 @@ Output:
 
 SharpYaml is a fork of [YamlDotNet](http://www.aaubry.net/yamldotnet.aspx) and is adding the following features:
 
- - Supports for multiple .NET frameworks:
-   - `.NET 3.5`
-   - `.NET PCL Profile 328` (`portable-net40+sl5+win8+wpa81+wp8`)
-   - `.NET 4.5+`
-   - `.NET Standard 1.3+` and `.NET Standard 2.0+`
+ - Supports for `.netstandard2.0`
  - Memory allocation and GC pressure improved
   - Completely rewritten serialization/deserialization engine
  - A single interface `IYamlSerializable` for implementing custom serializers, along `IYamlSerializableFactory` to allow dynamic creation of serializers. Registration can be done through `SerializerSettings.RegisterSerializer` and `SerializerSettings.RegisterSerializerFactory`

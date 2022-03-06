@@ -6,41 +6,19 @@
     <AssemblyTitle>SharpYaml</AssemblyTitle>
     <RootNamespace>SharpYaml</RootNamespace>
     <Description>A YAML portable .NET library. providing parsing and serialization of object graphs, compatible with CoreCLR.</Description>
-    <TargetFrameworks>net35;net45;netstandard1.3;netstandard1.6;netstandard2.0</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Authors>Alexandre Mutel</Authors>
     <Copyright>Alexandre Mutel</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <PackageTags>yaml;parser;yml</PackageTags>
-    <PackageReleaseNotes>https://github.com/xoofx/SharpYaml/blob/master/changelog.md</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/xoofx/SharpYaml</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/xoofx/SharpYaml/blob/master/LICENSE.txt</PackageLicenseUrl>
-    <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>git://github.com/xoofx/SharpYaml</RepositoryUrl>
+    <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <!--Add support for sourcelink-->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>    
   </PropertyGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net35' ">
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net35' OR '$(TargetFramework)' == 'net40' OR '$(TargetFramework)' == 'net45'">
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.0" />
-    <PackageReference Include="jnm2.ReferenceAssemblies.net35" Version="1.0.1" />
-  </ItemGroup>  
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.3'">
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.3.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.6'">
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.3.0" />
-  </ItemGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <NoWarn>CS1591</NoWarn>
@@ -50,24 +28,16 @@
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard1.3'">
-    <DefineConstants>$(DefineConstants);NETSTANDARD1_3;NETPOST45</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard1.6'">
-    <DefineConstants>$(DefineConstants);NETSTANDARD1_6;NETPOST45</DefineConstants>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <DefineConstants>$(DefineConstants);NETSTANDARD1_6;NETPOST45</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net35'">
-    <DefineConstants>$(DefineConstants);NET35</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
+    <PackageReference Include="MinVer" Version="2.5.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <!--Add support for sourcelink-->
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.*" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
   </ItemGroup>
 </Project>

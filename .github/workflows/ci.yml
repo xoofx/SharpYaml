@@ -18,18 +18,15 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+        fetch-depth: 0
 
-    - name: Install .NET 5.0
+    - name: Install .NET 6.0
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '5.0.x'
-
-    - name: Build & test (Release)
-      run: dotnet test src -c Release
-
-    - name: Pack
-      run: dotnet pack src -c Release
+        dotnet-version: '6.0.x'
 
     - name: Publish
       if: github.event_name == 'push'
