@@ -1609,6 +1609,20 @@ Test: !ClassWithImplicitMemberTypeInner
             public int[] Array { get; set; }
         }
 
+        [Test]
+        public void TestNumberInString()
+        {
+            var test = new
+            {
+                t = "1e3"
+            };
+
+            var serializer = new Serializer();
+            var str = serializer.Serialize(test).Trim();
+            System.Console.WriteLine(str);
+            Assert.AreEqual(@"t: ""1e3""", str);
+        }
+
         private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
         {
             var serializer = new Serializer(settings);
