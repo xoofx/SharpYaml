@@ -112,6 +112,7 @@ namespace SharpYaml.Serialization.Serializers
             // Emit a Flow sequence or block sequence depending on settings 
             objectContext.Writer.Emit(new SequenceStartEventInfo(value, valueType)
             {
+                Anchor = objectContext.Anchor,
                 Tag = objectContext.Tag,
                 Style = objectContext.Style != YamlStyle.Any ? objectContext.Style : (arrayList.Count < objectContext.Settings.LimitPrimitiveFlowSequence ? YamlStyle.Flow : YamlStyle.Block)
             });

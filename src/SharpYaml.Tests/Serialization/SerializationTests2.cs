@@ -1573,6 +1573,42 @@ Test: !ClassWithImplicitMemberTypeInner
             public int? Nullable { get; set; }
         }
 
+        [Test]
+        public void AnchorWithArrays()
+        {
+            var array = new int[] { 1, 2 };
+            var expected = new OuterClass()
+            {
+                InnerObjects = new List<InnerClass>()
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                var inner = new InnerClass
+                {
+                    Array = array
+                };
+                expected.InnerObjects.Add(inner);
+            }
+
+            var settings = new SerializerSettings() { EmitDefaultValues = true, EmitAlias = true };
+            settings.RegisterAssembly(typeof(OuterClass).Assembly);
+            var serializer = new Serializer(settings);
+
+            string serialString = serializer.Serialize(expected);
+            var actual = serializer.Deserialize(serialString) as OuterClass;
+            Assert.NotNull(actual);
+            Assert.True(ReferenceEquals(actual.InnerObjects[0].Array, actual.InnerObjects[1].Array));
+        }
+
+        public class OuterClass
+        {
+            public List<InnerClass> InnerObjects { get; set; }
+        }
+        public class InnerClass
+        {
+            public int[] Array { get; set; }
+        }
+
         private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
         {
             var serializer = new Serializer(settings);

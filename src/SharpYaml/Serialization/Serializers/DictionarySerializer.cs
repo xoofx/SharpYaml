@@ -134,7 +134,7 @@ namespace SharpYaml.Serialization.Serializers
 
                 WriteMemberName(ref objectContext, null, objectContext.Settings.SpecialCollectionMember);
 
-                objectContext.Writer.Emit(new MappingStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) {Style = objectContext.Style});
+                objectContext.Writer.Emit(new MappingStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) { Anchor = objectContext.Anchor, Style = objectContext.Style});
                 WriteDictionaryItems(ref objectContext);
                 objectContext.Writer.Emit(new MappingEndEventInfo(objectContext.Instance, objectContext.Instance.GetType()));
             }

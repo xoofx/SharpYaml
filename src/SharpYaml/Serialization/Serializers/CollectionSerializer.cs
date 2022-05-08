@@ -126,7 +126,7 @@ namespace SharpYaml.Serialization.Serializers
 
                 WriteMemberName(ref objectContext, null, objectContext.Settings.SpecialCollectionMember);
 
-                objectContext.Writer.Emit(new SequenceStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) {Style = objectContext.Style});
+                objectContext.Writer.Emit(new SequenceStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) {Anchor = objectContext.Anchor, Style = objectContext.Style});
                 WriteCollectionItems(ref objectContext);
                 objectContext.Writer.Emit(new SequenceEndEventInfo(objectContext.Instance, objectContext.Instance.GetType()));
             }
