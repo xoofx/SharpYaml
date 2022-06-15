@@ -13,7 +13,6 @@
     <PackageTags>yaml;parser;yml</PackageTags>
     <PackageProjectUrl>https://github.com/xoofx/SharpYaml</PackageProjectUrl>
     <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <!--Add support for sourcelink-->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>

@@ -106,19 +106,11 @@ namespace SharpYaml.Serialization.Serializers
 
             if (type == typeof(TimeSpan))
             {
-#if NET35
-                return TimeSpan.Parse(text);
-#else
                 return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
-#endif
             }
             else if (type == typeof(DateTimeOffset))
             {
-#if NET35
-                return DateTimeOffset.Parse(text);
-#else
                 return DateTimeOffset.Parse(text, CultureInfo.InvariantCulture);
-#endif
             }
             else if (type == typeof(Guid))
             {
@@ -282,19 +274,11 @@ namespace SharpYaml.Serialization.Serializers
                     default:
                         if (valueType == typeof(TimeSpan))
                         {
-#if NET35
-                            text = string.Format("{0:G}",((TimeSpan) value));
-#else
                             text = ((TimeSpan) value).ToString("G", CultureInfo.InvariantCulture);
-#endif
                         }
                         else if (valueType == typeof(DateTimeOffset))
                         {
-#if NET35
-                            text = string.Format("{0:o}", ((DateTimeOffset) value));
-#else
                             text = ((DateTimeOffset) value).ToString("o", CultureInfo.InvariantCulture);
-#endif
                         }
                         else if (valueType == typeof(Guid))
                         {

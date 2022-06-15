@@ -65,33 +65,9 @@ namespace SharpYaml
             return (((highSurrogate - HIGH_SURROGATE_START) * 0x400) + (lowSurrogate - LOW_SURROGATE_START) + UNICODE_PLANE01_START);
         }
 
-        public static unsafe string ConvertFromUtf32(int utf32)
+        public static string ConvertFromUtf32(int utf32)
         {
-#if PROFILE328
-            // For UTF32 values from U+00D800 ~ U+00DFFF, we should throw.  They 
-            // are considered as irregular code unit sequence, but they are not illegal.
-            if ((utf32 < 0 || utf32 > UNICODE_PLANE16_END) || (utf32 >= HIGH_SURROGATE_START && utf32 <= LOW_SURROGATE_END))
-            {
-                throw new ArgumentOutOfRangeException("utf32", "InvalidUTF32");
-            }
-
-            if (utf32 < UNICODE_PLANE01_START)
-            {
-                // This is a BMP character. 
-                return Char.ToString((char)utf32);
-            }
-            unsafe
-            {
-                // This is a supplementary character.  Convert it to a surrogate pair in UTF-16.
-                utf32 -= UNICODE_PLANE01_START;
-                var address = new char[2];
-                address[0] = (char)((utf32 / 0x400) + (int) HIGH_SURROGATE_START);
-                address[1] = (char)((utf32 % 0x400) + (int) LOW_SURROGATE_START);
-                return new string(address, 0, 2);
-            }
-#else
             return char.ConvertFromUtf32(utf32);
-#endif
         }
     }
 }

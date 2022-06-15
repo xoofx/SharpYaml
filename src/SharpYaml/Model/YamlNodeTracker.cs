@@ -359,11 +359,7 @@ namespace SharpYaml.Model {
             }
         }
 
-#if NET35
-        Dictionary<YamlNode, ICollection<ParentAndIndex>> parents = new Dictionary<YamlNode, ICollection<ParentAndIndex>>();
-#else
         private ConditionalWeakTable<YamlNode, ICollection<ParentAndIndex>> parents = new ConditionalWeakTable<YamlNode, ICollection<ParentAndIndex>>();
-#endif
 
         void AddChild(YamlNode child, YamlNode parent, ChildIndex relationship) {
             var pi = new ParentAndIndex(parent, relationship);
