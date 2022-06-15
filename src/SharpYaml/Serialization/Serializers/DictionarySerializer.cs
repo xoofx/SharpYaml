@@ -182,6 +182,7 @@ namespace SharpYaml.Serialization.Serializers
         /// Reads a dictionary item key-value.
         /// </summary>
         /// <param name="objectContext">The object context.</param>
+        /// <param name="keyValueType">Type of the key value.</param>
         /// <returns>KeyValuePair{System.ObjectSystem.Object}.</returns>
         protected virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
@@ -217,6 +218,7 @@ namespace SharpYaml.Serialization.Serializers
         /// </summary>
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValue">The key value.</param>
+        /// <param name="types">The types.</param>
         protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
         {
             objectContext.ObjectSerializerBackend.WriteDictionaryItem(ref objectContext, keyValue, types);

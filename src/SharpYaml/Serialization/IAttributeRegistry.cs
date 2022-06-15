@@ -92,6 +92,7 @@ namespace SharpYaml.Serialization
         /// Gets the attributes associated with the specified member.
         /// </summary>
         /// <typeparam name="T">Type of the attribute</typeparam>
+        /// <param name="attributeRegistry">A registry to get members.</param>
         /// <param name="memberInfo">The member information.</param>
         /// <param name="inherit">if set to <c>true</c> [inherit].</param>
         /// <returns>An enumeration of <see cref="Attribute"/>.</returns>
@@ -104,6 +105,7 @@ namespace SharpYaml.Serialization
         /// Gets the first attribute of type T associated with the specified member.
         /// </summary>
         /// <typeparam name="T">Type of the attribute</typeparam>
+        /// <param name="attributeRegistry">A registry to get members.</param>
         /// <param name="memberInfo">The member information.</param>
         /// <param name="inherit">if set to <c>true</c> [inherit].</param>
         /// <returns>An attribute of type {T} if it was found; otherwise <c>null</c> </returns>

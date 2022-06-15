@@ -140,7 +140,7 @@ namespace SharpYaml
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Scanner"/> class.
+        /// Initializes a new instance of the <see cref="t:Scanner"/> class.
         /// </summary>
         /// <param name="buffer">The buffer.</param>
         public Scanner(TBuffer buffer)
