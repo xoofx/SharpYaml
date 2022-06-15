@@ -56,6 +56,12 @@ namespace SharpYaml.Tests
 {
     public class EmitterTests : YamlTest
     {
+        public EmitterTests()
+        {
+#if NETCOREAPP
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+#endif
+        }
         [Test]
         public void EmitExample1()
         {
@@ -140,7 +146,6 @@ namespace SharpYaml.Tests
             ParseAndEmit("test14.yaml");
         }
 
-#if NET45
         [Test]
         public void EmitUnicode()
         {
@@ -158,7 +163,6 @@ namespace SharpYaml.Tests
             var result = encoding.GetString(stream.ToArray()).Trim();
             Assert.AreEqual("'" + input + "'", result);
         }
-#endif
 
         [Test]
         public void EmitUnicodeEscapes()

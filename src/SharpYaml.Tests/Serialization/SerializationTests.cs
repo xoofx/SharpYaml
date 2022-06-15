@@ -313,26 +313,23 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual("three", array[2]);
         }
 
-#if NET45
-
         [Test]
         public void Enums()
         {
             var settings = new SerializerSettings();
-            settings.RegisterAssembly(typeof(StringFormatFlags).Assembly);
+            settings.RegisterAssembly(typeof(BindingFlags).Assembly);
             var serializer = new Serializer(settings);
 
-            var flags = StringFormatFlags.NoClip | StringFormatFlags.NoFontFallback;
+            var flags = BindingFlags.Public | BindingFlags.InvokeMethod;
 
             var buffer = new StringWriter();
             serializer.Serialize(buffer, flags);
 
             var bufferAsText = buffer.ToString();
-            var deserialized = (StringFormatFlags) serializer.Deserialize(bufferAsText, typeof(StringFormatFlags));
+            var deserialized = (BindingFlags) serializer.Deserialize(bufferAsText, typeof(BindingFlags));
 
             Assert.AreEqual(flags, deserialized);
         }
-#endif
 
         [Test]
         public void CustomTags()
