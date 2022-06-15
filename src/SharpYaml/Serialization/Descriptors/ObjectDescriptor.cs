@@ -62,7 +62,7 @@ namespace SharpYaml.Serialization.Descriptors
 
         protected static readonly string SystemCollectionsNamespace = typeof(int).Namespace;
 
-        private readonly static object[] EmptyObjectArray = new object[0];
+        private readonly static object[] EmptyObjectArray = Array.Empty<object>();
         private readonly Type type;
         private List<IMemberDescriptor> members;
         private Dictionary<string, IMemberDescriptor> mapMembers;
@@ -258,10 +258,7 @@ namespace SharpYaml.Serialization.Descriptors
             }
 
             // Allow to add dynamic members per type
-            if (AttributeRegistry.PrepareMembersCallback != null)
-            {
-                AttributeRegistry.PrepareMembersCallback(this, memberList);
-            }
+            AttributeRegistry.PrepareMembersCallback?.Invoke(this, memberList);
 
             return memberList;
         }
@@ -389,7 +386,7 @@ namespace SharpYaml.Serialization.Descriptors
             if (defaultValueAttribute != null && member.ShouldSerialize == null && !emitDefaultValues)
             {
                 object defaultValue = defaultValueAttribute.Value;
-                Type defaultType = defaultValue == null ? null : defaultValue.GetType();
+                Type defaultType = defaultValue?.GetType();
                 if (defaultType.IsNumeric() && defaultType != memberType)
                     defaultValue = memberType.CastToNumericType(defaultValue);
                 member.ShouldSerialize = obj => !TypeExtensions.AreEqual(defaultValue, member.Get(obj));

@@ -104,7 +104,7 @@ namespace SharpYaml.Serialization
             {
                 lookupAssemblies.Add(assembly);
 
-                var types = new Type[0];
+                var types = Array.Empty<Type>();
 
                 // Register all tags automatically.
                 foreach (var type in assembly.GetTypes())
