@@ -56,7 +56,7 @@ namespace SharpYaml.Serialization
     /// </summary>
     public sealed class DefaultObjectFactory : IObjectFactory
     {
-        private static readonly Type[] EmptyTypes = new Type[0];
+        private static readonly Type[] EmptyTypes = Array.Empty<Type>();
 
         private static readonly Dictionary<Type, Type> DefaultInterfaceImplementations = new Dictionary<Type, Type>
         {
