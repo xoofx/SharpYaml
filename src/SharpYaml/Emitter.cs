@@ -812,7 +812,7 @@ namespace SharpYaml
             isIndentation = false;
         }
 
-        private static readonly Regex uriReplacer = new Regex(@"[^0-9A-Za-z_\-;?@=$~\\\)\]/:&+,\.\*\(\[!]", RegexOptions.Singleline);
+        private static readonly Regex uriReplacer = new Regex(@"[^0-9A-Za-z_\-;?@=$~\\\)\]/:&+,\.\*\(\[!]", RegexOptions.Singleline | RegexOptions.Compiled);
 
         private static string UrlEncode(string text)
         {

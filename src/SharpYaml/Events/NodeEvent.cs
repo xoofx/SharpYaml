@@ -53,7 +53,7 @@ namespace SharpYaml.Events
     /// </summary>
     public abstract class NodeEvent : ParsingEvent
     {
-        internal static readonly Regex anchorValidator = new Regex(@"^[0-9a-zA-Z_\-]+$");
+        internal static readonly Regex anchorValidator = new Regex(@"^[0-9a-zA-Z_\-]+$", RegexOptions.Compiled);
 
         private readonly string anchor;
 

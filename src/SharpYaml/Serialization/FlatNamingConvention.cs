@@ -29,8 +29,8 @@ namespace SharpYaml.Serialization
     public class FlatNamingConvention : IMemberNamingConvention
     {
         // Code taken from dotliquid/RubyNamingConvention.cs
-        private readonly Regex regex1 = new Regex(@"([A-Z]+)([A-Z][a-z])");
-        private readonly Regex regex2 = new Regex(@"([a-z\d])([A-Z])");
+        private readonly Regex regex1 = new Regex(@"([A-Z]+)([A-Z][a-z])", RegexOptions.Compiled);
+        private readonly Regex regex2 = new Regex(@"([a-z\d])([A-Z])", RegexOptions.Compiled);
 
         public StringComparer Comparer { get { return StringComparer.OrdinalIgnoreCase; } }
 
