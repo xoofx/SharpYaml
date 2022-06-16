@@ -269,7 +269,7 @@ namespace SharpYaml.Serialization.Descriptors
 
             // Remove all SyncRoot from members
             if (member is PropertyDescriptor && member.OriginalName == "SyncRoot" &&
-                (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace))
+                (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace, StringComparison.Ordinal))
             {
                 return false;
             }
