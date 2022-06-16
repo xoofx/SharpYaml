@@ -50,11 +50,11 @@ namespace SharpYaml
     /// <summary>
     /// Represents a location inside a file
     /// </summary>
-    public struct Mark
+    public readonly struct Mark
     {
-        private int index;
-        private int line;
-        private int column;
+        private readonly int index;
+        private readonly int line;
+        private readonly int column;
 
         public Mark(int index, int line, int column) {
             this.index = index;

@@ -330,7 +330,7 @@ namespace SharpYaml.Serialization
             return type;
         }
 
-        struct MappedType
+        readonly struct MappedType
         {
             public MappedType(Type type, bool remapped)
             {

@@ -334,9 +334,9 @@ namespace SharpYaml.Model {
     }
 
     public class YamlNodeTracker {
-        struct ParentAndIndex {
-            public YamlNode Parent;
-            public ChildIndex Index;
+        readonly struct ParentAndIndex {
+            public readonly YamlNode Parent;
+            public readonly ChildIndex Index;
 
             public ParentAndIndex(YamlNode parent, ChildIndex index) {
                 Parent = parent;
