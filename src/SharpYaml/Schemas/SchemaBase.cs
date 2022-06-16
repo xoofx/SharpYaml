@@ -92,8 +92,7 @@ namespace SharpYaml.Schemas
             if (shortTag == null)
                 return null;
 
-            string tagExpanded;
-            return shortTagToLongTag.TryGetValue(shortTag, out tagExpanded) ? tagExpanded : shortTag;
+            return shortTagToLongTag.TryGetValue(shortTag, out string tagExpanded) ? tagExpanded : shortTag;
         }
 
         public string ShortenTag(string longTag)
@@ -101,8 +100,7 @@ namespace SharpYaml.Schemas
             if (longTag == null)
                 return null;
 
-            string tagShortened;
-            return longTagToShortTag.TryGetValue(longTag, out tagShortened) ? tagShortened : longTag;
+            return longTagToShortTag.TryGetValue(longTag, out string tagShortened) ? tagShortened : longTag;
         }
 
         public string GetDefaultTag(NodeEvent nodeEvent)
@@ -127,9 +125,7 @@ namespace SharpYaml.Schemas
             var scalar = nodeEvent as Scalar;
             if (scalar != null)
             {
-                object value;
-                string tag;
-                TryParse(scalar, false, out tag, out value);
+                TryParse(scalar, false, out string tag, out object value);
                 return tag;
             }
 
@@ -142,8 +138,7 @@ namespace SharpYaml.Schemas
                 throw new ArgumentNullException("type");
             EnsureScalarRules();
 
-            string defaultTag;
-            mapTypeToShortTag.TryGetValue(type, out defaultTag);
+            mapTypeToShortTag.TryGetValue(type, out string defaultTag);
             return defaultTag;
         }
 
@@ -260,8 +255,7 @@ namespace SharpYaml.Schemas
             // Parse only values if we have some rules
             if (mapTypeToScalarResolutionRuleList.Count > 0)
             {
-                List<ScalarResolutionRule> rules;
-                if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out rules))
+                if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out List<ScalarResolutionRule> rules))
                 {
                     foreach (var rule in rules)
                     {
@@ -286,8 +280,7 @@ namespace SharpYaml.Schemas
                 return null;
             }
 
-            Type type;
-            mapShortTagToType.TryGetValue(shortTag, out type);
+            mapShortTagToType.TryGetValue(shortTag, out Type type);
             return type;
         }
 

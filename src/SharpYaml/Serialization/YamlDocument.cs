@@ -151,8 +151,7 @@ namespace SharpYaml.Serialization
             {
                 if (string.IsNullOrEmpty(node.Anchor))
                 {
-                    bool isDuplicate;
-                    if (visitedNodes.TryGetValue(node, out isDuplicate))
+                    if (visitedNodes.TryGetValue(node, out bool isDuplicate))
                     {
                         if (!isDuplicate)
                         {

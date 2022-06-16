@@ -13,8 +13,7 @@ namespace SharpYaml.Model {
                     return;
                 }
 
-                PathTrieNode subPath;
-                if (!subPaths.TryGetValue(indices[start], out subPath)) {
+                if (!subPaths.TryGetValue(indices[start], out PathTrieNode subPath)) {
                     subPath = new PathTrieNode();
                     subPaths[indices[start]] = subPath;
                 }
@@ -34,8 +33,7 @@ namespace SharpYaml.Model {
                     return result;
                 }
 
-                PathTrieNode subPath;
-                if (!subPaths.TryGetValue(indices[start], out subPath))
+                if (!subPaths.TryGetValue(indices[start], out PathTrieNode subPath))
                     return false;
 
                 if (!subPath.Remove(indices, start + 1, removeChildren))
@@ -55,8 +53,7 @@ namespace SharpYaml.Model {
                 if (start == indices.Count)
                     return this;
 
-                PathTrieNode subPath;
-                if (!subPaths.TryGetValue(indices[start], out subPath))
+                if (!subPaths.TryGetValue(indices[start], out PathTrieNode subPath))
                     return null;
 
                 return subPath.Find(indices, start + 1);
@@ -78,8 +75,7 @@ namespace SharpYaml.Model {
         private readonly Dictionary<YamlNode, PathTrieNode> roots = new Dictionary<YamlNode, PathTrieNode>();
 
         public void Add(Path path) {
-            PathTrieNode root;
-            if (!roots.TryGetValue(path.Root, out root)) {
+            if (!roots.TryGetValue(path.Root, out PathTrieNode root)) {
                 root = new PathTrieNode();
                 roots[path.Root] = root;
             }
@@ -88,8 +84,7 @@ namespace SharpYaml.Model {
         }
 
         public bool Remove(Path path, bool removeChildren) {
-            PathTrieNode root;
-            if (!roots.TryGetValue(path.Root, out root))
+            if (!roots.TryGetValue(path.Root, out PathTrieNode root))
                 return false;
 
             if (!root.Remove(path.Indices, 0, removeChildren))
@@ -102,8 +97,7 @@ namespace SharpYaml.Model {
         }
 
         public bool Contains(Path path, bool orChildren) {
-            PathTrieNode root;
-            if (!roots.TryGetValue(path.Root, out root))
+            if (!roots.TryGetValue(path.Root, out PathTrieNode root))
                 return false;
 
             var node = root.Find(path.Indices, 0);
@@ -114,8 +108,7 @@ namespace SharpYaml.Model {
         }
 
         public IEnumerable<Path> GetSubpaths(Path path) {
-            PathTrieNode root;
-            if (!roots.TryGetValue(path.Root, out root))
+            if (!roots.TryGetValue(path.Root, out PathTrieNode root))
                 yield break;
 
             var node = root.Find(path.Indices, 0);

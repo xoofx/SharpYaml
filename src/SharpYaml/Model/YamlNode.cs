@@ -67,8 +67,7 @@ namespace SharpYaml.Model {
 
             foreach (var evnt in events) {
                 if (suppressDocumentTags) {
-                    var document = evnt as DocumentStart;
-                    if (document != null && document.Tags != null) {
+                    if (evnt is DocumentStart document && document.Tags != null) {
                         document.Tags.Clear();
                     }
                 }

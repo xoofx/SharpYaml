@@ -323,18 +323,15 @@ namespace SharpYaml
             tagData.handle = null;
             tagData.suffix = null;
 
-            AnchorAlias alias = evt as AnchorAlias;
-            if (alias != null)
+            if (evt is AnchorAlias alias)
             {
                 AnalyzeAnchor(alias.Value, true);
                 return;
             }
 
-            NodeEvent nodeEvent = evt as NodeEvent;
-            if (nodeEvent != null)
+            if (evt is NodeEvent nodeEvent)
             {
-                Scalar scalar = evt as Scalar;
-                if (scalar != null)
+                if (evt is Scalar scalar)
                 {
                     AnalyzeScalar(scalar.Value);
                 }
@@ -693,8 +690,7 @@ namespace SharpYaml
         /// </summary>
         private void EmitDocumentStart(ParsingEvent evt, bool isFirst)
         {
-            DocumentStart documentStart = evt as DocumentStart;
-            if (documentStart != null)
+            if (evt is DocumentStart documentStart)
             {
                 bool isImplicit = documentStart.IsImplicit && isFirst && !isCanonical;
 
@@ -784,8 +780,7 @@ namespace SharpYaml
             {
                 if (++index == 2)
                 {
-                    Scalar scalar = parsingEvent as Scalar;
-                    if (scalar != null)
+                    if (parsingEvent is Scalar scalar)
                     {
                         return string.IsNullOrEmpty(scalar.Value);
                     }
@@ -1569,8 +1564,7 @@ namespace SharpYaml
         /// </summary>
         private void EmitDocumentEnd(ParsingEvent evt)
         {
-            DocumentEnd documentEnd = evt as DocumentEnd;
-            if (documentEnd != null)
+            if (evt is DocumentEnd documentEnd)
             {
                 WriteIndent();
                 if (!documentEnd.IsImplicit)

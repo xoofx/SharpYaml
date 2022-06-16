@@ -119,9 +119,8 @@ namespace SharpYaml.Serialization.Descriptors
         /// <returns>System.Object.</returns>
         public object ParseEnum(string enumAsText, out bool remapped)
         {
-            object value;
             remapped = false;
-            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out value))
+            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out object value))
             {
                 remapped = true;
                 return value;

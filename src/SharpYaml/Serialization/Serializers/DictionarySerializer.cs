@@ -83,8 +83,7 @@ namespace SharpYaml.Serialization.Serializers
             else if (objectContext.Settings.SerializeDictionaryItemsAsMembers && dictionaryDescriptor.KeyType == typeof(string))
             {
                 // Read dictionaries that can be serialized as items
-                string memberName;
-                if (!TryReadMember(ref objectContext, out memberName))
+                if (!TryReadMember(ref objectContext, out string memberName))
                 {
                     var value = ReadMemberValue(ref objectContext, null, null, dictionaryDescriptor.ValueType);
                     dictionaryDescriptor.AddToDictionary(objectContext.Instance, memberName, value);

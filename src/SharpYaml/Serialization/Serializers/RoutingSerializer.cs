@@ -89,8 +89,7 @@ namespace SharpYaml.Serialization.Serializers
 
         private IYamlSerializable GetSerializer(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
-            IYamlSerializable serializer;
-            if (!serializers.TryGetValue(typeDescriptor.Type, out serializer))
+            if (!serializers.TryGetValue(typeDescriptor.Type, out IYamlSerializable serializer))
             {
                 foreach (var factory in factories)
                 {

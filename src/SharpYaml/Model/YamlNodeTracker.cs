@@ -16,8 +16,7 @@ namespace SharpYaml.Model {
         }
 
         public YamlNode Resolve(YamlNode parent) {
-            var stream = parent as YamlStream;
-            if (stream != null) {
+            if (parent is YamlStream stream) {
                 if (IsKey)
                     return null;
                 if (Index < 0 || Index >= stream.Count)
@@ -25,15 +24,13 @@ namespace SharpYaml.Model {
                 return stream[Index];
             }
 
-            var document = parent as YamlDocument;
-            if (document != null) {
+            if (parent is YamlDocument document) {
                 if (IsKey || Index != -1)
                     return null;
                 return document.Contents;
             }
 
-            var sequence = parent as YamlSequence;
-            if (sequence != null) {
+            if (parent is YamlSequence sequence) {
                 if (IsKey)
                     return null;
                 if (Index < 0 || Index >= sequence.Count)
@@ -41,8 +38,7 @@ namespace SharpYaml.Model {
                 return sequence[Index];
             }
 
-            var mapping = parent as YamlMapping;
-            if (mapping != null) {
+            if (parent is YamlMapping mapping) {
                 if (Index < 0 || Index >= mapping.Count)
                     return null;
                 return IsKey
@@ -59,7 +55,7 @@ namespace SharpYaml.Model {
 
         public override bool Equals(object obj) {
             if (ReferenceEquals(null, obj)) return false;
-            return obj is ChildIndex && Equals((ChildIndex)obj);
+            return obj is ChildIndex index && Equals(index);
         }
 
         public override int GetHashCode() {
@@ -96,7 +92,7 @@ namespace SharpYaml.Model {
 
         public override bool Equals(object obj) {
             if (ReferenceEquals(null, obj)) return false;
-            return obj is Path && Equals((Path)obj);
+            return obj is Path path && Equals(path);
         }
 
         public override int GetHashCode() {
@@ -349,7 +345,7 @@ namespace SharpYaml.Model {
 
             public override bool Equals(object obj) {
                 if (ReferenceEquals(null, obj)) return false;
-                return obj is ParentAndIndex && Equals((ParentAndIndex)obj);
+                return obj is ParentAndIndex index && Equals(index);
             }
 
             public override int GetHashCode() {
@@ -364,15 +360,13 @@ namespace SharpYaml.Model {
         void AddChild(YamlNode child, YamlNode parent, ChildIndex relationship) {
             var pi = new ParentAndIndex(parent, relationship);
 
-            ICollection<ParentAndIndex> set;
-            if (!parents.TryGetValue(child, out set)) {
+            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> set)) {
                 set = new[] { pi };
                 parents.Add(child, set);
                 return;
             }
 
-            var array = set as ParentAndIndex[];
-            if (array != null) {
+            if (set is ParentAndIndex[] array) {
                 if (array[0].Equals(pi))
                     return;
                 
@@ -387,8 +381,7 @@ namespace SharpYaml.Model {
         }
 
         void RemoveChild(YamlNode child, YamlNode parent, ChildIndex relationship) {
-            ICollection<ParentAndIndex> set;
-            if (!parents.TryGetValue(child, out set))
+            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> set))
                 return;
 
             if (set is ParentAndIndex[])
@@ -414,8 +407,7 @@ namespace SharpYaml.Model {
         }
 
         void ShiftChild(YamlNode child, YamlNode parent, ChildIndex relationship, int shift) {
-            ICollection<ParentAndIndex> set;
-            if (!parents.TryGetValue(child, out set))
+            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> set))
                 return;
 
             var newChildIndex = new ChildIndex(relationship.Index + shift, relationship.IsKey);
@@ -426,8 +418,7 @@ namespace SharpYaml.Model {
                 foreach (var oldPath in oldPaths) {
                     var newPaths = new List<Path>();
                     foreach (var subpath in pathTrie.GetSubpaths(oldPath)) {
-                        Dictionary<WeakReference, string> subs;
-                        if (!subscribers.TryGetValue(subpath, out subs))
+                        if (!subscribers.TryGetValue(subpath, out Dictionary<WeakReference, string> subs))
                             continue;
 
                         var newPath = subpath.Clone();
@@ -444,8 +435,7 @@ namespace SharpYaml.Model {
                 }
             }
 
-            var array = set as ParentAndIndex[];
-            if (array != null) {
+            if (set is ParentAndIndex[] array) {
                 array[0] = new ParentAndIndex(parent, newChildIndex);
             } else {
                 set.Remove(new ParentAndIndex(parent, relationship));
@@ -457,8 +447,7 @@ namespace SharpYaml.Model {
             if (child is YamlStream)
                 return new Path[0];
 
-            ICollection<ParentAndIndex> relationships;
-            if (!parents.TryGetValue(child, out relationships))
+            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> relationships))
                 return new Path[0];
 
             var result = new List<Path>();

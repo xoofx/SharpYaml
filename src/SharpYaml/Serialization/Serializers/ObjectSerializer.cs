@@ -194,11 +194,9 @@ namespace SharpYaml.Serialization.Serializers
         /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
         protected virtual void ReadMember(ref ObjectContext objectContext)
         {
-            Scalar memberScalar;
-            string memberName;
-            if (!TryReadMember(ref objectContext, out memberScalar, out memberName))
+            if (!TryReadMember(ref objectContext, out Scalar memberScalar, out string memberName))
             {
-                if (!objectContext.Settings.IgnoreUnmatchedProperties) 
+                if (!objectContext.Settings.IgnoreUnmatchedProperties)
                     throw new YamlException(memberScalar.Start, memberScalar.End, $"Unable to deserialize property [{memberName}] not found in type [{objectContext.Descriptor}]");
             }
         }
@@ -211,8 +209,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <returns><c>true</c> if the member was successfully read, <c>false</c> otherwise.</returns>
         protected bool TryReadMember(ref ObjectContext objectContext, out string memberName)
         {
-            Scalar scalar;
-            return TryReadMember(ref objectContext, out scalar, out memberName);
+            return TryReadMember(ref objectContext, out Scalar scalar, out memberName);
         }
 
         /// <summary>
@@ -286,8 +283,7 @@ namespace SharpYaml.Serialization.Serializers
         {
             // For a regular object, the key is expected to be a simple scalar
             memberScalar = objectContext.Reader.Expect<Scalar>();
-            bool skipMember;
-            memberName = ReadMemberName(ref objectContext, memberScalar.Value, out skipMember);
+            memberName = ReadMemberName(ref objectContext, memberScalar.Value, out bool skipMember);
 
             // Do we want to skip this member?
             if (skipMember)

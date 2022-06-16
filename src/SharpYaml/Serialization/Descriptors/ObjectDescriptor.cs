@@ -149,8 +149,7 @@ namespace SharpYaml.Serialization.Descriptors
 
             foreach (var member in members)
             {
-                IMemberDescriptor existingMember;
-                if (mapMembers.TryGetValue(member.Name, out existingMember))
+                if (mapMembers.TryGetValue(member.Name, out IMemberDescriptor existingMember))
                 {
                     throw new YamlException($"Failed to get ObjectDescriptor for type [{type.FullName}]. The member [{member}] cannot be registered as a member with the same name is already registered [{existingMember}]");
                 }
@@ -214,8 +213,7 @@ namespace SharpYaml.Serialization.Descriptors
             {
                 if (mapMembers == null)
                     throw new KeyNotFoundException(name);
-                IMemberDescriptor member;
-                mapMembers.TryGetValue(name, out member);
+                mapMembers.TryGetValue(name, out IMemberDescriptor member);
                 return member;
             }
         }
