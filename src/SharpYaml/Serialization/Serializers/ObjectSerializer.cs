@@ -177,7 +177,7 @@ namespace SharpYaml.Serialization.Serializers
             // throws an exception while deserializing
             if (objectContext.Instance == null)
             {
-                throw new YamlException(start.Start, start.End, "Cannot instantiate an object for type [{0}]".DoFormat(objectContext.Descriptor));
+                throw new YamlException(start.Start, start.End, $"Cannot instantiate an object for type [{objectContext.Descriptor}]");
             }
 
             while (!reader.Accept<TEnd>())
@@ -199,7 +199,7 @@ namespace SharpYaml.Serialization.Serializers
             if (!TryReadMember(ref objectContext, out memberScalar, out memberName))
             {
                 if (!objectContext.Settings.IgnoreUnmatchedProperties) 
-                    throw new YamlException(memberScalar.Start, memberScalar.End, "Unable to deserialize property [{0}] not found in type [{1}]".DoFormat(memberName, objectContext.Descriptor));
+                    throw new YamlException(memberScalar.Start, memberScalar.End, $"Unable to deserialize property [{memberName}] not found in type [{objectContext.Descriptor}]");
             }
         }
 

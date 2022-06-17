@@ -98,7 +98,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// <returns>A <see cref="System.String" /> that represents this instance.</returns>
         public override string ToString()
         {
-            return string.Format("Field [{0}] from Type [{1}]", OriginalName, FieldInfo.DeclaringType != null ? FieldInfo.DeclaringType.FullName : string.Empty);
+            return $"Field [{OriginalName}] from Type [{(FieldInfo.DeclaringType != null ? FieldInfo.DeclaringType.FullName : string.Empty)}]";
         }
     }
 }

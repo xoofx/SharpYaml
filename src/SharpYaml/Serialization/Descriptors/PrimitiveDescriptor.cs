@@ -64,12 +64,12 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="attributeRegistry">The attribute registry.</param>
         /// <param name="type">The type.</param>
         /// <param name="namingConvention">The naming convention.</param>
-        /// <exception cref="System.ArgumentException">Type [{0}] is not a primitive</exception>
+        /// <exception cref="System.ArgumentException">Type [<paramref name="type" />] is not a primitive</exception>
         public PrimitiveDescriptor(IAttributeRegistry attributeRegistry, Type type, IMemberNamingConvention namingConvention)
             : base(attributeRegistry, type, false, false, namingConvention)
         {
             if (!IsPrimitive(type))
-                throw new ArgumentException("Type [{0}] is not a primitive");
+                throw new ArgumentException($"Type [{type}] is not a primitive");
 
             // Handle remap for enum items
             if (type.GetTypeInfo().IsEnum)

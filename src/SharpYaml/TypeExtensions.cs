@@ -130,7 +130,7 @@ namespace SharpYaml
         public static string GetShortAssemblyQualifiedName(this Type type)
         {
             if (type.AssemblyQualifiedName == null)
-                throw new InvalidOperationException("Unable to get an assembly qualified name for type [{0}]".DoFormat(type));
+                throw new InvalidOperationException($"Unable to get an assembly qualified name for type [{type}]");
 
             var sb = new StringBuilder();
             DoGetShortAssemblyQualifiedName(type, sb);

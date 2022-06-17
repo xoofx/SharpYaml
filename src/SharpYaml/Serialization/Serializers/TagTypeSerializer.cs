@@ -69,7 +69,7 @@ namespace SharpYaml.Serialization.Serializers
             var node = parsingEvent as NodeEvent;
             if (node == null)
             {
-                throw new YamlException(parsingEvent.Start, parsingEvent.End, "Unexpected parsing event found [{0}]. Expecting Scalar, Mapping or Sequence".DoFormat(parsingEvent));
+                throw new YamlException(parsingEvent.Start, parsingEvent.End, $"Unexpected parsing event found [{parsingEvent}]. Expecting Scalar, Mapping or Sequence");
             }
 
             var type = objectContext.Descriptor != null ? objectContext.Descriptor.Type : null;
@@ -82,7 +82,7 @@ namespace SharpYaml.Serialization.Serializers
                 typeFromTag = objectContext.SerializerContext.TypeFromTag(node.Tag, out remapped);
                 if (typeFromTag == null)
                 {
-                    throw new YamlException(parsingEvent.Start, parsingEvent.End, "Unable to resolve tag [{0}] to type from tag resolution or registered assemblies".DoFormat(node.Tag));
+                    throw new YamlException(parsingEvent.Start, parsingEvent.End, $"Unable to resolve tag [{node.Tag}] to type from tag resolution or registered assemblies");
                 }
 
                 // Store the fact that remap has occured on this tag
@@ -132,7 +132,7 @@ namespace SharpYaml.Serialization.Serializers
 
             if (type == null && value == null)
             {
-                throw new YamlException(node.Start, node.End, "Unable to find a type for this element [{0}]".DoFormat(node));
+                throw new YamlException(node.Start, node.End, $"Unable to find a type for this element [{node}]");
             }
 
             if (type == null)

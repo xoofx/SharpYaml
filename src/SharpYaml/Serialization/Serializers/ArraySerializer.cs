@@ -74,7 +74,7 @@ namespace SharpYaml.Serialization.Serializers
                     var node = reader.Peek<ParsingEvent>();
                     if (index >= arrayList.Count)
                     {
-                        throw new YamlException(node.Start, node.End, "Unable to deserialize array. Current number of elements [{0}] exceeding array size [{1}]".DoFormat(index, arrayList.Count));
+                        throw new YamlException(node.Start, node.End, $"Unable to deserialize array. Current number of elements [{index}] exceeding array size [{arrayList.Count}]");
                     }
 
                     // Handle aliasing

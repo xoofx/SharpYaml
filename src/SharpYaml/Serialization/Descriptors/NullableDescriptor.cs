@@ -61,12 +61,12 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="attributeRegistry">The attribute registry.</param>
         /// <param name="type">The type.</param>
         /// <param name="namingConvention">The naming convention.</param>
-        /// <exception cref="System.ArgumentException">Type [{0}] is not a primitive</exception>
+        /// <exception cref="System.ArgumentException">Type [<paramref name="type" />] is not a primitive</exception>
         public NullableDescriptor(IAttributeRegistry attributeRegistry, Type type, IMemberNamingConvention namingConvention)
             : base(attributeRegistry, type, false, false, namingConvention)
         {
             if (!IsNullable(type))
-                throw new ArgumentException("Type [{0}] is not a primitive");
+                throw new ArgumentException($"Type [{type}] is not a primitive");
 
             UnderlyingType = Nullable.GetUnderlyingType(type);
         }

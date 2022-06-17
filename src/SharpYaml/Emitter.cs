@@ -943,7 +943,7 @@ namespace SharpYaml
                     break;
 
                 default:
-                    throw new YamlException(string.Format("Expected SCALAR, SEQUENCE-START, MAPPING-START, or ALIAS, got {0}", eventType));
+                    throw new YamlException($"Expected SCALAR, SEQUENCE-START, MAPPING-START, or ALIAS, got {eventType}");
             }
         }
 

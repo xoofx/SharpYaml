@@ -99,7 +99,7 @@ namespace SharpYaml
         /// </returns>
         public override string ToString()
         {
-            return string.Format("Lin: {0}, Col: {1}, Chr: {2}", line, column, index);
+            return $"Lin: {line}, Col: {column}, Chr: {index}";
         }
     }
 }
