@@ -71,7 +71,7 @@ namespace SharpYaml.Serialization
 
             if (anchors.ContainsKey(node.Anchor))
             {
-                throw new DuplicateAnchorException(node.Start, node.End, string.Format(CultureInfo.InvariantCulture, "The anchor '{0}' already exists", node.Anchor));
+                throw new DuplicateAnchorException(node.Start, node.End, FormattableString.Invariant($"The anchor '{node.Anchor}' already exists"));
             }
 
             anchors.Add(node.Anchor, node);
@@ -94,7 +94,7 @@ namespace SharpYaml.Serialization
             }
             else if (throwException)
             {
-                throw new AnchorNotFoundException(anchor, start, end, string.Format(CultureInfo.InvariantCulture, "The anchor '{0}' does not exists", anchor));
+                throw new AnchorNotFoundException(anchor, start, end, FormattableString.Invariant($"The anchor '{anchor}' does not exists"));
             }
             else
             {

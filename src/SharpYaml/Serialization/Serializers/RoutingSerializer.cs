@@ -104,7 +104,7 @@ namespace SharpYaml.Serialization.Serializers
 
             if (serializer == null)
             {
-                throw new InvalidOperationException("Unable to find a serializer for the type [{0}]".DoFormat(typeDescriptor.Type));
+                throw new InvalidOperationException($"Unable to find a serializer for the type [{typeDescriptor.Type}]");
             }
 
             return serializer;

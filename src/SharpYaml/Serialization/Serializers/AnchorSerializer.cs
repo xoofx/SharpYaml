@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using SharpYaml.Events;
 
@@ -132,7 +133,7 @@ namespace SharpYaml.Serialization.Serializers
                 }
                 else
                 {
-                    alias = string.Format("o{0}", objectContext.SerializerContext.AnchorCount);
+                    alias = FormattableString.Invariant($"o{objectContext.SerializerContext.AnchorCount}");
                     objectToAlias.Add(value, alias);
 
                     objectContext.Anchor = alias;

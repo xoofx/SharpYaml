@@ -180,7 +180,7 @@ namespace SharpYaml
         {
             if (bestIndent < MinBestIndent || bestIndent > MaxBestIndent)
             {
-                throw new ArgumentOutOfRangeException("bestIndent", string.Format(CultureInfo.InvariantCulture, "The bestIndent parameter must be between {0} and {1}.", MinBestIndent, MaxBestIndent));
+                throw new ArgumentOutOfRangeException("bestIndent", FormattableString.Invariant($"The bestIndent parameter must be between {MinBestIndent} and {MaxBestIndent}."));
             }
 
             this.bestIndent = bestIndent;
@@ -711,7 +711,7 @@ namespace SharpYaml
 
                     isImplicit = false;
                     WriteIndicator("%YAML", true, false, false);
-                    WriteIndicator(string.Format(CultureInfo.InvariantCulture, "{0}.{1}", Constants.MajorVersion, Constants.MinorVersion), true, false, false);
+                    WriteIndicator(FormattableString.Invariant($"{Constants.MajorVersion}.{Constants.MinorVersion}"), true, false, false);
                     WriteIndent();
                 }
 
@@ -940,7 +940,7 @@ namespace SharpYaml
                     break;
 
                 default:
-                    throw new YamlException(string.Format("Expected SCALAR, SEQUENCE-START, MAPPING-START, or ALIAS, got {0}", eventType));
+                    throw new YamlException($"Expected SCALAR, SEQUENCE-START, MAPPING-START, or ALIAS, got {eventType}");
             }
         }
 
@@ -1846,7 +1846,7 @@ namespace SharpYaml
 
             if (analyzer.IsSpace() || analyzer.IsBreak())
             {
-                string indent_hint = string.Format(CultureInfo.InvariantCulture, "{0}", bestIndent);
+                string indent_hint = FormattableString.Invariant($"{bestIndent}");
                 WriteIndicator(indent_hint, false, false, false);
             }
 

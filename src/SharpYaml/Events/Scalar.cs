@@ -180,16 +180,8 @@ namespace SharpYaml.Events
         /// </returns>
         public override string ToString()
         {
-            return string.Format(
-                CultureInfo.InvariantCulture,
-                "Scalar [anchor = {0}, tag = {1}, value = {2}, style = {3}, isPlainImplicit = {4}, isQuotedImplicit = {5}]",
-                Anchor,
-                Tag,
-                value,
-                style,
-                isPlainImplicit,
-                isQuotedImplicit
-                );
+            return FormattableString.Invariant(
+                $"Scalar [anchor = {Anchor}, tag = {Tag}, value = {value}, style = {style}, isPlainImplicit = {isPlainImplicit}, isQuotedImplicit = {isQuotedImplicit}]");
         }
     }
 }

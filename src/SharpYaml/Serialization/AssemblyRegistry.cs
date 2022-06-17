@@ -257,7 +257,7 @@ namespace SharpYaml.Serialization
                     // Else try to use schema tag for scalars
                     // Else use full name of the type
                     var typeName = UseShortTypeName ? type.GetShortAssemblyQualifiedName() : type.AssemblyQualifiedName;
-                    tagName = schema.GetDefaultTag(type) ?? Uri.EscapeUriString(string.Format("!{0}", typeName));
+                    tagName = schema.GetDefaultTag(type) ?? Uri.EscapeUriString($"!{typeName}");
                     typeToTag.Add(type, tagName);
                 }
             }

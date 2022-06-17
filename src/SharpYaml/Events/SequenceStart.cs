@@ -128,14 +128,8 @@ namespace SharpYaml.Events
         /// </returns>
         public override string ToString()
         {
-            return string.Format(
-                CultureInfo.InvariantCulture,
-                "Sequence start [anchor = {0}, tag = {1}, isImplicit = {2}, style = {3}]",
-                Anchor,
-                Tag,
-                isImplicit,
-                style
-                );
+            return FormattableString.Invariant(
+                $"Sequence start [anchor = {Anchor}, tag = {Tag}, isImplicit = {isImplicit}, style = {style}]");
         }
     }
 }

@@ -165,7 +165,7 @@ namespace SharpYaml.Serialization.Descriptors
                 {
                     if (!(keyValueObject is DictionaryEntry))
                     {
-                        throw new NotSupportedException("Key value-pair type [{0}] is not supported for IDictionary. Only DictionaryEntry".DoFormat(keyValueObject));
+                        throw new NotSupportedException($"Key value-pair type [{keyValueObject}] is not supported for IDictionary. Only DictionaryEntry");
                     }
                     var entry = (DictionaryEntry) keyValueObject;
                     yield return new KeyValuePair<object, object>(entry.Key, entry.Value);
@@ -179,7 +179,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="dictionary">The dictionary.</param>
         /// <param name="key">The key.</param>
         /// <param name="value">The value.</param>
-        /// <exception cref="System.InvalidOperationException">No Add() method found on dictionary [{0}].DoFormat(Type)</exception>
+        /// <exception cref="System.InvalidOperationException">No Add() method found on dictionary [<see cref="m:Type" />]</exception>
         public void AddToDictionary(object dictionary, object key, object value)
         {
             if (dictionary == null)
@@ -194,7 +194,7 @@ namespace SharpYaml.Serialization.Descriptors
                 // Only throw an exception if the addMethod is not accessible when adding to a dictionary
                 if (addMethod == null)
                 {
-                    throw new InvalidOperationException("No Add() method found on dictionary [{0}]".DoFormat(Type));
+                    throw new InvalidOperationException($"No Add() method found on dictionary [{Type}]");
                 }
                 addMethod.Invoke(dictionary, new object[] {key, value});
             }

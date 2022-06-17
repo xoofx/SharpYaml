@@ -146,11 +146,11 @@ namespace SharpYaml.Serialization.Serializers
 
             if (!collectionDescriptor.HasAdd)
             {
-                throw new InvalidOperationException("Cannot deserialize list to type [{0}]. No Add method found".DoFormat(thisObject.GetType()));
+                throw new InvalidOperationException($"Cannot deserialize list to type [{thisObject.GetType()}]. No Add method found");
             }
             if (collectionDescriptor.IsReadOnly(thisObject))
             {
-                throw new InvalidOperationException("Cannot deserialize list to readonly collection type [{0}].".DoFormat(thisObject.GetType()));
+                throw new InvalidOperationException($"Cannot deserialize list to readonly collection type [{thisObject.GetType()}].");
             }
 
             var reader = objectContext.Reader;
