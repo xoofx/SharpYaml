@@ -144,11 +144,7 @@ namespace SharpYaml.Events
         /// </returns>
         public override string ToString()
         {
-            return string.Format(
-                CultureInfo.InvariantCulture,
-                "Document start [isImplicit = {0}]",
-                isImplicit
-                );
+            return FormattableString.Invariant($"Document start [isImplicit = {isImplicit}]");
         }
     }
 }

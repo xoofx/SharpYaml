@@ -138,7 +138,7 @@ namespace SharpYaml.Tokens
         /// <summary/>
         public override string ToString()
         {
-            return string.Format(CultureInfo.InvariantCulture, "{0} => {1}", handle, prefix);
+            return FormattableString.Invariant($"{handle} => {prefix}");
         }
     }
 }

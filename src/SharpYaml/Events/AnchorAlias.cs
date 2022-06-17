@@ -111,7 +111,7 @@ namespace SharpYaml.Events
         /// </returns>
         public override string ToString()
         {
-            return string.Format(CultureInfo.InvariantCulture, "Alias [value = {0}]", value);
+            return FormattableString.Invariant($"Alias [value = {value}]");
         }
     }
 }

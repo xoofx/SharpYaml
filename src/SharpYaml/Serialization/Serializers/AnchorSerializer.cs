@@ -133,7 +133,7 @@ namespace SharpYaml.Serialization.Serializers
                 }
                 else
                 {
-                    alias = string.Format(CultureInfo.InvariantCulture, "o{0}", objectContext.SerializerContext.AnchorCount);
+                    alias = FormattableString.Invariant($"o{objectContext.SerializerContext.AnchorCount}");
                     objectToAlias.Add(value, alias);
 
                     objectContext.Anchor = alias;

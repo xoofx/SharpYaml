@@ -94,14 +94,8 @@ namespace SharpYaml
                 throw new YamlException(
                     parser.Current.Start,
                     parser.Current.End,
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "Expected '{0}', got '{1}' (at line {2}, character {3}).",
-                        typeof(T).Name,
-                        parser.Current.GetType().Name,
-                        parser.Current.Start.Line,
-                        parser.Current.Start.Column
-                        )
+                    FormattableString.Invariant(
+                        $"Expected '{typeof(T).Name}', got '{parser.Current.GetType().Name}' (at line {parser.Current.Start.Line}, character {parser.Current.Start.Column}).")
                     );
             }
             return yamlEvent;
