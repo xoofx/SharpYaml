@@ -188,8 +188,8 @@ namespace SharpYaml.Model {
             _contents.Add(key, value);
             _keys.Add(key);
 
-            if (stringKeys != null && key is YamlValue) {
-                stringKeys[((YamlValue) key).Value] = (YamlValue) key;
+            if (stringKeys != null && key is YamlValue value1) {
+                stringKeys[value1.Value] = value1;
             }
 
             if (Tracker != null) {
@@ -245,8 +245,7 @@ namespace SharpYaml.Model {
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-            YamlValue yaml;
-            if (!stringKeys.TryGetValue(key, out yaml))
+            if (!stringKeys.TryGetValue(key, out YamlValue yaml))
                 return false;
 
             if (Remove(yaml)) {
@@ -265,8 +264,8 @@ namespace SharpYaml.Model {
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-            YamlValue yamlKey;
-            if (!stringKeys.TryGetValue(key, out yamlKey)) {
+            if (!stringKeys.TryGetValue(key, out YamlValue yamlKey))
+            {
                 value = null;
                 return false;
             }
@@ -286,8 +285,8 @@ namespace SharpYaml.Model {
                     _keys.Add(key);
                     keyAdded = true;
 
-                    if (stringKeys != null && key is YamlValue) {
-                        stringKeys[((YamlValue)key).Value] = (YamlValue)key;
+                    if (stringKeys != null && key is YamlValue yamlValue) {
+                        stringKeys[yamlValue.Value] = yamlValue;
                     }
                 }
 
@@ -295,8 +294,8 @@ namespace SharpYaml.Model {
                 if (!keyAdded && Tracker != null) {
                     oldContents = _contents[key];
                     
-                    if (stringKeys != null && key is YamlValue) {
-                        stringKeys[((YamlValue)key).Value] = (YamlValue)key;
+                    if (stringKeys != null && key is YamlValue yamlValue) {
+                        stringKeys[yamlValue.Value] = yamlValue;
                     }
                 }
 
@@ -354,8 +353,8 @@ namespace SharpYaml.Model {
             _keys.Insert(index, item.Key);
             _contents[item.Key] = item.Value;
 
-            if (stringKeys != null && item.Key is YamlValue) {
-                stringKeys[((YamlValue)item.Key).Value] = (YamlValue) item.Key;
+            if (stringKeys != null && item.Key is YamlValue yamlValue) {
+                stringKeys[yamlValue.Value] = yamlValue;
             }
 
             if (Tracker != null) {
@@ -377,8 +376,8 @@ namespace SharpYaml.Model {
             _keys.RemoveAt(index);
             _contents.Remove(key);
 
-            if (stringKeys != null && key is YamlValue) {
-                stringKeys.Remove(((YamlValue) key).Value);
+            if (stringKeys != null && key is YamlValue value1) {
+                stringKeys.Remove(value1.Value);
             }
 
             if (Tracker != null) {
@@ -403,12 +402,12 @@ namespace SharpYaml.Model {
                     _contents.Remove(_keys[index]);
                 }
 
-                if (stringKeys != null && oldKey is YamlValue) {
-                    stringKeys[((YamlValue)oldKey).Value] = (YamlValue)oldKey;
+                if (stringKeys != null && oldKey is YamlValue yamlValue) {
+                    stringKeys[yamlValue.Value] = yamlValue;
                 }
 
-                if (stringKeys != null && value.Key is YamlValue) {
-                    stringKeys[((YamlValue)value.Key).Value] = (YamlValue)value.Key;
+                if (stringKeys != null && value.Key is YamlValue key) {
+                    stringKeys[key.Value] = key;
                 }
 
                 _keys[index] = value.Key;

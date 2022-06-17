@@ -114,15 +114,13 @@ namespace SharpYaml.Serialization
                     {
                         string name = null;
                         bool isAlias = false;
-                        var tagAttribute = attribute as YamlTagAttribute;
-                        if (tagAttribute != null)
+                        if (attribute is YamlTagAttribute tagAttribute)
                         {
                             name = tagAttribute.Tag;
                         }
                         else
                         {
-                            var yamlRemap = attribute as YamlRemapAttribute;
-                            if (yamlRemap != null)
+                            if (attribute is YamlRemapAttribute yamlRemap)
                             {
                                 name = yamlRemap.Name;
                                 isAlias = true;
@@ -215,9 +213,8 @@ namespace SharpYaml.Serialization
 
             lock (lockCache)
             {
-                MappedType mappedType;
                 // Else try to find a registered alias
-                if (tagToType.TryGetValue(shortTag, out mappedType))
+                if (tagToType.TryGetValue(shortTag, out MappedType mappedType))
                 {
                     isAlias = mappedType.Remapped;
                     return mappedType.Type;

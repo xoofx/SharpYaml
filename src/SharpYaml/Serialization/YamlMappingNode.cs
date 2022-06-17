@@ -302,8 +302,7 @@ namespace SharpYaml.Serialization
 
             foreach (var entry in children)
             {
-                YamlNode otherNode;
-                if (!obj.children.TryGetValue(entry.Key, out otherNode) || !SafeEquals(entry.Value, otherNode))
+                if (!obj.children.TryGetValue(entry.Key, out YamlNode otherNode) || !SafeEquals(entry.Value, otherNode))
                 {
                     return false;
                 }

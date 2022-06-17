@@ -137,15 +137,13 @@ namespace SharpYaml.Schemas
         protected object DecodeInteger(Match m)
         {
             var valueStr = m.Value.Replace("_", "");
-            int value;
             // Try plain native int first 
-            if (int.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+            if (int.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
             {
                 return value;
             }
             // Else long
-            long result;
-            if (long.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+            if (long.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out long result))
             {
                 return result;
             }

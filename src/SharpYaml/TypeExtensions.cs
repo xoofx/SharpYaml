@@ -206,8 +206,7 @@ namespace SharpYaml
 
             lock (anonymousTypes)
             {
-                bool isAnonymous;
-                if (anonymousTypes.TryGetValue(type, out isAnonymous))
+                if (anonymousTypes.TryGetValue(type, out bool isAnonymous))
                     return isAnonymous;
 
                 isAnonymous = type.GetTypeInfo().GetCustomAttributes(typeof(CompilerGeneratedAttribute), false).Any()
@@ -338,31 +337,32 @@ namespace SharpYaml
         /// <returns>Numeric value in double. Double.Nan if obj is not a numeric value.</returns>
         public static double CastToDouble(object obj)
         {
-            var result = double.NaN;
-            var type = obj != null ? obj.GetType() : null;
-            if (type == typeof(sbyte))
-                result = (double) (sbyte) obj;
-            if (type == typeof(byte))
-                result = (double) (byte) obj;
-            if (type == typeof(short))
-                result = (double) (short) obj;
-            if (type == typeof(ushort))
-                result = (double) (ushort) obj;
-            if (type == typeof(int))
-                result = (double) (int) obj;
-            if (type == typeof(uint))
-                result = (double) (uint) obj;
-            if (type == typeof(long))
-                result = (double) (long) obj;
-            if (type == typeof(ulong))
-                result = (double) (ulong) obj;
-            if (type == typeof(float))
-                result = (double) (float) obj;
-            if (type == typeof(double))
-                result = (double) obj;
-            if (type == typeof(decimal))
-                result = (double) (decimal) obj;
-            return result;
+            switch (obj)
+            {
+                case sbyte sbyteValue:
+                    return (double)sbyteValue;
+                case byte byteValue:
+                    return (double)byteValue;
+                case short shortValue:
+                    return (double)shortValue;
+                case ushort ushortValue:
+                    return (double)ushortValue;
+                case int intValue:
+                    return (double)intValue;
+                case uint uintValue:
+                    return (double)uintValue;
+                case long longValue:
+                    return (double)longValue;
+                case ulong ulongValue:
+                    return (double)ulongValue;
+                case float floatValue:
+                    return (double)floatValue;
+                case double doubleValue:
+                    return (double)doubleValue;
+                case decimal decimalValue:
+                    return (double)decimalValue;
+            }
+            return double.NaN;
         }
     }
 }

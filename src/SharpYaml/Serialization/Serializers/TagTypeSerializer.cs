@@ -78,8 +78,7 @@ namespace SharpYaml.Serialization.Serializers
             Type typeFromTag = null;
             if (!string.IsNullOrEmpty(node.Tag))
             {
-                bool remapped;
-                typeFromTag = objectContext.SerializerContext.TypeFromTag(node.Tag, out remapped);
+                typeFromTag = objectContext.SerializerContext.TypeFromTag(node.Tag, out bool remapped);
                 if (typeFromTag == null)
                 {
                     throw new YamlException(parsingEvent.Start, parsingEvent.End, $"Unable to resolve tag [{node.Tag}] to type from tag resolution or registered assemblies");

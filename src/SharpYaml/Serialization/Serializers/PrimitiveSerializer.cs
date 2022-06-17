@@ -82,8 +82,7 @@ namespace SharpYaml.Serialization.Serializers
             // If type is an enum, try to parse it
             if (type.GetTypeInfo().IsEnum)
             {
-                bool enumRemapped;
-                var result = primitiveType.ParseEnum(text, out enumRemapped);
+                var result = primitiveType.ParseEnum(text, out bool enumRemapped);
                 if (enumRemapped)
                 {
                     context.SerializerContext.HasRemapOccurred = true;
@@ -157,9 +156,7 @@ namespace SharpYaml.Serialization.Serializers
             if (type == typeof(object))
             {
                 // Try to parse the scalar directly
-                string defaultTag;
-                object scalarValue;
-                if (context.SerializerContext.Schema.TryParse(scalar, true, out defaultTag, out scalarValue))
+                if (context.SerializerContext.Schema.TryParse(scalar, true, out string defaultTag, out object scalarValue))
                 {
                     return scalarValue;
                 }

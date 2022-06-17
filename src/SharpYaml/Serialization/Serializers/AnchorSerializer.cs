@@ -125,10 +125,9 @@ namespace SharpYaml.Serialization.Serializers
 
             if (isAnchorable)
             {
-                string alias;
-                if (objectToAlias.TryGetValue(value, out alias))
+                if (objectToAlias.TryGetValue(value, out string alias))
                 {
-                    objectContext.Writer.Emit(new AliasEventInfo(value, value.GetType()) {Alias = alias});
+                    objectContext.Writer.Emit(new AliasEventInfo(value, value.GetType()) { Alias = alias });
                     return;
                 }
                 else

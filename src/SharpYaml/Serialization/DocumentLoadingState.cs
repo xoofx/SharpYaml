@@ -87,8 +87,7 @@ namespace SharpYaml.Serialization
         /// <returns></returns>
         public YamlNode GetNode(string anchor, bool throwException, Mark start, Mark end)
         {
-            YamlNode target;
-            if (anchors.TryGetValue(anchor, out target))
+            if (anchors.TryGetValue(anchor, out YamlNode target))
             {
                 return target;
             }

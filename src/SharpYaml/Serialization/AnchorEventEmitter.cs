@@ -108,33 +108,33 @@ namespace SharpYaml.Serialization
             // Flush all events to emitter.
             foreach (var evt in events)
             {
-                if (evt is AliasEventInfo)
+                if (evt is AliasEventInfo aliasEventInfo)
                 {
-                    nextEmitter.Emit((AliasEventInfo) evt);
+                    nextEmitter.Emit(aliasEventInfo);
                 }
-                else if (evt is ScalarEventInfo)
+                else if (evt is ScalarEventInfo scalarEventInfo)
                 {
-                    nextEmitter.Emit((ScalarEventInfo) evt);
+                    nextEmitter.Emit(scalarEventInfo);
                 }
-                else if (evt is MappingStartEventInfo)
+                else if (evt is MappingStartEventInfo mappingStartEventInfo)
                 {
-                    nextEmitter.Emit((MappingStartEventInfo) evt);
+                    nextEmitter.Emit(mappingStartEventInfo);
                 }
-                else if (evt is MappingEndEventInfo)
+                else if (evt is MappingEndEventInfo mappingEndEventInfo)
                 {
-                    nextEmitter.Emit((MappingEndEventInfo) evt);
+                    nextEmitter.Emit(mappingEndEventInfo);
                 }
-                else if (evt is SequenceStartEventInfo)
+                else if (evt is SequenceStartEventInfo sequenceStartEventInfo)
                 {
-                    nextEmitter.Emit((SequenceStartEventInfo) evt);
+                    nextEmitter.Emit(sequenceStartEventInfo);
                 }
-                else if (evt is SequenceEndEventInfo)
+                else if (evt is SequenceEndEventInfo sequenceEndEventInfo)
                 {
-                    nextEmitter.Emit((SequenceEndEventInfo) evt);
+                    nextEmitter.Emit(sequenceEndEventInfo);
                 }
-                else if (evt is ParsingEvent)
+                else if (evt is ParsingEvent parsingEvent)
                 {
-                    nextEmitter.Emit((ParsingEvent) evt);
+                    nextEmitter.Emit(parsingEvent);
                 }
             }
 
