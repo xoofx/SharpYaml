@@ -78,7 +78,6 @@ namespace SharpYaml
         private bool isSimpleKeyContext;
         private bool isRootContext;
 
-        private int line;
         private int column;
         private bool isWhitespace;
         private bool isIndentation;
@@ -224,7 +223,6 @@ namespace SharpYaml
         {
             output.WriteLine();
             column = 0;
-            ++line;
         }
 
         /// <summary>
@@ -683,7 +681,6 @@ namespace SharpYaml
             }
 
             indent = -1;
-            line = 0;
             column = 0;
             isWhitespace = true;
             isIndentation = true;

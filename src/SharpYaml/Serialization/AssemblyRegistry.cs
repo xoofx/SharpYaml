@@ -166,7 +166,7 @@ namespace SharpYaml.Serialization
 
             // Prefix all tags by !
             tag = Uri.EscapeUriString(tag);
-            if (tag.StartsWith("tag:"))
+            if (tag.StartsWith("tag:", StringComparison.Ordinal))
             {
                 // shorten tag
                 // TODO this is not really failsafe
@@ -177,7 +177,7 @@ namespace SharpYaml.Serialization
                 tag = shortTag;
             }
 
-            tag = tag.StartsWith("!") ? tag : "!" + tag;
+            tag = tag.StartsWith("!", StringComparison.Ordinal) ? tag : "!" + tag;
 
             lock (lockCache)
             {
@@ -201,7 +201,7 @@ namespace SharpYaml.Serialization
             // Get the default schema type if there is any
             var shortTag = schema.ShortenTag(tag);
             Type type;
-            if (shortTag != tag || shortTag.StartsWith("!!"))
+            if (shortTag != tag || shortTag.StartsWith("!!", StringComparison.Ordinal))
             {
                 type = schema.GetTypeForDefaultTag(shortTag);
                 if (type != null)
@@ -224,7 +224,7 @@ namespace SharpYaml.Serialization
                 }
 
                 // Else resolve type from assembly
-                var tagAsType = shortTag.StartsWith("!") ? shortTag.Substring(1) : shortTag;
+                var tagAsType = shortTag.StartsWith("!", StringComparison.Ordinal) ? shortTag.Substring(1) : shortTag;
 
                 // Try to resolve the type from registered assemblies
                 type = ResolveType(tagAsType);
@@ -330,7 +330,7 @@ namespace SharpYaml.Serialization
             return type;
         }
 
-        struct MappedType
+        readonly struct MappedType
         {
             public MappedType(Type type, bool remapped)
             {

@@ -141,7 +141,7 @@ namespace SharpYaml.Serialization
             }
         }
 
-        private struct MemberInfoKey : IEquatable<MemberInfoKey>
+        private readonly struct MemberInfoKey : IEquatable<MemberInfoKey>
         {
             private readonly MemberInfo memberInfo;
 
