@@ -53,7 +53,6 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     public class FieldDescriptor : MemberDescriptorBase
     {
-        private readonly FieldInfo fieldInfo;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FieldDescriptor" /> class.
@@ -67,30 +66,30 @@ namespace SharpYaml.Serialization.Descriptors
             if (fieldInfo == null)
                 throw new ArgumentNullException("fieldInfo");
 
-            this.fieldInfo = fieldInfo;
+            this.FieldInfo = fieldInfo;
         }
 
         /// <summary>
         /// Gets the property information attached to this instance.
         /// </summary>
         /// <value>The property information.</value>
-        public FieldInfo FieldInfo { get { return fieldInfo; } }
+        public FieldInfo FieldInfo { get; }
 
-        public override Type Type { get { return fieldInfo.FieldType; } }
+        public override Type Type { get { return FieldInfo.FieldType; } }
 
         public override object Get(object thisObject)
         {
-            return fieldInfo.GetValue(thisObject);
+            return FieldInfo.GetValue(thisObject);
         }
 
         public override void Set(object thisObject, object value)
         {
-            fieldInfo.SetValue(thisObject, value);
+            FieldInfo.SetValue(thisObject, value);
         }
 
         public override bool HasSet { get { return true; } }
 
-        public override bool IsPublic { get { return fieldInfo.IsPublic; } }
+        public override bool IsPublic { get { return FieldInfo.IsPublic; } }
 
         /// <summary>
         /// Returns a <see cref="System.String" /> that represents this instance.

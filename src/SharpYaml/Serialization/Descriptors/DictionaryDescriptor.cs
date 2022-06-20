@@ -57,9 +57,6 @@ namespace SharpYaml.Serialization.Descriptors
     public class DictionaryDescriptor : ObjectDescriptor
     {
         private static readonly List<string> ListOfMembersToRemove = new List<string> { "Comparer", "Keys", "Values", "Capacity" };
-
-        private readonly Type keyType;
-        private readonly Type valueType;
         private readonly MethodInfo getEnumeratorGeneric;
         private readonly MethodInfo addMethod;
 
@@ -82,17 +79,17 @@ namespace SharpYaml.Serialization.Descriptors
             var interfaceType = type.GetInterface(typeof(IDictionary<,>));
             if (interfaceType != null)
             {
-                keyType = interfaceType.GetGenericArguments()[0];
-                valueType = interfaceType.GetGenericArguments()[1];
+                KeyType = interfaceType.GetGenericArguments()[0];
+                ValueType = interfaceType.GetGenericArguments()[1];
                 IsGenericDictionary = true;
-                getEnumeratorGeneric = typeof(DictionaryDescriptor).GetMethod("GetGenericEnumerable").MakeGenericMethod(keyType, valueType);
-                addMethod = interfaceType.GetMethod("Add", new[] { keyType, valueType });
+                getEnumeratorGeneric = typeof(DictionaryDescriptor).GetMethod("GetGenericEnumerable").MakeGenericMethod(KeyType, ValueType);
+                addMethod = interfaceType.GetMethod("Add", new[] { KeyType, ValueType });
             }
             else
             {
-                keyType = typeof(object);
-                valueType = typeof(object);
-                addMethod = type.GetMethod("Add", new[] { keyType, valueType });
+                KeyType = typeof(object);
+                ValueType = typeof(object);
+                addMethod = type.GetMethod("Add", new[] { KeyType, ValueType });
             }
         }
 
@@ -110,19 +107,19 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets a value indicating whether this instance is generic dictionary.
         /// </summary>
         /// <value><c>true</c> if this instance is generic dictionary; otherwise, <c>false</c>.</value>
-        public bool IsGenericDictionary { get; private set; }
+        public bool IsGenericDictionary { get; }
 
         /// <summary>
         /// Gets the type of the key.
         /// </summary>
         /// <value>The type of the key.</value>
-        public Type KeyType { get { return keyType; } }
+        public Type KeyType { get; }
 
         /// <summary>
         /// Gets the type of the value.
         /// </summary>
         /// <value>The type of the value.</value>
-        public Type ValueType { get { return valueType; } }
+        public Type ValueType { get; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is pure dictionary.

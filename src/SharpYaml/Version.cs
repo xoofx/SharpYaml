@@ -52,19 +52,15 @@ namespace SharpYaml
     /// </summary>
     public class Version
     {
-        private readonly int major;
-
         /// <summary>
         /// Gets the major version number.
         /// </summary>
-        public int Major { get { return major; } }
-
-        private readonly int minor;
+        public int Major { get; }
 
         /// <summary>
         /// Gets the minor version number.
         /// </summary>
-        public int Minor { get { return minor; } }
+        public int Minor { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Version"/> class.
@@ -73,8 +69,8 @@ namespace SharpYaml
         /// <param name="minor">The the minor version number.</param>
         public Version(int major, int minor)
         {
-            this.major = major;
-            this.minor = minor;
+            this.Major = major;
+            this.Minor = minor;
         }
 
         /// <summary>
@@ -86,7 +82,7 @@ namespace SharpYaml
         /// </returns>
         public override bool Equals(object obj)
         {
-            return obj is Version other && major == other.major && minor == other.minor;
+            return obj is Version other && Major == other.Major && Minor == other.Minor;
         }
 
         /// <summary>
@@ -97,7 +93,7 @@ namespace SharpYaml
         /// </returns>
         public override int GetHashCode()
         {
-            return major.GetHashCode() ^ minor.GetHashCode();
+            return Major.GetHashCode() ^ Minor.GetHashCode();
         }
     }
 }

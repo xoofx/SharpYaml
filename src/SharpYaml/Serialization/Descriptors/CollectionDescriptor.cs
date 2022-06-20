@@ -116,7 +116,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets or sets the type of the element.
         /// </summary>
         /// <value>The type of the element.</value>
-        public Type ElementType { get; private set; }
+        public Type ElementType { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is a pure collection (no public property/field)

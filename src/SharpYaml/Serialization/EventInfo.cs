@@ -50,8 +50,8 @@ namespace SharpYaml.Serialization
 {
     public abstract class EventInfo
     {
-        public object SourceValue { get; private set; }
-        public Type SourceType { get; private set; }
+        public object SourceValue { get; }
+        public Type SourceType { get; }
 
         protected EventInfo(object sourceValue, Type sourceType)
         {

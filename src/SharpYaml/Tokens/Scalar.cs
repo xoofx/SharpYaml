@@ -52,21 +52,17 @@ namespace SharpYaml.Tokens
     /// </summary>
     public class Scalar : Token
     {
-        private readonly string value;
-
         /// <summary>
         /// Gets the value.
         /// </summary>
         /// <value>The value.</value>
-        public string Value { get { return value; } }
-
-        private readonly ScalarStyle style;
+        public string Value { get; }
 
         /// <summary>
         /// Gets the style.
         /// </summary>
         /// <value>The style.</value>
-        public ScalarStyle Style { get { return style; } }
+        public ScalarStyle Style { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Scalar"/> class.
@@ -97,8 +93,8 @@ namespace SharpYaml.Tokens
         public Scalar(string value, ScalarStyle style, Mark start, Mark end)
             : base(start, end)
         {
-            this.value = value;
-            this.style = style;
+            this.Value = value;
+            this.Style = style;
         }
     }
 }

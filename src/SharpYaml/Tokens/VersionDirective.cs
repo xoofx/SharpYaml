@@ -52,13 +52,11 @@ namespace SharpYaml.Tokens
     /// </summary>
     public class VersionDirective : Token
     {
-        private readonly Version version;
-
         /// <summary>
         /// Gets the version.
         /// </summary>
         /// <value>The version.</value>
-        public Version Version { get { return version; } }
+        public Version Version { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VersionDirective"/> class.
@@ -78,7 +76,7 @@ namespace SharpYaml.Tokens
         public VersionDirective(Version version, Mark start, Mark end)
             : base(start, end)
         {
-            this.version = version;
+            this.Version = version;
         }
 
         /// <summary>
@@ -90,7 +88,7 @@ namespace SharpYaml.Tokens
         /// </returns>
         public override bool Equals(object obj)
         {
-            return obj is VersionDirective other && version.Equals(other.version);
+            return obj is VersionDirective other && Version.Equals(other.Version);
         }
 
         /// <summary>
@@ -101,7 +99,7 @@ namespace SharpYaml.Tokens
         /// </returns>
         public override int GetHashCode()
         {
-            return version.GetHashCode();
+            return Version.GetHashCode();
         }
     }
 }

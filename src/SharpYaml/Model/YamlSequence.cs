@@ -27,14 +27,12 @@ namespace SharpYaml.Model
     public class YamlSequence : YamlContainer, IList<YamlElement>
     {
         private SequenceStart _sequenceStart;
-        private readonly SequenceEnd _sequenceEnd;
-
         private readonly List<YamlElement> _contents;
 
         public YamlSequence()
         {
             _sequenceStart = new SequenceStart();
-            _sequenceEnd = new SequenceEnd();
+            SequenceEnd = new SequenceEnd();
             _contents = new List<YamlElement>();
         }
 
@@ -54,7 +52,7 @@ namespace SharpYaml.Model
 
             SequenceStart = sequenceStart;
 
-            this._sequenceEnd = sequenceEnd;
+            this.SequenceEnd = sequenceEnd;
         }
 
         public SequenceStart SequenceStart
@@ -69,7 +67,7 @@ namespace SharpYaml.Model
             }
         }
 
-        internal SequenceEnd SequenceEnd { get { return _sequenceEnd; } }
+        internal SequenceEnd SequenceEnd { get; }
 
         public override string Anchor
         {
@@ -285,7 +283,7 @@ namespace SharpYaml.Model
             for (var i = 0; i < _contents.Count; i++)
                 contentsClone.Add((YamlElement)_contents[i].DeepClone());
 
-            return new YamlSequence(_sequenceStart, _sequenceEnd, contentsClone, tracker);
+            return new YamlSequence(_sequenceStart, SequenceEnd, contentsClone, tracker);
         }
     }
 }

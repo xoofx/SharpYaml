@@ -55,11 +55,8 @@ namespace SharpYaml.Serialization
     /// </summary>
     public class SerializerContext : ITagTypeResolver
     {
-        private readonly SerializerSettings settings;
         private readonly ITagTypeRegistry tagTypeRegistry;
         private readonly ITypeDescriptorFactory typeDescriptorFactory;
-        private IEmitter emitter;
-        private readonly SerializerContextSettings contextSettings;
         internal int AnchorCount;
 
         /// <summary>
@@ -70,14 +67,14 @@ namespace SharpYaml.Serialization
         internal SerializerContext(Serializer serializer, SerializerContextSettings serializerContextSettings)
         {
             Serializer = serializer;
-            settings = serializer.Settings;
-            tagTypeRegistry = settings.AssemblyRegistry;
-            ObjectFactory = settings.ObjectFactory;
-            ObjectSerializerBackend = settings.ObjectSerializerBackend;
+            Settings = serializer.Settings;
+            tagTypeRegistry = Settings.AssemblyRegistry;
+            ObjectFactory = Settings.ObjectFactory;
+            ObjectSerializerBackend = Settings.ObjectSerializerBackend;
             Schema = Settings.Schema;
             ObjectSerializer = serializer.ObjectSerializer;
             typeDescriptorFactory = serializer.TypeDescriptorFactory;
-            contextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
+            ContextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
         }
 
         /// <summary>
@@ -92,25 +89,25 @@ namespace SharpYaml.Serialization
         /// <value>
         /// The context settings.
         /// </value>
-        public SerializerContextSettings ContextSettings { get { return contextSettings; } }
+        public SerializerContextSettings ContextSettings { get; }
 
         /// <summary>
         /// Gets the settings.
         /// </summary>
         /// <value>The settings.</value>
-        public SerializerSettings Settings { get { return settings; } }
+        public SerializerSettings Settings { get; }
 
         /// <summary>
         /// Gets the schema.
         /// </summary>
         /// <value>The schema.</value>
-        public IYamlSchema Schema { get; private set; }
+        public IYamlSchema Schema { get; }
 
         /// <summary>
         /// Gets the serializer.
         /// </summary>
         /// <value>The serializer.</value>
-        public Serializer Serializer { get; private set; }
+        public Serializer Serializer { get; }
 
         /// <summary>
         /// Gets or sets the reader used while deserializing.
@@ -122,7 +119,7 @@ namespace SharpYaml.Serialization
         /// Gets the object serializer backend.
         /// </summary>
         /// <value>The object serializer backend.</value>
-        public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
+        public IObjectSerializerBackend ObjectSerializerBackend { get; }
 
         private IYamlSerializable ObjectSerializer { get; set; }
 
@@ -146,7 +143,7 @@ namespace SharpYaml.Serialization
         /// <value>
         /// The member mask.
         /// </value>
-        public uint MemberMask { get { return contextSettings.MemberMask; } }
+        public uint MemberMask { get { return ContextSettings.MemberMask; } }
 
         /// <summary>
         /// The default function to read an object from the current Yaml stream.
@@ -188,7 +185,7 @@ namespace SharpYaml.Serialization
         /// Gets the emitter.
         /// </summary>
         /// <value>The emitter.</value>
-        public IEmitter Emitter { get { return emitter; } internal set { emitter = value; } }
+        public IEmitter Emitter { get; internal set; }
 
         /// <summary>
         /// The default function to write an object to Yaml

@@ -52,12 +52,10 @@ namespace SharpYaml.Tokens
     /// </summary>
     public class AnchorAlias : Token
     {
-        private readonly string value;
-
         /// <summary>
         /// Gets the value of the alias.
         /// </summary>
-        public string Value { get { return value; } }
+        public string Value { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AnchorAlias"/> class.
@@ -77,7 +75,7 @@ namespace SharpYaml.Tokens
         public AnchorAlias(string value, Mark start, Mark end)
             : base(start, end)
         {
-            this.value = value;
+            this.Value = value;
         }
     }
 }

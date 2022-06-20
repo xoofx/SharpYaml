@@ -81,8 +81,6 @@ namespace SharpYaml
         private ParserState state;
 
         private readonly Scanner<TBuffer> scanner;
-        private Event current;
-
         private Token currentToken;
 
         private Token GetCurrentToken()
@@ -109,7 +107,7 @@ namespace SharpYaml
         /// <summary>
         /// Gets the current event.
         /// </summary>
-        public Event Current { get { return current; } }
+        public Event Current { get; private set; }
 
         /// <summary>
         /// Moves to the next event.
@@ -120,13 +118,13 @@ namespace SharpYaml
             // No events after the end of the stream or error.
             if (state == ParserState.YAML_PARSE_END_STATE)
             {
-                current = null;
+                Current = null;
                 return false;
             }
             else
             {
                 // Generate the next event.
-                current = StateMachine();
+                Current = StateMachine();
                 return true;
             }
         }

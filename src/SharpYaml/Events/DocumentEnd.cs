@@ -65,15 +65,13 @@ namespace SharpYaml.Events
         /// </summary>
         internal override EventType Type { get { return EventType.YAML_DOCUMENT_END_EVENT; } }
 
-        private readonly bool isImplicit;
-
         /// <summary>
         /// Gets a value indicating whether this instance is implicit.
         /// </summary>
         /// <value>
         /// 	<c>true</c> if this instance is implicit; otherwise, <c>false</c>.
         /// </value>
-        public bool IsImplicit { get { return isImplicit; } }
+        public bool IsImplicit { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DocumentEnd"/> class.
@@ -84,7 +82,7 @@ namespace SharpYaml.Events
         public DocumentEnd(bool isImplicit, Mark start, Mark end)
             : base(start, end)
         {
-            this.isImplicit = isImplicit;
+            this.IsImplicit = isImplicit;
         }
 
         /// <summary>
@@ -104,7 +102,7 @@ namespace SharpYaml.Events
         /// </returns>
         public override string ToString()
         {
-            return FormattableString.Invariant($"Document end [isImplicit = {isImplicit}]");
+            return FormattableString.Invariant($"Document end [isImplicit = {IsImplicit}]");
         }
     }
 }

@@ -84,7 +84,7 @@ namespace SharpYaml.Serialization
         /// Gets the serializable factories.
         /// </summary>
         /// <value>The serializable factories.</value>
-        public List<IYamlSerializableFactory> SerializableFactories { get; private set; }
+        public List<IYamlSerializableFactory> SerializableFactories { get; }
 
         /// <summary>
         /// Gets or sets a value indicating whether [use short type name].

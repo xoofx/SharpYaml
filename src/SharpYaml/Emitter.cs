@@ -81,7 +81,6 @@ namespace SharpYaml
         private int column;
         private bool isWhitespace;
         private bool isIndentation;
-        private bool forceIndentLess;
         private readonly bool emitKeyQuoted;
 
         private bool isOpenEnded;
@@ -92,7 +91,6 @@ namespace SharpYaml
         private class MutableStringLookAheadBuffer : ILookAheadBuffer
         {
             private string value;
-            private int currentIndex;
 
             public string Value
             {
@@ -100,26 +98,26 @@ namespace SharpYaml
                 set
                 {
                     this.value = value;
-                    currentIndex = 0;
+                    Position = 0;
                 }
             }
 
             public int Length { get { return value?.Length ?? 0; } }
 
-            public int Position { get { return currentIndex; } }
+            public int Position { get; private set; }
 
             public bool IsOutside(int index)
             {
                 return value == null || index >= value.Length;
             }
 
-            public bool EndOfInput { get { return IsOutside(currentIndex); } }
+            public bool EndOfInput { get { return IsOutside(Position); } }
 
             public MutableStringLookAheadBuffer() { }
 
             public char Peek(int offset)
             {
-                int index = currentIndex + offset;
+                int index = Position + offset;
                 return value[index];
             }
 
@@ -129,7 +127,7 @@ namespace SharpYaml
                 {
                     throw new ArgumentOutOfRangeException("length", "The length must be positive.");
                 }
-                currentIndex += length;
+                Position += length;
             }
 
             public void Cache(int length) { }
@@ -200,7 +198,7 @@ namespace SharpYaml
             this.bestWidth = bestWidth;
 
             this.isCanonical = isCanonical;
-            this.forceIndentLess = forceIndentLess;
+            this.ForceIndentLess = forceIndentLess;
             this.emitKeyQuoted = emitKeyQuoted;
 
             this.output = output;
@@ -211,7 +209,7 @@ namespace SharpYaml
         /// Gets or sets a value indicating whether [always indent].
         /// </summary>
         /// <value><c>true</c> if [always indent]; otherwise, <c>false</c>.</value>
-        public bool ForceIndentLess { get { return forceIndentLess; } set { forceIndentLess = value; } }
+        public bool ForceIndentLess { get; set; }
 
 
         private void Write(char value)
@@ -1460,7 +1458,7 @@ namespace SharpYaml
             {
                 indent = isFlow ? bestIndent : 0;
             }
-            else if (!isIndentless || !forceIndentLess)
+            else if (!isIndentless || !ForceIndentLess)
             {
                 indent += bestIndent;
             }

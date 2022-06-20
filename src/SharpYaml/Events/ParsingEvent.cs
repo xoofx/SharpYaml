@@ -62,19 +62,15 @@ namespace SharpYaml.Events
         /// </summary>
         internal abstract EventType Type { get; }
 
-        private readonly Mark start;
-
         /// <summary>
         /// Gets the position in the input stream where the event starts.
         /// </summary>
-        public Mark Start { get { return start; } }
-
-        private readonly Mark end;
+        public Mark Start { get; }
 
         /// <summary>
         /// Gets the position in the input stream where the event ends.
         /// </summary>
-        public Mark End { get { return end; } }
+        public Mark End { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ParsingEvent"/> class.
@@ -83,8 +79,8 @@ namespace SharpYaml.Events
         /// <param name="end">The end position of the event.</param>
         internal ParsingEvent(Mark start, Mark end)
         {
-            this.start = start;
-            this.end = end;
+            this.Start = start;
+            this.End = end;
         }
     }
 }

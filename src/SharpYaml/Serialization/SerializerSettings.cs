@@ -61,7 +61,6 @@ namespace SharpYaml.Serialization
         internal readonly Dictionary<Type, IYamlSerializable> serializers = new Dictionary<Type, IYamlSerializable>();
         internal readonly AssemblyRegistry AssemblyRegistry;
         private IAttributeRegistry attributeRegistry;
-        private readonly IYamlSchema schema;
         private IObjectFactory objectFactory;
         private int preferredIndent;
         private string specialCollectionMember;
@@ -90,7 +89,7 @@ namespace SharpYaml.Serialization
             SpecialCollectionMember = "~Items";
             LimitPrimitiveFlowSequence = 0;
             DefaultStyle = YamlStyle.Block;
-            this.schema = schema ?? CoreSchema.Instance;
+            this.Schema = schema ?? CoreSchema.Instance;
             AssemblyRegistry = new AssemblyRegistry(Schema);
             attributeRegistry = new AttributeRegistry();
             ObjectFactory = new DefaultObjectFactory();
@@ -331,7 +330,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <value>The schema.</value>
         /// <exception cref="System.ArgumentNullException">value</exception>
-        public IYamlSchema Schema { get { return schema; } }
+        public IYamlSchema Schema { get; }
 
         /// <summary>
         /// Register a mapping between a tag and a type.

@@ -28,7 +28,6 @@ namespace SharpYaml.Serialization
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Enum | AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
     public sealed class YamlRemapAttribute : Attribute
     {
-        private readonly string name;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlRemapAttribute"/> class.
@@ -36,13 +35,13 @@ namespace SharpYaml.Serialization
         /// <param name="name">The previous name.</param>
         public YamlRemapAttribute(string name)
         {
-            this.name = name;
+            this.Name = name;
         }
 
         /// <summary>
         /// Gets the previous name.
         /// </summary>
         /// <value>The previous name.</value>
-        public string Name { get { return name; } }
+        public string Name { get; }
     }
 }

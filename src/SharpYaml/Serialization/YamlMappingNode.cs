@@ -56,13 +56,11 @@ namespace SharpYaml.Serialization
     /// </summary>
     public class YamlMappingNode : YamlNode, IEnumerable<KeyValuePair<YamlNode, YamlNode>>
     {
-        private readonly IOrderedDictionary<YamlNode, YamlNode> children = new OrderedDictionary<YamlNode, YamlNode>();
-
         /// <summary>
         /// Gets the children of the current node.
         /// </summary>
         /// <value>The children.</value>
-        public IOrderedDictionary<YamlNode, YamlNode> Children { get { return children; } }
+        public IOrderedDictionary<YamlNode, YamlNode> Children { get; } = new OrderedDictionary<YamlNode, YamlNode>();
 
         /// <summary>
         /// Gets or sets the style of the node.
@@ -89,7 +87,7 @@ namespace SharpYaml.Serialization
 
                 try
                 {
-                    children.Add(key, value);
+                    Children.Add(key, value);
                 }
                 catch (ArgumentException err)
                 {
@@ -106,7 +104,7 @@ namespace SharpYaml.Serialization
 #if DEBUG
             else
             {
-                foreach (var child in children)
+                foreach (var child in Children)
                 {
                     if (child.Key is YamlAliasNode)
                     {
@@ -145,7 +143,7 @@ namespace SharpYaml.Serialization
         {
             foreach (var child in children)
             {
-                this.children.Add(child);
+                this.Children.Add(child);
             }
         }
 
@@ -186,7 +184,7 @@ namespace SharpYaml.Serialization
         /// <param name="value">The value node.</param>
         public void Add(YamlNode key, YamlNode value)
         {
-            children.Add(key, value);
+            Children.Add(key, value);
         }
 
         /// <summary>
@@ -196,7 +194,7 @@ namespace SharpYaml.Serialization
         /// <param name="value">The value node.</param>
         public void Add(string key, YamlNode value)
         {
-            children.Add(new YamlScalarNode(key), value);
+            Children.Add(new YamlScalarNode(key), value);
         }
 
         /// <summary>
@@ -206,7 +204,7 @@ namespace SharpYaml.Serialization
         /// <param name="value">The value node.</param>
         public void Add(YamlNode key, string value)
         {
-            children.Add(key, new YamlScalarNode(value));
+            Children.Add(key, new YamlScalarNode(value));
         }
 
         /// <summary>
@@ -216,7 +214,7 @@ namespace SharpYaml.Serialization
         /// <param name="value">The value node.</param>
         public void Add(string key, string value)
         {
-            children.Add(new YamlScalarNode(key), new YamlScalarNode(value));
+            Children.Add(new YamlScalarNode(key), new YamlScalarNode(value));
         }
 
         /// <summary>
@@ -227,7 +225,7 @@ namespace SharpYaml.Serialization
         {
             Dictionary<YamlNode, YamlNode> keysToUpdate = null;
             Dictionary<YamlNode, YamlNode> valuesToUpdate = null;
-            foreach (var entry in children)
+            foreach (var entry in Children)
             {
                 if (entry.Key is YamlAliasNode)
                 {
@@ -250,16 +248,16 @@ namespace SharpYaml.Serialization
             {
                 foreach (var entry in valuesToUpdate)
                 {
-                    children[entry.Key] = entry.Value;
+                    Children[entry.Key] = entry.Value;
                 }
             }
             if (keysToUpdate != null)
             {
                 foreach (var entry in keysToUpdate)
                 {
-                    YamlNode value = children[entry.Key];
-                    children.Remove(entry.Key);
-                    children.Add(entry.Value, value);
+                    YamlNode value = Children[entry.Key];
+                    Children.Remove(entry.Key);
+                    Children.Add(entry.Value, value);
                 }
             }
         }
@@ -272,7 +270,7 @@ namespace SharpYaml.Serialization
         internal override void Emit(IEmitter emitter, EmitterState state)
         {
             emitter.Emit(new MappingStart(Anchor, Tag, string.IsNullOrEmpty(Tag), Style));
-            foreach (var entry in children)
+            foreach (var entry in Children)
             {
                 entry.Key.Save(emitter, state);
                 entry.Value.Save(emitter, state);
@@ -294,14 +292,14 @@ namespace SharpYaml.Serialization
         /// <summary />
         public override bool Equals(object other)
         {
-            if (other is not YamlMappingNode obj || !Equals(obj) || children.Count != obj.children.Count)
+            if (other is not YamlMappingNode obj || !Equals(obj) || Children.Count != obj.Children.Count)
             {
                 return false;
             }
 
-            foreach (var entry in children)
+            foreach (var entry in Children)
             {
-                if (!obj.children.TryGetValue(entry.Key, out YamlNode otherNode) || !SafeEquals(entry.Value, otherNode))
+                if (!obj.Children.TryGetValue(entry.Key, out YamlNode otherNode) || !SafeEquals(entry.Value, otherNode))
                 {
                     return false;
                 }
@@ -320,7 +318,7 @@ namespace SharpYaml.Serialization
         {
             var hashCode = base.GetHashCode();
 
-            foreach (var entry in children)
+            foreach (var entry in Children)
             {
                 hashCode = CombineHashCodes(hashCode, GetHashCode(entry.Key));
                 hashCode = CombineHashCodes(hashCode, GetHashCode(entry.Value));
@@ -336,7 +334,7 @@ namespace SharpYaml.Serialization
             get
             {
                 yield return this;
-                foreach (var child in children)
+                foreach (var child in Children)
                 {
                     foreach (var node in child.Key.AllNodes)
                     {
@@ -360,7 +358,7 @@ namespace SharpYaml.Serialization
         {
             var text = new StringBuilder("{ ");
 
-            foreach (var child in children)
+            foreach (var child in Children)
             {
                 if (text.Length > 2)
                 {
@@ -379,7 +377,7 @@ namespace SharpYaml.Serialization
         /// <summary />
         public IEnumerator<KeyValuePair<YamlNode, YamlNode>> GetEnumerator()
         {
-            return children.GetEnumerator();
+            return Children.GetEnumerator();
         }
 
         #endregion

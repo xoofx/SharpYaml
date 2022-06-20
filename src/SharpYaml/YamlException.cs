@@ -55,12 +55,12 @@ namespace SharpYaml
         /// <summary>
         /// Gets the position in the input stream where the event that originated the exception starts.
         /// </summary>
-        public Mark Start { get; private set; }
+        public Mark Start { get; }
 
         /// <summary>
         /// Gets the position in the input stream where the event that originated the exception ends.
         /// </summary>
-        public Mark End { get; private set; }
+        public Mark End { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlException"/> class.

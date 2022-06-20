@@ -52,10 +52,6 @@ namespace SharpYaml
     /// </summary>
     internal class SimpleKey
     {
-        private bool isPossible;
-        private readonly bool isRequired;
-        private readonly int tokenNumber;
-        private readonly Mark mark;
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is possible.
@@ -63,7 +59,7 @@ namespace SharpYaml
         /// <value>
         /// 	<c>true</c> if this instance is possible; otherwise, <c>false</c>.
         /// </value>
-        public bool IsPossible { get { return isPossible; } set { isPossible = value; } }
+        public bool IsPossible { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is required.
@@ -71,19 +67,19 @@ namespace SharpYaml
         /// <value>
         /// 	<c>true</c> if this instance is required; otherwise, <c>false</c>.
         /// </value>
-        public bool IsRequired { get { return isRequired; } }
+        public bool IsRequired { get; }
 
         /// <summary>
         /// Gets or sets the token number.
         /// </summary>
         /// <value>The token number.</value>
-        public int TokenNumber { get { return tokenNumber; } }
+        public int TokenNumber { get; }
 
         /// <summary>
         /// Gets or sets the mark that indicates the location of the simple key.
         /// </summary>
         /// <value>The mark.</value>
-        public Mark Mark { get { return mark; } }
+        public Mark Mark { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SimpleKey"/> class.
@@ -97,10 +93,10 @@ namespace SharpYaml
         /// </summary>
         public SimpleKey(bool isPossible, bool isRequired, int tokenNumber, Mark mark)
         {
-            this.isPossible = isPossible;
-            this.isRequired = isRequired;
-            this.tokenNumber = tokenNumber;
-            this.mark = mark;
+            this.IsPossible = isPossible;
+            this.IsRequired = isRequired;
+            this.TokenNumber = tokenNumber;
+            this.Mark = mark;
         }
     }
 }

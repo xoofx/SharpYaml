@@ -52,12 +52,10 @@ namespace SharpYaml.Serialization
     /// </summary>
     internal class EmitterState
     {
-        private readonly HashSet<string> emittedAnchors = new HashSet<string>();
-
         /// <summary>
         /// Gets the already emitted anchors.
         /// </summary>
         /// <value>The emitted anchors.</value>
-        public HashSet<string> EmittedAnchors { get { return emittedAnchors; } }
+        public HashSet<string> EmittedAnchors { get; } = new HashSet<string>();
     }
 }

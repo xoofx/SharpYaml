@@ -57,9 +57,7 @@ namespace SharpYaml
     /// </summary>
     public class EventReader
     {
-        private readonly IParser parser;
         private bool endOfStream;
-        private int currentDepth = 0;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EventReader"/> class.
@@ -67,7 +65,7 @@ namespace SharpYaml
         /// <param name="parser">The parser that provides the events.</param>
         public EventReader(IParser parser)
         {
-            this.parser = parser;
+            this.Parser = parser;
             MoveNext();
         }
 
@@ -75,9 +73,9 @@ namespace SharpYaml
         /// Gets the underlying parser.
         /// </summary>
         /// <value>The parser.</value>
-        public IParser Parser { get { return parser; } }
+        public IParser Parser { get; }
 
-        public int CurrentDepth { get { return currentDepth; } }
+        public int CurrentDepth { get; private set; } = 0;
 
         /// <summary>
         /// Ensures that the current event is of the specified type, returns it and moves to the next event.
@@ -92,10 +90,10 @@ namespace SharpYaml
             {
                 // TODO: Throw a better exception
                 throw new YamlException(
-                    parser.Current.Start,
-                    parser.Current.End,
+                    Parser.Current.Start,
+                    Parser.Current.End,
                     FormattableString.Invariant(
-                        $"Expected '{typeof(T).Name}', got '{parser.Current.GetType().Name}' (at line {parser.Current.Start.Line}, character {parser.Current.Start.Column}).")
+                        $"Expected '{typeof(T).Name}', got '{Parser.Current.GetType().Name}' (at line {Parser.Current.Start.Line}, character {Parser.Current.Start.Column}).")
                     );
             }
             return yamlEvent;
@@ -106,9 +104,9 @@ namespace SharpYaml
         /// </summary>
         private void MoveNext()
         {
-            if (parser.Current != null)
-                currentDepth += parser.Current.NestingIncrease;
-            endOfStream = !parser.MoveNext();
+            if (Parser.Current != null)
+                CurrentDepth += Parser.Current.NestingIncrease;
+            endOfStream = !Parser.MoveNext();
         }
 
         /// <summary>
@@ -120,7 +118,7 @@ namespace SharpYaml
         {
             EnsureNotAtEndOfStream();
 
-            return parser.Current is T;
+            return Parser.Current is T;
         }
 
         /// <summary>
@@ -136,7 +134,7 @@ namespace SharpYaml
             {
                 return null;
             }
-            T yamlEvent = (T)parser.Current;
+            T yamlEvent = (T)Parser.Current;
             MoveNext();
             return yamlEvent;
         }
@@ -152,7 +150,7 @@ namespace SharpYaml
             {
                 return null;
             }
-            T yamlEvent = (T)parser.Current;
+            T yamlEvent = (T)Parser.Current;
             return yamlEvent;
         }
 

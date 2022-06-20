@@ -89,6 +89,6 @@ namespace SharpYaml.Serialization
         /// Gets or sets the anchor alias.
         /// </summary>
         /// <value>The anchor alias.</value>
-        public string Alias { get; private set; }
+        public string Alias { get; }
     }
 }

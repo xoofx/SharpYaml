@@ -55,21 +55,17 @@ namespace SharpYaml.Events
     {
         internal static readonly Regex anchorValidator = new Regex(@"^[0-9a-zA-Z_\-]+$", RegexOptions.Compiled);
 
-        private readonly string anchor;
-
         /// <summary>
         /// Gets the anchor.
         /// </summary>
         /// <value></value>
-        public string Anchor { get { return anchor; } }
-
-        private readonly string tag;
+        public string Anchor { get; }
 
         /// <summary>
         /// Gets the tag.
         /// </summary>
         /// <value></value>
-        public string Tag { get { return tag; } }
+        public string Tag { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is canonical.
@@ -105,8 +101,8 @@ namespace SharpYaml.Events
                 throw new ArgumentException("Tag value must not be empty.", "tag");
             }
 
-            this.anchor = anchor;
-            this.tag = tag;
+            this.Anchor = anchor;
+            this.Tag = tag;
         }
 
         /// <summary>

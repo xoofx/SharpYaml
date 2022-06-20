@@ -65,29 +65,25 @@ namespace SharpYaml.Events
         /// </summary>
         internal override EventType Type { get { return EventType.YAML_SEQUENCE_START_EVENT; } }
 
-        private readonly bool isImplicit;
-
         /// <summary>
         /// Gets a value indicating whether this instance is implicit.
         /// </summary>
         /// <value>
         /// 	<c>true</c> if this instance is implicit; otherwise, <c>false</c>.
         /// </value>
-        public bool IsImplicit { get { return isImplicit; } }
+        public bool IsImplicit { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is canonical.
         /// </summary>
         /// <value></value>
-        public override bool IsCanonical { get { return !isImplicit; } }
-
-        private readonly YamlStyle style;
+        public override bool IsCanonical { get { return !IsImplicit; } }
 
         /// <summary>
         /// Gets the style.
         /// </summary>
         /// <value>The style.</value>
-        public YamlStyle Style { get { return style; } }
+        public YamlStyle Style { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SequenceStart"/> class.
@@ -108,8 +104,8 @@ namespace SharpYaml.Events
         public SequenceStart(string anchor, string tag, bool isImplicit, YamlStyle style, Mark start, Mark end)
             : base(anchor, tag, start, end)
         {
-            this.isImplicit = isImplicit;
-            this.style = style;
+            this.IsImplicit = isImplicit;
+            this.Style = style;
         }
 
         /// <summary>
@@ -129,7 +125,7 @@ namespace SharpYaml.Events
         public override string ToString()
         {
             return FormattableString.Invariant(
-                $"Sequence start [anchor = {Anchor}, tag = {Tag}, isImplicit = {isImplicit}, style = {style}]");
+                $"Sequence start [anchor = {Anchor}, tag = {Tag}, isImplicit = {IsImplicit}, style = {Style}]");
         }
     }
 }

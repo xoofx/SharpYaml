@@ -56,8 +56,6 @@ namespace SharpYaml.Serialization
     /// </summary>
     public sealed class Serializer
     {
-        private readonly SerializerSettings settings;
-
         internal readonly IYamlSerializable ObjectSerializer;
         internal readonly IYamlSerializable RoutingSerializer;
         internal readonly ITypeDescriptorFactory TypeDescriptorFactory;
@@ -84,7 +82,7 @@ namespace SharpYaml.Serialization
         /// <param name="settings">The settings.</param>
         public Serializer(SerializerSettings settings)
         {
-            this.settings = settings ?? new SerializerSettings();
+            this.Settings = settings ?? new SerializerSettings();
             TypeDescriptorFactory = CreateTypeDescriptorFactory();
             ObjectSerializer = CreateProcessor(out RoutingSerializer routingSerializer);
             RoutingSerializer = routingSerializer;
@@ -94,7 +92,7 @@ namespace SharpYaml.Serialization
         /// Gets the settings.
         /// </summary>
         /// <value>The settings.</value>
-        public SerializerSettings Settings { get { return settings; } }
+        public SerializerSettings Settings { get; }
 
         /// <summary>
         /// Serializes the specified object to a string.
@@ -214,7 +212,7 @@ namespace SharpYaml.Serialization
             // This should be improved
             if (emitter is Emitter defaultEmitter)
             {
-                defaultEmitter.ForceIndentLess = settings.IndentLess;
+                defaultEmitter.ForceIndentLess = Settings.IndentLess;
             }
 
             var context = new SerializerContext(this, contextSettings) { Emitter = emitter, Writer = CreateEmitter(emitter) };
@@ -546,13 +544,13 @@ namespace SharpYaml.Serialization
             routingSerializer = new RoutingSerializer();
 
             // Add registered serializer
-            foreach (var typeAndSerializer in settings.serializers)
+            foreach (var typeAndSerializer in Settings.serializers)
             {
                 routingSerializer.AddSerializer(typeAndSerializer.Key, typeAndSerializer.Value);
             }
 
             // Add registered factories
-            foreach (var factory in settings.AssemblyRegistry.SerializableFactories)
+            foreach (var factory in Settings.AssemblyRegistry.SerializableFactories)
             {
                 routingSerializer.AddSerializerFactory(factory);
             }
@@ -564,7 +562,7 @@ namespace SharpYaml.Serialization
             }
 
             var typingSerializer = new TagTypeSerializer(routingSerializer);
-            return settings.EmitAlias ? (IYamlSerializable)new AnchorSerializer(typingSerializer) : typingSerializer;
+            return Settings.EmitAlias ? (IYamlSerializable)new AnchorSerializer(typingSerializer) : typingSerializer;
         }
 
         private ITypeDescriptorFactory CreateTypeDescriptorFactory()
@@ -576,7 +574,7 @@ namespace SharpYaml.Serialization
         {
             var writer = (IEventEmitter)new WriterEventEmitter(emitter);
 
-            if (settings.EmitJsonComptible)
+            if (Settings.EmitJsonComptible)
             {
                 writer = new JsonEventEmitter(writer);
             }

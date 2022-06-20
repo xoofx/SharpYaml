@@ -75,8 +75,8 @@ namespace SharpYaml.Serialization.Descriptors
         }
 
         public string Name { get; internal set; }
-        public string OriginalName { get; private set; }
-        public StringComparer DefaultNameComparer { get; private set; }
+        public string OriginalName { get; }
+        public StringComparer DefaultNameComparer { get; }
         public abstract Type Type { get; }
         public int? Order { get; internal set; }
 
@@ -84,7 +84,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the type of the declaring this member.
         /// </summary>
         /// <value>The type of the declaring.</value>
-        public Type DeclaringType { get; private set; }
+        public Type DeclaringType { get; }
 
         public SerializeMemberMode SerializeMemberMode { get; internal set; }
         public abstract object Get(object thisObject);
@@ -103,6 +103,6 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the member information.
         /// </summary>
         /// <value>The member information.</value>
-        public MemberInfo MemberInfo { get; private set; }
+        public MemberInfo MemberInfo { get; }
     }
 }

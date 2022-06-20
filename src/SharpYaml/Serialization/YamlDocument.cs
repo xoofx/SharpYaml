@@ -61,7 +61,7 @@ namespace SharpYaml.Serialization
         /// Gets or sets the root node.
         /// </summary>
         /// <value>The root node.</value>
-        public YamlNode RootNode { get; private set; }
+        public YamlNode RootNode { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlDocument"/> class.

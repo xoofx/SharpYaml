@@ -58,13 +58,11 @@ namespace SharpYaml.Serialization
     [DebuggerDisplay("Count = {children.Count}")]
     public class YamlSequenceNode : YamlNode, IEnumerable<YamlNode>
     {
-        private readonly IList<YamlNode> children = new List<YamlNode>();
-
         /// <summary>
         /// Gets the collection of child nodes.
         /// </summary>
         /// <value>The children.</value>
-        public IList<YamlNode> Children { get { return children; } }
+        public IList<YamlNode> Children { get; } = new List<YamlNode>();
 
         /// <summary>
         /// Gets or sets the style of the node.
@@ -88,7 +86,7 @@ namespace SharpYaml.Serialization
             while (!events.Accept<SequenceEnd>())
             {
                 YamlNode child = ParseNode(events, state);
-                children.Add(child);
+                Children.Add(child);
                 hasUnresolvedAliases |= child is YamlAliasNode;
             }
 
@@ -99,7 +97,7 @@ namespace SharpYaml.Serialization
 #if DEBUG
             else
             {
-                foreach (var child in children)
+                foreach (var child in Children)
                 {
                     if (child is YamlAliasNode)
                     {
@@ -134,7 +132,7 @@ namespace SharpYaml.Serialization
         {
             foreach (var child in children)
             {
-                this.children.Add(child);
+                this.Children.Add(child);
             }
         }
 
@@ -144,7 +142,7 @@ namespace SharpYaml.Serialization
         /// <param name="child">The child.</param>
         public void Add(YamlNode child)
         {
-            children.Add(child);
+            Children.Add(child);
         }
 
         /// <summary>
@@ -153,7 +151,7 @@ namespace SharpYaml.Serialization
         /// <param name="child">The child.</param>
         public void Add(string child)
         {
-            children.Add(new YamlScalarNode(child));
+            Children.Add(new YamlScalarNode(child));
         }
 
         /// <summary>
@@ -162,11 +160,11 @@ namespace SharpYaml.Serialization
         /// <param name="state">The state of the document.</param>
         internal override void ResolveAliases(DocumentLoadingState state)
         {
-            for (int i = 0; i < children.Count; ++i)
+            for (int i = 0; i < Children.Count; ++i)
             {
-                if (children[i] is YamlAliasNode)
+                if (Children[i] is YamlAliasNode)
                 {
-                    children[i] = state.GetNode(children[i].Anchor, true, children[i].Start, children[i].End);
+                    Children[i] = state.GetNode(Children[i].Anchor, true, Children[i].Start, Children[i].End);
                 }
             }
         }
@@ -179,7 +177,7 @@ namespace SharpYaml.Serialization
         internal override void Emit(IEmitter emitter, EmitterState state)
         {
             emitter.Emit(new SequenceStart(Anchor, Tag, string.IsNullOrEmpty(Tag), Style));
-            foreach (var node in children)
+            foreach (var node in Children)
             {
                 node.Save(emitter, state);
             }
@@ -200,14 +198,14 @@ namespace SharpYaml.Serialization
         /// <summary />
         public override bool Equals(object other)
         {
-            if (other is not YamlSequenceNode obj || !Equals(obj) || children.Count != obj.children.Count)
+            if (other is not YamlSequenceNode obj || !Equals(obj) || Children.Count != obj.Children.Count)
             {
                 return false;
             }
 
-            for (int i = 0; i < children.Count; ++i)
+            for (int i = 0; i < Children.Count; ++i)
             {
-                if (!SafeEquals(children[i], obj.children[i]))
+                if (!SafeEquals(Children[i], obj.Children[i]))
                 {
                     return false;
                 }
@@ -226,7 +224,7 @@ namespace SharpYaml.Serialization
         {
             var hashCode = base.GetHashCode();
 
-            foreach (var item in children)
+            foreach (var item in Children)
             {
                 hashCode = CombineHashCodes(hashCode, GetHashCode(item));
             }
@@ -241,7 +239,7 @@ namespace SharpYaml.Serialization
             get
             {
                 yield return this;
-                foreach (var child in children)
+                foreach (var child in Children)
                 {
                     foreach (var node in child.AllNodes)
                     {
@@ -261,7 +259,7 @@ namespace SharpYaml.Serialization
         {
             var text = new StringBuilder("[ ");
 
-            foreach (var child in children)
+            foreach (var child in Children)
             {
                 if (text.Length > 2)
                 {

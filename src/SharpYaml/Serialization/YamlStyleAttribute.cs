@@ -54,7 +54,6 @@ namespace SharpYaml.Serialization
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property | AttributeTargets.Field)]
     public class YamlStyleAttribute : Attribute
     {
-        private readonly YamlStyle style;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlStyleAttribute"/> class.
@@ -62,13 +61,13 @@ namespace SharpYaml.Serialization
         /// <param name="style">The style.</param>
         public YamlStyleAttribute(YamlStyle style)
         {
-            this.style = style;
+            this.Style = style;
         }
 
         /// <summary>
         /// Gets the style.
         /// </summary>
         /// <value>The style.</value>
-        public YamlStyle Style { get { return style; } }
+        public YamlStyle Style { get; }
     }
 }

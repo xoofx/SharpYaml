@@ -28,8 +28,6 @@ namespace SharpYaml.Model
     public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement>, IList<KeyValuePair<YamlElement, YamlElement>>
     {
         private MappingStart _mappingStart;
-        private readonly MappingEnd _mappingEnd;
-
         private readonly List<YamlElement> _keys;
         private readonly Dictionary<YamlElement, YamlElement> _contents;
 
@@ -38,7 +36,7 @@ namespace SharpYaml.Model
         public YamlMapping()
         {
             _mappingStart = new MappingStart();
-            _mappingEnd = new MappingEnd();
+            MappingEnd = new MappingEnd();
             _keys = new List<YamlElement>();
             _contents = new Dictionary<YamlElement, YamlElement>();
         }
@@ -62,7 +60,7 @@ namespace SharpYaml.Model
             }
 
             MappingStart = mappingStart;
-            this._mappingEnd = mappingEnd;
+            this.MappingEnd = mappingEnd;
         }
 
         public MappingStart MappingStart
@@ -79,7 +77,7 @@ namespace SharpYaml.Model
             }
         }
 
-        internal MappingEnd MappingEnd { get { return _mappingEnd; } }
+        internal MappingEnd MappingEnd { get; }
 
         public override string Anchor
         {
@@ -503,7 +501,7 @@ namespace SharpYaml.Model
                 cloneContents[keysClone[i]] = (YamlElement)_contents[_keys[i]].DeepClone();
 
             return new YamlMapping(_mappingStart,
-                _mappingEnd,
+                MappingEnd,
                 keysClone,
                 cloneContents,
                 tracker);

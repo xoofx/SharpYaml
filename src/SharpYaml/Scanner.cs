@@ -148,12 +148,10 @@ namespace SharpYaml
             analyzer = buffer;
         }
 
-        private Token current;
-
         /// <summary>
         /// Gets the current token.
         /// </summary>
-        public Token Current { get { return current; } }
+        public Token Current { get; private set; }
 
         /// <summary>
         /// Moves to the next token.
@@ -161,7 +159,7 @@ namespace SharpYaml
         /// <returns></returns>
         public bool MoveNext()
         {
-            if (current != null)
+            if (Current != null)
             {
                 ConsumeCurrent();
             }
@@ -177,13 +175,13 @@ namespace SharpYaml
             }
             if (tokens.Count > 0)
             {
-                current = tokens.Dequeue();
+                Current = tokens.Dequeue();
                 tokenAvailable = false;
                 return true;
             }
             else
             {
-                current = null;
+                Current = null;
                 return false;
             }
         }
@@ -195,7 +193,7 @@ namespace SharpYaml
         {
             ++tokensParsed;
             tokenAvailable = false;
-            current = null;
+            Current = null;
         }
 
         private void FetchMoreTokens()

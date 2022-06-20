@@ -27,23 +27,20 @@ namespace SharpYaml.Model
 {
     public class YamlStream : YamlNode, IList<YamlDocument>
     {
-        private readonly StreamStart _streamStart;
-        private readonly StreamEnd _streamEnd;
-
         private readonly List<YamlDocument> _documents;
 
         public YamlStream(YamlNodeTracker tracker = null)
         {
-            _streamStart = new StreamStart();
-            _streamEnd = new StreamEnd();
+            StreamStart = new StreamStart();
+            StreamEnd = new StreamEnd();
             _documents = new List<YamlDocument>();
             Tracker = tracker;
         }
 
         YamlStream(StreamStart streamStart, StreamEnd streamEnd, List<YamlDocument> documents, YamlNodeTracker tracker = null)
         {
-            this._streamStart = streamStart;
-            this._streamEnd = streamEnd;
+            this.StreamStart = streamStart;
+            this.StreamEnd = streamEnd;
 
             if (tracker == null)
                 _documents = documents;
@@ -58,8 +55,8 @@ namespace SharpYaml.Model
             }
         }
 
-        internal StreamStart StreamStart { get { return _streamStart; } }
-        internal StreamEnd StreamEnd { get { return _streamEnd; } }
+        internal StreamStart StreamStart { get; }
+        internal StreamEnd StreamEnd { get; }
 
         public static YamlStream Load(TextReader stream, YamlNodeTracker tracker = null)
         {
@@ -218,7 +215,7 @@ namespace SharpYaml.Model
             for (var i = 0; i < _documents.Count; i++)
                 documentsClone.Add((YamlDocument)_documents[i].DeepClone());
 
-            return new YamlStream(_streamStart, _streamEnd, documentsClone, tracker);
+            return new YamlStream(StreamStart, StreamEnd, documentsClone, tracker);
         }
     }
 }

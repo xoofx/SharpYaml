@@ -55,10 +55,6 @@ namespace SharpYaml.Serialization
     {
         public const uint DefaultMask = 1;
 
-        private readonly SerializeMemberMode serializeMethod;
-        private readonly string name;
-        private uint mask = DefaultMask;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlMemberAttribute"/> class.
         /// </summary>
@@ -81,7 +77,7 @@ namespace SharpYaml.Serialization
         /// <param name="name">The name.</param>
         public YamlMemberAttribute(string name)
         {
-            this.name = name;
+            this.Name = name;
         }
 
         /// <summary>
@@ -91,8 +87,8 @@ namespace SharpYaml.Serialization
         /// <param name="serializeMethod">The serialize method.</param>
         public YamlMemberAttribute(string name, SerializeMemberMode serializeMethod)
         {
-            this.name = name;
-            this.serializeMethod = serializeMethod;
+            this.Name = name;
+            this.SerializeMethod = serializeMethod;
         }
 
         /// <summary>
@@ -101,20 +97,20 @@ namespace SharpYaml.Serialization
         /// <param name="serializeMethod">The serialize method.</param>
         public YamlMemberAttribute(SerializeMemberMode serializeMethod)
         {
-            this.serializeMethod = serializeMethod;
+            this.SerializeMethod = serializeMethod;
         }
 
         /// <summary>
         /// Gets the name.
         /// </summary>
         /// <value>The name.</value>
-        public string Name { get { return name; } }
+        public string Name { get; }
 
         /// <summary>
         /// Gets the serialize method1.
         /// </summary>
         /// <value>The serialize method1.</value>
-        public SerializeMemberMode SerializeMethod { get { return serializeMethod; } }
+        public SerializeMemberMode SerializeMethod { get; }
 
         /// <summary>
         /// Gets or sets the order. Default is -1 (default to alphabetical)
@@ -126,6 +122,6 @@ namespace SharpYaml.Serialization
         /// Gets the mask.
         /// </summary>
         /// <value>The mask.</value>
-        public uint Mask { get { return mask; } set { mask = value; } }
+        public uint Mask { get; set; } = DefaultMask;
     }
 }

@@ -53,7 +53,6 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     public class PropertyDescriptor : MemberDescriptorBase
     {
-        private readonly PropertyInfo propertyInfo;
         private readonly MethodInfo getMethod;
         private readonly MethodInfo setMethod;
 
@@ -70,7 +69,7 @@ namespace SharpYaml.Serialization.Descriptors
             if (propertyInfo == null)
                 throw new ArgumentNullException("propertyInfo");
 
-            this.propertyInfo = propertyInfo;
+            this.PropertyInfo = propertyInfo;
 
             getMethod = propertyInfo.GetGetMethod(true);
             if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic) != null)
@@ -83,9 +82,9 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the property information attached to this instance.
         /// </summary>
         /// <value>The property information.</value>
-        public PropertyInfo PropertyInfo { get { return propertyInfo; } }
+        public PropertyInfo PropertyInfo { get; }
 
-        public override Type Type { get { return propertyInfo.PropertyType; } }
+        public override Type Type { get { return PropertyInfo.PropertyType; } }
 
         public override object Get(object thisObject)
         {
