@@ -294,8 +294,7 @@ namespace SharpYaml.Serialization
         /// <summary />
         public override bool Equals(object other)
         {
-            var obj = other as YamlMappingNode;
-            if (obj == null || !Equals(obj) || children.Count != obj.children.Count)
+            if (other is not YamlMappingNode obj || !Equals(obj) || children.Count != obj.children.Count)
             {
                 return false;
             }

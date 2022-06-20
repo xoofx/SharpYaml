@@ -212,8 +212,7 @@ namespace SharpYaml.Serialization
             // Configure the emitter
             // TODO the current emitter is not enough configurable to format its output
             // This should be improved
-            var defaultEmitter = emitter as Emitter;
-            if (defaultEmitter != null)
+            if (emitter is Emitter defaultEmitter)
             {
                 defaultEmitter.ForceIndentLess = settings.IndentLess;
             }

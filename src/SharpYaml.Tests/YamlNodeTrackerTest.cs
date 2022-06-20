@@ -60,8 +60,8 @@ namespace SharpYaml.Tests
             ScalarValueChanged valueChanged = null;
             tracker.TrackerEvent += (sender, args) =>
             {
-                if (args is ScalarValueChanged)
-                    valueChanged = (ScalarValueChanged)args;
+                if (args is ScalarValueChanged changed)
+                    valueChanged = changed;
             };
             ((YamlValue)stream[0].Contents).Value = "a silly scalar";
 

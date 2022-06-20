@@ -94,8 +94,7 @@ namespace SharpYaml.Serialization.Descriptors
 
                 descriptor = Create(type);
 
-                var objectDescriptor = descriptor as ObjectDescriptor;
-                if (objectDescriptor != null)
+                if (descriptor is ObjectDescriptor objectDescriptor)
                 {
                     objectDescriptor.SortMembers(memberComparer);
                 }

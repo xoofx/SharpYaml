@@ -361,22 +361,22 @@ namespace SharpYaml.Tests
 
                 var value = property.GetValue(actual, null);
                 var expectedValue = property.GetValue(expected, null);
-                if (expectedValue is IEnumerable && !(expectedValue is string))
+                if (expectedValue is IEnumerable enumerable && !(expectedValue is string))
                 {
                     Dump.Write("\t{0} = {{", property.Name);
                     Dump.Write(string.Join(", ", (IEnumerable)value));
                     Dump.WriteLine("}");
 
-                    if (expectedValue is ICollection && value is ICollection)
+                    if (expectedValue is ICollection expectedCollection && value is ICollection collection)
                     {
-                        var expectedCount = ((ICollection)expectedValue).Count;
-                        var valueCount = ((ICollection)value).Count;
+                        var expectedCount = expectedCollection.Count;
+                        var valueCount = collection.Count;
                         Assert.AreEqual(expectedCount, valueCount, "Compared size of collections in property {0} in parse event {1}",
                             property.Name, eventNumber);
                     }
 
                     var values = ((IEnumerable)value).GetEnumerator();
-                    var expectedValues = ((IEnumerable)expectedValue).GetEnumerator();
+                    var expectedValues = enumerable.GetEnumerator();
                     while (expectedValues.MoveNext())
                     {
                         Assert.True(values.MoveNext(), "Property {0} in parse event {1} had too few elements", property.Name, eventNumber);

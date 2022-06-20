@@ -104,8 +104,7 @@ namespace SharpYaml.Serialization.Descriptors
             this.style = YamlStyle.Any;
             foreach (var attribute in attributes)
             {
-                var styleAttribute = attribute as YamlStyleAttribute;
-                if (styleAttribute != null)
+                if (attribute is YamlStyleAttribute styleAttribute)
                 {
                     style = styleAttribute.Style;
                     continue;
@@ -285,26 +284,25 @@ namespace SharpYaml.Serialization.Descriptors
                     return false;
                 }
 
-                if (attribute is YamlMemberAttribute)
+                if (attribute is YamlMemberAttribute yamlMemberAttribute)
                 {
-                    memberAttribute = (YamlMemberAttribute)attribute;
+                    memberAttribute = yamlMemberAttribute;
                     continue;
                 }
 
-                if (attribute is DefaultValueAttribute)
+                if (attribute is DefaultValueAttribute defaultValueAttribute1)
                 {
-                    defaultValueAttribute = (DefaultValueAttribute)attribute;
+                    defaultValueAttribute = defaultValueAttribute1;
                     continue;
                 }
 
-                if (attribute is YamlStyleAttribute)
+                if (attribute is YamlStyleAttribute yamlStyleAttribute)
                 {
-                    styleAttribute = (YamlStyleAttribute)attribute;
+                    styleAttribute = yamlStyleAttribute;
                     continue;
                 }
 
-                var yamlRemap = attribute as YamlRemapAttribute;
-                if (yamlRemap != null)
+                if (attribute is YamlRemapAttribute yamlRemap)
                 {
                     if (member.AlternativeNames == null)
                     {

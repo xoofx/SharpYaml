@@ -66,8 +66,7 @@ namespace SharpYaml.Serialization.Serializers
                 throw new YamlException("Unable to parse input");
             }
 
-            var node = parsingEvent as NodeEvent;
-            if (node == null)
+            if (parsingEvent is not NodeEvent node)
             {
                 throw new YamlException(parsingEvent.Start, parsingEvent.End, $"Unexpected parsing event found [{parsingEvent}]. Expecting Scalar, Mapping or Sequence");
             }
@@ -102,7 +101,7 @@ namespace SharpYaml.Serialization.Serializers
             object value = objectContext.Instance;
 
             // Handle explicit null scalar
-            if (node is Scalar && objectContext.SerializerContext.Schema.TryParse((Scalar)node, typeof(object), out value))
+            if (node is Scalar scalar && objectContext.SerializerContext.Schema.TryParse(scalar, typeof(object), out value))
             {
                 // The value was pick up, go to next
                 objectContext.Reader.Parser.MoveNext();
@@ -148,9 +147,9 @@ namespace SharpYaml.Serialization.Serializers
             objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(type);
 
             // If this is a nullable descriptor, use its underlying type directly
-            if (objectContext.Descriptor is NullableDescriptor)
+            if (objectContext.Descriptor is NullableDescriptor descriptor)
             {
-                objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(((NullableDescriptor)objectContext.Descriptor).UnderlyingType);
+                objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(descriptor.UnderlyingType);
             }
             return base.ReadYaml(ref objectContext);
         }
@@ -170,9 +169,9 @@ namespace SharpYaml.Serialization.Serializers
 
 
             // If we have a nullable value, get its type directly and replace the descriptor
-            if (objectContext.Descriptor is NullableDescriptor)
+            if (objectContext.Descriptor is NullableDescriptor descriptor)
             {
-                objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(((NullableDescriptor)objectContext.Descriptor).UnderlyingType);
+                objectContext.Descriptor = objectContext.SerializerContext.FindTypeDescriptor(descriptor.UnderlyingType);
             }
 
             // Expected type 

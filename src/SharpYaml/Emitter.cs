@@ -679,7 +679,7 @@ namespace SharpYaml
         /// </summary>
         private void EmitStreamStart(ParsingEvent evt)
         {
-            if (!(evt is StreamStart))
+            if (evt is not StreamStart)
             {
                 throw new ArgumentException("Expected STREAM-START.", "evt");
             }

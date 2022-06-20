@@ -90,8 +90,7 @@ namespace SharpYaml.Tokens
         /// </returns>
         public override bool Equals(object obj)
         {
-            VersionDirective other = obj as VersionDirective;
-            return other != null && version.Equals(other.version);
+            return obj is VersionDirective other && version.Equals(other.version);
         }
 
         /// <summary>

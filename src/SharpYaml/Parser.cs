@@ -64,8 +64,7 @@ namespace SharpYaml
     {
         public static IParser CreateParser(TextReader reader)
         {
-            var stringReader = reader as StringReader;
-            if (stringReader != null)
+            if (reader is StringReader stringReader)
                 return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()));
 
             else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength));
@@ -227,8 +226,7 @@ namespace SharpYaml
         /// </summary>
         private Event ParseStreamStart()
         {
-            StreamStart streamStart = GetCurrentToken() as StreamStart;
-            if (streamStart == null)
+            if (GetCurrentToken() is not StreamStart streamStart)
             {
                 var current = GetCurrentToken();
                 throw new SemanticErrorException(current.Start, current.End, "Did not find expected <stream-start>.");
@@ -274,14 +272,14 @@ namespace SharpYaml
 
             // Parse an explicit document.
 
-            else if (!(GetCurrentToken() is StreamEnd))
+            else if (GetCurrentToken() is not StreamEnd)
             {
                 Mark start = GetCurrentToken().Start;
                 TagDirectiveCollection directives = new TagDirectiveCollection();
                 VersionDirective versionDirective = ProcessDirectives(directives);
 
                 var current = GetCurrentToken();
-                if (!(current is DocumentStart))
+                if (current is not DocumentStart)
                 {
                     throw new SemanticErrorException(current.Start, current.End, "Did not find expected <document start>.");
                 }
@@ -320,10 +318,7 @@ namespace SharpYaml
 
             while (true)
             {
-                VersionDirective currentVersion;
-                TagDirective tag;
-
-                if ((currentVersion = GetCurrentToken() as VersionDirective) != null)
+                if (GetCurrentToken() is VersionDirective currentVersion)
                 {
                     if (version != null)
                     {
@@ -337,7 +332,7 @@ namespace SharpYaml
 
                     version = currentVersion;
                 }
-                else if ((tag = GetCurrentToken() as TagDirective) != null)
+                else if (GetCurrentToken() is TagDirective tag)
                 {
                     if (tagDirectives.Contains(tag.Handle))
                     {
@@ -439,8 +434,7 @@ namespace SharpYaml
         /// </summary>
         private Event ParseNode(bool isBlock, bool isIndentlessSequence)
         {
-            AnchorAlias alias = GetCurrentToken() as AnchorAlias;
-            if (alias != null)
+            if (GetCurrentToken() is AnchorAlias alias)
             {
                 state = states.Pop();
                 Event evt = new Events.AnchorAlias(alias.Value, alias.Start, alias.End);
@@ -510,8 +504,7 @@ namespace SharpYaml
             }
             else
             {
-                Scalar scalar = GetCurrentToken() as Scalar;
-                if (scalar != null)
+                if (GetCurrentToken() is Scalar scalar)
                 {
                     bool isPlainImplicit = false;
                     bool isQuotedImplicit = false;
@@ -531,15 +524,13 @@ namespace SharpYaml
                     return evt;
                 }
 
-                FlowSequenceStart flowSequenceStart = GetCurrentToken() as FlowSequenceStart;
-                if (flowSequenceStart != null)
+                if (GetCurrentToken() is FlowSequenceStart flowSequenceStart)
                 {
                     state = ParserState.YAML_PARSE_FLOW_SEQUENCE_FIRST_ENTRY_STATE;
                     return new Events.SequenceStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowSequenceStart.End);
                 }
 
-                FlowMappingStart flowMappingStart = GetCurrentToken() as FlowMappingStart;
-                if (flowMappingStart != null)
+                if (GetCurrentToken() is FlowMappingStart flowMappingStart)
                 {
                     state = ParserState.YAML_PARSE_FLOW_MAPPING_FIRST_KEY_STATE;
                     return new Events.MappingStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowMappingStart.End);
@@ -547,15 +538,13 @@ namespace SharpYaml
 
                 if (isBlock)
                 {
-                    BlockSequenceStart blockSequenceStart = GetCurrentToken() as BlockSequenceStart;
-                    if (blockSequenceStart != null)
+                    if (GetCurrentToken() is BlockSequenceStart blockSequenceStart)
                     {
                         state = ParserState.YAML_PARSE_BLOCK_SEQUENCE_FIRST_ENTRY_STATE;
                         return new Events.SequenceStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, blockSequenceStart.End);
                     }
 
-                    BlockMappingStart blockMappingStart = GetCurrentToken() as BlockMappingStart;
-                    if (blockMappingStart != null)
+                    if (GetCurrentToken() is BlockMappingStart blockMappingStart)
                     {
                         state = ParserState.YAML_PARSE_BLOCK_MAPPING_FIRST_KEY_STATE;
                         return new Events.MappingStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, GetCurrentToken().End);
@@ -783,7 +772,7 @@ namespace SharpYaml
             }
 
             Event evt;
-            if (!(GetCurrentToken() is FlowSequenceEnd))
+            if (GetCurrentToken() is not FlowSequenceEnd)
             {
                 if (!isFirst)
                 {
@@ -805,7 +794,7 @@ namespace SharpYaml
                     Skip();
                     return evt;
                 }
-                else if (!(GetCurrentToken() is FlowSequenceEnd))
+                else if (GetCurrentToken() is not FlowSequenceEnd)
                 {
                     states.Push(ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_STATE);
                     return ParseNode(false, false);
@@ -891,7 +880,7 @@ namespace SharpYaml
                 Skip();
             }
 
-            if (!(GetCurrentToken() is FlowMappingEnd))
+            if (GetCurrentToken() is not FlowMappingEnd)
             {
                 if (!isFirst)
                 {
@@ -921,7 +910,7 @@ namespace SharpYaml
                         return ProcessEmptyScalar(GetCurrentToken().Start);
                     }
                 }
-                else if (!(GetCurrentToken() is FlowMappingEnd))
+                else if (GetCurrentToken() is not FlowMappingEnd)
                 {
                     states.Push(ParserState.YAML_PARSE_FLOW_MAPPING_EMPTY_VALUE_STATE);
                     return ParseNode(false, false);

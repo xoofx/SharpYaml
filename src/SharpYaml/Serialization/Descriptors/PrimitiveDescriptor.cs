@@ -79,8 +79,7 @@ namespace SharpYaml.Serialization.Descriptors
                     var attributes = attributeRegistry.GetAttributes(member);
                     foreach (var attribute in attributes)
                     {
-                        var yamlRemap = attribute as YamlRemapAttribute;
-                        if (yamlRemap != null)
+                        if (attribute is YamlRemapAttribute yamlRemap)
                         {
                             if (enumRemap == null)
                             {

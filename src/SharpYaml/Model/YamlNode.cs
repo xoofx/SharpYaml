@@ -65,10 +65,10 @@ namespace SharpYaml.Model
 
             // Emitter will throw an exception if we attempt to use it without
             // starting StremStart and DocumentStart events.
-            if (!(events[0] is StreamStart))
+            if (events[0] is not StreamStart)
                 events.Insert(0, new StreamStart());
 
-            if (!(events[1] is DocumentStart))
+            if (events[1] is not DocumentStart)
                 events.Insert(1, new DocumentStart());
 
             foreach (var evnt in events)

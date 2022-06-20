@@ -110,20 +110,17 @@ namespace SharpYaml.Schemas
             if (nodeEvent == null)
                 throw new ArgumentNullException("nodeEvent");
 
-            var mapping = nodeEvent as MappingStart;
-            if (mapping != null)
+            if (nodeEvent is MappingStart mapping)
             {
                 return GetDefaultTag(mapping);
             }
 
-            var sequence = nodeEvent as SequenceStart;
-            if (sequence != null)
+            if (nodeEvent is SequenceStart sequence)
             {
                 return GetDefaultTag(sequence);
             }
 
-            var scalar = nodeEvent as Scalar;
-            if (scalar != null)
+            if (nodeEvent is Scalar scalar)
             {
                 TryParse(scalar, false, out string tag, out object value);
                 return tag;

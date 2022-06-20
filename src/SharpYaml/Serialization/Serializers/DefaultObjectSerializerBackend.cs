@@ -51,17 +51,15 @@ namespace SharpYaml.Serialization.Serializers
             if (style == YamlStyle.Any)
             {
                 bool isPrimitiveElementType = false;
-                var collectionDescriptor = objectContext.Descriptor as CollectionDescriptor;
                 int count = 0;
-                if (collectionDescriptor != null)
+                if (objectContext.Descriptor is CollectionDescriptor collectionDescriptor)
                 {
                     isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(collectionDescriptor.ElementType);
                     count = collectionDescriptor.GetCollectionCount(objectContext.Instance);
                 }
                 else
                 {
-                    var arrayDescriptor = objectContext.Descriptor as ArrayDescriptor;
-                    if (arrayDescriptor != null)
+                    if (objectContext.Descriptor is ArrayDescriptor arrayDescriptor)
                     {
                         isPrimitiveElementType = PrimitiveDescriptor.IsPrimitive(arrayDescriptor.ElementType);
                         count = objectContext.Instance != null ? ((Array)objectContext.Instance).Length : -1;

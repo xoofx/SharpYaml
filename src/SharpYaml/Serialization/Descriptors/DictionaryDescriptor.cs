@@ -163,12 +163,14 @@ namespace SharpYaml.Serialization.Descriptors
                 var simpleDictionary = (IDictionary)dictionary;
                 foreach (var keyValueObject in simpleDictionary)
                 {
-                    if (!(keyValueObject is DictionaryEntry))
+                    if (keyValueObject is not DictionaryEntry entry)
                     {
                         throw new NotSupportedException($"Key value-pair type [{keyValueObject}] is not supported for IDictionary. Only DictionaryEntry");
                     }
-                    var entry = (DictionaryEntry)keyValueObject;
-                    yield return new KeyValuePair<object, object>(entry.Key, entry.Value);
+                    else
+                    {
+                        yield return new KeyValuePair<object, object>(entry.Key, entry.Value);
+                    }
                 }
             }
         }
@@ -184,8 +186,7 @@ namespace SharpYaml.Serialization.Descriptors
         {
             if (dictionary == null)
                 throw new ArgumentNullException("dictionary");
-            var simpleDictionary = dictionary as IDictionary;
-            if (simpleDictionary != null)
+            if (dictionary is IDictionary simpleDictionary)
             {
                 simpleDictionary.Add(key, value);
             }

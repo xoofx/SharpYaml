@@ -1111,8 +1111,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
             public override void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
             {
-                var itemKey = keyValue.Key as string;
-                if (itemKey != null && (itemKey.Contains("Name") || itemKey.Contains("Test")))
+                if (keyValue.Key is string itemKey && (itemKey.Contains("Name") || itemKey.Contains("Test")))
                 {
                     keyValue = new KeyValuePair<object, object>(itemKey + "!", keyValue.Value);
                 }
@@ -1221,13 +1220,12 @@ Enum: Value2");
             settings.RegisterAssembly(typeof(TestRemapObject).Assembly);
 
             var serializer = new Serializer(settings);
-            SerializerContext context;
 
             // Test no-remap
             var myCustomObjectText = serializer.Deserialize<TestRemapObject>(@"!TestRemapObject
 Name: Test1
 Enum: Value2
-", out context);
+", out var context);
             Assert.AreEqual("Test1", myCustomObjectText.Name);
             Assert.AreEqual(MyRemapEnum.Value2, myCustomObjectText.Enum);
             Assert.IsFalse(context.HasRemapOccurred);

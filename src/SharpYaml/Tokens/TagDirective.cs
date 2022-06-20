@@ -120,8 +120,7 @@ namespace SharpYaml.Tokens
         /// </returns>
         public override bool Equals(object obj)
         {
-            TagDirective other = obj as TagDirective;
-            return other != null && handle.Equals(other.handle) && prefix.Equals(other.prefix);
+            return obj is TagDirective other && handle.Equals(other.handle) && prefix.Equals(other.prefix);
         }
 
         /// <summary>

@@ -86,8 +86,7 @@ namespace SharpYaml
         /// </returns>
         public override bool Equals(object obj)
         {
-            Version other = obj as Version;
-            return other != null && major == other.major && minor == other.minor;
+            return obj is Version other && major == other.major && minor == other.minor;
         }
 
         /// <summary>

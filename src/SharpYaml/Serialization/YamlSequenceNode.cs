@@ -200,8 +200,7 @@ namespace SharpYaml.Serialization
         /// <summary />
         public override bool Equals(object other)
         {
-            var obj = other as YamlSequenceNode;
-            if (obj == null || !Equals(obj) || children.Count != obj.children.Count)
+            if (other is not YamlSequenceNode obj || !Equals(obj) || children.Count != obj.children.Count)
             {
                 return false;
             }

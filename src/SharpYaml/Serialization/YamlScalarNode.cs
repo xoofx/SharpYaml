@@ -131,8 +131,7 @@ namespace SharpYaml.Serialization
         /// <summary />
         public override bool Equals(object other)
         {
-            var obj = other as YamlScalarNode;
-            return obj != null && Equals(obj) && SafeEquals(Value, obj.Value);
+            return other is YamlScalarNode obj && Equals(obj) && SafeEquals(Value, obj.Value);
         }
 
         /// <summary>
