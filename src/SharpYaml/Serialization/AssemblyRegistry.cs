@@ -214,7 +214,7 @@ namespace SharpYaml.Serialization
             lock (lockCache)
             {
                 // Else try to find a registered alias
-                if (tagToType.TryGetValue(shortTag, out MappedType mappedType))
+                if (tagToType.TryGetValue(shortTag, out var mappedType))
                 {
                     isAlias = mappedType.Remapped;
                     return mappedType.Type;
@@ -244,12 +244,10 @@ namespace SharpYaml.Serialization
                 return "!!null";
             }
 
-            string tagName;
-
             lock (lockCache)
             {
                 // First try to resolve a tag from registered tag
-                if (!typeToTag.TryGetValue(type, out tagName))
+                if (!typeToTag.TryGetValue(type, out var tagName))
                 {
                     // Else try to use schema tag for scalars
                     // Else use full name of the type
@@ -257,9 +255,8 @@ namespace SharpYaml.Serialization
                     tagName = schema.GetDefaultTag(type) ?? Uri.EscapeUriString($"!{typeName}");
                     typeToTag.Add(type, tagName);
                 }
+                return tagName;
             }
-
-            return tagName;
         }
 
         public virtual Type ResolveType(string typeName)

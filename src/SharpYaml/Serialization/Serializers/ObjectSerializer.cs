@@ -194,7 +194,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
         protected virtual void ReadMember(ref ObjectContext objectContext)
         {
-            if (!TryReadMember(ref objectContext, out Scalar memberScalar, out string memberName))
+            if (!TryReadMember(ref objectContext, out var memberScalar, out var memberName))
             {
                 if (!objectContext.Settings.IgnoreUnmatchedProperties)
                     throw new YamlException(memberScalar.Start, memberScalar.End, $"Unable to deserialize property [{memberName}] not found in type [{objectContext.Descriptor}]");
@@ -209,7 +209,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <returns><c>true</c> if the member was successfully read, <c>false</c> otherwise.</returns>
         protected bool TryReadMember(ref ObjectContext objectContext, out string memberName)
         {
-            return TryReadMember(ref objectContext, out Scalar scalar, out memberName);
+            return TryReadMember(ref objectContext, out var scalar, out memberName);
         }
 
         /// <summary>

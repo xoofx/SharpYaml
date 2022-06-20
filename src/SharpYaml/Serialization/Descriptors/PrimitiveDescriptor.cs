@@ -119,7 +119,7 @@ namespace SharpYaml.Serialization.Descriptors
         public object ParseEnum(string enumAsText, out bool remapped)
         {
             remapped = false;
-            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out object value))
+            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out var value))
             {
                 remapped = true;
                 return value;

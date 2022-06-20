@@ -141,8 +141,8 @@ namespace SharpYaml.Model
         {
             var mappingStart = eventReader.Allow<MappingStart>();
 
-            List<YamlElement> keys = new List<YamlElement>();
-            Dictionary<YamlElement, YamlElement> contents = new Dictionary<YamlElement, YamlElement>();
+            var keys = new List<YamlElement>();
+            var contents = new Dictionary<YamlElement, YamlElement>();
             while (!eventReader.Accept<MappingEnd>())
             {
                 var key = ReadElement(eventReader, tracker);
@@ -281,7 +281,7 @@ namespace SharpYaml.Model
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-            if (!stringKeys.TryGetValue(key, out YamlValue yaml))
+            if (!stringKeys.TryGetValue(key, out var yaml))
                 return false;
 
             if (Remove(yaml))
@@ -303,7 +303,7 @@ namespace SharpYaml.Model
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-            if (!stringKeys.TryGetValue(key, out YamlValue yamlKey))
+            if (!stringKeys.TryGetValue(key, out var yamlKey))
             {
                 value = null;
                 return false;

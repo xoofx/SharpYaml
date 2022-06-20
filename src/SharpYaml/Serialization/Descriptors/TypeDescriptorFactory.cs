@@ -86,7 +86,7 @@ namespace SharpYaml.Serialization.Descriptors
             lock (registeredDescriptors)
             {
                 // Caching is integrated in this class, avoiding a ChainedTypeDescriptorFactory
-                if (registeredDescriptors.TryGetValue(type, out ITypeDescriptor descriptor))
+                if (registeredDescriptors.TryGetValue(type, out var descriptor))
                 {
                     return descriptor;
                 }

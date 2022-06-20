@@ -75,15 +75,15 @@ namespace SharpYaml.Serialization
         /// <param name="state">The state.</param>
         internal YamlMappingNode(EventReader events, DocumentLoadingState state)
         {
-            MappingStart mapping = events.Expect<MappingStart>();
+            var mapping = events.Expect<MappingStart>();
             Load(mapping, state);
             Style = mapping.Style;
 
             bool hasUnresolvedAliases = false;
             while (!events.Accept<MappingEnd>())
             {
-                YamlNode key = ParseNode(events, state);
-                YamlNode value = ParseNode(events, state);
+                var key = ParseNode(events, state);
+                var value = ParseNode(events, state);
 
                 try
                 {
@@ -255,7 +255,7 @@ namespace SharpYaml.Serialization
             {
                 foreach (var entry in keysToUpdate)
                 {
-                    YamlNode value = Children[entry.Key];
+                    var value = Children[entry.Key];
                     Children.Remove(entry.Key);
                     Children.Add(entry.Value, value);
                 }
@@ -299,7 +299,7 @@ namespace SharpYaml.Serialization
 
             foreach (var entry in Children)
             {
-                if (!obj.Children.TryGetValue(entry.Key, out YamlNode otherNode) || !SafeEquals(entry.Value, otherNode))
+                if (!obj.Children.TryGetValue(entry.Key, out var otherNode) || !SafeEquals(entry.Value, otherNode))
                 {
                     return false;
                 }

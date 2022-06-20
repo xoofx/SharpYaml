@@ -78,14 +78,14 @@ namespace SharpYaml.Serialization
         /// <param name="state">The state.</param>
         internal YamlSequenceNode(EventReader events, DocumentLoadingState state)
         {
-            SequenceStart sequence = events.Expect<SequenceStart>();
+            var sequence = events.Expect<SequenceStart>();
             Load(sequence, state);
             Style = sequence.Style;
 
             bool hasUnresolvedAliases = false;
             while (!events.Accept<SequenceEnd>())
             {
-                YamlNode child = ParseNode(events, state);
+                var child = ParseNode(events, state);
                 Children.Add(child);
                 hasUnresolvedAliases |= child is YamlAliasNode;
             }

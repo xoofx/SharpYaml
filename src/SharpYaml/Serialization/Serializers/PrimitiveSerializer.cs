@@ -94,8 +94,7 @@ namespace SharpYaml.Serialization.Serializers
             switch (type.GetTypeCode())
             {
                 case TypeCode.Boolean:
-                    object value;
-                    context.SerializerContext.Schema.TryParse(scalar, type, out value);
+                    context.SerializerContext.Schema.TryParse(scalar, type, out var value);
                     return value;
                 case TypeCode.DateTime:
                     return DateTime.Parse(text, CultureInfo.InvariantCulture);
@@ -156,7 +155,7 @@ namespace SharpYaml.Serialization.Serializers
             if (type == typeof(object))
             {
                 // Try to parse the scalar directly
-                if (context.SerializerContext.Schema.TryParse(scalar, true, out string defaultTag, out object scalarValue))
+                if (context.SerializerContext.Schema.TryParse(scalar, true, out var defaultTag, out var scalarValue))
                 {
                     return scalarValue;
                 }

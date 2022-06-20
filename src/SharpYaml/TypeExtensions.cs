@@ -101,7 +101,7 @@ namespace SharpYaml
                             && interfaceType.GetGenericTypeDefinition() == lookInterfaceType)
                             return interfaceType;
 
-                for (Type t = type; t != null; t = t.GetTypeInfo().BaseType)
+                for (var t = type; t != null; t = t.GetTypeInfo().BaseType)
                     if (t.GetTypeInfo().IsGenericType && t.GetGenericTypeDefinition() == lookInterfaceType)
                         return t;
             }

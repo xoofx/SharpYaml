@@ -432,7 +432,7 @@ namespace SharpYaml.Model
         {
             var pi = new ParentAndIndex(parent, relationship);
 
-            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> set))
+            if (!parents.TryGetValue(child, out var set))
             {
                 set = new[] { pi };
                 parents.Add(child, set);
@@ -456,7 +456,7 @@ namespace SharpYaml.Model
 
         void RemoveChild(YamlNode child, YamlNode parent, ChildIndex relationship)
         {
-            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> set))
+            if (!parents.TryGetValue(child, out var set))
                 return;
 
             if (set is ParentAndIndex[])
@@ -486,7 +486,7 @@ namespace SharpYaml.Model
 
         void ShiftChild(YamlNode child, YamlNode parent, ChildIndex relationship, int shift)
         {
-            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> set))
+            if (!parents.TryGetValue(child, out var set))
                 return;
 
             var newChildIndex = new ChildIndex(relationship.Index + shift, relationship.IsKey);
@@ -500,7 +500,7 @@ namespace SharpYaml.Model
                     var newPaths = new List<Path>();
                     foreach (var subpath in pathTrie.GetSubpaths(oldPath))
                     {
-                        if (!subscribers.TryGetValue(subpath, out Dictionary<WeakReference, string> subs))
+                        if (!subscribers.TryGetValue(subpath, out var subs))
                             continue;
 
                         var newPath = subpath.Clone();
@@ -533,7 +533,7 @@ namespace SharpYaml.Model
             if (child is YamlStream)
                 return new Path[0];
 
-            if (!parents.TryGetValue(child, out ICollection<ParentAndIndex> relationships))
+            if (!parents.TryGetValue(child, out var relationships))
                 return new Path[0];
 
             var result = new List<Path>();

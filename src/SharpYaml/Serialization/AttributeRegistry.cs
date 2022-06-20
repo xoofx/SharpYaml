@@ -83,7 +83,7 @@ namespace SharpYaml.Serialization
             lock (globalLock)
             {
                 // Use a cache of attributes
-                if (cachedAttributes.TryGetValue(key, out List<Attribute> attributes))
+                if (cachedAttributes.TryGetValue(key, out var attributes))
                 {
                     return attributes;
                 }
@@ -93,7 +93,7 @@ namespace SharpYaml.Serialization
                 attributes = defaultAttributes.ToList();
 
                 // And add registered attributes
-                if (registeredAttributes.TryGetValue(memberInfo, out List<Attribute> registered))
+                if (registeredAttributes.TryGetValue(memberInfo, out var registered))
                 {
                     attributes.AddRange(registered);
                 }
@@ -124,7 +124,7 @@ namespace SharpYaml.Serialization
             lock (globalLock)
             {
                 // Use a cache of attributes
-                if (!cachedAttributes.TryGetValue(new MemberInfoKey(memberInfo, false), out List<Attribute> attributes))
+                if (!cachedAttributes.TryGetValue(new MemberInfoKey(memberInfo, false), out var attributes))
                 {
                     if (!registeredAttributes.TryGetValue(memberInfo, out attributes))
                     {

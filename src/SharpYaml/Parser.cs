@@ -258,7 +258,7 @@ namespace SharpYaml
 
             if (isImplicit && !(GetCurrentToken() is VersionDirective || GetCurrentToken() is TagDirective || GetCurrentToken() is DocumentStart || GetCurrentToken() is StreamEnd))
             {
-                TagDirectiveCollection directives = new TagDirectiveCollection();
+                var directives = new TagDirectiveCollection();
                 ProcessDirectives(directives);
 
                 states.Push(ParserState.YAML_PARSE_DOCUMENT_END_STATE);
@@ -272,9 +272,9 @@ namespace SharpYaml
 
             else if (GetCurrentToken() is not StreamEnd)
             {
-                Mark start = GetCurrentToken().Start;
-                TagDirectiveCollection directives = new TagDirectiveCollection();
-                VersionDirective versionDirective = ProcessDirectives(directives);
+                var start = GetCurrentToken().Start;
+                var directives = new TagDirectiveCollection();
+                var versionDirective = ProcessDirectives(directives);
 
                 var current = GetCurrentToken();
                 if (current is not DocumentStart)
@@ -440,7 +440,7 @@ namespace SharpYaml
                 return evt;
             }
 
-            Mark start = GetCurrentToken().Start;
+            var start = GetCurrentToken().Start;
 
             Anchor anchor = null;
             Tag tag = null;
@@ -483,7 +483,7 @@ namespace SharpYaml
                 tagName = null;
             }
 
-            string anchorName = anchor != null ? string.IsNullOrEmpty(anchor.Value) ? null : anchor.Value : null;
+            var anchorName = anchor != null ? string.IsNullOrEmpty(anchor.Value) ? null : anchor.Value : null;
 
             bool isImplicit = string.IsNullOrEmpty(tagName);
 
@@ -570,8 +570,8 @@ namespace SharpYaml
         private Event ParseDocumentEnd()
         {
             bool isImplicit = true;
-            Mark start = GetCurrentToken().Start;
-            Mark end = start;
+            var start = GetCurrentToken().Start;
+            var end = start;
 
             if (GetCurrentToken() is DocumentEnd)
             {
@@ -601,7 +601,7 @@ namespace SharpYaml
 
             if (GetCurrentToken() is BlockEntry)
             {
-                Mark mark = GetCurrentToken().End;
+                var mark = GetCurrentToken().End;
 
                 Skip();
                 if (!(GetCurrentToken() is BlockEntry || GetCurrentToken() is BlockEnd))
@@ -640,7 +640,7 @@ namespace SharpYaml
         {
             if (GetCurrentToken() is BlockEntry)
             {
-                Mark mark = GetCurrentToken().End;
+                var mark = GetCurrentToken().End;
                 Skip();
 
                 if (!(GetCurrentToken() is BlockEntry || GetCurrentToken() is Key || GetCurrentToken() is Value || GetCurrentToken() is BlockEnd))
@@ -682,7 +682,7 @@ namespace SharpYaml
 
             if (GetCurrentToken() is Key)
             {
-                Mark mark = GetCurrentToken().End;
+                var mark = GetCurrentToken().End;
                 Skip();
                 if (!(GetCurrentToken() is Key || GetCurrentToken() is Value || GetCurrentToken() is BlockEnd))
                 {
@@ -726,7 +726,7 @@ namespace SharpYaml
         {
             if (GetCurrentToken() is Value)
             {
-                Mark mark = GetCurrentToken().End;
+                var mark = GetCurrentToken().End;
                 Skip();
 
                 if (!(GetCurrentToken() is Key || GetCurrentToken() is Value || GetCurrentToken() is BlockEnd))
@@ -819,7 +819,7 @@ namespace SharpYaml
             }
             else
             {
-                Mark mark = GetCurrentToken().End;
+                var mark = GetCurrentToken().End;
                 Skip();
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_VALUE_STATE;
                 return ProcessEmptyScalar(mark);

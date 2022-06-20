@@ -84,7 +84,7 @@ namespace SharpYaml.Serialization
         {
             this.Settings = settings ?? new SerializerSettings();
             TypeDescriptorFactory = CreateTypeDescriptorFactory();
-            ObjectSerializer = CreateProcessor(out RoutingSerializer routingSerializer);
+            ObjectSerializer = CreateProcessor(out var routingSerializer);
             RoutingSerializer = routingSerializer;
         }
 
@@ -496,7 +496,7 @@ namespace SharpYaml.Serialization
         /// <exception cref="System.ArgumentNullException">reader</exception>
         public object Deserialize(EventReader reader, Type expectedType, object existingObject = null, SerializerContextSettings contextSettings = null)
         {
-            return Deserialize(reader, expectedType, existingObject, contextSettings, out SerializerContext context);
+            return Deserialize(reader, expectedType, existingObject, contextSettings, out var context);
         }
 
         /// <summary>

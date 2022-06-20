@@ -76,7 +76,7 @@ namespace SharpYaml.Serialization
         /// <param name="state">The state.</param>
         internal YamlScalarNode(EventReader events, DocumentLoadingState state)
         {
-            Scalar scalar = events.Expect<Scalar>();
+            var scalar = events.Expect<Scalar>();
             Load(scalar, state);
             Value = scalar.Value;
             Style = scalar.Style;

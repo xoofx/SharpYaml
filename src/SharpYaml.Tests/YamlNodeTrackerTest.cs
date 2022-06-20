@@ -261,7 +261,7 @@ namespace SharpYaml.Tests
             var stream = YamlStream.Load(fileStream, tracker);
             var seq = (YamlSequence)((YamlMapping)stream[0].Contents)["a sequence"];
 
-            Path modifiedPath = new Path();
+            var modifiedPath = new Path();
             tracker.TrackerEvent += (sender, args) => modifiedPath = args.ParentPaths[0];
 
             seq[0] = new YamlValue("New item");
@@ -298,7 +298,7 @@ namespace SharpYaml.Tests
             var stream = YamlStream.Load(fileStream, tracker);
             var seq = (YamlSequence)((YamlSequence)stream[0].Contents)[2];
 
-            Path modifiedPath = new Path();
+            var modifiedPath = new Path();
             tracker.TrackerEvent += (sender, args) => modifiedPath = args.ParentPaths[0];
 
             seq[0] = new YamlValue("New item");
@@ -335,7 +335,7 @@ namespace SharpYaml.Tests
             var stream = YamlStream.Load(fileStream, tracker);
             var val = (YamlValue)stream[2].Contents;
 
-            Path modifiedPath = new Path();
+            var modifiedPath = new Path();
             tracker.TrackerEvent += (sender, args) =>
             {
                 if (args.ParentPaths.Count > 0)

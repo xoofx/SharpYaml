@@ -144,7 +144,7 @@ namespace SharpYaml.Serialization.Descriptors
 
             foreach (var member in members)
             {
-                if (mapMembers.TryGetValue(member.Name, out IMemberDescriptor existingMember))
+                if (mapMembers.TryGetValue(member.Name, out var existingMember))
                 {
                     throw new YamlException($"Failed to get ObjectDescriptor for type [{Type.FullName}]. The member [{member}] cannot be registered as a member with the same name is already registered [{existingMember}]");
                 }
@@ -208,7 +208,7 @@ namespace SharpYaml.Serialization.Descriptors
             {
                 if (mapMembers == null)
                     throw new KeyNotFoundException(name);
-                mapMembers.TryGetValue(name, out IMemberDescriptor member);
+                mapMembers.TryGetValue(name, out var member);
                 return member;
             }
         }
@@ -376,8 +376,8 @@ namespace SharpYaml.Serialization.Descriptors
 
             if (defaultValueAttribute != null && member.ShouldSerialize == null && !emitDefaultValues)
             {
-                object defaultValue = defaultValueAttribute.Value;
-                Type defaultType = defaultValue?.GetType();
+                var defaultValue = defaultValueAttribute.Value;
+                var defaultType = defaultValue?.GetType();
                 if (defaultType.IsNumeric() && defaultType != memberType)
                     defaultValue = memberType.CastToNumericType(defaultValue);
                 member.ShouldSerialize = obj => !TypeExtensions.AreEqual(defaultValue, member.Get(obj));

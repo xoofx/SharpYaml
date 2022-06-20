@@ -92,7 +92,7 @@ namespace SharpYaml.Schemas
             if (shortTag == null)
                 return null;
 
-            return shortTagToLongTag.TryGetValue(shortTag, out string tagExpanded) ? tagExpanded : shortTag;
+            return shortTagToLongTag.TryGetValue(shortTag, out var tagExpanded) ? tagExpanded : shortTag;
         }
 
         public string ShortenTag(string longTag)
@@ -100,7 +100,7 @@ namespace SharpYaml.Schemas
             if (longTag == null)
                 return null;
 
-            return longTagToShortTag.TryGetValue(longTag, out string tagShortened) ? tagShortened : longTag;
+            return longTagToShortTag.TryGetValue(longTag, out var tagShortened) ? tagShortened : longTag;
         }
 
         public string GetDefaultTag(NodeEvent nodeEvent)
@@ -122,7 +122,7 @@ namespace SharpYaml.Schemas
 
             if (nodeEvent is Scalar scalar)
             {
-                TryParse(scalar, false, out string tag, out object value);
+                TryParse(scalar, false, out var tag, out _);
                 return tag;
             }
 
@@ -135,7 +135,7 @@ namespace SharpYaml.Schemas
                 throw new ArgumentNullException("type");
             EnsureScalarRules();
 
-            mapTypeToShortTag.TryGetValue(type, out string defaultTag);
+            mapTypeToShortTag.TryGetValue(type, out var defaultTag);
             return defaultTag;
         }
 
@@ -252,7 +252,7 @@ namespace SharpYaml.Schemas
             // Parse only values if we have some rules
             if (mapTypeToScalarResolutionRuleList.Count > 0)
             {
-                if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out List<ScalarResolutionRule> rules))
+                if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out var rules))
                 {
                     foreach (var rule in rules)
                     {
@@ -277,7 +277,7 @@ namespace SharpYaml.Schemas
                 return null;
             }
 
-            mapShortTagToType.TryGetValue(shortTag, out Type type);
+            mapShortTagToType.TryGetValue(shortTag, out var type);
             return type;
         }
 

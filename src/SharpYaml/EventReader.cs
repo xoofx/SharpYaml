@@ -134,7 +134,7 @@ namespace SharpYaml
             {
                 return null;
             }
-            T yamlEvent = (T)Parser.Current;
+            var yamlEvent = (T)Parser.Current;
             MoveNext();
             return yamlEvent;
         }
@@ -150,7 +150,7 @@ namespace SharpYaml
             {
                 return null;
             }
-            T yamlEvent = (T)Parser.Current;
+            var yamlEvent = (T)Parser.Current;
             return yamlEvent;
         }
 

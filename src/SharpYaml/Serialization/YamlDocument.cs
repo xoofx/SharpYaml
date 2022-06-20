@@ -85,7 +85,7 @@ namespace SharpYaml.Serialization
         /// <param name="events">The events.</param>
         internal YamlDocument(EventReader events)
         {
-            DocumentLoadingState state = new DocumentLoadingState();
+            var state = new DocumentLoadingState();
 
             events.Expect<DocumentStart>();
 
@@ -130,7 +130,7 @@ namespace SharpYaml.Serialization
 
                 document.Accept(this);
 
-                Random random = new Random();
+                var random = new Random();
                 foreach (var visitedNode in visitedNodes)
                 {
                     if (visitedNode.Value)
@@ -187,7 +187,7 @@ namespace SharpYaml.Serialization
 
         private void AssignAnchors()
         {
-            AnchorAssigningVisitor visitor = new AnchorAssigningVisitor();
+            var visitor = new AnchorAssigningVisitor();
             visitor.AssignAnchors(this);
         }
 

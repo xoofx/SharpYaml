@@ -239,7 +239,7 @@ namespace SharpYaml
 
             while (!NeedMoreEvents())
             {
-                ParsingEvent current = events.Peek();
+                var current = events.Peek();
                 AnalyzeEvent(current);
                 StateMachine(current);
 
@@ -815,7 +815,7 @@ namespace SharpYaml
         {
             return uriReplacer.Replace(text, delegate (Match match)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
                 foreach (var toEncode in Encoding.UTF8.GetBytes(match.Value))
                 {
                     buffer.AppendFormat("%{0:X02}", toEncode);
@@ -952,7 +952,7 @@ namespace SharpYaml
             ProcessAnchor();
             ProcessTag();
 
-            SequenceStart sequenceStart = (SequenceStart)evt;
+            var sequenceStart = (SequenceStart)evt;
 
             if (flowLevel != 0 || isCanonical || sequenceStart.Style == YamlStyle.Flow || CheckEmptySequence())
             {
@@ -1026,7 +1026,7 @@ namespace SharpYaml
             ProcessAnchor();
             ProcessTag();
 
-            MappingStart mappingStart = (MappingStart)evt;
+            var mappingStart = (MappingStart)evt;
 
             if (flowLevel != 0 || isCanonical || mappingStart.Style == YamlStyle.Flow || CheckEmptyMapping())
             {
@@ -1469,9 +1469,9 @@ namespace SharpYaml
         /// </summary>
         private void SelectScalarStyle(ParsingEvent evt)
         {
-            Scalar scalar = (Scalar)evt;
+            var scalar = (Scalar)evt;
 
-            ScalarStyle style = scalar.Style;
+            var style = scalar.Style;
             bool noTag = tagData.handle == null && tagData.suffix == null;
 
             if (noTag && !scalar.IsPlainImplicit && !scalar.IsQuotedImplicit)
@@ -1845,7 +1845,7 @@ namespace SharpYaml
 
             if (analyzer.IsSpace() || analyzer.IsBreak())
             {
-                string indent_hint = FormattableString.Invariant($"{bestIndent}");
+                var indent_hint = FormattableString.Invariant($"{bestIndent}");
                 WriteIndicator(indent_hint, false, false, false);
             }
 

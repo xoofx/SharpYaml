@@ -276,8 +276,7 @@ UInt64: 8
 
             public override object Get(object thisObject)
             {
-                int id;
-                DynamicIds.TryGetValue(thisObject, out id);
+                DynamicIds.TryGetValue(thisObject, out var id);
                 return id;
             }
 
@@ -1592,7 +1591,7 @@ Test: !ClassWithImplicitMemberTypeInner
             settings.RegisterAssembly(typeof(OuterClass).Assembly);
             var serializer = new Serializer(settings);
 
-            string serialString = serializer.Serialize(expected);
+            var serialString = serializer.Serialize(expected);
             var actual = serializer.Deserialize(serialString) as OuterClass;
             Assert.NotNull(actual);
             Assert.True(ReferenceEquals(actual.InnerObjects[0].Array, actual.InnerObjects[1].Array));
