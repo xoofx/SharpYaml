@@ -1,4 +1,4 @@
-using SharpYaml.Serialization.Logging;
+﻿using SharpYaml.Serialization.Logging;
 
 namespace SharpYaml.Serialization
 {

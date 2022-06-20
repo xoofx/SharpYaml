@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,9 +44,9 @@
 // SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using SharpYaml;
 using SharpYaml.Events;
-using System.Collections.Generic;
 
 namespace SharpYaml.Serialization
 {
@@ -100,7 +100,7 @@ namespace SharpYaml.Serialization
         /// <param name="events">The events.</param>
         /// <param name="state">The state.</param>
         /// <returns>Returns the node that has been parsed.</returns>
-        static internal YamlNode ParseNode(EventReader events, DocumentLoadingState state)
+        internal static YamlNode ParseNode(EventReader events, DocumentLoadingState state)
         {
             if (events.Accept<Scalar>())
             {

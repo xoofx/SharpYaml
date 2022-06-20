@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,7 @@ namespace SharpYaml.Serialization.Descriptors
         public override void Set(object thisObject, object value)
         {
             if (HasSet)
-                setMethod.Invoke(thisObject, new[] {value});
+                setMethod.Invoke(thisObject, new[] { value });
         }
 
         public override bool HasSet { get { return setMethod != null; } }

@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -62,17 +62,17 @@ namespace SharpYaml.Serialization.Descriptors
 
         protected static readonly string SystemCollectionsNamespace = typeof(int).Namespace;
 
-        private readonly static object[] EmptyObjectArray = Array.Empty<object>();
+        private static readonly object[] EmptyObjectArray = Array.Empty<object>();
         private readonly Type type;
         private List<IMemberDescriptor> members;
         private Dictionary<string, IMemberDescriptor> mapMembers;
         private readonly bool emitDefaultValues;
         private readonly bool respectPrivateSetters;
-        private YamlStyle style;
+        private readonly YamlStyle style;
         private bool isSorted;
         private readonly IMemberNamingConvention memberNamingConvention;
         private HashSet<string> remapMembers;
-        private List<Attribute> attributes;
+        private readonly List<Attribute> attributes;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -145,7 +145,7 @@ namespace SharpYaml.Serialization.Descriptors
             if (members.Count <= 0)
                 return;
 
-            mapMembers = new Dictionary<string, IMemberDescriptor>((int) (members.Count*1.2));
+            mapMembers = new Dictionary<string, IMemberDescriptor>((int)(members.Count * 1.2));
 
             foreach (var member in members)
             {
@@ -238,19 +238,19 @@ namespace SharpYaml.Serialization.Descriptors
 
             // Add all public properties with a readable get method
             var memberList = (from propertyInfo in type.GetProperties(bindingFlags)
-                where
-                    propertyInfo.CanRead && propertyInfo.GetIndexParameters().Length == 0
-                select new PropertyDescriptor(propertyInfo, NamingConvention.Comparer, respectPrivateSetters)
+                              where
+                                  propertyInfo.CanRead && propertyInfo.GetIndexParameters().Length == 0
+                              select new PropertyDescriptor(propertyInfo, NamingConvention.Comparer, respectPrivateSetters)
                 into member
-                where PrepareMember(member)
-                select member).Cast<IMemberDescriptor>().ToList();
+                              where PrepareMember(member)
+                              select member).Cast<IMemberDescriptor>().ToList();
 
             // Add all public fields
             foreach (var item in (from fieldInfo in type.GetFields(bindingFlags)
-                select new FieldDescriptor(fieldInfo, NamingConvention.Comparer)
+                                  select new FieldDescriptor(fieldInfo, NamingConvention.Comparer)
                 into member
-                where PrepareMember(member)
-                select member))
+                                  where PrepareMember(member)
+                                  select member))
             {
                 memberList.Add(item);
             }
@@ -287,19 +287,19 @@ namespace SharpYaml.Serialization.Descriptors
 
                 if (attribute is YamlMemberAttribute)
                 {
-                    memberAttribute = (YamlMemberAttribute) attribute;
+                    memberAttribute = (YamlMemberAttribute)attribute;
                     continue;
                 }
 
                 if (attribute is DefaultValueAttribute)
                 {
-                    defaultValueAttribute = (DefaultValueAttribute) attribute;
+                    defaultValueAttribute = (DefaultValueAttribute)attribute;
                     continue;
                 }
 
                 if (attribute is YamlStyleAttribute)
                 {
-                    styleAttribute = (YamlStyleAttribute) attribute;
+                    styleAttribute = (YamlStyleAttribute)attribute;
                     continue;
                 }
 
@@ -378,7 +378,7 @@ namespace SharpYaml.Serialization.Descriptors
             //	  otherwise => true
             var shouldSerialize = type.GetMethod("ShouldSerialize" + member.OriginalName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             if (shouldSerialize != null && shouldSerialize.ReturnType == typeof(bool) && member.ShouldSerialize == null)
-                member.ShouldSerialize = obj => (bool) shouldSerialize.Invoke(obj, EmptyObjectArray);
+                member.ShouldSerialize = obj => (bool)shouldSerialize.Invoke(obj, EmptyObjectArray);
 
             if (defaultValueAttribute != null && member.ShouldSerialize == null && !emitDefaultValues)
             {

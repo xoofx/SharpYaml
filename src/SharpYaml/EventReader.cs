@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,11 +44,11 @@
 // SOFTWARE.
 
 using System;
+using System.Globalization;
 using System.IO;
 using SharpYaml;
-using System.Globalization;
-using Event = SharpYaml.Events.ParsingEvent;
 using SharpYaml.Events;
+using Event = SharpYaml.Events.ParsingEvent;
 
 namespace SharpYaml
 {
@@ -136,7 +136,7 @@ namespace SharpYaml
             {
                 return null;
             }
-            T yamlEvent = (T) parser.Current;
+            T yamlEvent = (T)parser.Current;
             MoveNext();
             return yamlEvent;
         }
@@ -152,7 +152,7 @@ namespace SharpYaml
             {
                 return null;
             }
-            T yamlEvent = (T) parser.Current;
+            T yamlEvent = (T)parser.Current;
             return yamlEvent;
         }
 

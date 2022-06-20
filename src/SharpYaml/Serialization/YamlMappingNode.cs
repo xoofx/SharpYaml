@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -134,7 +134,7 @@ namespace SharpYaml.Serialization
         /// Initializes a new instance of the <see cref="YamlMappingNode"/> class.
         /// </summary>
         public YamlMappingNode(params KeyValuePair<YamlNode, YamlNode>[] children)
-            : this((IEnumerable<KeyValuePair<YamlNode, YamlNode>>) children)
+            : this((IEnumerable<KeyValuePair<YamlNode, YamlNode>>)children)
         {
         }
 
@@ -154,7 +154,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="children">A sequence of <see cref="YamlNode"/> where even elements are keys and odd elements are values.</param>
         public YamlMappingNode(params YamlNode[] children)
-            : this((IEnumerable<YamlNode>) children)
+            : this((IEnumerable<YamlNode>)children)
         {
         }
 

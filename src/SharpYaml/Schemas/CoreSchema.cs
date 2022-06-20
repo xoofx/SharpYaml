@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -68,7 +68,7 @@ namespace SharpYaml.Schemas
             AddScalarRule<bool>("!!bool", @"true|True|TRUE", m => true, null);
             AddScalarRule<bool>("!!bool", @"false|False|FALSE", m => false, null);
 
-            AddScalarRule(new Type[] {typeof(ulong), typeof(long), typeof(int)}, "!!int", @"([-+]?(0|[1-9][0-9_]*))", DecodeInteger, null);
+            AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"([-+]?(0|[1-9][0-9_]*))", DecodeInteger, null);
 
             // Make float before 0x/0o to improve parsing as float are more common than 0x and 0o
             AddScalarRule<double>("!!float", @"[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?", m => Convert.ToDouble(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);

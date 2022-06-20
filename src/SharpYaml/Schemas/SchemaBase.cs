@@ -316,7 +316,7 @@ namespace SharpYaml.Schemas
         {
             // Make sure the tag is expanded to its long form
             var longTag = ShortenTag(tag);
-            scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T) m), typeof(T)));
+            scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T)m), typeof(T)));
         }
 
         protected void AddScalarRule(Type[] types, string tag, string regex, Func<Match, object> decode, Func<object, string> encode)

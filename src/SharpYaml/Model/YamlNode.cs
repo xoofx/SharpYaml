@@ -29,11 +29,14 @@ using DocumentStart = SharpYaml.Events.DocumentStart;
 using Scalar = SharpYaml.Events.Scalar;
 using StreamStart = SharpYaml.Events.StreamStart;
 
-namespace SharpYaml.Model {
-     public abstract class YamlNode {
+namespace SharpYaml.Model
+{
+    public abstract class YamlNode
+    {
         public virtual YamlNodeTracker Tracker { get; internal set; }
 
-        protected static YamlElement ReadElement(EventReader eventReader, YamlNodeTracker tracker = null) {
+        protected static YamlElement ReadElement(EventReader eventReader, YamlNodeTracker tracker = null)
+        {
             if (eventReader.Accept<MappingStart>())
                 return YamlMapping.Load(eventReader, tracker);
 
@@ -46,15 +49,18 @@ namespace SharpYaml.Model {
             return null;
         }
 
-        public IEnumerable<ParsingEvent> EnumerateEvents() {
+        public IEnumerable<ParsingEvent> EnumerateEvents()
+        {
             return new YamlNodeEventEnumerator(this);
         }
 
-        public void WriteTo(TextWriter writer, bool suppressDocumentTags = false) {
+        public void WriteTo(TextWriter writer, bool suppressDocumentTags = false)
+        {
             WriteTo(new Emitter(writer), suppressDocumentTags);
         }
 
-        public void WriteTo(IEmitter emitter, bool suppressDocumentTags = false) {
+        public void WriteTo(IEmitter emitter, bool suppressDocumentTags = false)
+        {
             var events = EnumerateEvents().ToList();
 
             // Emitter will throw an exception if we attempt to use it without
@@ -65,9 +71,12 @@ namespace SharpYaml.Model {
             if (!(events[1] is DocumentStart))
                 events.Insert(1, new DocumentStart());
 
-            foreach (var evnt in events) {
-                if (suppressDocumentTags) {
-                    if (evnt is DocumentStart document && document.Tags != null) {
+            foreach (var evnt in events)
+            {
+                if (suppressDocumentTags)
+                {
+                    if (evnt is DocumentStart document && document.Tags != null)
+                    {
                         document.Tags.Clear();
                     }
                 }
@@ -76,7 +85,8 @@ namespace SharpYaml.Model {
             }
         }
 
-        public override string ToString() {
+        public override string ToString()
+        {
             var sb = new StringBuilder();
             WriteTo(new StringWriter(sb), true);
             return sb.ToString().Trim();
@@ -84,7 +94,7 @@ namespace SharpYaml.Model {
 
         public T ToObject<T>(SerializerSettings settings = null)
         {
-            return (T) ToObject(typeof(T), settings);
+            return (T)ToObject(typeof(T), settings);
         }
 
         public object ToObject(Type type, SerializerSettings settings = null)
@@ -95,15 +105,18 @@ namespace SharpYaml.Model {
             return context.ReadYaml(null, type);
         }
 
-        class MemoryEmitter : IEmitter {
+        class MemoryEmitter : IEmitter
+        {
             public List<ParsingEvent> Events = new List<ParsingEvent>();
 
-            public void Emit(ParsingEvent evnt) {
+            public void Emit(ParsingEvent evnt)
+            {
                 Events.Add(evnt);
             }
         }
 
-        public static YamlElement FromObject(object value, SerializerSettings settings = null, Type expectedType = null) {
+        public static YamlElement FromObject(object value, SerializerSettings settings = null, Type expectedType = null)
+        {
             var s = new Serializer(settings);
 
             var emitter = new MemoryEmitter();

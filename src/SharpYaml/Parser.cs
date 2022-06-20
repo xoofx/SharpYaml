@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,8 +44,8 @@
 // SOFTWARE.
 
 using System;
-using System.Diagnostics;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using SharpYaml.Events;
 using SharpYaml.Tokens;
@@ -53,15 +53,17 @@ using AnchorAlias = SharpYaml.Tokens.AnchorAlias;
 using DocumentEnd = SharpYaml.Tokens.DocumentEnd;
 using DocumentStart = SharpYaml.Tokens.DocumentStart;
 using Event = SharpYaml.Events.ParsingEvent;
-using YamlStyle = SharpYaml.YamlStyle;
 using Scalar = SharpYaml.Tokens.Scalar;
 using StreamEnd = SharpYaml.Tokens.StreamEnd;
 using StreamStart = SharpYaml.Tokens.StreamStart;
+using YamlStyle = SharpYaml.YamlStyle;
 
 namespace SharpYaml
 {
-    public static class Parser {
-        public static IParser CreateParser(TextReader reader) {
+    public static class Parser
+    {
+        public static IParser CreateParser(TextReader reader)
+        {
             var stringReader = reader as StringReader;
             if (stringReader != null)
                 return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()));
@@ -69,7 +71,7 @@ namespace SharpYaml
             else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength));
         }
     }
-    
+
     /// <summary>
     /// Parses YAML streams.
     /// </summary>
@@ -95,7 +97,7 @@ namespace SharpYaml
             }
             return currentToken;
         }
-        
+
         /// <summary>
         /// Initializes a new instance of the <see cref="IParser"/> class.
         /// </summary>

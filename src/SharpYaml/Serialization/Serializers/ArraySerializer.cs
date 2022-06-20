@@ -60,10 +60,10 @@ namespace SharpYaml.Serialization.Serializers
         public virtual object ReadYaml(ref ObjectContext objectContext)
         {
             var reader = objectContext.Reader;
-            var arrayDescriptor = (ArrayDescriptor) objectContext.Descriptor;
+            var arrayDescriptor = (ArrayDescriptor)objectContext.Descriptor;
 
             bool isArray = objectContext.Instance != null && objectContext.Instance.GetType().IsArray;
-            var arrayList = (IList) objectContext.Instance;
+            var arrayList = (IList)objectContext.Instance;
 
             reader.Expect<SequenceStart>();
             int index = 0;
@@ -104,10 +104,10 @@ namespace SharpYaml.Serialization.Serializers
         public void WriteYaml(ref ObjectContext objectContext)
         {
             var value = objectContext.Instance;
-            var arrayDescriptor = (ArrayDescriptor) objectContext.Descriptor;
+            var arrayDescriptor = (ArrayDescriptor)objectContext.Descriptor;
 
             var valueType = value.GetType();
-            var arrayList = (IList) value;
+            var arrayList = (IList)value;
 
             // Emit a Flow sequence or block sequence depending on settings 
             objectContext.Writer.Emit(new SequenceStartEventInfo(value, valueType)

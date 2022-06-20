@@ -157,10 +157,10 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <value><c>true</c> if to emit JSON compatible YAML; otherwise, <c>false</c>.</value>
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public bool EmitJsonComptible 
+        public bool EmitJsonComptible
         {
             get => EmitJsonCompatible;
-            set => EmitJsonCompatible = value; 
+            set => EmitJsonCompatible = value;
         }
 
         /// <summary>
@@ -168,7 +168,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <value><c>true</c> if to emit JSON compatible YAML; otherwise, <c>false</c>.</value>
         public bool EmitJsonCompatible { get; set; }
-        
+
         /// <summary>
         /// Gets or sets a value indicating whether the property <see cref="List{T}.Capacity" /> should be emitted. Default is false.
         /// </summary>

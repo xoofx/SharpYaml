@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,7 @@ namespace SharpYaml.Tests.Serialization
 
             Assert.AreEqual(1, stream.Documents.Count);
             Assert.IsInstanceOf<YamlScalarNode>(stream.Documents[0].RootNode);
-            Assert.AreEqual("a scalar", ((YamlScalarNode) stream.Documents[0].RootNode).Value);
+            Assert.AreEqual("a scalar", ((YamlScalarNode)stream.Documents[0].RootNode).Value);
         }
 
         [Test]
@@ -73,12 +73,12 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(1, stream.Documents.Count);
             Assert.IsInstanceOf<YamlSequenceNode>(stream.Documents[0].RootNode);
 
-            var sequence = (YamlSequenceNode) stream.Documents[0].RootNode;
+            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
             Assert.AreEqual(3, sequence.Children.Count);
 
-            Assert.AreEqual("a scalar", ((YamlScalarNode) sequence.Children[0]).Value);
-            Assert.AreEqual("another scalar", ((YamlScalarNode) sequence.Children[1]).Value);
-            Assert.AreEqual("a scalar", ((YamlScalarNode) sequence.Children[2]).Value);
+            Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[0]).Value);
+            Assert.AreEqual("another scalar", ((YamlScalarNode)sequence.Children[1]).Value);
+            Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[2]).Value);
             Assert.AreSame(sequence.Children[0], sequence.Children[2]);
         }
 
@@ -91,12 +91,12 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(1, stream.Documents.Count);
             Assert.IsInstanceOf<YamlSequenceNode>(stream.Documents[0].RootNode);
 
-            var sequence = (YamlSequenceNode) stream.Documents[0].RootNode;
+            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
             Assert.AreEqual(3, sequence.Children.Count);
 
-            Assert.AreEqual("a scalar", ((YamlScalarNode) sequence.Children[0]).Value);
-            Assert.AreEqual("another scalar", ((YamlScalarNode) sequence.Children[1]).Value);
-            Assert.AreEqual("a scalar", ((YamlScalarNode) sequence.Children[2]).Value);
+            Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[0]).Value);
+            Assert.AreEqual("another scalar", ((YamlScalarNode)sequence.Children[1]).Value);
+            Assert.AreEqual("a scalar", ((YamlScalarNode)sequence.Children[2]).Value);
             Assert.AreSame(sequence.Children[0], sequence.Children[2]);
         }
 

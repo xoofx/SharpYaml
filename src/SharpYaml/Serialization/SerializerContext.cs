@@ -195,7 +195,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         public void WriteYaml(object value, Type expectedType, YamlStyle style = YamlStyle.Any)
         {
-            var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType)) {Style = style};
+            var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType)) { Style = style };
             ObjectSerializer.WriteYaml(ref objectContext);
         }
 

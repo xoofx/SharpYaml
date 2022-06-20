@@ -137,7 +137,7 @@ namespace SharpYaml.Serialization
                     {
                         try
                         {
-                            SerializableFactories.Add((IYamlSerializableFactory) Activator.CreateInstance(type));
+                            SerializableFactories.Add((IYamlSerializableFactory)Activator.CreateInstance(type));
                         }
                         catch
                         {

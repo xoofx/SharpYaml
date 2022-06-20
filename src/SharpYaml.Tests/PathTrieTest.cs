@@ -4,10 +4,13 @@ using SharpYaml.Model;
 using Path = SharpYaml.Model.Path;
 using YamlStream = SharpYaml.Model.YamlStream;
 
-namespace SharpYaml.Tests {
-    public class PathTrieTest {
+namespace SharpYaml.Tests
+{
+    public class PathTrieTest
+    {
         [Test]
-        public void BasicTest() {
+        public void BasicTest()
+        {
             var trie = new PathTrie();
             var root = new YamlStream();
             var path = new Path(root, new[] {
@@ -15,12 +18,12 @@ namespace SharpYaml.Tests {
                 new ChildIndex(-1, false),
                 new ChildIndex(2, false)
             });
-            
+
             trie.Add(path);
-            
+
             Assert.IsTrue(trie.Contains(path, false));
             Assert.IsTrue(trie.Contains(path, true));
-            
+
             Assert.IsFalse(trie.Contains(path.GetParentPath().Value, false));
             Assert.IsTrue(trie.Contains(path.GetParentPath().Value, true));
 
@@ -31,10 +34,10 @@ namespace SharpYaml.Tests {
             Assert.IsFalse(trie.Contains(childPath, true));
 
             var subPaths = trie.GetSubpaths(path).ToList();
-            
+
             Assert.AreEqual(1, subPaths.Count);
             Assert.AreEqual(path, subPaths[0]);
-            
+
             trie.Add(childPath);
 
             Assert.IsTrue(trie.Contains(childPath, false));
@@ -56,7 +59,7 @@ namespace SharpYaml.Tests {
             Assert.IsFalse(trie.Contains(path, false));
             Assert.IsTrue(trie.Contains(path, true));
             Assert.IsTrue(trie.Contains(childPath, false));
-            
+
             trie.Add(path);
 
             result = trie.Remove(path, true);

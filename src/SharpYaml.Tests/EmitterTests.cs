@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -170,7 +170,7 @@ namespace SharpYaml.Tests
             var encoding = new UTF8Encoding(false);
             var stream = new MemoryStream();
             var input = "Test\U00010905Yo♥";
-            using (var writer = new StreamWriter(stream, encoding) )
+            using (var writer = new StreamWriter(stream, encoding))
             {
                 var emitter = new Emitter(writer);
                 emitter.Emit(new StreamStart());
@@ -263,8 +263,8 @@ namespace SharpYaml.Tests
             // Todo: Why involve the rep. model when testing the Emitter? Can we match using a regex?
             var stream = new YamlStream();
             stream.Load(new StringReader(yaml));
-            var sequence = (YamlSequenceNode) stream.Documents[0].RootNode;
-            var scalar = (YamlScalarNode) sequence.Children[0];
+            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
+            var scalar = (YamlScalarNode)sequence.Children[0];
 
             Assert.AreEqual("hello\nworld", scalar.Value);
         }
@@ -277,8 +277,8 @@ namespace SharpYaml.Tests
 
             var stream = new YamlStream();
             stream.Load(new StringReader(yaml));
-            var sequence = (YamlSequenceNode) stream.Documents[0].RootNode;
-            var scalar = (YamlScalarNode) sequence.Children[0];
+            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
+            var scalar = (YamlScalarNode)sequence.Children[0];
 
             Assert.AreEqual(">+\n", scalar.Value);
         }
@@ -299,8 +299,8 @@ namespace SharpYaml.Tests
             var stream = new YamlStream();
             stream.Load(new StringReader(yaml));
 
-            var mapping = (YamlMappingNode) stream.Documents[0].RootNode;
-            var value = (YamlScalarNode) mapping.Children.First().Value;
+            var mapping = (YamlMappingNode)stream.Documents[0].RootNode;
+            var value = (YamlScalarNode)mapping.Children.First().Value;
 
             var output = value.Value;
             Dump.WriteLine(output);

@@ -54,15 +54,15 @@ namespace SharpYaml.Tests.Serialization
         [Test]
         public void NestedDocumentShouldDeserializeProperly()
         {
-            var serializer = new Serializer(new SerializerSettings() {EmitDefaultValues = true});
+            var serializer = new Serializer(new SerializerSettings() { EmitDefaultValues = true });
 
             // serialize AMessage
             var tw = new StringWriter();
-            serializer.Serialize(tw, new AMessage {Payload = new PayloadA {X = 5, Y = 6}});
+            serializer.Serialize(tw, new AMessage { Payload = new PayloadA { X = 5, Y = 6 } });
             Dump.WriteLine(tw);
 
             // stick serialized AMessage in envelope and serialize it
-            var e = new Env {Type = "some-type", Payload = tw.ToString()};
+            var e = new Env { Type = "some-type", Payload = tw.ToString() };
 
             tw = new StringWriter();
             serializer.Serialize(tw, e);

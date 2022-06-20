@@ -19,7 +19,8 @@
 // THE SOFTWARE.
 namespace SharpYaml.Model
 {
-    public abstract class YamlElement : YamlNode {
+    public abstract class YamlElement : YamlNode
+    {
         public abstract string Anchor { get; set; }
         public abstract string Tag { get; set; }
         public abstract bool IsCanonical { get; }

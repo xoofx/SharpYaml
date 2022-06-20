@@ -60,7 +60,7 @@ namespace SharpYaml.Serialization.Serializers
 
         public override object ConvertFrom(ref ObjectContext context, Scalar scalar)
         {
-            var primitiveType = (PrimitiveDescriptor) context.Descriptor;
+            var primitiveType = (PrimitiveDescriptor)context.Descriptor;
             var type = primitiveType.Type;
             var text = scalar.Value;
 
@@ -193,11 +193,13 @@ namespace SharpYaml.Serialization.Serializers
             return text + ".0";
         }
 
-        public override string ConvertTo(ref ObjectContext objectContext) {
+        public override string ConvertTo(ref ObjectContext objectContext)
+        {
             return ConvertValue(objectContext.Instance);
         }
 
-        public static string ConvertValue(object value) {
+        public static string ConvertValue(object value)
+        {
             var text = string.Empty;
 
             // Return null if expected type is an object and scalar is null
@@ -211,7 +213,7 @@ namespace SharpYaml.Serialization.Serializers
             // Handle string
             if (valueType.GetTypeInfo().IsEnum)
             {
-                text = ((Enum) Enum.ToObject(valueType, value)).ToString("G");
+                text = ((Enum)Enum.ToObject(valueType, value)).ToString("G");
             }
             else
             {
@@ -223,31 +225,31 @@ namespace SharpYaml.Serialization.Serializers
                         text = value.ToString();
                         break;
                     case TypeCode.Boolean:
-                        text = (bool) value ? "true" : "false";
+                        text = (bool)value ? "true" : "false";
                         break;
                     case TypeCode.Byte:
-                        text = ((byte) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((byte)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.SByte:
-                        text = ((sbyte) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((sbyte)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.Int16:
-                        text = ((short) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((short)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.UInt16:
-                        text = ((ushort) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((ushort)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.Int32:
-                        text = ((int) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((int)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.UInt32:
-                        text = ((uint) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((uint)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.Int64:
-                        text = ((long) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((long)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.UInt64:
-                        text = ((ulong) value).ToString("G", CultureInfo.InvariantCulture);
+                        text = ((ulong)value).ToString("G", CultureInfo.InvariantCulture);
                         break;
                     case TypeCode.Single:
                         // Append decimal point to floating point type values 
@@ -256,26 +258,26 @@ namespace SharpYaml.Serialization.Serializers
                         // G9 is used instead of R as per the following documentation:
                         // https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-numeric-format-strings#the-round-trip-r-format-specifier
                         // R can cause issues on x64 systems, see https://github.com/dotnet/coreclr/issues/13106 for details.
-                        text = AppendDecimalPoint(((float) value).ToString("G9", CultureInfo.InvariantCulture), true);
+                        text = AppendDecimalPoint(((float)value).ToString("G9", CultureInfo.InvariantCulture), true);
                         break;
                     case TypeCode.Double:
                         // G17 is used instead of R due to issues on x64 systems. See documentation on TypeCode.Single case above.
-                        text = AppendDecimalPoint(((double) value).ToString("G17", CultureInfo.InvariantCulture), true);
+                        text = AppendDecimalPoint(((double)value).ToString("G17", CultureInfo.InvariantCulture), true);
                         break;
                     case TypeCode.Decimal:
-                        text = AppendDecimalPoint(((decimal) value).ToString("G", CultureInfo.InvariantCulture), false);
+                        text = AppendDecimalPoint(((decimal)value).ToString("G", CultureInfo.InvariantCulture), false);
                         break;
                     case TypeCode.DateTime:
-                        text = ((DateTime) value).ToString("o", CultureInfo.InvariantCulture);
+                        text = ((DateTime)value).ToString("o", CultureInfo.InvariantCulture);
                         break;
                     default:
                         if (valueType == typeof(TimeSpan))
                         {
-                            text = ((TimeSpan) value).ToString("G", CultureInfo.InvariantCulture);
+                            text = ((TimeSpan)value).ToString("G", CultureInfo.InvariantCulture);
                         }
                         else if (valueType == typeof(DateTimeOffset))
                         {
-                            text = ((DateTimeOffset) value).ToString("o", CultureInfo.InvariantCulture);
+                            text = ((DateTimeOffset)value).ToString("o", CultureInfo.InvariantCulture);
                         }
                         else if (valueType == typeof(Guid))
                         {

@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,8 @@ namespace SharpYaml
         private readonly int line;
         private readonly int column;
 
-        public Mark(int index, int line, int column) {
+        public Mark(int index, int line, int column)
+        {
             this.index = index;
             this.line = line;
             this.column = column;

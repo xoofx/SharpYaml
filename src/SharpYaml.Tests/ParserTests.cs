@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -364,19 +364,19 @@ namespace SharpYaml.Tests
                 if (expectedValue is IEnumerable && !(expectedValue is string))
                 {
                     Dump.Write("\t{0} = {{", property.Name);
-                    Dump.Write(string.Join(", ", (IEnumerable) value));
+                    Dump.Write(string.Join(", ", (IEnumerable)value));
                     Dump.WriteLine("}");
 
                     if (expectedValue is ICollection && value is ICollection)
                     {
-                        var expectedCount = ((ICollection) expectedValue).Count;
-                        var valueCount = ((ICollection) value).Count;
+                        var expectedCount = ((ICollection)expectedValue).Count;
+                        var valueCount = ((ICollection)value).Count;
                         Assert.AreEqual(expectedCount, valueCount, "Compared size of collections in property {0} in parse event {1}",
                             property.Name, eventNumber);
                     }
 
-                    var values = ((IEnumerable) value).GetEnumerator();
-                    var expectedValues = ((IEnumerable) expectedValue).GetEnumerator();
+                    var values = ((IEnumerable)value).GetEnumerator();
+                    var expectedValues = ((IEnumerable)expectedValue).GetEnumerator();
                     while (expectedValues.MoveNext())
                     {
                         Assert.True(values.MoveNext(), "Property {0} in parse event {1} had too few elements", property.Name, eventNumber);

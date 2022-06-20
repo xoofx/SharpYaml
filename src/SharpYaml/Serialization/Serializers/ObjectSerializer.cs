@@ -362,13 +362,13 @@ namespace SharpYaml.Serialization.Serializers
             var context = objectContext.SerializerContext;
             if (isSequence)
             {
-                context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) {Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style});
+                context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) { Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style });
                 WriteMembers(ref objectContext);
                 context.Writer.Emit(new SequenceEndEventInfo(value, typeOfValue));
             }
             else
             {
-                context.Writer.Emit(new MappingStartEventInfo(value, typeOfValue) {Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style});
+                context.Writer.Emit(new MappingStartEventInfo(value, typeOfValue) { Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style });
                 WriteMembers(ref objectContext);
                 context.Writer.Emit(new MappingEndEventInfo(value, typeOfValue));
             }

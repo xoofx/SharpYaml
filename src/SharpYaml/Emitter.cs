@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -82,20 +82,23 @@ namespace SharpYaml
         private bool isWhitespace;
         private bool isIndentation;
         private bool forceIndentLess;
-        private bool emitKeyQuoted;
+        private readonly bool emitKeyQuoted;
 
         private bool isOpenEnded;
 
         private readonly MutableStringLookAheadBuffer buffer = new MutableStringLookAheadBuffer();
 
 
-        private class MutableStringLookAheadBuffer : ILookAheadBuffer {
+        private class MutableStringLookAheadBuffer : ILookAheadBuffer
+        {
             private string value;
             private int currentIndex;
 
-            public string Value {
+            public string Value
+            {
                 get { return value; }
-                set {
+                set
+                {
                     this.value = value;
                     currentIndex = 0;
                 }
@@ -105,7 +108,8 @@ namespace SharpYaml
 
             public int Position { get { return currentIndex; } }
 
-            public bool IsOutside(int index) {
+            public bool IsOutside(int index)
+            {
                 return value == null || index >= value.Length;
             }
 
@@ -113,13 +117,16 @@ namespace SharpYaml
 
             public MutableStringLookAheadBuffer() { }
 
-            public char Peek(int offset) {
+            public char Peek(int offset)
+            {
                 int index = currentIndex + offset;
                 return value[index];
             }
 
-            public void Skip(int length) {
-                if (length < 0) {
+            public void Skip(int length)
+            {
+                if (length < 0)
+                {
                     throw new ArgumentOutOfRangeException("length", "The length must be positive.");
                 }
                 currentIndex += length;
@@ -185,7 +192,7 @@ namespace SharpYaml
 
             this.bestIndent = bestIndent;
 
-            if (bestWidth <= bestIndent*2)
+            if (bestWidth <= bestIndent * 2)
             {
                 throw new ArgumentOutOfRangeException("bestWidth", "The bestWidth parameter must be greater than bestIndent * 2.");
             }
@@ -808,7 +815,7 @@ namespace SharpYaml
 
         private static string UrlEncode(string text)
         {
-            return uriReplacer.Replace(text, delegate(Match match)
+            return uriReplacer.Replace(text, delegate (Match match)
             {
                 StringBuilder buffer = new StringBuilder();
                 foreach (var toEncode in Encoding.UTF8.GetBytes(match.Value))
@@ -947,7 +954,7 @@ namespace SharpYaml
             ProcessAnchor();
             ProcessTag();
 
-            SequenceStart sequenceStart = (SequenceStart) evt;
+            SequenceStart sequenceStart = (SequenceStart)evt;
 
             if (flowLevel != 0 || isCanonical || sequenceStart.Style == YamlStyle.Flow || CheckEmptySequence())
             {
@@ -1021,7 +1028,7 @@ namespace SharpYaml
             ProcessAnchor();
             ProcessTag();
 
-            MappingStart mappingStart = (MappingStart) evt;
+            MappingStart mappingStart = (MappingStart)evt;
 
             if (flowLevel != 0 || isCanonical || mappingStart.Style == YamlStyle.Flow || CheckEmptyMapping())
             {
@@ -1271,7 +1278,7 @@ namespace SharpYaml
                             break;
 
                         default:
-                            short code = (short) character;
+                            short code = (short)character;
                             if (code <= 0xFF)
                             {
                                 Write('x');
@@ -1288,7 +1295,7 @@ namespace SharpYaml
                                 }
                                 else
                                 {
-                                    throw new YamlException($"Unable to encode character low surrogate after high surrogate [{character}] at position {index+1} of text `{value}`");
+                                    throw new YamlException($"Unable to encode character low surrogate after high surrogate [{character}] at position {index + 1} of text `{value}`");
                                 }
                             }
                             else
@@ -1464,7 +1471,7 @@ namespace SharpYaml
         /// </summary>
         private void SelectScalarStyle(ParsingEvent evt)
         {
-            Scalar scalar = (Scalar) evt;
+            Scalar scalar = (Scalar)evt;
 
             ScalarStyle style = scalar.Style;
             bool noTag = tagData.handle == null && tagData.suffix == null;

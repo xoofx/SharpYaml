@@ -4,14 +4,17 @@ using System.Linq;
 using System.Text;
 using NUnit.Framework;
 using SharpYaml.Events;
-using SharpYaml.Serialization;
 using SharpYaml.Model;
+using SharpYaml.Serialization;
 using YamlStream = SharpYaml.Model.YamlStream;
 
-namespace SharpYaml.Tests {
-    public class YamlNodeTest {
+namespace SharpYaml.Tests
+{
+    public class YamlNodeTest
+    {
         [Test]
-        public void ReadYamlReference() {
+        public void ReadYamlReference()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.YamlReferenceCard.yaml");
 
@@ -45,7 +48,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void YamlValue() {
+        public void YamlValue()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test6.yaml");
 
@@ -70,7 +74,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void FromObject() {
+        public void FromObject()
+        {
             var stream = new YamlStream();
             var document = new Model.YamlDocument();
             stream.Add(document);
@@ -89,7 +94,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void DeepClone() {
+        public void DeepClone()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
 
@@ -115,7 +121,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void MappingStringKey() {
+        public void MappingStringKey()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
 
@@ -132,7 +139,8 @@ namespace SharpYaml.Tests {
 
 
         [Test]
-        public void AllowMissingKeyLookup() {
+        public void AllowMissingKeyLookup()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
 
@@ -144,7 +152,8 @@ namespace SharpYaml.Tests {
 
 
         [Test]
-        public void ToStringTest() {
+        public void ToStringTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test8.yaml");
 
@@ -157,7 +166,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void StyleTest() {
+        public void StyleTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test10.yaml");
 
@@ -179,7 +189,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void TagTest() {
+        public void TagTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.dictionaryExplicit.yaml");
 
@@ -200,7 +211,8 @@ namespace SharpYaml.Tests {
 
 
         [Test]
-        public void ScalarStyleTest() {
+        public void ScalarStyleTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test6.yaml");
 
@@ -218,7 +230,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void IsCanonicalTest() {
+        public void IsCanonicalTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test6.yaml");
 

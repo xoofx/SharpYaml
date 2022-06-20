@@ -26,16 +26,19 @@ using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Model
 {
-    public class YamlValue : YamlElement {
+    public class YamlValue : YamlElement
+    {
         private Scalar _scalar;
 
-        YamlValue(Scalar scalar, YamlNodeTracker tracker) {
+        YamlValue(Scalar scalar, YamlNodeTracker tracker)
+        {
             Tracker = tracker;
 
             Scalar = scalar ?? throw new ArgumentNullException(nameof(scalar));
         }
 
-        public YamlValue(object value, IYamlSchema schema = null) {
+        public YamlValue(object value, IYamlSchema schema = null)
+        {
             var valueString = PrimitiveSerializer.ConvertValue(value);
             if (schema == null)
                 schema = CoreSchema.Instance;
@@ -43,9 +46,11 @@ namespace SharpYaml.Model
             Scalar = new Scalar(schema.GetDefaultTag(value.GetType()), valueString);
         }
 
-        internal Scalar Scalar {
+        internal Scalar Scalar
+        {
             get { return _scalar; }
-            set {
+            set
+            {
                 var oldScalar = _scalar;
 
                 _scalar = value;
@@ -55,19 +60,23 @@ namespace SharpYaml.Model
             }
         }
 
-        public static YamlValue Load(EventReader eventReader, YamlNodeTracker tracker = null) {
+        public static YamlValue Load(EventReader eventReader, YamlNodeTracker tracker = null)
+        {
             var scalar = eventReader.Allow<Scalar>();
 
             return new YamlValue(scalar, tracker);
         }
 
-        public override YamlNode DeepClone(YamlNodeTracker tracker = null) {
+        public override YamlNode DeepClone(YamlNodeTracker tracker = null)
+        {
             return new YamlValue(_scalar, tracker);
         }
 
-        public override string Anchor {
+        public override string Anchor
+        {
             get { return _scalar.Anchor; }
-            set {
+            set
+            {
                 Scalar = new Scalar(value,
                     _scalar.Tag,
                     _scalar.Value,
@@ -79,9 +88,11 @@ namespace SharpYaml.Model
             }
         }
 
-        public override string Tag {
+        public override string Tag
+        {
             get { return _scalar.Tag; }
-            set {
+            set
+            {
                 Scalar = new Scalar(_scalar.Anchor,
                     value,
                     _scalar.Value,
@@ -93,9 +104,11 @@ namespace SharpYaml.Model
             }
         }
 
-        public ScalarStyle Style {
+        public ScalarStyle Style
+        {
             get { return _scalar.Style; }
-            set {
+            set
+            {
                 Scalar = new Scalar(_scalar.Anchor,
                     _scalar.Tag,
                     _scalar.Value,
@@ -109,9 +122,11 @@ namespace SharpYaml.Model
 
         public override bool IsCanonical { get { return _scalar.IsCanonical; } }
 
-        public bool IsPlainImplicit {
+        public bool IsPlainImplicit
+        {
             get { return _scalar.IsPlainImplicit; }
-            set {
+            set
+            {
                 Scalar = new Scalar(_scalar.Anchor,
                     _scalar.Tag,
                     _scalar.Value,
@@ -123,9 +138,11 @@ namespace SharpYaml.Model
             }
         }
 
-        public bool IsQuotedImplicit {
+        public bool IsQuotedImplicit
+        {
             get { return _scalar.IsQuotedImplicit; }
-            set {
+            set
+            {
                 Scalar = new Scalar(_scalar.Anchor,
                     _scalar.Tag,
                     _scalar.Value,
@@ -137,9 +154,11 @@ namespace SharpYaml.Model
             }
         }
 
-        public string Value {
+        public string Value
+        {
             get { return _scalar.Value; }
-            set {
+            set
+            {
                 var oldValue = _scalar.Value;
 
                 Scalar = new Scalar(_scalar.Anchor,

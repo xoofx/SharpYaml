@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -78,7 +78,7 @@ namespace SharpYaml
         private int index = 0;
         private int line = 0;
         private int column = 0;
-        
+
         /// <summary>
         /// Gets the current position inside the input stream.
         /// </summary>
@@ -111,7 +111,7 @@ namespace SharpYaml
             codes.Add('"', '"');
             codes.Add('\'', '\'');
             codes.Add('\\', '\\');
-            codes.Add('/', '/');            
+            codes.Add('/', '/');
             codes.Add('N', '\x85');
             codes.Add('_', '\xA0');
             codes.Add('L', '\x2028');
@@ -562,7 +562,7 @@ namespace SharpYaml
         {
             // Until the next token is not find.
 
-            for (;;)
+            for (; ; )
             {
                 // Eat whitespaces.
 
@@ -800,7 +800,7 @@ namespace SharpYaml
             Skip();
             Skip();
 
-            Token token = isStartToken ? (Token) new DocumentStart(start, CurrentPosition) : new DocumentEnd(start, start);
+            Token token = isStartToken ? (Token)new DocumentStart(start, CurrentPosition) : new DocumentEnd(start, start);
             tokens.Enqueue(token);
         }
 
@@ -1497,7 +1497,7 @@ namespace SharpYaml
 
             // Eat the intendation spaces and line breaks.
 
-            for (;;)
+            for (; ; )
             {
                 // Eat the intendation spaces.
 
@@ -1577,7 +1577,7 @@ namespace SharpYaml
             scanScalarWhitespaces.Length = 0;
             scanScalarLeadingBreak.Length = 0;
             scanScalarTrailingBreaks.Length = 0;
-            for (;;)
+            for (; ; )
             {
                 // Check that there are no document indicators at the beginning of the line.
 
@@ -1689,27 +1689,33 @@ namespace SharpYaml
                                 int nextCharacter = 0;
 
                                 // We might be dealing with a surrogate pair - try to read the next unicode character.
-                                if (codeLength == 4 && analyzer.Check('\\', codeLength) && analyzer.Check('u', codeLength + 1)) {
-                                    for (int k = 0; k < codeLength; ++k) {
-                                        if (!analyzer.IsHex(k + codeLength + 2)) {
+                                if (codeLength == 4 && analyzer.Check('\\', codeLength) && analyzer.Check('u', codeLength + 1))
+                                {
+                                    for (int k = 0; k < codeLength; ++k)
+                                    {
+                                        if (!analyzer.IsHex(k + codeLength + 2))
+                                        {
                                             foundNextCharacter = false;
                                             break;
                                         }
                                         nextCharacter = (nextCharacter << 4) + analyzer.AsHex(k + codeLength + 2);
                                     }
 
-                                    if (foundNextCharacter) {
+                                    if (foundNextCharacter)
+                                    {
                                         for (int k = 0; k < codeLength + 2; ++k)
                                             Skip();
                                     }
-                                } else 
+                                }
+                                else
                                     foundNextCharacter = false;
 
                                 if (foundNextCharacter)
                                     scanScalarValue.Append(CharHelper.ConvertFromUtf32(CharHelper.ConvertToUtf32((char)character, (char)nextCharacter)));
                                 else
                                     throw new SyntaxErrorException(start, CurrentPosition, "While parsing a quoted scalar, find invalid Unicode character escape code.");
-                            } else 
+                            }
+                            else
                                 scanScalarValue.Append(CharHelper.ConvertFromUtf32(character));
 
                             // Advance the pointer.
@@ -1842,7 +1848,7 @@ namespace SharpYaml
 
             // Consume the content of the plain scalar.
 
-            for (;;)
+            for (; ; )
             {
                 // Check for a document indicator.
 
@@ -1941,7 +1947,8 @@ namespace SharpYaml
 
                         // Consume a space or a tab character.
 
-                        if (!hasLeadingBlanks) {
+                        if (!hasLeadingBlanks)
+                        {
                             scanScalarWhitespaces.Append(ReadCurrentCharacter());
                         }
                         else
@@ -1959,7 +1966,8 @@ namespace SharpYaml
                             scanScalarLeadingBreak.Append(ReadLine());
                             hasLeadingBlanks = true;
                         }
-                        else {
+                        else
+                        {
                             scanScalarTrailingBreaks.Append(ReadLine());
                         }
                     }
@@ -2302,7 +2310,7 @@ namespace SharpYaml
                     throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %YAML directive, find extremely long version number.");
                 }
 
-                value = value*10 + analyzer.AsDigit();
+                value = value * 10 + analyzer.AsDigit();
 
                 Skip();
             }

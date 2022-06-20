@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     public class CollectionDescriptor : ObjectDescriptor
     {
-        private static readonly List<string> ListOfMembersToRemove = new List<string> {"Capacity", "Count", "IsReadOnly", "IsFixedSize", "IsSynchronized", "SyncRoot", "Comparer"};
+        private static readonly List<string> ListOfMembersToRemove = new List<string> { "Capacity", "Count", "IsReadOnly", "IsFixedSize", "IsSynchronized", "SyncRoot", "Comparer" };
 
         private readonly Func<object, bool> IsReadOnlyFunction;
         private readonly Func<object, int> GetCollectionCountFunction;
@@ -86,20 +86,20 @@ namespace SharpYaml.Serialization.Descriptors
             Type itype;
             if ((itype = type.GetInterface(typeof(ICollection<>))) != null)
             {
-                var add = itype.GetMethod("Add", new[] {ElementType});
-                CollectionAddFunction = (obj, value) => add.Invoke(obj, new[] {value});
+                var add = itype.GetMethod("Add", new[] { ElementType });
+                CollectionAddFunction = (obj, value) => add.Invoke(obj, new[] { value });
                 var countMethod = itype.GetProperty("Count").GetGetMethod();
-                GetCollectionCountFunction = o => (int) countMethod.Invoke(o, null);
+                GetCollectionCountFunction = o => (int)countMethod.Invoke(o, null);
                 var isReadOnly = itype.GetProperty("IsReadOnly").GetGetMethod();
-                IsReadOnlyFunction = obj => (bool) isReadOnly.Invoke(obj, null);
+                IsReadOnlyFunction = obj => (bool)isReadOnly.Invoke(obj, null);
                 isKeyedCollection = type.ExtendsGeneric(typeof(KeyedCollection<,>));
             }
             // implements IList 
             else if (typeof(IList).IsAssignableFrom(type))
             {
-                CollectionAddFunction = (obj, value) => ((IList) obj).Add(value);
-                GetCollectionCountFunction = o => ((IList) o).Count;
-                IsReadOnlyFunction = obj => ((IList) obj).IsReadOnly;
+                CollectionAddFunction = (obj, value) => ((IList)obj).Add(value);
+                GetCollectionCountFunction = o => ((IList)o).Count;
+                IsReadOnlyFunction = obj => ((IList)obj).IsReadOnly;
             }
         }
 
@@ -175,7 +175,7 @@ namespace SharpYaml.Serialization.Descriptors
         {
             // Filter members
             if (member is PropertyDescriptor && ListOfMembersToRemove.Contains(member.OriginalName))
-                //if (member is PropertyDescriptor && (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace) && ListOfMembersToRemove.Contains(member.Name))
+            //if (member is PropertyDescriptor && (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace) && ListOfMembersToRemove.Contains(member.Name))
             {
                 return false;
             }

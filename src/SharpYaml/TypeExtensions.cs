@@ -59,7 +59,7 @@ namespace SharpYaml
             return Type.GetTypeCode(type);
         }
 
-        private static Dictionary<Type, bool> anonymousTypes = new Dictionary<Type, bool>();
+        private static readonly Dictionary<Type, bool> anonymousTypes = new Dictionary<Type, bool>();
 
         public static bool HasInterface(this Type type, Type lookInterfaceType)
         {
@@ -306,27 +306,27 @@ namespace SharpYaml
 
             object result = null;
             if (type == typeof(sbyte))
-                result = (sbyte) doubleValue;
+                result = (sbyte)doubleValue;
             if (type == typeof(byte))
-                result = (byte) doubleValue;
+                result = (byte)doubleValue;
             if (type == typeof(short))
-                result = (short) doubleValue;
+                result = (short)doubleValue;
             if (type == typeof(ushort))
-                result = (ushort) doubleValue;
+                result = (ushort)doubleValue;
             if (type == typeof(int))
-                result = (int) doubleValue;
+                result = (int)doubleValue;
             if (type == typeof(uint))
-                result = (uint) doubleValue;
+                result = (uint)doubleValue;
             if (type == typeof(long))
-                result = (long) doubleValue;
+                result = (long)doubleValue;
             if (type == typeof(ulong))
-                result = (ulong) doubleValue;
+                result = (ulong)doubleValue;
             if (type == typeof(float))
-                result = (float) doubleValue;
+                result = (float)doubleValue;
             if (type == typeof(double))
                 result = doubleValue;
             if (type == typeof(decimal))
-                result = (decimal) doubleValue;
+                result = (decimal)doubleValue;
             return result;
         }
 

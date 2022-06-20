@@ -1,4 +1,4 @@
-// Copyright (c) SharpYaml - Alexandre Mutel
+﻿// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,59 +21,71 @@ using System.Collections;
 using System.Collections.Generic;
 using SharpYaml.Events;
 
-namespace SharpYaml.Model {
-    public sealed class YamlNodeEventEnumerator : IEnumerable<ParsingEvent>, IEnumerator<ParsingEvent> {
+namespace SharpYaml.Model
+{
+    public sealed class YamlNodeEventEnumerator : IEnumerable<ParsingEvent>, IEnumerator<ParsingEvent>
+    {
         private readonly YamlNode root;
         private YamlNode currentNode;
         private int currentIndex;
         private Stack<YamlNode> nodePath;
         private Stack<int> indexPath;
 
-        public YamlNodeEventEnumerator(YamlNode root) {
+        public YamlNodeEventEnumerator(YamlNode root)
+        {
             this.root = root;
             currentNode = root;
             currentIndex = -1;
         }
 
-        public IEnumerator<ParsingEvent> GetEnumerator() {
+        public IEnumerator<ParsingEvent> GetEnumerator()
+        {
             return this;
         }
 
-        IEnumerator IEnumerable.GetEnumerator() {
+        IEnumerator IEnumerable.GetEnumerator()
+        {
             return GetEnumerator();
         }
 
         public void Dispose() { }
 
-        public bool MoveNext() {
+        public bool MoveNext()
+        {
             if (currentNode == null)
                 return false;
-            
-            if (currentNode is YamlStream stream) {
-                if (currentIndex == -1) {
+
+            if (currentNode is YamlStream stream)
+            {
+                if (currentIndex == -1)
+                {
                     Current = stream.StreamStart;
                     currentIndex++;
                     return true;
-                } 
-                
-                if (currentIndex < stream.Count) {
+                }
+
+                if (currentIndex < stream.Count)
+                {
                     Push(stream[currentIndex]);
                     return true;
-                } 
-                  
+                }
+
                 Current = stream.StreamEnd;
                 Pop();
                 return true;
             }
 
-            if (currentNode is YamlDocument document) {
-                if (currentIndex == -1) {
+            if (currentNode is YamlDocument document)
+            {
+                if (currentIndex == -1)
+                {
                     Current = document.DocumentStart;
                     currentIndex++;
                     return true;
                 }
 
-                if (currentIndex < 1) {
+                if (currentIndex < 1)
+                {
                     Push(document.Contents);
                     return true;
                 }
@@ -83,16 +95,19 @@ namespace SharpYaml.Model {
                 return true;
             }
 
-            if (currentNode is YamlMapping mapping) {
-                if (currentIndex == -1) {
+            if (currentNode is YamlMapping mapping)
+            {
+                if (currentIndex == -1)
+                {
                     Current = mapping.MappingStart;
                     currentIndex++;
                     return true;
                 }
 
-                if (currentIndex < mapping.Count * 2) {
-                    if (currentIndex % 2 == 0) 
-                        Push(((List<YamlElement>) mapping.Keys)[currentIndex / 2]);
+                if (currentIndex < mapping.Count * 2)
+                {
+                    if (currentIndex % 2 == 0)
+                        Push(((List<YamlElement>)mapping.Keys)[currentIndex / 2]);
                     else
                         Push(mapping[(currentIndex - 1) / 2].Value);
                     return true;
@@ -103,14 +118,17 @@ namespace SharpYaml.Model {
                 return true;
             }
 
-            if (currentNode is YamlSequence sequence) {
-                if (currentIndex == -1) {
+            if (currentNode is YamlSequence sequence)
+            {
+                if (currentIndex == -1)
+                {
                     Current = sequence.SequenceStart;
                     currentIndex++;
                     return true;
                 }
 
-                if (currentIndex < sequence.Count) {
+                if (currentIndex < sequence.Count)
+                {
                     Push(sequence[currentIndex]);
                     return true;
                 }
@@ -120,7 +138,8 @@ namespace SharpYaml.Model {
                 return true;
             }
 
-            if (currentNode is YamlValue value) {
+            if (currentNode is YamlValue value)
+            {
                 Current = value.Scalar;
                 Pop();
                 return true;
@@ -129,18 +148,21 @@ namespace SharpYaml.Model {
             return false;
         }
 
-        void Push(YamlNode nextNode) {
-            if (nextNode is YamlValue value) {
+        void Push(YamlNode nextNode)
+        {
+            if (nextNode is YamlValue value)
+            {
                 Current = value.Scalar;
                 currentIndex++;
                 return;
             }
 
-            if (nodePath == null) {
+            if (nodePath == null)
+            {
                 nodePath = new Stack<YamlNode>();
                 indexPath = new Stack<int>();
             }
-            
+
             nodePath.Push(currentNode);
             indexPath.Push(currentIndex);
             currentNode = nextNode;
@@ -148,17 +170,20 @@ namespace SharpYaml.Model {
             MoveNext();
         }
 
-        void Pop() {
-            if (currentNode == root) {
+        void Pop()
+        {
+            if (currentNode == root)
+            {
                 currentNode = null;
                 return;
             }
-            
+
             currentNode = nodePath.Pop();
             currentIndex = indexPath.Pop() + 1;
         }
-        
-        public void Reset() {
+
+        public void Reset()
+        {
             Current = null;
             nodePath.Clear();
             indexPath.Clear();

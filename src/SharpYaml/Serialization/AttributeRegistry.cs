@@ -165,7 +165,7 @@ namespace SharpYaml.Serialization
             {
                 unchecked
                 {
-                    return (memberInfo.GetHashCode()*397) ^ inherit.GetHashCode();
+                    return (memberInfo.GetHashCode() * 397) ^ inherit.GetHashCode();
                 }
             }
         }

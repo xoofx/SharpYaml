@@ -19,7 +19,8 @@
 // THE SOFTWARE.
 namespace SharpYaml.Model
 {
-    public abstract class YamlContainer : YamlElement {
+    public abstract class YamlContainer : YamlElement
+    {
         public abstract YamlStyle Style { get; set; }
         public abstract bool IsImplicit { get; set; }
     }

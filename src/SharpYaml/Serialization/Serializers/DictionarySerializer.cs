@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -74,7 +74,7 @@ namespace SharpYaml.Serialization.Serializers
 
         protected override void ReadMember(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
 
             if (dictionaryDescriptor.IsPureDictionary)
             {
@@ -109,7 +109,7 @@ namespace SharpYaml.Serialization.Serializers
 
         protected override void WriteMembers(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
             if (dictionaryDescriptor.IsPureDictionary)
             {
                 WriteDictionaryItems(ref objectContext);
@@ -133,7 +133,7 @@ namespace SharpYaml.Serialization.Serializers
 
                 WriteMemberName(ref objectContext, null, objectContext.Settings.SpecialCollectionMember);
 
-                objectContext.Writer.Emit(new MappingStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) { Anchor = objectContext.Anchor, Style = objectContext.Style});
+                objectContext.Writer.Emit(new MappingStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) { Anchor = objectContext.Anchor, Style = objectContext.Style });
                 WriteDictionaryItems(ref objectContext);
                 objectContext.Writer.Emit(new MappingEndEventInfo(objectContext.Instance, objectContext.Instance.GetType()));
             }
@@ -145,7 +145,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext"></param>
         protected virtual void ReadDictionaryItems(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
 
             var reader = objectContext.Reader;
             while (!reader.Accept<MappingEnd>())
@@ -194,7 +194,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         protected virtual void WriteDictionaryItems(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
             var keyValues = dictionaryDescriptor.GetEnumerator(objectContext.Instance).ToList();
 
             var settings = objectContext.Settings;

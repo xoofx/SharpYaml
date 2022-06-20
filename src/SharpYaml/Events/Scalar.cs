@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ namespace SharpYaml.Events
     /// </summary>
     public sealed class Scalar : NodeEvent
     {
-        private string value;
+        private readonly string value;
 
         /// <summary>
         /// Gets a value indicating the variation of depth caused by this event.
