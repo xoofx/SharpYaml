@@ -47,6 +47,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -58,17 +59,17 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     public class ObjectDescriptor : ITypeDescriptor
     {
-        public static readonly Func<object, bool> ShouldSerializeDefault = o => true;
+        public static readonly Func<object?, bool> ShouldSerializeDefault = o => true;
 
         protected static readonly string SystemCollectionsNamespace = typeof(int).Namespace;
 
         private static readonly object[] EmptyObjectArray = Array.Empty<object>();
-        private List<IMemberDescriptor> members;
-        private Dictionary<string, IMemberDescriptor> mapMembers;
+        private List<IMemberDescriptor>? members;
+        private Dictionary<string, IMemberDescriptor>? mapMembers;
         private readonly bool emitDefaultValues;
         private readonly bool respectPrivateSetters;
         private bool isSorted;
-        private HashSet<string> remapMembers;
+        private HashSet<string>? remapMembers;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -127,6 +128,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Initializes this instance.
         /// </summary>
         /// <exception cref="YamlException">Failed to get ObjectDescriptor for type [<see cref="m:type.FullName" />]. The member [{1}] cannot be registered as a member with the same name is already registered [{2}].DoFormat(type.FullName, member, existingMember)</exception>
+        [MemberNotNull(nameof(members))]
         public virtual void Initialize()
         {
             if (members != null)
@@ -179,7 +181,7 @@ namespace SharpYaml.Serialization.Descriptors
 
         public Type Type { get; }
 
-        public IEnumerable<IMemberDescriptor> Members { get { return members; } }
+        public IEnumerable<IMemberDescriptor>? Members => members;
 
         public int Count { get { return members == null ? 0 : members.Count; } }
 
@@ -202,7 +204,7 @@ namespace SharpYaml.Serialization.Descriptors
             }
         }
 
-        public IMemberDescriptor this[string name]
+        public IMemberDescriptor? this[string name]
         {
             get
             {
@@ -269,9 +271,9 @@ namespace SharpYaml.Serialization.Descriptors
 
             // Process all attributes just once instead of getting them one by one
             var attributes = AttributeRegistry.GetAttributes(member.MemberInfo);
-            YamlStyleAttribute styleAttribute = null;
-            YamlMemberAttribute memberAttribute = null;
-            DefaultValueAttribute defaultValueAttribute = null;
+            YamlStyleAttribute? styleAttribute = null;
+            YamlMemberAttribute? memberAttribute = null;
+            DefaultValueAttribute? defaultValueAttribute = null;
             foreach (var attribute in attributes)
             {
                 // Member is not displayed if there is a YamlIgnore attribute on it

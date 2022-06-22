@@ -90,9 +90,9 @@ namespace SharpYaml
 
         private class MutableStringLookAheadBuffer : ILookAheadBuffer
         {
-            private string value;
+            private string? value;
 
-            public string Value
+            public string? Value
             {
                 get { return value; }
                 set
@@ -135,7 +135,7 @@ namespace SharpYaml
 
         private struct AnchorData
         {
-            public string anchor;
+            public string? anchor;
             public bool isAlias;
         }
 
@@ -143,8 +143,8 @@ namespace SharpYaml
 
         private struct TagData
         {
-            public string handle;
-            public string suffix;
+            public string? handle;
+            public string? suffix;
         }
 
         private TagData tagData;
@@ -313,7 +313,7 @@ namespace SharpYaml
             return true;
         }
 
-        private void AnalyzeAnchor(string anchor, bool isAlias)
+        private void AnalyzeAnchor(string? anchor, bool isAlias)
         {
             anchorData.anchor = anchor;
             anchorData.isAlias = isAlias;
@@ -1680,7 +1680,7 @@ namespace SharpYaml
 
         private const int MaxAliasLength = 128;
 
-        private static int SafeStringLength(string value)
+        private static int SafeStringLength(string? value)
         {
             return value != null ? value.Length : 0;
         }
@@ -1851,7 +1851,7 @@ namespace SharpYaml
 
             isOpenEnded = false;
 
-            string chomp_hint = null;
+            string? chomp_hint = null;
             if (value.Length == 0 || !analyzer.IsBreak(value.Length - 1))
             {
                 chomp_hint = "-";

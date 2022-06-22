@@ -53,12 +53,12 @@ namespace SharpYaml.Serialization.Serializers
 {
     internal class PrimitiveSerializer : ScalarSerializerBase, IYamlSerializableFactory
     {
-        public IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+        public IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
             return typeDescriptor is PrimitiveDescriptor ? this : null;
         }
 
-        public override object ConvertFrom(ref ObjectContext context, Scalar scalar)
+        public override object? ConvertFrom(ref ObjectContext context, Scalar scalar)
         {
             var primitiveType = (PrimitiveDescriptor)context.Descriptor;
             var type = primitiveType.Type;
@@ -197,7 +197,7 @@ namespace SharpYaml.Serialization.Serializers
             return ConvertValue(objectContext.Instance);
         }
 
-        public static string ConvertValue(object value)
+        public static string ConvertValue(object? value)
         {
             var text = string.Empty;
 

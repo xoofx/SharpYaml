@@ -74,7 +74,7 @@ namespace SharpYaml.Serialization.Descriptors
                 throw new ArgumentException($"Cannot support dimension [{type.GetArrayRank()}] for type [{type.FullName}]. Only supporting dimension of 1");
             }
 
-            ElementType = type.GetElementType();
+            ElementType = type.GetElementType()!;
         }
 
         public override DescriptorCategory Category { get { return DescriptorCategory.Array; } }

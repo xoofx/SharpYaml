@@ -67,7 +67,7 @@ namespace SharpYaml.Serialization.Serializers
         }
 
         /// <inheritdoc/>
-        public override IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+        public override IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
             return typeDescriptor is DictionaryDescriptor ? this : null;
         }
@@ -183,7 +183,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValueType">Type of the key value.</param>
         /// <returns>KeyValuePair{System.ObjectSystem.Object}.</returns>
-        protected virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
+        protected virtual KeyValuePair<object, object?> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
             return objectContext.ObjectSerializerBackend.ReadDictionaryItem(ref objectContext, keyValueType);
         }
@@ -218,7 +218,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValue">The key value.</param>
         /// <param name="types">The types.</param>
-        protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
+        protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object?> keyValue, KeyValuePair<Type, Type> types)
         {
             objectContext.ObjectSerializerBackend.WriteDictionaryItem(ref objectContext, keyValue, types);
         }

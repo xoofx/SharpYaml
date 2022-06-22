@@ -67,10 +67,10 @@ namespace SharpYaml.Serialization
 
         public YamlStyle Style { get; set; }
 
-        public Func<object, bool> ShouldSerialize { get; set; }
+        public Func<object?, bool> ShouldSerialize { get; set; }
 
-        public List<string> AlternativeNames { get; set; }
+        public List<string>? AlternativeNames { get; set; }
 
-        public object Tag { get; set; }
+        public object? Tag { get; set; }
     }
 }

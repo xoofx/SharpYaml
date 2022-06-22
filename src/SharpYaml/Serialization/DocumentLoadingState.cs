@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using SharpYaml;
 
@@ -85,7 +86,7 @@ namespace SharpYaml.Serialization
         /// <param name="start">The start position.</param>
         /// <param name="end">The end position.</param>
         /// <returns></returns>
-        public YamlNode GetNode(string anchor, bool throwException, Mark start, Mark end)
+        public YamlNode? GetNode(string anchor, [DoesNotReturnIf(true)] bool throwException, Mark start, Mark end)
         {
             if (anchors.TryGetValue(anchor, out var target))
             {

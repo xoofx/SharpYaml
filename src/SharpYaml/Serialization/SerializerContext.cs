@@ -44,6 +44,7 @@
 // SOFTWARE.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization.Descriptors;
@@ -64,7 +65,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="serializer">The serializer.</param>
         /// <param name="serializerContextSettings">The serializer context settings.</param>
-        internal SerializerContext(Serializer serializer, SerializerContextSettings serializerContextSettings)
+        internal SerializerContext(Serializer serializer, SerializerContextSettings? serializerContextSettings)
         {
             Serializer = serializer;
             Settings = serializer.Settings;
@@ -113,7 +114,7 @@ namespace SharpYaml.Serialization
         /// Gets or sets the reader used while deserializing.
         /// </summary>
         /// <value>The reader.</value>
-        public EventReader Reader { get; set; }
+        public EventReader? Reader { get; set; }
 
         /// <summary>
         /// Gets the object serializer backend.
@@ -151,7 +152,7 @@ namespace SharpYaml.Serialization
         /// <param name="value">The value of the receiving object, may be null.</param>
         /// <param name="expectedType">The expected type.</param>
         /// <returns>System.Object.</returns>
-        public object ReadYaml(object value, Type expectedType)
+        public object? ReadYaml(object? value, Type? expectedType)
         {
             var node = Reader.Parser.Current;
             try
@@ -179,18 +180,18 @@ namespace SharpYaml.Serialization
         /// Gets or sets the writer used while deserializing.
         /// </summary>
         /// <value>The writer.</value>
-        public IEventEmitter Writer { get; set; }
+        public IEventEmitter? Writer { get; set; }
 
         /// <summary>
         /// Gets the emitter.
         /// </summary>
         /// <value>The emitter.</value>
-        public IEmitter Emitter { get; internal set; }
+        public IEmitter? Emitter { get; internal init; }
 
         /// <summary>
         /// The default function to write an object to Yaml
         /// </summary>
-        public void WriteYaml(object value, Type expectedType, YamlStyle style = YamlStyle.Any)
+        public void WriteYaml(object? value, Type? expectedType, YamlStyle style = YamlStyle.Any)
         {
             var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType)) { Style = style };
             ObjectSerializer.WriteYaml(ref objectContext);
@@ -201,7 +202,8 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="type">The type.</param>
         /// <returns>An instance of <see cref="ITypeDescriptor"/>.</returns>
-        public ITypeDescriptor FindTypeDescriptor(Type type)
+        [return: NotNullIfNotNull("type")]
+        public ITypeDescriptor? FindTypeDescriptor(Type? type)
         {
             return typeDescriptorFactory.Find(type, Settings.ComparerForKeySorting);
         }
@@ -212,7 +214,8 @@ namespace SharpYaml.Serialization
         /// <param name="tagName">Name of the tag.</param>
         /// <param name="isAlias"></param>
         /// <returns>Type.</returns>
-        public Type TypeFromTag(string tagName, out bool isAlias)
+        [return: NotNullIfNotNull("tagName")]
+        public Type? TypeFromTag(string? tagName, out bool isAlias)
         {
             return tagTypeRegistry.TypeFromTag(tagName, out isAlias);
         }
@@ -232,7 +235,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="typeFullName">Full name of the type.</param>
         /// <returns>The type of null if not found</returns>
-        public Type ResolveType(string typeFullName)
+        public Type? ResolveType(string typeFullName)
         {
             return tagTypeRegistry.ResolveType(typeFullName);
         }
@@ -244,7 +247,7 @@ namespace SharpYaml.Serialization
         /// <param name="defaultTag">The default tag decoded from the scalar.</param>
         /// <param name="value">The value extracted from a scalar.</param>
         /// <returns>System.String.</returns>
-        public bool TryParseScalar(Scalar scalar, out string defaultTag, out object value)
+        public bool TryParseScalar(Scalar scalar, out string defaultTag, out object? value)
         {
             return Settings.Schema.TryParse(scalar, true, out defaultTag, out value);
         }

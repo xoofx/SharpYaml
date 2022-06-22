@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SharpYaml.Serialization.Descriptors
 {
@@ -78,7 +79,8 @@ namespace SharpYaml.Serialization.Descriptors
             this.AttributeRegistry = attributeRegistry;
         }
 
-        public ITypeDescriptor Find(Type type, IComparer<object> memberComparer)
+        [return: NotNullIfNotNull("type")]
+        public ITypeDescriptor? Find(Type? type, IComparer<object> memberComparer)
         {
             if (type == null)
                 return null;

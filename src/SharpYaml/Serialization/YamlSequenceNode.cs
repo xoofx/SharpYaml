@@ -164,7 +164,7 @@ namespace SharpYaml.Serialization
             {
                 if (Children[i] is YamlAliasNode)
                 {
-                    Children[i] = state.GetNode(Children[i].Anchor, true, Children[i].Start, Children[i].End);
+                    Children[i] = state.GetNode(Children[i].Anchor!, true, Children[i].Start, Children[i].End);
                 }
             }
         }
@@ -196,7 +196,7 @@ namespace SharpYaml.Serialization
         }
 
         /// <summary />
-        public override bool Equals(object other)
+        public override bool Equals(object? other)
         {
             if (other is not YamlSequenceNode obj || !Equals(obj) || Children.Count != obj.Children.Count)
             {

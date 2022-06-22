@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using SharpYaml.Events;
@@ -53,25 +54,25 @@ namespace SharpYaml.Serialization.Serializers
 {
     internal class AnchorSerializer : ChainedSerializer
     {
-        private readonly Dictionary<string, object> aliasToObject;
+        private readonly Dictionary<string, object?> aliasToObject;
         private readonly Dictionary<object, string> objectToAlias;
 
         public AnchorSerializer(IYamlSerializable next) : base(next)
         {
-            aliasToObject = new Dictionary<string, object>();
+            aliasToObject = new Dictionary<string, object?>();
             objectToAlias = new Dictionary<object, string>(new IdentityEqualityComparer<object>());
         }
 
-        public bool TryGetAliasValue(string alias, out object value)
+        public bool TryGetAliasValue(string alias, [MaybeNullWhen(false)] out object? value)
         {
             return aliasToObject.TryGetValue(alias, out value);
         }
 
-        public override object ReadYaml(ref ObjectContext objectContext)
+        public override object? ReadYaml(ref ObjectContext objectContext)
         {
             var context = objectContext.SerializerContext;
             var reader = context.Reader;
-            object value = null;
+            object? value = null;
 
             // Process Anchor alias (*oxxx)
             var alias = reader.Allow<AnchorAlias>();
@@ -86,7 +87,7 @@ namespace SharpYaml.Serialization.Serializers
             }
 
             // Test if current node has an anchor &oxxx
-            string anchor = null;
+            string? anchor = null;
             var nodeEvent = reader.Peek<NodeEvent>();
             if (nodeEvent != null && !string.IsNullOrEmpty(nodeEvent.Anchor))
             {
@@ -125,15 +126,15 @@ namespace SharpYaml.Serialization.Serializers
 
             if (isAnchorable)
             {
-                if (objectToAlias.TryGetValue(value, out var alias))
+                if (objectToAlias.TryGetValue(value!, out var alias))
                 {
-                    objectContext.Writer.Emit(new AliasEventInfo(value, value.GetType()) { Alias = alias });
+                    objectContext.Writer.Emit(new AliasEventInfo(value!, value!.GetType()) { Alias = alias });
                     return;
                 }
                 else
                 {
                     alias = FormattableString.Invariant($"o{objectContext.SerializerContext.AnchorCount}");
-                    objectToAlias.Add(value, alias);
+                    objectToAlias.Add(value!, alias);
 
                     objectContext.Anchor = alias;
                     objectContext.SerializerContext.AnchorCount++;

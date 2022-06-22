@@ -128,13 +128,13 @@ namespace SharpYaml
         /// </summary>
         /// <typeparam name="T">Type of the <see cref="Event"/>.</typeparam>
         /// <returns>Returns the current event if it is of type T; otherwise returns null.</returns>
-        public T Allow<T>() where T : Event
+        public T? Allow<T>() where T : Event
         {
             if (!Accept<T>())
             {
                 return null;
             }
-            var yamlEvent = (T)Parser.Current;
+            var yamlEvent = (T?)Parser.Current;
             MoveNext();
             return yamlEvent;
         }
@@ -144,13 +144,13 @@ namespace SharpYaml
         /// </summary>
         /// <typeparam name="T">Type of the <see cref="Event"/>.</typeparam>
         /// <returns>Returns the current event if it is of type T; otherwise returns null.</returns>
-        public T Peek<T>() where T : Event
+        public T? Peek<T>() where T : Event
         {
             if (!Accept<T>())
             {
                 return null;
             }
-            var yamlEvent = (T)Parser.Current;
+            var yamlEvent = (T?)Parser.Current;
             return yamlEvent;
         }
 

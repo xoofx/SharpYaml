@@ -50,13 +50,13 @@ namespace SharpYaml.Serialization.Serializers
 {
     public abstract class ScalarSerializerBase : IYamlSerializable
     {
-        public object ReadYaml(ref ObjectContext objectContext)
+        public object? ReadYaml(ref ObjectContext objectContext)
         {
             var scalar = objectContext.Reader.Expect<Scalar>();
             return ConvertFrom(ref objectContext, scalar);
         }
 
-        public abstract object ConvertFrom(ref ObjectContext context, Scalar fromScalar);
+        public abstract object? ConvertFrom(ref ObjectContext context, Scalar fromScalar);
 
         public void WriteYaml(ref ObjectContext objectContext)
         {

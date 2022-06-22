@@ -105,7 +105,7 @@ namespace SharpYaml.Events
         /// <param name="isQuotedImplicit">.</param>
         /// <param name="start">The start position of the event.</param>
         /// <param name="end">The end position of the event.</param>
-        public Scalar(string anchor, string tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
+        public Scalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
             : base(anchor, tag, start, end)
         {
             this.Value = value;
@@ -123,7 +123,7 @@ namespace SharpYaml.Events
         /// <param name="style">The style.</param>
         /// <param name="isPlainImplicit">.</param>
         /// <param name="isQuotedImplicit">.</param>
-        public Scalar(string anchor, string tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit)
+        public Scalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit)
             : this(anchor, tag, value, style, isPlainImplicit, isQuotedImplicit, Mark.Empty, Mark.Empty)
         {
         }
@@ -152,7 +152,7 @@ namespace SharpYaml.Events
         /// </summary>
         /// <param name="tag">The tag.</param>
         /// <param name="value">The value.</param>
-        public Scalar(string tag, string value)
+        public Scalar(string? tag, string value)
             : this(null, tag, value, ScalarStyle.Any, true, true, Mark.Empty, Mark.Empty)
         {
         }

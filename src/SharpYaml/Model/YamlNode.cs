@@ -33,9 +33,9 @@ namespace SharpYaml.Model
 {
     public abstract class YamlNode
     {
-        public virtual YamlNodeTracker Tracker { get; internal set; }
+        public virtual YamlNodeTracker? Tracker { get; internal set; }
 
-        protected static YamlElement ReadElement(EventReader eventReader, YamlNodeTracker tracker = null)
+        protected static YamlElement? ReadElement(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             if (eventReader.Accept<MappingStart>())
                 return YamlMapping.Load(eventReader, tracker);
@@ -92,12 +92,12 @@ namespace SharpYaml.Model
             return sb.ToString().Trim();
         }
 
-        public T ToObject<T>(SerializerSettings settings = null)
+        public T? ToObject<T>(SerializerSettings? settings = null)
         {
-            return (T)ToObject(typeof(T), settings);
+            return (T?)ToObject(typeof(T), settings);
         }
 
-        public object ToObject(Type type, SerializerSettings settings = null)
+        public object? ToObject(Type type, SerializerSettings? settings = null)
         {
             var s = new Serializer(settings);
 
@@ -115,7 +115,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public static YamlElement FromObject(object value, SerializerSettings settings = null, Type expectedType = null)
+        public static YamlElement FromObject(object value, SerializerSettings? settings = null, Type? expectedType = null)
         {
             var s = new Serializer(settings);
 
@@ -126,6 +126,6 @@ namespace SharpYaml.Model
             return ReadElement(new EventReader(new MemoryParser(emitter.Events)));
         }
 
-        public abstract YamlNode DeepClone(YamlNodeTracker tracker = null);
+        public abstract YamlNode DeepClone(YamlNodeTracker? tracker = null);
     }
 }

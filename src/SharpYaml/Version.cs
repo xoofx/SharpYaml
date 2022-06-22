@@ -80,7 +80,7 @@ namespace SharpYaml
         /// <returns>
         /// true if the specified System.Object is equal to the current System.Object; otherwise, false.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Version other && Major == other.Major && Minor == other.Minor;
         }

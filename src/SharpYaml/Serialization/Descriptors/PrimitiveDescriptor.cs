@@ -56,7 +56,7 @@ namespace SharpYaml.Serialization.Descriptors
     {
         private static readonly List<IMemberDescriptor> EmptyMembers = new List<IMemberDescriptor>();
 
-        private readonly Dictionary<string, object> enumRemap;
+        private readonly Dictionary<string, object>? enumRemap;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.

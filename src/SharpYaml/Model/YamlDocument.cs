@@ -29,7 +29,7 @@ namespace SharpYaml.Model
     {
         private DocumentStart _documentStart;
         private DocumentEnd _documentEnd;
-        private YamlElement _contents;
+        private YamlElement? _contents;
 
         public YamlDocument()
         {
@@ -37,7 +37,7 @@ namespace SharpYaml.Model
             _documentEnd = new DocumentEnd(true);
         }
 
-        YamlDocument(DocumentStart documentStart, DocumentEnd documentEnd, YamlElement contents, YamlNodeTracker tracker)
+        YamlDocument(DocumentStart documentStart, DocumentEnd documentEnd, YamlElement? contents, YamlNodeTracker? tracker)
         {
             Tracker = tracker;
 
@@ -46,7 +46,7 @@ namespace SharpYaml.Model
             Contents = contents;
         }
 
-        public static YamlDocument Load(EventReader eventReader, YamlNodeTracker tracker = null)
+        public static YamlDocument Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var documentStart = eventReader.Allow<DocumentStart>();
 
@@ -85,7 +85,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public YamlElement Contents
+        public YamlElement? Contents
         {
             get { return _contents; }
             set
@@ -102,7 +102,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNodeTracker Tracker
+        public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
             internal set
@@ -120,9 +120,9 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNode DeepClone(YamlNodeTracker tracker = null)
+        public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
-            return new YamlDocument(_documentStart, _documentEnd, (YamlElement)Contents?.DeepClone(), tracker);
+            return new YamlDocument(_documentStart, _documentEnd, (YamlElement?)Contents?.DeepClone(), tracker);
         }
     }
 }

@@ -38,7 +38,7 @@ namespace SharpYaml.Serialization.Descriptors
     ///   </ul></remarks>
     public class DefaultKeyComparer : IComparer<object>
     {
-        public virtual int Compare(object x, object y)
+        public virtual int Compare(object? x, object? y)
         {
             if (x is IMemberDescriptor left && y is IMemberDescriptor right)
             {

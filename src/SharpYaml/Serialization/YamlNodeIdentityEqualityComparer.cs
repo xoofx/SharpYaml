@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization
         #region IEqualityComparer<YamlNode> Members
 
         /// <summary />
-        public bool Equals(YamlNode x, YamlNode y)
+        public bool Equals(YamlNode? x, YamlNode? y)
         {
             return ReferenceEquals(x, y);
         }

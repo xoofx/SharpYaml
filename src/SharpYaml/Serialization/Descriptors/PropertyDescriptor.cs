@@ -44,6 +44,7 @@
 // SOFTWARE.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace SharpYaml.Serialization.Descriptors
@@ -54,7 +55,7 @@ namespace SharpYaml.Serialization.Descriptors
     public class PropertyDescriptor : MemberDescriptorBase
     {
         private readonly MethodInfo getMethod;
-        private readonly MethodInfo setMethod;
+        private readonly MethodInfo? setMethod;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PropertyDescriptor" /> class.
@@ -97,6 +98,7 @@ namespace SharpYaml.Serialization.Descriptors
                 setMethod.Invoke(thisObject, new[] { value });
         }
 
+        [MemberNotNullWhen(true, nameof(setMethod))]
         public override bool HasSet { get { return setMethod != null; } }
 
         public override bool IsPublic { get { return getMethod.IsPublic; } }

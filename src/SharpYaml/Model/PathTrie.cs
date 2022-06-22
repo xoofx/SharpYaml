@@ -58,7 +58,7 @@ namespace SharpYaml.Model
                 get { return !Self && subPaths.Count == 0; }
             }
 
-            public PathTrieNode Find(IList<ChildIndex> indices, int start)
+            public PathTrieNode? Find(IList<ChildIndex> indices, int start)
             {
                 if (start == indices.Count)
                     return this;

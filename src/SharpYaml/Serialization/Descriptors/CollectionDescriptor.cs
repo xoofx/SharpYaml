@@ -47,6 +47,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace SharpYaml.Serialization.Descriptors
@@ -58,9 +59,9 @@ namespace SharpYaml.Serialization.Descriptors
     {
         private static readonly List<string> ListOfMembersToRemove = new List<string> { "Capacity", "Count", "IsReadOnly", "IsFixedSize", "IsSynchronized", "SyncRoot", "Comparer" };
 
-        private readonly Func<object, bool> IsReadOnlyFunction;
-        private readonly Func<object, int> GetCollectionCountFunction;
-        private readonly Action<object, object> CollectionAddFunction;
+        private readonly Func<object, bool>? IsReadOnlyFunction;
+        private readonly Func<object, int>? GetCollectionCountFunction;
+        private readonly Action<object, object>? CollectionAddFunction;
         private readonly bool isKeyedCollection = false;
 
         /// <summary>
@@ -83,7 +84,7 @@ namespace SharpYaml.Serialization.Descriptors
             ElementType = (collectionType != null) ? collectionType.GetGenericArguments()[0] : typeof(object);
 
             // implements ICollection<T> 
-            Type itype;
+            Type? itype;
             if ((itype = type.GetInterface(typeof(ICollection<>))) != null)
             {
                 var add = itype.GetMethod("Add", new[] { ElementType });
@@ -128,6 +129,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets a value indicating whether this collection type has add method.
         /// </summary>
         /// <value><c>true</c> if this instance has add; otherwise, <c>false</c>.</value>
+        [MemberNotNullWhen(true, nameof(CollectionAddFunction))]
         public bool HasAdd { get { return CollectionAddFunction != null; } }
 
         /// <summary>
@@ -145,7 +147,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// </summary>
         /// <param name="collection">The collection.</param>
         /// <returns><c>true</c> if the specified collection is read only; otherwise, <c>false</c>.</returns>
-        public bool IsReadOnly(object collection)
+        public bool IsReadOnly(object? collection)
         {
             return collection == null || IsReadOnlyFunction == null || IsReadOnlyFunction(collection);
         }
@@ -155,7 +157,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// </summary>
         /// <param name="collection">The collection.</param>
         /// <returns>The number of elements of a collection, -1 if it cannot determine the number of elements.</returns>
-        public int GetCollectionCount(object collection)
+        public int GetCollectionCount(object? collection)
         {
             return collection == null || GetCollectionCountFunction == null ? -1 : GetCollectionCountFunction(collection);
         }

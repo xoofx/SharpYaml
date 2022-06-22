@@ -81,7 +81,7 @@ namespace SharpYaml
         private ParserState state;
 
         private readonly Scanner<TBuffer> scanner;
-        private Token currentToken;
+        private Token? currentToken;
 
         private Token GetCurrentToken()
         {
@@ -92,7 +92,7 @@ namespace SharpYaml
                     currentToken = scanner.Current;
                 }
             }
-            return currentToken;
+            return currentToken!;
         }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace SharpYaml
         /// <summary>
         /// Gets the current event.
         /// </summary>
-        public Event Current { get; private set; }
+        public Event? Current { get; private set; }
 
         /// <summary>
         /// Moves to the next event.
@@ -310,9 +310,9 @@ namespace SharpYaml
         /// <summary>
         /// Parse directives.
         /// </summary>
-        private VersionDirective ProcessDirectives(TagDirectiveCollection tags)
+        private VersionDirective? ProcessDirectives(TagDirectiveCollection tags)
         {
-            VersionDirective version = null;
+            VersionDirective? version = null;
 
             while (true)
             {
@@ -442,8 +442,8 @@ namespace SharpYaml
 
             var start = GetCurrentToken().Start;
 
-            Anchor anchor = null;
-            Tag tag = null;
+            Anchor? anchor = null;
+            Tag? tag = null;
 
             // The anchor and the tag can be in any order. This loop repeats at most twice.
             while (true)
@@ -462,7 +462,7 @@ namespace SharpYaml
                 }
             }
 
-            string tagName = null;
+            string? tagName = null;
             if (tag != null)
             {
                 if (string.IsNullOrEmpty(tag.Handle))

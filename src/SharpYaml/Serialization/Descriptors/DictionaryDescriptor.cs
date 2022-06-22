@@ -46,6 +46,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 
@@ -57,8 +58,8 @@ namespace SharpYaml.Serialization.Descriptors
     public class DictionaryDescriptor : ObjectDescriptor
     {
         private static readonly List<string> ListOfMembersToRemove = new List<string> { "Comparer", "Keys", "Values", "Capacity" };
-        private readonly MethodInfo getEnumeratorGeneric;
-        private readonly MethodInfo addMethod;
+        private readonly MethodInfo? getEnumeratorGeneric;
+        private readonly MethodInfo? addMethod;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DictionaryDescriptor" /> class.
@@ -107,6 +108,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets a value indicating whether this instance is generic dictionary.
         /// </summary>
         /// <value><c>true</c> if this instance is generic dictionary; otherwise, <c>false</c>.</value>
+        [MemberNotNullWhen(true, nameof(getEnumeratorGeneric))]
         public bool IsGenericDictionary { get; }
 
         /// <summary>
@@ -144,13 +146,13 @@ namespace SharpYaml.Serialization.Descriptors
         /// <returns>A generic enumerator.</returns>
         /// <exception cref="System.ArgumentNullException">dictionary</exception>
         /// <exception cref="System.NotSupportedException">Key value-pair [{0}] is not supported for IDictionary. Only DictionaryEntry.DoFormat(keyValueObject)</exception>
-        public IEnumerable<KeyValuePair<object, object>> GetEnumerator(object dictionary)
+        public IEnumerable<KeyValuePair<object, object?>> GetEnumerator(object dictionary)
         {
             if (dictionary == null)
                 throw new ArgumentNullException("dictionary");
             if (IsGenericDictionary)
             {
-                foreach (var item in (IEnumerable<KeyValuePair<object, object>>)getEnumeratorGeneric.Invoke(null, new[] { dictionary }))
+                foreach (var item in (IEnumerable<KeyValuePair<object, object?>>?)getEnumeratorGeneric.Invoke(null, new[] { dictionary }))
                 {
                     yield return item;
                 }
@@ -166,7 +168,7 @@ namespace SharpYaml.Serialization.Descriptors
                     }
                     else
                     {
-                        yield return new KeyValuePair<object, object>(entry.Key, entry.Value);
+                        yield return new KeyValuePair<object, object?>(entry.Key, entry.Value);
                     }
                 }
             }
@@ -179,7 +181,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// <param name="key">The key.</param>
         /// <param name="value">The value.</param>
         /// <exception cref="System.InvalidOperationException">No Add() method found on dictionary [<see cref="m:Type" />]</exception>
-        public void AddToDictionary(object dictionary, object key, object value)
+        public void AddToDictionary(object dictionary, object key, object? value)
         {
             if (dictionary == null)
                 throw new ArgumentNullException("dictionary");
@@ -208,9 +210,10 @@ namespace SharpYaml.Serialization.Descriptors
             return typeof(IDictionary).IsAssignableFrom(type) || type.HasInterface(typeof(IDictionary<,>));
         }
 
-        public static IEnumerable<KeyValuePair<object, object>> GetGenericEnumerable<TKey, TValue>(IDictionary<TKey, TValue> dictionary)
+        public static IEnumerable<KeyValuePair<object, object?>> GetGenericEnumerable<TKey, TValue>(IDictionary<TKey, TValue> dictionary)
+            where TKey : notnull
         {
-            return dictionary.Select(keyValue => new KeyValuePair<object, object>(keyValue.Key, keyValue.Value));
+            return dictionary.Select(keyValue => new KeyValuePair<object, object?>(keyValue.Key, keyValue.Value));
         }
 
         protected override bool PrepareMember(MemberDescriptorBase member)

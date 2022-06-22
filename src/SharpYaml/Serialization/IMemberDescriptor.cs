@@ -137,18 +137,18 @@ namespace SharpYaml.Serialization
         /// Gets a value indicating whether this member should be serialized.
         /// </summary>
         /// <value><c>true</c> if [should serialize]; otherwise, <c>false</c>.</value>
-        Func<object, bool> ShouldSerialize { get; }
+        Func<object?, bool> ShouldSerialize { get; }
 
         /// <summary>
         /// Gets the alternative names that will map back to this member (may be null).
         /// </summary>
         /// <value>The alternative names that will map back to this member (may be null).</value>
-        List<string> AlternativeNames { get; }
+        List<string>? AlternativeNames { get; }
 
         /// <summary>
         /// Gets or sets a custom tag to associate with this object.
         /// </summary>
         /// <value>A custom tag object.</value>
-        object Tag { get; set; }
+        object? Tag { get; set; }
     }
 }

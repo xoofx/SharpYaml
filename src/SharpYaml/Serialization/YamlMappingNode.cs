@@ -223,8 +223,8 @@ namespace SharpYaml.Serialization
         /// <param name="state">The state of the document.</param>
         internal override void ResolveAliases(DocumentLoadingState state)
         {
-            Dictionary<YamlNode, YamlNode> keysToUpdate = null;
-            Dictionary<YamlNode, YamlNode> valuesToUpdate = null;
+            Dictionary<YamlNode, YamlNode>? keysToUpdate = null;
+            Dictionary<YamlNode, YamlNode>? valuesToUpdate = null;
             foreach (var entry in Children)
             {
                 if (entry.Key is YamlAliasNode)
@@ -233,7 +233,7 @@ namespace SharpYaml.Serialization
                     {
                         keysToUpdate = new Dictionary<YamlNode, YamlNode>();
                     }
-                    keysToUpdate.Add(entry.Key, state.GetNode(entry.Key.Anchor, true, entry.Key.Start, entry.Key.End));
+                    keysToUpdate.Add(entry.Key, state.GetNode(entry.Key.Anchor!, true, entry.Key.Start, entry.Key.End));
                 }
                 if (entry.Value is YamlAliasNode)
                 {
@@ -241,7 +241,7 @@ namespace SharpYaml.Serialization
                     {
                         valuesToUpdate = new Dictionary<YamlNode, YamlNode>();
                     }
-                    valuesToUpdate.Add(entry.Key, state.GetNode(entry.Value.Anchor, true, entry.Value.Start, entry.Value.End));
+                    valuesToUpdate.Add(entry.Key, state.GetNode(entry.Value.Anchor!, true, entry.Value.Start, entry.Value.End));
                 }
             }
             if (valuesToUpdate != null)
@@ -290,7 +290,7 @@ namespace SharpYaml.Serialization
         }
 
         /// <summary />
-        public override bool Equals(object other)
+        public override bool Equals(object? other)
         {
             if (other is not YamlMappingNode obj || !Equals(obj) || Children.Count != obj.Children.Count)
             {

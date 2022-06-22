@@ -94,7 +94,7 @@ namespace SharpYaml.Serialization
         }
 
         /// <summary />
-        public override bool Equals(object other)
+        public override bool Equals(object? other)
         {
             return other is YamlAliasNode obj && Equals(obj) && SafeEquals(Anchor, obj.Anchor);
         }

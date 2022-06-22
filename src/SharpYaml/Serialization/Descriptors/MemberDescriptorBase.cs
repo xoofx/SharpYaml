@@ -93,11 +93,11 @@ namespace SharpYaml.Serialization.Descriptors
         public abstract bool IsPublic { get; }
         public uint Mask { get; internal set; }
         public YamlStyle Style { get; internal set; }
-        public Func<object, bool> ShouldSerialize { get; internal set; }
+        public Func<object?, bool> ShouldSerialize { get; internal set; }
 
-        public List<string> AlternativeNames { get; set; }
+        public List<string>? AlternativeNames { get; set; }
 
-        public object Tag { get; set; }
+        public object? Tag { get; set; }
 
         /// <summary>
         /// Gets the member information.

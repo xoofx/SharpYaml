@@ -60,7 +60,7 @@ namespace SharpYaml.Serialization
         /// Gets or sets the attribute remapper. May be null
         /// </summary>
         /// <value>The remap attribute.</value>
-        Func<Attribute, Attribute> AttributeRemap { get; set; }
+        Func<Attribute, Attribute>? AttributeRemap { get; set; }
 
         /// <summary>
         /// Gets the attributes associated with the specified member.
@@ -73,7 +73,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Gets or sets the prepare member callback.
         /// </summary>
-        Action<ObjectDescriptor, List<IMemberDescriptor>> PrepareMembersCallback { get; set; }
+        Action<ObjectDescriptor, List<IMemberDescriptor>>? PrepareMembersCallback { get; set; }
 
         /// <summary>
         /// Registers an attribute for the specified member. Restriction: Attributes registered this way cannot be listed in inherited attributes.
@@ -109,7 +109,7 @@ namespace SharpYaml.Serialization
         /// <param name="memberInfo">The member information.</param>
         /// <param name="inherit">if set to <c>true</c> [inherit].</param>
         /// <returns>An attribute of type {T} if it was found; otherwise <c>null</c> </returns>
-        public static T GetAttribute<T>(this IAttributeRegistry attributeRegistry, MemberInfo memberInfo, bool inherit = true) where T : Attribute
+        public static T? GetAttribute<T>(this IAttributeRegistry attributeRegistry, MemberInfo memberInfo, bool inherit = true) where T : Attribute
         {
             return attributeRegistry.GetAttributes(memberInfo, inherit).OfType<T>().FirstOrDefault();
         }

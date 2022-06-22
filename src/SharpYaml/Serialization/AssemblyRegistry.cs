@@ -112,7 +112,7 @@ namespace SharpYaml.Serialization
                     var attributes = attributeRegistry.GetAttributes(type.GetTypeInfo());
                     foreach (var attribute in attributes)
                     {
-                        string name = null;
+                        string? name = null;
                         bool isAlias = false;
                         if (attribute is YamlTagAttribute tagAttribute)
                         {
@@ -187,7 +187,7 @@ namespace SharpYaml.Serialization
             }
         }
 
-        public virtual Type TypeFromTag(string tag, out bool isAlias)
+        public virtual Type? TypeFromTag(string? tag, out bool isAlias)
         {
             isAlias = false;
 
@@ -198,7 +198,7 @@ namespace SharpYaml.Serialization
 
             // Get the default schema type if there is any
             var shortTag = schema.ShortenTag(tag);
-            Type type;
+            Type? type;
             if (shortTag != tag || shortTag.StartsWith("!!", StringComparison.Ordinal))
             {
                 type = schema.GetTypeForDefaultTag(shortTag);
@@ -259,12 +259,12 @@ namespace SharpYaml.Serialization
             }
         }
 
-        public virtual Type ResolveType(string typeName)
+        public virtual Type? ResolveType(string typeName)
         {
             var type = Type.GetType(typeName);
             if (type == null)
             {
-                string assemblyName = null;
+                string? assemblyName = null;
 
                 // Find assembly name start (skip up to one space if needed)
                 // We ignore everything else (version, publickeytoken, etc...)
@@ -326,13 +326,13 @@ namespace SharpYaml.Serialization
 
         readonly struct MappedType
         {
-            public MappedType(Type type, bool remapped)
+            public MappedType(Type? type, bool remapped)
             {
                 Type = type;
                 Remapped = remapped;
             }
 
-            public readonly Type Type;
+            public readonly Type? Type;
 
             public readonly bool Remapped;
         }

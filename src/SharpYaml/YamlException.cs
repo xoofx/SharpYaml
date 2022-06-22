@@ -89,7 +89,7 @@ namespace SharpYaml
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlException"/> class.
         /// </summary>
-        public YamlException(Mark start, Mark end, string message, Exception innerException)
+        public YamlException(Mark start, Mark end, string message, Exception? innerException)
             : base($"({start}) - ({end}): {message}", innerException)
         {
             Start = start;

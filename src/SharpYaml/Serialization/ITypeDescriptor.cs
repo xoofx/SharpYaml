@@ -63,7 +63,7 @@ namespace SharpYaml.Serialization
         /// Gets the members of this type.
         /// </summary>
         /// <value>The members.</value>
-        IEnumerable<IMemberDescriptor> Members { get; }
+        IEnumerable<IMemberDescriptor>? Members { get; }
 
         /// <summary>
         /// Gets the member count.
@@ -88,7 +88,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns>The member.</returns>
-        IMemberDescriptor this[string name] { get; }
+        IMemberDescriptor? this[string name] { get; }
 
         /// <summary>
         /// Determines whether the named member is remmaped.

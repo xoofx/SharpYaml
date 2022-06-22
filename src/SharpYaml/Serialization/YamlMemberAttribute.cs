@@ -104,7 +104,7 @@ namespace SharpYaml.Serialization
         /// Gets the name.
         /// </summary>
         /// <value>The name.</value>
-        public string Name { get; }
+        public string? Name { get; }
 
         /// <summary>
         /// Gets the serialize method1.

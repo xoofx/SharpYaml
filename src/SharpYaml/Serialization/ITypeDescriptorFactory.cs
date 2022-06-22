@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SharpYaml.Serialization
 {
@@ -59,6 +60,7 @@ namespace SharpYaml.Serialization
         /// <param name="type">The type.</param>
         /// <param name="memberComparer"></param>
         /// <returns>ITypeDescriptor.</returns>
-        ITypeDescriptor Find(Type type, IComparer<object> memberComparer);
+        [return: NotNullIfNotNull("type")]
+        ITypeDescriptor? Find(Type? type, IComparer<object> memberComparer);
     }
 }

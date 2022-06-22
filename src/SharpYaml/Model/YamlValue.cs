@@ -20,6 +20,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization.Serializers;
@@ -30,14 +31,14 @@ namespace SharpYaml.Model
     {
         private Scalar _scalar;
 
-        YamlValue(Scalar scalar, YamlNodeTracker tracker)
+        YamlValue(Scalar scalar, YamlNodeTracker? tracker)
         {
             Tracker = tracker;
 
             Scalar = scalar ?? throw new ArgumentNullException(nameof(scalar));
         }
 
-        public YamlValue(object value, IYamlSchema schema = null)
+        public YamlValue(object value, IYamlSchema? schema = null)
         {
             var valueString = PrimitiveSerializer.ConvertValue(value);
             if (schema == null)
@@ -49,6 +50,7 @@ namespace SharpYaml.Model
         internal Scalar Scalar
         {
             get { return _scalar; }
+            [MemberNotNull(nameof(_scalar))]
             set
             {
                 var oldScalar = _scalar;
@@ -60,19 +62,19 @@ namespace SharpYaml.Model
             }
         }
 
-        public static YamlValue Load(EventReader eventReader, YamlNodeTracker tracker = null)
+        public static YamlValue Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var scalar = eventReader.Allow<Scalar>();
 
             return new YamlValue(scalar, tracker);
         }
 
-        public override YamlNode DeepClone(YamlNodeTracker tracker = null)
+        public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             return new YamlValue(_scalar, tracker);
         }
 
-        public override string Anchor
+        public override string? Anchor
         {
             get { return _scalar.Anchor; }
             set
@@ -88,7 +90,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override string Tag
+        public override string? Tag
         {
             get { return _scalar.Tag; }
             set

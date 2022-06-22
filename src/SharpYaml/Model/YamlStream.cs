@@ -29,7 +29,7 @@ namespace SharpYaml.Model
     {
         private readonly List<YamlDocument> _documents;
 
-        public YamlStream(YamlNodeTracker tracker = null)
+        public YamlStream(YamlNodeTracker? tracker = null)
         {
             StreamStart = new StreamStart();
             StreamEnd = new StreamEnd();
@@ -37,7 +37,7 @@ namespace SharpYaml.Model
             Tracker = tracker;
         }
 
-        YamlStream(StreamStart streamStart, StreamEnd streamEnd, List<YamlDocument> documents, YamlNodeTracker tracker = null)
+        YamlStream(StreamStart streamStart, StreamEnd streamEnd, List<YamlDocument> documents, YamlNodeTracker? tracker = null)
         {
             this.StreamStart = streamStart;
             this.StreamEnd = streamEnd;
@@ -58,12 +58,12 @@ namespace SharpYaml.Model
         internal StreamStart StreamStart { get; }
         internal StreamEnd StreamEnd { get; }
 
-        public static YamlStream Load(TextReader stream, YamlNodeTracker tracker = null)
+        public static YamlStream Load(TextReader stream, YamlNodeTracker? tracker = null)
         {
             return Load(new EventReader(Parser.CreateParser(stream)), tracker);
         }
 
-        public static YamlStream Load(EventReader eventReader, YamlNodeTracker tracker = null)
+        public static YamlStream Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var streamStart = eventReader.Allow<StreamStart>();
 
@@ -97,7 +97,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNodeTracker Tracker
+        public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
             internal set
@@ -168,7 +168,7 @@ namespace SharpYaml.Model
             {
                 item.Tracker = Tracker;
 
-                ICollection<YamlDocument> nextDocuments = null;
+                ICollection<YamlDocument>? nextDocuments = null;
                 if (index < _documents.Count - 1)
                     nextDocuments = _documents.Skip(index + 1).ToArray();
 
@@ -184,7 +184,7 @@ namespace SharpYaml.Model
 
             if (Tracker != null)
             {
-                IEnumerable<YamlDocument> nextDocuments = null;
+                IEnumerable<YamlDocument>? nextDocuments = null;
                 if (index < _documents.Count)
                     nextDocuments = _documents.Skip(index);
 
@@ -209,7 +209,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNode DeepClone(YamlNodeTracker tracker = null)
+        public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             var documentsClone = new List<YamlDocument>(_documents.Count);
             for (var i = 0; i < _documents.Count; i++)

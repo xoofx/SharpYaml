@@ -26,10 +26,10 @@ namespace SharpYaml.Model
     public sealed class YamlNodeEventEnumerator : IEnumerable<ParsingEvent>, IEnumerator<ParsingEvent>
     {
         private readonly YamlNode root;
-        private YamlNode currentNode;
+        private YamlNode? currentNode;
         private int currentIndex;
-        private Stack<YamlNode> nodePath;
-        private Stack<int> indexPath;
+        private Stack<YamlNode>? nodePath;
+        private Stack<int>? indexPath;
 
         public YamlNodeEventEnumerator(YamlNode root)
         {
@@ -184,14 +184,14 @@ namespace SharpYaml.Model
 
         public void Reset()
         {
-            Current = null;
+            Current = null!;
             nodePath.Clear();
             indexPath.Clear();
             currentNode = root;
             currentIndex = -1;
         }
 
-        public ParsingEvent Current { get; private set; }
+        public ParsingEvent Current { get; private set; } = null!;
 
         object IEnumerator.Current => Current;
     }

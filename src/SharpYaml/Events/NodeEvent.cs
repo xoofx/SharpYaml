@@ -59,13 +59,13 @@ namespace SharpYaml.Events
         /// Gets the anchor.
         /// </summary>
         /// <value></value>
-        public string Anchor { get; }
+        public string? Anchor { get; }
 
         /// <summary>
         /// Gets the tag.
         /// </summary>
         /// <value></value>
-        public string Tag { get; }
+        public string? Tag { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is canonical.
@@ -80,7 +80,7 @@ namespace SharpYaml.Events
         /// <param name="tag">The tag.</param>
         /// <param name="start">The start position of the event.</param>
         /// <param name="end">The end position of the event.</param>
-        protected NodeEvent(string anchor, string tag, Mark start, Mark end)
+        protected NodeEvent(string? anchor, string? tag, Mark start, Mark end)
             : base(start, end)
         {
             if (anchor != null)
@@ -108,7 +108,7 @@ namespace SharpYaml.Events
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeEvent"/> class.
         /// </summary>
-        protected NodeEvent(string anchor, string tag)
+        protected NodeEvent(string? anchor, string? tag)
             : this(anchor, tag, Mark.Empty, Mark.Empty)
         {
         }

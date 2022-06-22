@@ -52,7 +52,7 @@ namespace SharpYaml.Serialization.Serializers
 {
     internal class ArraySerializer : IYamlSerializable, IYamlSerializableFactory
     {
-        public IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+        public IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
             return typeDescriptor is ArrayDescriptor ? this : null;
         }
@@ -63,7 +63,7 @@ namespace SharpYaml.Serialization.Serializers
             var arrayDescriptor = (ArrayDescriptor)objectContext.Descriptor;
 
             bool isArray = objectContext.Instance != null && objectContext.Instance.GetType().IsArray;
-            var arrayList = (IList)objectContext.Instance;
+            var arrayList = (IList)objectContext.Instance!;
 
             reader.Expect<SequenceStart>();
             int index = 0;

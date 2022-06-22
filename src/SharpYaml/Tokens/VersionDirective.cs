@@ -86,7 +86,7 @@ namespace SharpYaml.Tokens
         /// <returns>
         /// true if the specified System.Object is equal to the current System.Object; otherwise, false.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is VersionDirective other && Version.Equals(other.Version);
         }

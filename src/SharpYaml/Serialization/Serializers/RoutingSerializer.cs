@@ -71,7 +71,7 @@ namespace SharpYaml.Serialization.Serializers
             factories.Add(factory);
         }
 
-        public object ReadYaml(ref ObjectContext objectContext)
+        public object? ReadYaml(ref ObjectContext objectContext)
         {
             // If value is not null, use its TypeDescriptor otherwise use expected type descriptor
             var instance = objectContext.Instance;

@@ -64,7 +64,7 @@ namespace SharpYaml.Serialization.Serializers
         {
         }
 
-        public override IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+        public override IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
             return typeDescriptor is CollectionDescriptor ? this : null;
         }
@@ -205,7 +205,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="itemType">Type of the item.</param>
         /// <param name="index"></param>
         /// <returns>The item to add to the current collection.</returns>
-        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType, int index)
+        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, object? value, Type itemType, int index)
         {
             return objectContext.ObjectSerializerBackend.ReadCollectionItem(ref objectContext, value, itemType, index);
         }

@@ -80,7 +80,7 @@ namespace SharpYaml.Serialization
         /// Initializes a new instance of the <see cref="Serializer"/> class.
         /// </summary>
         /// <param name="settings">The settings.</param>
-        public Serializer(SerializerSettings settings)
+        public Serializer(SerializerSettings? settings)
         {
             this.Settings = settings ?? new SerializerSettings();
             TypeDescriptorFactory = CreateTypeDescriptorFactory();
@@ -99,7 +99,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="graph">The graph.</param>
         /// <returns>A YAML string of the object.</returns>
-        public string Serialize(object graph)
+        public string Serialize(object? graph)
         {
             var stringWriter = new StringWriter();
             Serialize(stringWriter, graph);
@@ -113,7 +113,7 @@ namespace SharpYaml.Serialization
         /// <param name="expectedType">The expected type.</param>
         /// <param name="contextSettings">The context settings.</param>
         /// <returns>A YAML string of the object.</returns>
-        public string Serialize(object graph, Type expectedType, SerializerContextSettings contextSettings = null)
+        public string Serialize(object? graph, Type expectedType, SerializerContextSettings? contextSettings = null)
         {
             var stringWriter = new StringWriter();
             Serialize(stringWriter, graph, expectedType, contextSettings);
@@ -125,7 +125,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <param name="graph">The object to serialize.</param>
-        public void Serialize(Stream stream, object graph)
+        public void Serialize(Stream stream, object? graph)
         {
             Serialize(stream, graph, null);
         }
@@ -137,7 +137,7 @@ namespace SharpYaml.Serialization
         /// <param name="graph">The object to serialize.</param>
         /// <param name="expectedType">The static type of the object to serialize.</param>
         /// <param name="contextSettings">The context settings.</param>
-        public void Serialize(Stream stream, object graph, Type expectedType, SerializerContextSettings contextSettings = null)
+        public void Serialize(Stream stream, object? graph, Type? expectedType, SerializerContextSettings? contextSettings = null)
         {
             var writer = new StreamWriter(stream);
             try
@@ -161,7 +161,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="writer">The <see cref="TextWriter" /> where to serialize the object.</param>
         /// <param name="graph">The object to serialize.</param>
-        public void Serialize(TextWriter writer, object graph)
+        public void Serialize(TextWriter writer, object? graph)
         {
             Serialize(new Emitter(writer, Settings.PreferredIndent, emitKeyQuoted: Settings.EmitJsonComptible), graph);
         }
@@ -173,7 +173,7 @@ namespace SharpYaml.Serialization
         /// <param name="graph">The object to serialize.</param>
         /// <param name="type">The static type of the object to serialize.</param>
         /// <param name="contextSettings">The context settings.</param>
-        public void Serialize(TextWriter writer, object graph, Type type, SerializerContextSettings contextSettings = null)
+        public void Serialize(TextWriter writer, object? graph, Type? type, SerializerContextSettings? contextSettings = null)
         {
             Serialize(new Emitter(writer, Settings.PreferredIndent, emitKeyQuoted: Settings.EmitJsonComptible), graph, type, contextSettings);
         }
@@ -183,7 +183,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="emitter">The <see cref="IEmitter" /> where to serialize the object.</param>
         /// <param name="graph">The object to serialize.</param>
-        public void Serialize(IEmitter emitter, object graph)
+        public void Serialize(IEmitter emitter, object? graph)
         {
             Serialize(emitter, graph, graph == null ? typeof(object) : null);
         }
@@ -195,7 +195,7 @@ namespace SharpYaml.Serialization
         /// <param name="graph">The object to serialize.</param>
         /// <param name="type">The static type of the object to serialize.</param>
         /// <param name="contextSettings">The context settings.</param>
-        public void Serialize(IEmitter emitter, object graph, Type type, SerializerContextSettings contextSettings = null)
+        public void Serialize(IEmitter emitter, object? graph, Type? type, SerializerContextSettings? contextSettings = null)
         {
             if (emitter == null)
             {
@@ -230,7 +230,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <returns>A deserialized object.</returns>
-        public object Deserialize(Stream stream)
+        public object? Deserialize(Stream stream)
         {
             return Deserialize(stream, null);
         }
@@ -240,7 +240,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="reader">The reader.</param>
         /// <returns>A deserialized object.</returns>
-        public object Deserialize(TextReader reader)
+        public object? Deserialize(TextReader reader)
         {
             return Deserialize((TextReader)reader, null);
         }
@@ -253,7 +253,7 @@ namespace SharpYaml.Serialization
         /// <param name="contextSettings">The context settings.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
-        public object Deserialize(Stream stream, Type expectedType, SerializerContextSettings contextSettings = null)
+        public object? Deserialize(Stream stream, Type? expectedType, SerializerContextSettings? contextSettings = null)
         {
             if (stream == null)
                 throw new ArgumentNullException("stream");
@@ -270,7 +270,7 @@ namespace SharpYaml.Serialization
         /// <param name="context">The context used to deserialize this object.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
-        public object Deserialize(Stream stream, Type expectedType, SerializerContextSettings contextSettings, out SerializerContext context)
+        public object? Deserialize(Stream stream, Type expectedType, SerializerContextSettings contextSettings, out SerializerContext? context)
         {
             if (stream == null)
                 throw new ArgumentNullException("stream");
@@ -285,9 +285,9 @@ namespace SharpYaml.Serialization
         /// <param name="stream">The stream.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
-        public T Deserialize<T>(Stream stream)
+        public T? Deserialize<T>(Stream stream)
         {
-            return (T)Deserialize(stream, typeof(T));
+            return (T?)Deserialize(stream, typeof(T));
         }
 
         /// <summary>
@@ -299,7 +299,7 @@ namespace SharpYaml.Serialization
         /// <param name="contextSettings">The context settings.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public object Deserialize(TextReader reader, Type expectedType, object existingObject = null, SerializerContextSettings contextSettings = null)
+        public object? Deserialize(TextReader reader, Type? expectedType, object? existingObject = null, SerializerContextSettings? contextSettings = null)
         {
             if (reader == null)
                 throw new ArgumentNullException("reader");
@@ -316,7 +316,7 @@ namespace SharpYaml.Serialization
         /// <param name="context">The context used to deserialize this object.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public object Deserialize(TextReader reader, Type expectedType, object existingObject, SerializerContextSettings contextSettings, out SerializerContext context)
+        public object? Deserialize(TextReader reader, Type expectedType, object? existingObject, SerializerContextSettings? contextSettings, out SerializerContext? context)
         {
             if (reader == null)
                 throw new ArgumentNullException("reader");
@@ -331,9 +331,9 @@ namespace SharpYaml.Serialization
         /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public T Deserialize<T>(TextReader reader, object existingObject = null)
+        public T? Deserialize<T>(TextReader reader, object? existingObject = null)
         {
-            return (T)Deserialize(reader, typeof(T), existingObject);
+            return (T?)Deserialize(reader, typeof(T), existingObject);
         }
 
         /// <summary>
@@ -342,7 +342,7 @@ namespace SharpYaml.Serialization
         /// <param name="fromText">The text.</param>
         /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
         /// <returns>A deserialized object.</returns>
-        public object Deserialize(string fromText, object existingObject = null)
+        public object? Deserialize(string fromText, object? existingObject = null)
         {
             return Deserialize(fromText, null, existingObject);
         }
@@ -355,7 +355,7 @@ namespace SharpYaml.Serialization
         /// <param name="existingObject">The object to deserialize into. If null (the default) then a new object will be created</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
-        public object Deserialize(string fromText, Type expectedType, object existingObject = null)
+        public object? Deserialize(string fromText, Type? expectedType, object? existingObject = null)
         {
             if (fromText == null)
                 throw new ArgumentNullException("fromText");
@@ -371,7 +371,7 @@ namespace SharpYaml.Serialization
         /// <param name="context">The context used to deserialize this object.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
-        public object Deserialize(string fromText, Type expectedType, object existingObject, out SerializerContext context)
+        public object? Deserialize(string fromText, Type expectedType, object? existingObject, out SerializerContext? context)
         {
             if (fromText == null)
                 throw new ArgumentNullException("fromText");
@@ -385,9 +385,9 @@ namespace SharpYaml.Serialization
         /// <param name="fromText">From text.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
-        public T Deserialize<T>(string fromText)
+        public T? Deserialize<T>(string fromText)
         {
-            return (T)Deserialize(fromText, typeof(T));
+            return (T?)Deserialize(fromText, typeof(T));
         }
 
         /// <summary>
@@ -397,9 +397,9 @@ namespace SharpYaml.Serialization
         /// <param name="reader">The reader.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public T Deserialize<T>(EventReader reader)
+        public T? Deserialize<T>(EventReader reader)
         {
-            return (T)Deserialize(reader, typeof(T));
+            return (T?)Deserialize(reader, typeof(T));
         }
 
         /// <summary>
@@ -412,9 +412,9 @@ namespace SharpYaml.Serialization
         /// <exception cref="System.ArgumentNullException">stream</exception>
         /// 
         /// Note: These need a different name, because otherwise they will conflict with existing Deserialize(string,Type). They are new so the difference should not matter
-        public T DeserializeInto<T>(string fromText, T existingObject)
+        public T? DeserializeInto<T>(string fromText, T existingObject)
         {
-            return (T)Deserialize(fromText, typeof(T), existingObject);
+            return (T?)Deserialize(fromText, typeof(T), existingObject);
         }
 
         /// <summary>
@@ -425,9 +425,9 @@ namespace SharpYaml.Serialization
         /// <param name="existingObject">The object to deserialize into.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public T DeserializeInto<T>(EventReader reader, T existingObject)
+        public T? DeserializeInto<T>(EventReader reader, T existingObject)
         {
-            return (T)Deserialize(reader, typeof(T), existingObject);
+            return (T?)Deserialize(reader, typeof(T), existingObject);
         }
 
         /// <summary>
@@ -438,9 +438,9 @@ namespace SharpYaml.Serialization
         /// <param name="context">The context.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
-        public T Deserialize<T>(string fromText, out SerializerContext context)
+        public T? Deserialize<T>(string fromText, out SerializerContext? context)
         {
-            return (T)Deserialize(fromText, typeof(T), null, out context);
+            return (T?)Deserialize(fromText, typeof(T), null, out context);
         }
 
         /// <summary>
@@ -451,9 +451,9 @@ namespace SharpYaml.Serialization
         /// <param name="context">The context used to deserialize this object.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public T Deserialize<T>(EventReader reader, out SerializerContext context)
+        public T? Deserialize<T>(EventReader reader, out SerializerContext? context)
         {
-            return (T)Deserialize(reader, typeof(T), null, null, out context);
+            return (T?)Deserialize(reader, typeof(T), null, null, out context);
         }
 
         /// <summary>
@@ -466,9 +466,9 @@ namespace SharpYaml.Serialization
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">stream</exception>
         /// Note: These need a different name, because otherwise they will conflict with existing Deserialize(string,Type). They are new so the difference should not matter
-        public T DeserializeInto<T>(string fromText, T existingObject, out SerializerContext context)
+        public T? DeserializeInto<T>(string fromText, T existingObject, out SerializerContext? context)
         {
-            return (T)Deserialize(fromText, typeof(T), existingObject, out context);
+            return (T?)Deserialize(fromText, typeof(T), existingObject, out context);
         }
 
         /// <summary>
@@ -480,9 +480,9 @@ namespace SharpYaml.Serialization
         /// <param name="context">The context used to deserialize this object.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public T DeserializeInto<T>(EventReader reader, T existingObject, out SerializerContext context)
+        public T? DeserializeInto<T>(EventReader reader, T existingObject, out SerializerContext? context)
         {
-            return (T)Deserialize(reader, typeof(T), existingObject, null, out context);
+            return (T?)Deserialize(reader, typeof(T), existingObject, null, out context);
         }
 
         /// <summary>
@@ -494,7 +494,7 @@ namespace SharpYaml.Serialization
         /// <param name="contextSettings">The context settings.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public object Deserialize(EventReader reader, Type expectedType, object existingObject = null, SerializerContextSettings contextSettings = null)
+        public object? Deserialize(EventReader reader, Type? expectedType, object? existingObject = null, SerializerContextSettings? contextSettings = null)
         {
             return Deserialize(reader, expectedType, existingObject, contextSettings, out var context);
         }
@@ -509,7 +509,7 @@ namespace SharpYaml.Serialization
         /// <param name="context">The context used to deserialize the object.</param>
         /// <returns>A deserialized object.</returns>
         /// <exception cref="System.ArgumentNullException">reader</exception>
-        public object Deserialize(EventReader reader, Type expectedType, object existingObject, SerializerContextSettings contextSettings, out SerializerContext context)
+        public object? Deserialize(EventReader reader, Type? expectedType, object? existingObject, SerializerContextSettings? contextSettings, out SerializerContext? context)
         {
             if (reader == null)
                 throw new ArgumentNullException("reader");
@@ -518,7 +518,7 @@ namespace SharpYaml.Serialization
             var hasDocumentStart = reader.Allow<DocumentStart>() != null;
             context = null;
 
-            object result = null;
+            object? result = null;
             if (!reader.Accept<DocumentEnd>() && !reader.Accept<StreamEnd>())
             {
                 context = new SerializerContext(this, contextSettings) { Reader = reader };

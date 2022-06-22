@@ -59,13 +59,13 @@ namespace SharpYaml.Serialization
         /// Gets or sets the anchor of the node.
         /// </summary>
         /// <value>The anchor.</value>
-        public string Anchor { get; set; }
+        public string? Anchor { get; set; }
 
         /// <summary>
         /// Gets or sets the tag of the node.
         /// </summary>
         /// <value>The tag.</value>
-        public string Tag { get; set; }
+        public string? Tag { get; set; }
 
         /// <summary>
         /// Gets the position in the input stream where the event that originated the node starts.
@@ -176,7 +176,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Gets a value indicating whether two objects are equal.
         /// </summary>
-        protected static bool SafeEquals(object first, object second)
+        protected static bool SafeEquals(object? first, object? second)
         {
             if (first != null)
             {
@@ -207,7 +207,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Gets the hash code of the specified object, or zero if the object is null. 
         /// </summary>
-        protected static int GetHashCode(object value)
+        protected static int GetHashCode(object? value)
         {
             return value == null ? 0 : value.GetHashCode();
         }

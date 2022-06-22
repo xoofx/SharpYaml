@@ -18,7 +18,7 @@ namespace SharpYaml.Model
             IsKey = isKey;
         }
 
-        public YamlNode Resolve(YamlNode parent)
+        public YamlNode? Resolve(YamlNode parent)
         {
             if (parent is YamlStream stream)
             {
@@ -62,7 +62,7 @@ namespace SharpYaml.Model
             return Index == other.Index && IsKey == other.IsKey;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             return obj is ChildIndex index && Equals(index);
@@ -88,7 +88,7 @@ namespace SharpYaml.Model
             Indices = indices;
         }
 
-        public YamlNode Resolve()
+        public YamlNode? Resolve()
         {
             var node = Root;
             foreach (var index in Indices)
@@ -107,7 +107,7 @@ namespace SharpYaml.Model
             return Equals(Root, other.Root) && Indices.SequenceEqual(other.Indices);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             return obj is Path path && Equals(path);
@@ -200,14 +200,14 @@ namespace SharpYaml.Model
         }
 
         public new TParent Node { get { return (TParent)base.Node; } }
-        public TChild OldChild { get; }
+        public TChild? OldChild { get; }
         public TChild NewChild { get; }
         public int Index { get; }
     }
 
     public abstract class PropertyChangedEventArgs<TNode, TProperty> : TrackerEventArgs where TNode : YamlNode
     {
-        public PropertyChangedEventArgs(TNode node, IList<Path> parentPaths, TProperty oldValue, TProperty newValue)
+        public PropertyChangedEventArgs(TNode node, IList<Path> parentPaths, TProperty? oldValue, TProperty newValue)
             : base(node, parentPaths)
         {
             OldValue = oldValue;
@@ -215,7 +215,7 @@ namespace SharpYaml.Model
         }
 
         public new TNode Node { get { return (TNode)base.Node; } }
-        public TProperty OldValue { get; }
+        public TProperty? OldValue { get; }
         public TProperty NewValue { get; }
     }
 
@@ -254,7 +254,7 @@ namespace SharpYaml.Model
 
     public class DocumentStartChanged : PropertyChangedEventArgs<YamlDocument, DocumentStart>
     {
-        public DocumentStartChanged(YamlDocument node, IList<Path> parentPaths, DocumentStart oldValue, DocumentStart newValue)
+        public DocumentStartChanged(YamlDocument node, IList<Path> parentPaths, DocumentStart? oldValue, DocumentStart newValue)
             : base(node, parentPaths, oldValue, newValue) { }
 
         public override TrackerEventType EventType
@@ -375,7 +375,7 @@ namespace SharpYaml.Model
 
     public class ScalarPropertiesChanged : PropertyChangedEventArgs<YamlValue, Scalar>
     {
-        public ScalarPropertiesChanged(YamlValue node, IList<Path> parentPaths, Scalar oldValue, Scalar newValue) : base(node, parentPaths, oldValue, newValue) { }
+        public ScalarPropertiesChanged(YamlValue node, IList<Path> parentPaths, Scalar? oldValue, Scalar newValue) : base(node, parentPaths, oldValue, newValue) { }
 
         public override TrackerEventType EventType
         {
@@ -411,7 +411,7 @@ namespace SharpYaml.Model
                 return Equals(Parent, other.Parent) && Index.Equals(other.Index);
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (ReferenceEquals(null, obj)) return false;
                 return obj is ParentAndIndex index && Equals(index);
@@ -558,7 +558,7 @@ namespace SharpYaml.Model
             return result;
         }
 
-        internal void OnStreamAddDocument(YamlStream sender, YamlDocument newDocument, int index, ICollection<YamlDocument> nextChildren)
+        internal void OnStreamAddDocument(YamlStream sender, YamlDocument newDocument, int index, ICollection<YamlDocument>? nextChildren)
         {
             var paths = GetPaths(sender);
             AddChild(newDocument, sender, new ChildIndex(index, false));
@@ -574,7 +574,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new StreamDocumentAdded(sender, paths, newDocument, index));
         }
 
-        internal void OnStreamRemoveDocument(YamlStream sender, YamlDocument removedDocument, int index, IEnumerable<YamlDocument> nextChildren)
+        internal void OnStreamRemoveDocument(YamlStream sender, YamlDocument removedDocument, int index, IEnumerable<YamlDocument>? nextChildren)
         {
             var paths = GetPaths(sender);
             RemoveChild(removedDocument, sender, new ChildIndex(index, false));
@@ -605,7 +605,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new StreamDocumentChanged(sender, paths, oldDocument, newDocument, index));
         }
 
-        internal void OnDocumentStartChanged(YamlDocument sender, DocumentStart oldValue, DocumentStart newValue)
+        internal void OnDocumentStartChanged(YamlDocument sender, DocumentStart? oldValue, DocumentStart newValue)
         {
             if (oldValue == newValue)
                 return;
@@ -621,7 +621,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new DocumentEndChanged(sender, GetPaths(sender), oldValue, newValue));
         }
 
-        internal void OnDocumentContentsChanged(YamlDocument sender, YamlElement oldValue, YamlElement newValue)
+        internal void OnDocumentContentsChanged(YamlDocument sender, YamlElement? oldValue, YamlElement newValue)
         {
             if (oldValue == newValue)
                 return;
@@ -645,7 +645,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new SequenceStartChanged(sender, GetPaths(sender), oldValue, newValue));
         }
 
-        internal void OnSequenceAddElement(YamlSequence sender, YamlElement newElement, int index, ICollection<YamlElement> nextChildren)
+        internal void OnSequenceAddElement(YamlSequence sender, YamlElement newElement, int index, ICollection<YamlElement>? nextChildren)
         {
             var paths = GetPaths(sender);
             AddChild(newElement, sender, new ChildIndex(index, false));
@@ -661,7 +661,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new SequenceElementAdded(sender, paths, newElement, index));
         }
 
-        internal void OnSequenceRemoveElement(YamlSequence sender, YamlElement removedElement, int index, IEnumerable<YamlElement> nextChildren)
+        internal void OnSequenceRemoveElement(YamlSequence sender, YamlElement removedElement, int index, IEnumerable<YamlElement>? nextChildren)
         {
             var paths = GetPaths(sender);
             RemoveChild(removedElement, sender, new ChildIndex(index, false));
@@ -699,7 +699,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new MappingStartChanged(sender, GetPaths(sender), oldValue, newValue));
         }
 
-        internal void OnMappingAddPair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> newPair, int index, ICollection<KeyValuePair<YamlElement, YamlElement>> nextChildren)
+        internal void OnMappingAddPair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> newPair, int index, ICollection<KeyValuePair<YamlElement, YamlElement>>? nextChildren)
         {
             var paths = GetPaths(sender);
 
@@ -720,7 +720,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new MappingPairAdded(sender, paths, newPair, index));
         }
 
-        internal void OnMappingRemovePair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> removedPair, int index, IEnumerable<KeyValuePair<YamlElement, YamlElement>> nextChildren)
+        internal void OnMappingRemovePair(YamlMapping sender, KeyValuePair<YamlElement, YamlElement> removedPair, int index, IEnumerable<KeyValuePair<YamlElement, YamlElement>>? nextChildren)
         {
             var paths = GetPaths(sender);
 
@@ -764,7 +764,7 @@ namespace SharpYaml.Model
             OnTrackerEvent(new MappingPairChanged(sender, paths, oldPair, newPair, index));
         }
 
-        internal void OnValueScalarPropertiesChanged(YamlValue sender, Scalar oldValue, Scalar newValue)
+        internal void OnValueScalarPropertiesChanged(YamlValue sender, Scalar? oldValue, Scalar newValue)
         {
             if (oldValue == newValue)
                 return;
@@ -833,11 +833,11 @@ namespace SharpYaml.Model
             }
         }
 
-        public event EventHandler<TrackerEventArgs> TrackerEvent;
+        public event EventHandler<TrackerEventArgs>? TrackerEvent;
 
-        private Dictionary<Path, Dictionary<WeakReference, string>> subscribers;
-        private Dictionary<WeakReference, string> noFilterSubscribers;
-        private PathTrie pathTrie;
+        private Dictionary<Path, Dictionary<WeakReference, string>>? subscribers;
+        private Dictionary<WeakReference, string>? noFilterSubscribers;
+        private PathTrie? pathTrie;
 
         void CompactSubscribers()
         {

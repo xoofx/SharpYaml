@@ -19,6 +19,7 @@
 // THE SOFTWARE.
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpYaml.Events;
 
@@ -36,7 +37,7 @@ namespace SharpYaml.Model
             _contents = new List<YamlElement>();
         }
 
-        YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents, YamlNodeTracker tracker)
+        YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents, YamlNodeTracker? tracker)
         {
             if (tracker == null)
                 _contents = contents;
@@ -69,7 +70,7 @@ namespace SharpYaml.Model
 
         internal SequenceEnd SequenceEnd { get; }
 
-        public override string Anchor
+        public override string? Anchor
         {
             get { return _sequenceStart.Anchor; }
             set
@@ -83,7 +84,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override string Tag
+        public override string? Tag
         {
             get { return _sequenceStart.Tag; }
             set
@@ -127,7 +128,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public static YamlSequence Load(EventReader eventReader, YamlNodeTracker tracker = null)
+        public static YamlSequence Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var sequenceStart = eventReader.Allow<SequenceStart>();
 
@@ -165,7 +166,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNodeTracker Tracker
+        public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
             internal set
@@ -236,7 +237,7 @@ namespace SharpYaml.Model
             {
                 item.Tracker = Tracker;
 
-                ICollection<YamlElement> nextChildren = null;
+                ICollection<YamlElement>? nextChildren = null;
                 if (index < _contents.Count - 1)
                     nextChildren = _contents.Skip(index + 1).ToArray();
 
@@ -252,7 +253,7 @@ namespace SharpYaml.Model
 
             if (Tracker != null)
             {
-                IEnumerable<YamlElement> nextChildren = null;
+                IEnumerable<YamlElement>? nextChildren = null;
                 if (index < _contents.Count)
                     nextChildren = _contents.Skip(index);
 
@@ -277,7 +278,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override YamlNode DeepClone(YamlNodeTracker tracker = null)
+        public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             var contentsClone = new List<YamlElement>(_contents.Count);
             for (var i = 0; i < _contents.Count; i++)

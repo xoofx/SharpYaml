@@ -62,13 +62,13 @@ namespace SharpYaml.Serialization
         private readonly Dictionary<MemberInfoKey, List<Attribute>> cachedAttributes = new Dictionary<MemberInfoKey, List<Attribute>>();
         private readonly Dictionary<MemberInfo, List<Attribute>> registeredAttributes = new Dictionary<MemberInfo, List<Attribute>>();
 
-        public Action<ObjectDescriptor, List<IMemberDescriptor>> PrepareMembersCallback { get; set; }
+        public Action<ObjectDescriptor, List<IMemberDescriptor>>? PrepareMembersCallback { get; set; }
 
         /// <summary>
         /// Gets or sets the attribute remapper. May be null
         /// </summary>
         /// <value>The remap attribute.</value>
-        public Func<Attribute, Attribute> AttributeRemap { get; set; }
+        public Func<Attribute, Attribute>? AttributeRemap { get; set; }
 
         /// <summary>
         /// Gets the attributes associated with the specified member.
@@ -154,7 +154,7 @@ namespace SharpYaml.Serialization
                 return memberInfo.Equals(other.memberInfo) && inherit.Equals(other.inherit);
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (ReferenceEquals(null, obj))
                     return false;

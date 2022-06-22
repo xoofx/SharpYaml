@@ -46,6 +46,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization.Descriptors;
@@ -77,7 +78,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Initializes a new instance of the <see cref="SerializerSettings" /> class.
         /// </summary>
-        public SerializerSettings(IYamlSchema schema)
+        public SerializerSettings(IYamlSchema? schema)
         {
             PreferredIndent = 2;
             IndentLess = false;
@@ -220,6 +221,7 @@ namespace SharpYaml.Serialization
         public IMemberNamingConvention NamingConvention
         {
             get { return _namingConvention; }
+            [MemberNotNull(nameof(_namingConvention))]
             set
             {
                 if (value == null)
@@ -262,6 +264,7 @@ namespace SharpYaml.Serialization
         public string SpecialCollectionMember
         {
             get { return specialCollectionMember; }
+            [MemberNotNull(nameof(specialCollectionMember))]
             set
             {
                 if (value == null)
@@ -285,6 +288,7 @@ namespace SharpYaml.Serialization
         public IAttributeRegistry Attributes
         {
             get { return attributeRegistry; }
+            [MemberNotNull(nameof(attributeRegistry))]
             set
             {
                 if (value == null)
@@ -300,6 +304,7 @@ namespace SharpYaml.Serialization
         public IObjectSerializerBackend ObjectSerializerBackend
         {
             get { return objectSerializerBackend; }
+            [MemberNotNull(nameof(objectSerializerBackend))]
             set
             {
                 if (value == null)
@@ -316,6 +321,7 @@ namespace SharpYaml.Serialization
         public IObjectFactory ObjectFactory
         {
             get { return objectFactory; }
+            [MemberNotNull(nameof(objectFactory))]
             set
             {
                 if (value == null)

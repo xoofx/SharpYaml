@@ -20,28 +20,29 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpYaml.Events;
 
 namespace SharpYaml.Model
 {
-    public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement>, IList<KeyValuePair<YamlElement, YamlElement>>
+    public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement?>, IList<KeyValuePair<YamlElement, YamlElement?>>
     {
         private MappingStart _mappingStart;
         private readonly List<YamlElement> _keys;
-        private readonly Dictionary<YamlElement, YamlElement> _contents;
+        private readonly Dictionary<YamlElement, YamlElement?> _contents;
 
-        private Dictionary<string, YamlValue> stringKeys;
+        private Dictionary<string, YamlValue>? stringKeys;
 
         public YamlMapping()
         {
             _mappingStart = new MappingStart();
             MappingEnd = new MappingEnd();
             _keys = new List<YamlElement>();
-            _contents = new Dictionary<YamlElement, YamlElement>();
+            _contents = new Dictionary<YamlElement, YamlElement?>();
         }
 
-        YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement> contents, YamlNodeTracker tracker)
+        YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement?> contents, YamlNodeTracker? tracker)
         {
             if (tracker == null)
             {
@@ -51,7 +52,7 @@ namespace SharpYaml.Model
             else
             {
                 _keys = new List<YamlElement>();
-                _contents = new Dictionary<YamlElement, YamlElement>();
+                _contents = new Dictionary<YamlElement, YamlElement?>();
 
                 Tracker = tracker;
 
@@ -66,6 +67,7 @@ namespace SharpYaml.Model
         public MappingStart MappingStart
         {
             get => _mappingStart;
+            [MemberNotNull(nameof(_mappingStart))]
             set
             {
                 var oldValue = _mappingStart;
@@ -79,7 +81,7 @@ namespace SharpYaml.Model
 
         internal MappingEnd MappingEnd { get; }
 
-        public override string Anchor
+        public override string? Anchor
         {
             get { return _mappingStart.Anchor; }
             set
@@ -93,7 +95,7 @@ namespace SharpYaml.Model
             }
         }
 
-        public override string Tag
+        public override string? Tag
         {
             get { return _mappingStart.Tag; }
             set
@@ -137,12 +139,12 @@ namespace SharpYaml.Model
             }
         }
 
-        public static YamlMapping Load(EventReader eventReader, YamlNodeTracker tracker)
+        public static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker)
         {
             var mappingStart = eventReader.Allow<MappingStart>();
 
             var keys = new List<YamlElement>();
-            var contents = new Dictionary<YamlElement, YamlElement>();
+            var contents = new Dictionary<YamlElement, YamlElement?>();
             while (!eventReader.Accept<MappingEnd>())
             {
                 var key = ReadElement(eventReader, tracker);
@@ -165,12 +167,12 @@ namespace SharpYaml.Model
             return GetEnumerator();
         }
 
-        public IEnumerator<KeyValuePair<YamlElement, YamlElement>> GetEnumerator()
+        public IEnumerator<KeyValuePair<YamlElement, YamlElement?>> GetEnumerator()
         {
-            return _keys.Select(k => new KeyValuePair<YamlElement, YamlElement>(k, _contents[k])).GetEnumerator();
+            return _keys.Select(k => new KeyValuePair<YamlElement, YamlElement?>(k, _contents[k])).GetEnumerator();
         }
 
-        void ICollection<KeyValuePair<YamlElement, YamlElement>>.Add(KeyValuePair<YamlElement, YamlElement> item)
+        void ICollection<KeyValuePair<YamlElement, YamlElement?>>.Add(KeyValuePair<YamlElement, YamlElement?> item)
         {
             Add(item.Key, item.Value);
         }
@@ -191,17 +193,17 @@ namespace SharpYaml.Model
             }
         }
 
-        bool ICollection<KeyValuePair<YamlElement, YamlElement>>.Contains(KeyValuePair<YamlElement, YamlElement> item)
+        bool ICollection<KeyValuePair<YamlElement, YamlElement?>>.Contains(KeyValuePair<YamlElement, YamlElement?> item)
         {
             return _contents.ContainsKey(item.Key);
         }
 
-        void ICollection<KeyValuePair<YamlElement, YamlElement>>.CopyTo(KeyValuePair<YamlElement, YamlElement>[] array, int arrayIndex)
+        void ICollection<KeyValuePair<YamlElement, YamlElement?>>.CopyTo(KeyValuePair<YamlElement, YamlElement?>[] array, int arrayIndex)
         {
-            ((ICollection<KeyValuePair<YamlElement, YamlElement>>)_contents).CopyTo(array, arrayIndex);
+            ((ICollection<KeyValuePair<YamlElement, YamlElement?>>)_contents).CopyTo(array, arrayIndex);
         }
 
-        bool ICollection<KeyValuePair<YamlElement, YamlElement>>.Remove(KeyValuePair<YamlElement, YamlElement> item)
+        bool ICollection<KeyValuePair<YamlElement, YamlElement?>>.Remove(KeyValuePair<YamlElement, YamlElement?> item)
         {
             return Remove(item.Key);
         }
@@ -209,7 +211,7 @@ namespace SharpYaml.Model
         public int Count { get { return _contents.Count; } }
         public bool IsReadOnly { get { return false; } }
 
-        public void Add(YamlElement key, YamlElement value)
+        public void Add(YamlElement key, YamlElement? value)
         {
             _contents.Add(key, value);
             _keys.Add(key);
@@ -224,11 +226,11 @@ namespace SharpYaml.Model
                 key.Tracker = Tracker;
                 value.Tracker = Tracker;
 
-                Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement>(key, value), _keys.Count - 1, null);
+                Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value), _keys.Count - 1, null);
             }
         }
 
-        public override YamlNodeTracker Tracker
+        public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
             internal set
@@ -245,7 +247,7 @@ namespace SharpYaml.Model
                     _keys[i].Tracker = value;
                     val.Tracker = value;
 
-                    Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement>(_keys[i], val), i, null);
+                    Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(_keys[i], val), i, null);
                 }
             }
         }
@@ -293,12 +295,12 @@ namespace SharpYaml.Model
             return false;
         }
 
-        public bool TryGetValue(YamlElement key, out YamlElement value)
+        public bool TryGetValue(YamlElement key, [MaybeNullWhen(false)] out YamlElement value)
         {
             return _contents.TryGetValue(key, out value);
         }
 
-        public bool TryGetValue(string key, out YamlElement value)
+        public bool TryGetValue(string key, [MaybeNullWhen(false)] out YamlElement value)
         {
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
@@ -312,7 +314,7 @@ namespace SharpYaml.Model
             return TryGetValue(yamlKey, out value);
         }
 
-        public YamlElement this[YamlElement key]
+        public YamlElement? this[YamlElement key]
         {
             get
             {
@@ -334,7 +336,7 @@ namespace SharpYaml.Model
                     }
                 }
 
-                YamlElement oldContents = null;
+                YamlElement? oldContents = null;
                 if (!keyAdded && Tracker != null)
                 {
                     oldContents = _contents[key];
@@ -353,21 +355,21 @@ namespace SharpYaml.Model
                     {
                         key.Tracker = Tracker;
                         value.Tracker = Tracker;
-                        Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement>(key, value),
+                        Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value),
                             _keys.Count - 1, null);
                     }
                     else
                     {
                         value.Tracker = Tracker;
                         Tracker.OnMappingPairChanged(this, _keys.IndexOf(key),
-                            new KeyValuePair<YamlElement, YamlElement>(key, oldContents),
-                            new KeyValuePair<YamlElement, YamlElement>(key, value));
+                            new KeyValuePair<YamlElement, YamlElement?>(key, oldContents),
+                            new KeyValuePair<YamlElement, YamlElement?>(key, value));
                     }
                 }
             }
         }
 
-        public YamlElement this[string key]
+        public YamlElement? this[string key]
         {
             get
             {
@@ -392,14 +394,14 @@ namespace SharpYaml.Model
         }
 
         public ICollection<YamlElement> Keys { get { return _keys; } }
-        public ICollection<YamlElement> Values { get { return _contents.Values; } }
+        public ICollection<YamlElement?> Values { get { return _contents.Values; } }
 
-        public int IndexOf(KeyValuePair<YamlElement, YamlElement> item)
+        public int IndexOf(KeyValuePair<YamlElement, YamlElement?> item)
         {
             return _keys.IndexOf(item.Key);
         }
 
-        public void Insert(int index, KeyValuePair<YamlElement, YamlElement> item)
+        public void Insert(int index, KeyValuePair<YamlElement, YamlElement?> item)
         {
             if (_contents.ContainsKey(item.Key))
                 throw new Exception("Key already present.");
@@ -417,7 +419,7 @@ namespace SharpYaml.Model
                 item.Key.Tracker = Tracker;
                 item.Value.Tracker = Tracker;
 
-                ICollection<KeyValuePair<YamlElement, YamlElement>> nextChildren = null;
+                ICollection<KeyValuePair<YamlElement, YamlElement?>>? nextChildren = null;
                 if (index < _contents.Count - 1)
                     nextChildren = this.Skip(index + 1).ToArray();
 
@@ -440,17 +442,17 @@ namespace SharpYaml.Model
 
             if (Tracker != null)
             {
-                IEnumerable<KeyValuePair<YamlElement, YamlElement>> nextChildren = null;
+                IEnumerable<KeyValuePair<YamlElement, YamlElement?>>? nextChildren = null;
                 if (index < _contents.Count)
                     nextChildren = this.Skip(index);
 
-                Tracker.OnMappingRemovePair(this, new KeyValuePair<YamlElement, YamlElement>(key, value), index, nextChildren);
+                Tracker.OnMappingRemovePair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value), index, nextChildren);
             }
         }
 
-        public KeyValuePair<YamlElement, YamlElement> this[int index]
+        public KeyValuePair<YamlElement, YamlElement?> this[int index]
         {
-            get { return new KeyValuePair<YamlElement, YamlElement>(_keys[index], _contents[_keys[index]]); }
+            get { return new KeyValuePair<YamlElement, YamlElement?>(_keys[index], _contents[_keys[index]]); }
             set
             {
                 if (_keys[index] != value.Key && _contents.ContainsKey(value.Key))
@@ -483,19 +485,19 @@ namespace SharpYaml.Model
                     value.Key.Tracker = Tracker;
                     value.Value.Tracker = Tracker;
                     Tracker.OnMappingPairChanged(this, index,
-                        new KeyValuePair<YamlElement, YamlElement>(oldKey, oldValue),
+                        new KeyValuePair<YamlElement, YamlElement?>(oldKey, oldValue),
                         value);
                 }
             }
         }
 
-        public override YamlNode DeepClone(YamlNodeTracker tracker = null)
+        public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             var keysClone = new List<YamlElement>(_keys.Count);
             for (var i = 0; i < _keys.Count; i++)
                 keysClone.Add((YamlElement)_keys[i].DeepClone());
 
-            var cloneContents = new Dictionary<YamlElement, YamlElement>();
+            var cloneContents = new Dictionary<YamlElement, YamlElement?>();
 
             for (var i = 0; i < _keys.Count; i++)
                 cloneContents[keysClone[i]] = (YamlElement)_contents[_keys[i]].DeepClone();

@@ -70,13 +70,13 @@ namespace SharpYaml.Events
         /// Gets the tags.
         /// </summary>
         /// <value>The tags.</value>
-        public TagDirectiveCollection Tags { get; }
+        public TagDirectiveCollection? Tags { get; }
 
         /// <summary>
         /// Gets the version.
         /// </summary>
         /// <value>The version.</value>
-        public VersionDirective Version { get; }
+        public VersionDirective? Version { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is implicit.
@@ -94,7 +94,7 @@ namespace SharpYaml.Events
         /// <param name="isImplicit">Indicates whether the event is implicit.</param>
         /// <param name="start">The start position of the event.</param>
         /// <param name="end">The end position of the event.</param>
-        public DocumentStart(VersionDirective version, TagDirectiveCollection tags, bool isImplicit, Mark start, Mark end)
+        public DocumentStart(VersionDirective? version, TagDirectiveCollection? tags, bool isImplicit, Mark start, Mark end)
             : base(start, end)
         {
             this.Version = version;
@@ -108,7 +108,7 @@ namespace SharpYaml.Events
         /// <param name="version">The version.</param>
         /// <param name="tags">The tags.</param>
         /// <param name="isImplicit">Indicates whether the event is implicit.</param>
-        public DocumentStart(VersionDirective version, TagDirectiveCollection tags, bool isImplicit)
+        public DocumentStart(VersionDirective? version, TagDirectiveCollection? tags, bool isImplicit)
             : this(version, tags, isImplicit, Mark.Empty, Mark.Empty)
         {
         }

@@ -56,7 +56,7 @@ namespace SharpYaml.Serialization.Serializers
         {
         }
 
-        public override object ReadYaml(ref ObjectContext objectContext)
+        public override object? ReadYaml(ref ObjectContext objectContext)
         {
             var parsingEvent = objectContext.Reader.Peek<ParsingEvent>();
             // Can this happen here?
@@ -74,7 +74,7 @@ namespace SharpYaml.Serialization.Serializers
             var type = objectContext.Descriptor != null ? objectContext.Descriptor.Type : null;
 
             // Tries to get a Type from the TagTypes
-            Type typeFromTag = null;
+            Type? typeFromTag = null;
             if (!string.IsNullOrEmpty(node.Tag))
             {
                 typeFromTag = objectContext.SerializerContext.TypeFromTag(node.Tag, out bool remapped);
@@ -98,7 +98,7 @@ namespace SharpYaml.Serialization.Serializers
             if (type == null)
                 type = typeFromTag;
 
-            object value = objectContext.Instance;
+            object? value = objectContext.Instance;
 
             // Handle explicit null scalar
             if (node is Scalar scalar && objectContext.SerializerContext.Schema.TryParse(scalar, typeof(object), out value))

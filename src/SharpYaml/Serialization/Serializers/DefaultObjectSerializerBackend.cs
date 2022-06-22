@@ -95,26 +95,26 @@ namespace SharpYaml.Serialization.Serializers
             return memberName;
         }
 
-        public virtual object ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor memberDescriptor, object memberValue,
+        public virtual object? ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor? memberDescriptor, object? memberValue,
             Type memberType)
         {
             return objectContext.SerializerContext.ReadYaml(memberValue, memberType);
         }
 
-        public virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType, int index)
+        public virtual object? ReadCollectionItem(ref ObjectContext objectContext, object? value, Type itemType, int index)
         {
             return objectContext.SerializerContext.ReadYaml(value, itemType);
         }
 
-        public virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
+        public virtual KeyValuePair<object, object?> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
             var keyResult = objectContext.SerializerContext.ReadYaml(null, keyValueType.Key);
             var valueResult = objectContext.SerializerContext.ReadYaml(null, keyValueType.Value);
 
-            return new KeyValuePair<object, object>(keyResult, valueResult);
+            return new KeyValuePair<object, object?>(keyResult, valueResult);
         }
 
-        public virtual void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string name)
+        public virtual void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor? member, string name)
         {
             // Emit the key name
             objectContext.Writer.Emit(new ScalarEventInfo(name, typeof(string))
@@ -125,7 +125,7 @@ namespace SharpYaml.Serialization.Serializers
             });
         }
 
-        public virtual void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object memberValue,
+        public virtual void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object? memberValue,
             Type memberType)
         {
             // Push the style of the current member
@@ -137,7 +137,7 @@ namespace SharpYaml.Serialization.Serializers
             objectContext.SerializerContext.WriteYaml(item, itemType);
         }
 
-        public virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
+        public virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object?> keyValue, KeyValuePair<Type, Type> types)
         {
             objectContext.SerializerContext.WriteYaml(keyValue.Key, types.Key);
             objectContext.SerializerContext.WriteYaml(keyValue.Value, types.Value);
