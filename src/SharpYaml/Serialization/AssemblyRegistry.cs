@@ -84,7 +84,7 @@ namespace SharpYaml.Serialization
         /// Gets the serializable factories.
         /// </summary>
         /// <value>The serializable factories.</value>
-        public List<IYamlSerializableFactory> SerializableFactories { get; private set; }
+        public List<IYamlSerializableFactory> SerializableFactories { get; }
 
         /// <summary>
         /// Gets or sets a value indicating whether [use short type name].
@@ -112,7 +112,7 @@ namespace SharpYaml.Serialization
                     var attributes = attributeRegistry.GetAttributes(type.GetTypeInfo());
                     foreach (var attribute in attributes)
                     {
-                        string name = null;
+                        string? name = null;
                         bool isAlias = false;
                         if (attribute is YamlTagAttribute tagAttribute)
                         {
@@ -137,7 +137,7 @@ namespace SharpYaml.Serialization
                     {
                         try
                         {
-                            SerializableFactories.Add((IYamlSerializableFactory) Activator.CreateInstance(type));
+                            SerializableFactories.Add((IYamlSerializableFactory)Activator.CreateInstance(type));
                         }
                         catch
                         {
@@ -187,7 +187,7 @@ namespace SharpYaml.Serialization
             }
         }
 
-        public virtual Type TypeFromTag(string tag, out bool isAlias)
+        public virtual Type? TypeFromTag(string? tag, out bool isAlias)
         {
             isAlias = false;
 
@@ -198,7 +198,7 @@ namespace SharpYaml.Serialization
 
             // Get the default schema type if there is any
             var shortTag = schema.ShortenTag(tag);
-            Type type;
+            Type? type;
             if (shortTag != tag || shortTag.StartsWith("!!", StringComparison.Ordinal))
             {
                 type = schema.GetTypeForDefaultTag(shortTag);
@@ -214,7 +214,7 @@ namespace SharpYaml.Serialization
             lock (lockCache)
             {
                 // Else try to find a registered alias
-                if (tagToType.TryGetValue(shortTag, out MappedType mappedType))
+                if (tagToType.TryGetValue(shortTag, out var mappedType))
                 {
                     isAlias = mappedType.Remapped;
                     return mappedType.Type;
@@ -244,12 +244,10 @@ namespace SharpYaml.Serialization
                 return "!!null";
             }
 
-            string tagName;
-
             lock (lockCache)
             {
                 // First try to resolve a tag from registered tag
-                if (!typeToTag.TryGetValue(type, out tagName))
+                if (!typeToTag.TryGetValue(type, out var tagName))
                 {
                     // Else try to use schema tag for scalars
                     // Else use full name of the type
@@ -257,17 +255,16 @@ namespace SharpYaml.Serialization
                     tagName = schema.GetDefaultTag(type) ?? Uri.EscapeUriString($"!{typeName}");
                     typeToTag.Add(type, tagName);
                 }
+                return tagName;
             }
-
-            return tagName;
         }
 
-        public virtual Type ResolveType(string typeName)
+        public virtual Type? ResolveType(string typeName)
         {
             var type = Type.GetType(typeName);
             if (type == null)
             {
-                string assemblyName = null;
+                string? assemblyName = null;
 
                 // Find assembly name start (skip up to one space if needed)
                 // We ignore everything else (version, publickeytoken, etc...)
@@ -329,13 +326,13 @@ namespace SharpYaml.Serialization
 
         readonly struct MappedType
         {
-            public MappedType(Type type, bool remapped)
+            public MappedType(Type? type, bool remapped)
             {
                 Type = type;
                 Remapped = remapped;
             }
 
-            public readonly Type Type;
+            public readonly Type? Type;
 
             public readonly bool Remapped;
         }

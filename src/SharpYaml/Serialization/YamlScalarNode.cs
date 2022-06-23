@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -76,7 +76,7 @@ namespace SharpYaml.Serialization
         /// <param name="state">The state.</param>
         internal YamlScalarNode(EventReader events, DocumentLoadingState state)
         {
-            Scalar scalar = events.Expect<Scalar>();
+            var scalar = events.Expect<Scalar>();
             Load(scalar, state);
             Value = scalar.Value;
             Style = scalar.Style;
@@ -129,10 +129,9 @@ namespace SharpYaml.Serialization
         }
 
         /// <summary />
-        public override bool Equals(object other)
+        public override bool Equals(object? other)
         {
-            var obj = other as YamlScalarNode;
-            return obj != null && Equals(obj) && SafeEquals(Value, obj.Value);
+            return other is YamlScalarNode obj && Equals(obj) && SafeEquals(Value, obj.Value);
         }
 
         /// <summary>

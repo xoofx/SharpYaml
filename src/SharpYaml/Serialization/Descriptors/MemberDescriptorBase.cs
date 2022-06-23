@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -75,8 +75,8 @@ namespace SharpYaml.Serialization.Descriptors
         }
 
         public string Name { get; internal set; }
-        public string OriginalName { get; private set; }
-        public StringComparer DefaultNameComparer { get; private set; }
+        public string OriginalName { get; }
+        public StringComparer DefaultNameComparer { get; }
         public abstract Type Type { get; }
         public int? Order { get; internal set; }
 
@@ -84,7 +84,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the type of the declaring this member.
         /// </summary>
         /// <value>The type of the declaring.</value>
-        public Type DeclaringType { get; private set; }
+        public Type DeclaringType { get; }
 
         public SerializeMemberMode SerializeMemberMode { get; internal set; }
         public abstract object Get(object thisObject);
@@ -93,16 +93,16 @@ namespace SharpYaml.Serialization.Descriptors
         public abstract bool IsPublic { get; }
         public uint Mask { get; internal set; }
         public YamlStyle Style { get; internal set; }
-        public Func<object, bool> ShouldSerialize { get; internal set; }
+        public Func<object?, bool> ShouldSerialize { get; internal set; }
 
-        public List<string> AlternativeNames { get; set; }
+        public List<string>? AlternativeNames { get; set; }
 
-        public object Tag { get; set; }
+        public object? Tag { get; set; }
 
         /// <summary>
         /// Gets the member information.
         /// </summary>
         /// <value>The member information.</value>
-        public MemberInfo MemberInfo { get; private set; }
+        public MemberInfo MemberInfo { get; }
     }
 }

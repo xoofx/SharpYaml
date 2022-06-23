@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -63,11 +63,11 @@ namespace SharpYaml.Tests.Serialization
             yaml.Load(input);
 
             // Examine the stream
-            var mapping = (YamlMappingNode) yaml.Documents[0].RootNode;
+            var mapping = (YamlMappingNode)yaml.Documents[0].RootNode;
 
             foreach (var entry in mapping.Children)
             {
-                Console.WriteLine(((YamlScalarNode) entry.Key).Value);
+                Console.WriteLine(((YamlScalarNode)entry.Key).Value);
             }
         }
 

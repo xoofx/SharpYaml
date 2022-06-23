@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -66,22 +66,17 @@ namespace SharpYaml.Events
         /// </summary>
         internal override EventType Type { get { return EventType.YAML_DOCUMENT_START_EVENT; } }
 
-        private readonly TagDirectiveCollection tags;
-        private readonly VersionDirective version;
-
         /// <summary>
         /// Gets the tags.
         /// </summary>
         /// <value>The tags.</value>
-        public TagDirectiveCollection Tags { get { return tags; } }
+        public TagDirectiveCollection? Tags { get; }
 
         /// <summary>
         /// Gets the version.
         /// </summary>
         /// <value>The version.</value>
-        public VersionDirective Version { get { return version; } }
-
-        private readonly bool isImplicit;
+        public VersionDirective? Version { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is implicit.
@@ -89,7 +84,7 @@ namespace SharpYaml.Events
         /// <value>
         /// 	<c>true</c> if this instance is implicit; otherwise, <c>false</c>.
         /// </value>
-        public bool IsImplicit { get { return isImplicit; } }
+        public bool IsImplicit { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DocumentStart"/> class.
@@ -99,12 +94,12 @@ namespace SharpYaml.Events
         /// <param name="isImplicit">Indicates whether the event is implicit.</param>
         /// <param name="start">The start position of the event.</param>
         /// <param name="end">The end position of the event.</param>
-        public DocumentStart(VersionDirective version, TagDirectiveCollection tags, bool isImplicit, Mark start, Mark end)
+        public DocumentStart(VersionDirective? version, TagDirectiveCollection? tags, bool isImplicit, Mark start, Mark end)
             : base(start, end)
         {
-            this.version = version;
-            this.tags = tags;
-            this.isImplicit = isImplicit;
+            this.Version = version;
+            this.Tags = tags;
+            this.IsImplicit = isImplicit;
         }
 
         /// <summary>
@@ -113,7 +108,7 @@ namespace SharpYaml.Events
         /// <param name="version">The version.</param>
         /// <param name="tags">The tags.</param>
         /// <param name="isImplicit">Indicates whether the event is implicit.</param>
-        public DocumentStart(VersionDirective version, TagDirectiveCollection tags, bool isImplicit)
+        public DocumentStart(VersionDirective? version, TagDirectiveCollection? tags, bool isImplicit)
             : this(version, tags, isImplicit, Mark.Empty, Mark.Empty)
         {
         }
@@ -144,7 +139,7 @@ namespace SharpYaml.Events
         /// </returns>
         public override string ToString()
         {
-            return FormattableString.Invariant($"Document start [isImplicit = {isImplicit}]");
+            return FormattableString.Invariant($"Document start [isImplicit = {IsImplicit}]");
         }
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -47,6 +47,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace SharpYaml.Serialization.Descriptors
@@ -56,11 +57,11 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     public class CollectionDescriptor : ObjectDescriptor
     {
-        private static readonly List<string> ListOfMembersToRemove = new List<string> {"Capacity", "Count", "IsReadOnly", "IsFixedSize", "IsSynchronized", "SyncRoot", "Comparer"};
+        private static readonly List<string> ListOfMembersToRemove = new List<string> { "Capacity", "Count", "IsReadOnly", "IsFixedSize", "IsSynchronized", "SyncRoot", "Comparer" };
 
-        private readonly Func<object, bool> IsReadOnlyFunction;
-        private readonly Func<object, int> GetCollectionCountFunction;
-        private readonly Action<object, object> CollectionAddFunction;
+        private readonly Func<object, bool>? IsReadOnlyFunction;
+        private readonly Func<object, int>? GetCollectionCountFunction;
+        private readonly Action<object, object>? CollectionAddFunction;
         private readonly bool isKeyedCollection = false;
 
         /// <summary>
@@ -83,23 +84,23 @@ namespace SharpYaml.Serialization.Descriptors
             ElementType = (collectionType != null) ? collectionType.GetGenericArguments()[0] : typeof(object);
 
             // implements ICollection<T> 
-            Type itype;
+            Type? itype;
             if ((itype = type.GetInterface(typeof(ICollection<>))) != null)
             {
-                var add = itype.GetMethod("Add", new[] {ElementType});
-                CollectionAddFunction = (obj, value) => add.Invoke(obj, new[] {value});
+                var add = itype.GetMethod("Add", new[] { ElementType });
+                CollectionAddFunction = (obj, value) => add.Invoke(obj, new[] { value });
                 var countMethod = itype.GetProperty("Count").GetGetMethod();
-                GetCollectionCountFunction = o => (int) countMethod.Invoke(o, null);
+                GetCollectionCountFunction = o => (int)countMethod.Invoke(o, null);
                 var isReadOnly = itype.GetProperty("IsReadOnly").GetGetMethod();
-                IsReadOnlyFunction = obj => (bool) isReadOnly.Invoke(obj, null);
+                IsReadOnlyFunction = obj => (bool)isReadOnly.Invoke(obj, null);
                 isKeyedCollection = type.ExtendsGeneric(typeof(KeyedCollection<,>));
             }
             // implements IList 
             else if (typeof(IList).IsAssignableFrom(type))
             {
-                CollectionAddFunction = (obj, value) => ((IList) obj).Add(value);
-                GetCollectionCountFunction = o => ((IList) o).Count;
-                IsReadOnlyFunction = obj => ((IList) obj).IsReadOnly;
+                CollectionAddFunction = (obj, value) => ((IList)obj).Add(value);
+                GetCollectionCountFunction = o => ((IList)o).Count;
+                IsReadOnlyFunction = obj => ((IList)obj).IsReadOnly;
             }
         }
 
@@ -116,7 +117,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets or sets the type of the element.
         /// </summary>
         /// <value>The type of the element.</value>
-        public Type ElementType { get; private set; }
+        public Type ElementType { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is a pure collection (no public property/field)
@@ -128,6 +129,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets a value indicating whether this collection type has add method.
         /// </summary>
         /// <value><c>true</c> if this instance has add; otherwise, <c>false</c>.</value>
+        [MemberNotNullWhen(true, nameof(CollectionAddFunction))]
         public bool HasAdd { get { return CollectionAddFunction != null; } }
 
         /// <summary>
@@ -145,7 +147,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// </summary>
         /// <param name="collection">The collection.</param>
         /// <returns><c>true</c> if the specified collection is read only; otherwise, <c>false</c>.</returns>
-        public bool IsReadOnly(object collection)
+        public bool IsReadOnly(object? collection)
         {
             return collection == null || IsReadOnlyFunction == null || IsReadOnlyFunction(collection);
         }
@@ -155,7 +157,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// </summary>
         /// <param name="collection">The collection.</param>
         /// <returns>The number of elements of a collection, -1 if it cannot determine the number of elements.</returns>
-        public int GetCollectionCount(object collection)
+        public int GetCollectionCount(object? collection)
         {
             return collection == null || GetCollectionCountFunction == null ? -1 : GetCollectionCountFunction(collection);
         }
@@ -175,7 +177,7 @@ namespace SharpYaml.Serialization.Descriptors
         {
             // Filter members
             if (member is PropertyDescriptor && ListOfMembersToRemove.Contains(member.OriginalName))
-                //if (member is PropertyDescriptor && (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace) && ListOfMembersToRemove.Contains(member.Name))
+            //if (member is PropertyDescriptor && (member.DeclaringType.Namespace ?? string.Empty).StartsWith(SystemCollectionsNamespace) && ListOfMembersToRemove.Contains(member.Name))
             {
                 return false;
             }

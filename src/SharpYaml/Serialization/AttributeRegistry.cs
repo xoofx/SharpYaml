@@ -62,13 +62,13 @@ namespace SharpYaml.Serialization
         private readonly Dictionary<MemberInfoKey, List<Attribute>> cachedAttributes = new Dictionary<MemberInfoKey, List<Attribute>>();
         private readonly Dictionary<MemberInfo, List<Attribute>> registeredAttributes = new Dictionary<MemberInfo, List<Attribute>>();
 
-        public Action<ObjectDescriptor, List<IMemberDescriptor>> PrepareMembersCallback { get; set; }
+        public Action<ObjectDescriptor, List<IMemberDescriptor>>? PrepareMembersCallback { get; set; }
 
         /// <summary>
         /// Gets or sets the attribute remapper. May be null
         /// </summary>
         /// <value>The remap attribute.</value>
-        public Func<Attribute, Attribute> AttributeRemap { get; set; }
+        public Func<Attribute, Attribute>? AttributeRemap { get; set; }
 
         /// <summary>
         /// Gets the attributes associated with the specified member.
@@ -83,7 +83,7 @@ namespace SharpYaml.Serialization
             lock (globalLock)
             {
                 // Use a cache of attributes
-                if (cachedAttributes.TryGetValue(key, out List<Attribute> attributes))
+                if (cachedAttributes.TryGetValue(key, out var attributes))
                 {
                     return attributes;
                 }
@@ -93,7 +93,7 @@ namespace SharpYaml.Serialization
                 attributes = defaultAttributes.ToList();
 
                 // And add registered attributes
-                if (registeredAttributes.TryGetValue(memberInfo, out List<Attribute> registered))
+                if (registeredAttributes.TryGetValue(memberInfo, out var registered))
                 {
                     attributes.AddRange(registered);
                 }
@@ -124,7 +124,7 @@ namespace SharpYaml.Serialization
             lock (globalLock)
             {
                 // Use a cache of attributes
-                if (!cachedAttributes.TryGetValue(new MemberInfoKey(memberInfo, false), out List<Attribute> attributes))
+                if (!cachedAttributes.TryGetValue(new MemberInfoKey(memberInfo, false), out var attributes))
                 {
                     if (!registeredAttributes.TryGetValue(memberInfo, out attributes))
                     {
@@ -154,7 +154,7 @@ namespace SharpYaml.Serialization
                 return memberInfo.Equals(other.memberInfo) && inherit.Equals(other.inherit);
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (ReferenceEquals(null, obj))
                     return false;
@@ -165,7 +165,7 @@ namespace SharpYaml.Serialization
             {
                 unchecked
                 {
-                    return (memberInfo.GetHashCode()*397) ^ inherit.GetHashCode();
+                    return (memberInfo.GetHashCode() * 397) ^ inherit.GetHashCode();
                 }
             }
         }

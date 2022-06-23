@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Diagnostics.CodeAnalysis;
 using SharpYaml.Events;
 
 namespace SharpYaml.Schemas
@@ -105,7 +106,7 @@ namespace SharpYaml.Schemas
             return SeqShortTag;
         }
 
-        public override bool TryParse(Scalar scalar, bool parseValue, out string defaultTag, out object value)
+        public override bool TryParse(Scalar scalar, bool parseValue, [NotNullWhen(true)] out string? defaultTag, out object? value)
         {
             if (base.TryParse(scalar, parseValue, out defaultTag, out value))
             {

@@ -56,7 +56,7 @@ namespace SharpYaml.Serialization.Descriptors
     {
         private static readonly List<IMemberDescriptor> EmptyMembers = new List<IMemberDescriptor>();
 
-        private readonly Dictionary<string, object> enumRemap;
+        private readonly Dictionary<string, object>? enumRemap;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -79,8 +79,7 @@ namespace SharpYaml.Serialization.Descriptors
                     var attributes = attributeRegistry.GetAttributes(member);
                     foreach (var attribute in attributes)
                     {
-                        var yamlRemap = attribute as YamlRemapAttribute;
-                        if (yamlRemap != null)
+                        if (attribute is YamlRemapAttribute yamlRemap)
                         {
                             if (enumRemap == null)
                             {
@@ -120,7 +119,7 @@ namespace SharpYaml.Serialization.Descriptors
         public object ParseEnum(string enumAsText, out bool remapped)
         {
             remapped = false;
-            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out object value))
+            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out var value))
             {
                 remapped = true;
                 return value;

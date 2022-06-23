@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,7 @@ namespace SharpYaml.Serialization
         /// Gets or sets the root node.
         /// </summary>
         /// <value>The root node.</value>
-        public YamlNode RootNode { get; private set; }
+        public YamlNode RootNode { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlDocument"/> class.
@@ -85,7 +85,7 @@ namespace SharpYaml.Serialization
         /// <param name="events">The events.</param>
         internal YamlDocument(EventReader events)
         {
-            DocumentLoadingState state = new DocumentLoadingState();
+            var state = new DocumentLoadingState();
 
             events.Expect<DocumentStart>();
 
@@ -130,7 +130,7 @@ namespace SharpYaml.Serialization
 
                 document.Accept(this);
 
-                Random random = new Random();
+                var random = new Random();
                 foreach (var visitedNode in visitedNodes)
                 {
                     if (visitedNode.Value)
@@ -187,7 +187,7 @@ namespace SharpYaml.Serialization
 
         private void AssignAnchors()
         {
-            AnchorAssigningVisitor visitor = new AnchorAssigningVisitor();
+            var visitor = new AnchorAssigningVisitor();
             visitor.AssignAnchors(this);
         }
 

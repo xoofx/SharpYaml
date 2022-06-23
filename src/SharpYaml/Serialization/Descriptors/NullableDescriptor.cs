@@ -77,7 +77,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the type underlying type T of the nullable <see cref="Nullable{T}"/>
         /// </summary>
         /// <value>The type of the element.</value>
-        public Type UnderlyingType { get; private set; }
+        public Type UnderlyingType { get; }
 
         /// <summary>
         /// Determines whether the specified type is nullable.

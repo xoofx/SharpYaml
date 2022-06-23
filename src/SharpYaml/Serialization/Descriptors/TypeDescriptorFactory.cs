@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SharpYaml.Serialization.Descriptors
 {
@@ -53,7 +54,6 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     internal class TypeDescriptorFactory : ITypeDescriptorFactory
     {
-        private readonly IAttributeRegistry attributeRegistry;
         private readonly Dictionary<Type, ITypeDescriptor> registeredDescriptors = new Dictionary<Type, ITypeDescriptor>();
         private readonly bool emitDefaultValues;
         private readonly bool respectPrivateSetters;
@@ -76,10 +76,11 @@ namespace SharpYaml.Serialization.Descriptors
             this.namingConvention = namingConvention;
             this.respectPrivateSetters = respectPrivateSetters;
             this.emitDefaultValues = emitDefaultValues;
-            this.attributeRegistry = attributeRegistry;
+            this.AttributeRegistry = attributeRegistry;
         }
 
-        public ITypeDescriptor Find(Type type, IComparer<object> memberComparer)
+        [return: NotNullIfNotNull("type")]
+        public ITypeDescriptor? Find(Type? type, IComparer<object> memberComparer)
         {
             if (type == null)
                 return null;
@@ -87,15 +88,14 @@ namespace SharpYaml.Serialization.Descriptors
             lock (registeredDescriptors)
             {
                 // Caching is integrated in this class, avoiding a ChainedTypeDescriptorFactory
-                if (registeredDescriptors.TryGetValue(type, out ITypeDescriptor descriptor))
+                if (registeredDescriptors.TryGetValue(type, out var descriptor))
                 {
                     return descriptor;
                 }
 
                 descriptor = Create(type);
 
-                var objectDescriptor = descriptor as ObjectDescriptor;
-                if (objectDescriptor != null)
+                if (descriptor is ObjectDescriptor objectDescriptor)
                 {
                     objectDescriptor.SortMembers(memberComparer);
                 }
@@ -111,7 +111,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the settings.
         /// </summary>
         /// <value>The settings.</value>
-        protected IAttributeRegistry AttributeRegistry { get { return attributeRegistry; } }
+        protected IAttributeRegistry AttributeRegistry { get; }
 
         /// <summary>
         /// Creates a type descriptor for the specified type.
@@ -125,31 +125,31 @@ namespace SharpYaml.Serialization.Descriptors
 
             if (PrimitiveDescriptor.IsPrimitive(type))
             {
-                descriptor = new PrimitiveDescriptor(attributeRegistry, type, namingConvention);
+                descriptor = new PrimitiveDescriptor(AttributeRegistry, type, namingConvention);
             }
             else if (DictionaryDescriptor.IsDictionary(type)) // resolve dictionary before collections, as they are also collections
             {
                 // IDictionary
-                descriptor = new DictionaryDescriptor(attributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention);
+                descriptor = new DictionaryDescriptor(AttributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention);
             }
             else if (CollectionDescriptor.IsCollection(type))
             {
                 // ICollection
-                descriptor = new CollectionDescriptor(attributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention);
+                descriptor = new CollectionDescriptor(AttributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention);
             }
             else if (type.IsArray)
             {
                 // array[]
-                descriptor = new ArrayDescriptor(attributeRegistry, type, namingConvention);
+                descriptor = new ArrayDescriptor(AttributeRegistry, type, namingConvention);
             }
             else if (NullableDescriptor.IsNullable(type))
             {
-                descriptor = new NullableDescriptor(attributeRegistry, type, namingConvention);
+                descriptor = new NullableDescriptor(AttributeRegistry, type, namingConvention);
             }
             else
             {
                 // standard object (class or value type)
-                descriptor = new ObjectDescriptor(attributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention);
+                descriptor = new ObjectDescriptor(AttributeRegistry, type, emitDefaultValues, respectPrivateSetters, namingConvention);
             }
 
             // Initialize the descriptor

@@ -38,11 +38,9 @@ namespace SharpYaml.Serialization.Descriptors
     ///   </ul></remarks>
     public class DefaultKeyComparer : IComparer<object>
     {
-        public virtual int Compare(object x, object y)
+        public virtual int Compare(object? x, object? y)
         {
-            var left = x as IMemberDescriptor;
-            var right = y as IMemberDescriptor;
-            if (left != null && right != null)
+            if (x is IMemberDescriptor left && y is IMemberDescriptor right)
             {
                 // If order is defined, first order by order
                 if (left.Order.HasValue | right.Order.HasValue)
@@ -58,17 +56,15 @@ namespace SharpYaml.Serialization.Descriptors
 
             if (x is string && y is string)
             {
-                return string.CompareOrdinal((string) x, (string) y);
+                return string.CompareOrdinal((string)x, (string)y);
             }
 
-            var leftComparable = x as IComparable;
-            if (leftComparable != null)
+            if (x is IComparable leftComparable)
             {
                 return leftComparable.CompareTo(y);
             }
 
-            var rightComparable = y as IComparable;
-            return rightComparable != null ? rightComparable.CompareTo(y) : 0;
+            return y is IComparable rightComparable ? rightComparable.CompareTo(y) : 0;
         }
     }
 }

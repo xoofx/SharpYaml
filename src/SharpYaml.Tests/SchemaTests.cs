@@ -150,9 +150,7 @@ namespace SharpYaml.Tests
 
         private void TryParse(IYamlSchema schema, string scalar, string expectedShortTag, object expectedValue)
         {
-            string tag;
-            object value;
-            Assert.True(schema.TryParse(new Scalar(scalar), true, out tag, out value));
+            Assert.True(schema.TryParse(new Scalar(scalar), true, out var tag, out var value));
             Assert.AreEqual(expectedShortTag, tag);
             Assert.AreEqual(expectedValue, value);
         }

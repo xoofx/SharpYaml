@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,6 @@ namespace SharpYaml.Events
     /// </summary>
     public sealed class Scalar : NodeEvent
     {
-        private string value;
 
         /// <summary>
         /// Gets a value indicating the variation of depth caused by this event.
@@ -71,35 +70,29 @@ namespace SharpYaml.Events
         /// Gets the value.
         /// </summary>
         /// <value>The value.</value>
-        public string Value { get { return value; } }
-
-        private readonly ScalarStyle style;
+        public string Value { get; }
 
         /// <summary>
         /// Gets the style of the scalar.
         /// </summary>
         /// <value>The style.</value>
-        public ScalarStyle Style { get { return style; } }
-
-        private readonly bool isPlainImplicit;
+        public ScalarStyle Style { get; }
 
         /// <summary>
         /// Gets a value indicating whether the tag is optional for the plain style.
         /// </summary>
-        public bool IsPlainImplicit { get { return isPlainImplicit; } }
-
-        private readonly bool isQuotedImplicit;
+        public bool IsPlainImplicit { get; }
 
         /// <summary>
         /// Gets a value indicating whether the tag is optional for any non-plain style.
         /// </summary>
-        public bool IsQuotedImplicit { get { return isQuotedImplicit; } }
+        public bool IsQuotedImplicit { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is canonical.
         /// </summary>
         /// <value></value>
-        public override bool IsCanonical { get { return !isPlainImplicit && !isQuotedImplicit; } }
+        public override bool IsCanonical { get { return !IsPlainImplicit && !IsQuotedImplicit; } }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Scalar"/> class.
@@ -112,13 +105,13 @@ namespace SharpYaml.Events
         /// <param name="isQuotedImplicit">.</param>
         /// <param name="start">The start position of the event.</param>
         /// <param name="end">The end position of the event.</param>
-        public Scalar(string anchor, string tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
+        public Scalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
             : base(anchor, tag, start, end)
         {
-            this.value = value;
-            this.style = style;
-            this.isPlainImplicit = isPlainImplicit;
-            this.isQuotedImplicit = isQuotedImplicit;
+            this.Value = value;
+            this.Style = style;
+            this.IsPlainImplicit = isPlainImplicit;
+            this.IsQuotedImplicit = isQuotedImplicit;
         }
 
         /// <summary>
@@ -130,7 +123,7 @@ namespace SharpYaml.Events
         /// <param name="style">The style.</param>
         /// <param name="isPlainImplicit">.</param>
         /// <param name="isQuotedImplicit">.</param>
-        public Scalar(string anchor, string tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit)
+        public Scalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit)
             : this(anchor, tag, value, style, isPlainImplicit, isQuotedImplicit, Mark.Empty, Mark.Empty)
         {
         }
@@ -159,7 +152,7 @@ namespace SharpYaml.Events
         /// </summary>
         /// <param name="tag">The tag.</param>
         /// <param name="value">The value.</param>
-        public Scalar(string tag, string value)
+        public Scalar(string? tag, string value)
             : this(null, tag, value, ScalarStyle.Any, true, true, Mark.Empty, Mark.Empty)
         {
         }
@@ -181,7 +174,7 @@ namespace SharpYaml.Events
         public override string ToString()
         {
             return FormattableString.Invariant(
-                $"Scalar [anchor = {Anchor}, tag = {Tag}, value = {value}, style = {style}, isPlainImplicit = {isPlainImplicit}, isQuotedImplicit = {isQuotedImplicit}]");
+                $"Scalar [anchor = {Anchor}, tag = {Tag}, value = {Value}, style = {Style}, isPlainImplicit = {IsPlainImplicit}, isQuotedImplicit = {IsQuotedImplicit}]");
         }
     }
 }

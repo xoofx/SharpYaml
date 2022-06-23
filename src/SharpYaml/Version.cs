@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,19 +52,15 @@ namespace SharpYaml
     /// </summary>
     public class Version
     {
-        private readonly int major;
-
         /// <summary>
         /// Gets the major version number.
         /// </summary>
-        public int Major { get { return major; } }
-
-        private readonly int minor;
+        public int Major { get; }
 
         /// <summary>
         /// Gets the minor version number.
         /// </summary>
-        public int Minor { get { return minor; } }
+        public int Minor { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Version"/> class.
@@ -73,8 +69,8 @@ namespace SharpYaml
         /// <param name="minor">The the minor version number.</param>
         public Version(int major, int minor)
         {
-            this.major = major;
-            this.minor = minor;
+            this.Major = major;
+            this.Minor = minor;
         }
 
         /// <summary>
@@ -84,10 +80,9 @@ namespace SharpYaml
         /// <returns>
         /// true if the specified System.Object is equal to the current System.Object; otherwise, false.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            Version other = obj as Version;
-            return other != null && major == other.major && minor == other.minor;
+            return obj is Version other && Major == other.Major && Minor == other.Minor;
         }
 
         /// <summary>
@@ -98,7 +93,7 @@ namespace SharpYaml
         /// </returns>
         public override int GetHashCode()
         {
-            return major.GetHashCode() ^ minor.GetHashCode();
+            return Major.GetHashCode() ^ Minor.GetHashCode();
         }
     }
 }

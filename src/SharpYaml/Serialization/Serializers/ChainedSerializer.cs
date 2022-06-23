@@ -58,7 +58,7 @@ namespace SharpYaml.Serialization.Serializers
             this.next = next;
         }
 
-        public virtual object ReadYaml(ref ObjectContext objectContext)
+        public virtual object? ReadYaml(ref ObjectContext objectContext)
         {
             return next.ReadYaml(ref objectContext);
         }

@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,7 @@ namespace SharpYaml
                 throw new InvalidOperationException("The queue is empty");
             }
 
-            T item = items[0];
+            var item = items[0];
             items.RemoveAt(0);
             return item;
         }

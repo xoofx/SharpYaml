@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -81,48 +81,53 @@ namespace SharpYaml
         private int column;
         private bool isWhitespace;
         private bool isIndentation;
-        private bool forceIndentLess;
-        private bool emitKeyQuoted;
+        private readonly bool emitKeyQuoted;
 
         private bool isOpenEnded;
 
         private readonly MutableStringLookAheadBuffer buffer = new MutableStringLookAheadBuffer();
 
 
-        private class MutableStringLookAheadBuffer : ILookAheadBuffer {
-            private string value;
-            private int currentIndex;
+        private class MutableStringLookAheadBuffer : ILookAheadBuffer
+        {
+            private string? value;
 
-            public string Value {
+            public string? Value
+            {
                 get { return value; }
-                set {
+                set
+                {
                     this.value = value;
-                    currentIndex = 0;
+                    Position = 0;
                 }
             }
 
             public int Length { get { return value?.Length ?? 0; } }
 
-            public int Position { get { return currentIndex; } }
+            public int Position { get; private set; }
 
-            public bool IsOutside(int index) {
+            public bool IsOutside(int index)
+            {
                 return value == null || index >= value.Length;
             }
 
-            public bool EndOfInput { get { return IsOutside(currentIndex); } }
+            public bool EndOfInput { get { return IsOutside(Position); } }
 
             public MutableStringLookAheadBuffer() { }
 
-            public char Peek(int offset) {
-                int index = currentIndex + offset;
+            public char Peek(int offset)
+            {
+                int index = Position + offset;
                 return value[index];
             }
 
-            public void Skip(int length) {
-                if (length < 0) {
+            public void Skip(int length)
+            {
+                if (length < 0)
+                {
                     throw new ArgumentOutOfRangeException("length", "The length must be positive.");
                 }
-                currentIndex += length;
+                Position += length;
             }
 
             public void Cache(int length) { }
@@ -130,7 +135,7 @@ namespace SharpYaml
 
         private struct AnchorData
         {
-            public string anchor;
+            public string? anchor;
             public bool isAlias;
         }
 
@@ -138,8 +143,8 @@ namespace SharpYaml
 
         private struct TagData
         {
-            public string handle;
-            public string suffix;
+            public string? handle;
+            public string? suffix;
         }
 
         private TagData tagData;
@@ -185,7 +190,7 @@ namespace SharpYaml
 
             this.bestIndent = bestIndent;
 
-            if (bestWidth <= bestIndent*2)
+            if (bestWidth <= bestIndent * 2)
             {
                 throw new ArgumentOutOfRangeException("bestWidth", "The bestWidth parameter must be greater than bestIndent * 2.");
             }
@@ -193,7 +198,7 @@ namespace SharpYaml
             this.bestWidth = bestWidth;
 
             this.isCanonical = isCanonical;
-            this.forceIndentLess = forceIndentLess;
+            this.ForceIndentLess = forceIndentLess;
             this.emitKeyQuoted = emitKeyQuoted;
 
             this.output = output;
@@ -204,7 +209,7 @@ namespace SharpYaml
         /// Gets or sets a value indicating whether [always indent].
         /// </summary>
         /// <value><c>true</c> if [always indent]; otherwise, <c>false</c>.</value>
-        public bool ForceIndentLess { get { return forceIndentLess; } set { forceIndentLess = value; } }
+        public bool ForceIndentLess { get; set; }
 
 
         private void Write(char value)
@@ -234,7 +239,7 @@ namespace SharpYaml
 
             while (!NeedMoreEvents())
             {
-                ParsingEvent current = events.Peek();
+                var current = events.Peek();
                 AnalyzeEvent(current);
                 StateMachine(current);
 
@@ -308,7 +313,7 @@ namespace SharpYaml
             return true;
         }
 
-        private void AnalyzeAnchor(string anchor, bool isAlias)
+        private void AnalyzeAnchor(string? anchor, bool isAlias)
         {
             anchorData.anchor = anchor;
             anchorData.isAlias = isAlias;
@@ -672,7 +677,7 @@ namespace SharpYaml
         /// </summary>
         private void EmitStreamStart(ParsingEvent evt)
         {
-            if (!(evt is StreamStart))
+            if (evt is not StreamStart)
             {
                 throw new ArgumentException("Expected STREAM-START.", "evt");
             }
@@ -808,9 +813,9 @@ namespace SharpYaml
 
         private static string UrlEncode(string text)
         {
-            return uriReplacer.Replace(text, delegate(Match match)
+            return uriReplacer.Replace(text, delegate (Match match)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
                 foreach (var toEncode in Encoding.UTF8.GetBytes(match.Value))
                 {
                     buffer.AppendFormat("%{0:X02}", toEncode);
@@ -947,7 +952,7 @@ namespace SharpYaml
             ProcessAnchor();
             ProcessTag();
 
-            SequenceStart sequenceStart = (SequenceStart) evt;
+            var sequenceStart = (SequenceStart)evt;
 
             if (flowLevel != 0 || isCanonical || sequenceStart.Style == YamlStyle.Flow || CheckEmptySequence())
             {
@@ -1021,7 +1026,7 @@ namespace SharpYaml
             ProcessAnchor();
             ProcessTag();
 
-            MappingStart mappingStart = (MappingStart) evt;
+            var mappingStart = (MappingStart)evt;
 
             if (flowLevel != 0 || isCanonical || mappingStart.Style == YamlStyle.Flow || CheckEmptyMapping())
             {
@@ -1271,7 +1276,7 @@ namespace SharpYaml
                             break;
 
                         default:
-                            short code = (short) character;
+                            short code = (short)character;
                             if (code <= 0xFF)
                             {
                                 Write('x');
@@ -1288,7 +1293,7 @@ namespace SharpYaml
                                 }
                                 else
                                 {
-                                    throw new YamlException($"Unable to encode character low surrogate after high surrogate [{character}] at position {index+1} of text `{value}`");
+                                    throw new YamlException($"Unable to encode character low surrogate after high surrogate [{character}] at position {index + 1} of text `{value}`");
                                 }
                             }
                             else
@@ -1453,7 +1458,7 @@ namespace SharpYaml
             {
                 indent = isFlow ? bestIndent : 0;
             }
-            else if (!isIndentless || !forceIndentLess)
+            else if (!isIndentless || !ForceIndentLess)
             {
                 indent += bestIndent;
             }
@@ -1464,9 +1469,9 @@ namespace SharpYaml
         /// </summary>
         private void SelectScalarStyle(ParsingEvent evt)
         {
-            Scalar scalar = (Scalar) evt;
+            var scalar = (Scalar)evt;
 
-            ScalarStyle style = scalar.Style;
+            var style = scalar.Style;
             bool noTag = tagData.handle == null && tagData.suffix == null;
 
             if (noTag && !scalar.IsPlainImplicit && !scalar.IsQuotedImplicit)
@@ -1675,7 +1680,7 @@ namespace SharpYaml
 
         private const int MaxAliasLength = 128;
 
-        private static int SafeStringLength(string value)
+        private static int SafeStringLength(string? value)
         {
             return value != null ? value.Length : 0;
         }
@@ -1840,13 +1845,13 @@ namespace SharpYaml
 
             if (analyzer.IsSpace() || analyzer.IsBreak())
             {
-                string indent_hint = FormattableString.Invariant($"{bestIndent}");
+                var indent_hint = FormattableString.Invariant($"{bestIndent}");
                 WriteIndicator(indent_hint, false, false, false);
             }
 
             isOpenEnded = false;
 
-            string chomp_hint = null;
+            string? chomp_hint = null;
             if (value.Length == 0 || !analyzer.IsBreak(value.Length - 1))
             {
                 chomp_hint = "-";

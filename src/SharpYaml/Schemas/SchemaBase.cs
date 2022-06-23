@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using SharpYaml.Events;
 
@@ -87,20 +88,22 @@ namespace SharpYaml.Schemas
         /// </summary>
         public const string StrLongTag = "tag:yaml.org,2002:str";
 
-        public string ExpandTag(string shortTag)
+        [return: NotNullIfNotNull("shortTag")]
+        public string? ExpandTag(string? shortTag)
         {
             if (shortTag == null)
                 return null;
 
-            return shortTagToLongTag.TryGetValue(shortTag, out string tagExpanded) ? tagExpanded : shortTag;
+            return shortTagToLongTag.TryGetValue(shortTag, out var tagExpanded) ? tagExpanded : shortTag;
         }
 
-        public string ShortenTag(string longTag)
+        [return: NotNullIfNotNull("longTag")]
+        public string? ShortenTag(string? longTag)
         {
             if (longTag == null)
                 return null;
 
-            return longTagToShortTag.TryGetValue(longTag, out string tagShortened) ? tagShortened : longTag;
+            return longTagToShortTag.TryGetValue(longTag, out var tagShortened) ? tagShortened : longTag;
         }
 
         public string GetDefaultTag(NodeEvent nodeEvent)
@@ -110,39 +113,36 @@ namespace SharpYaml.Schemas
             if (nodeEvent == null)
                 throw new ArgumentNullException("nodeEvent");
 
-            var mapping = nodeEvent as MappingStart;
-            if (mapping != null)
+            if (nodeEvent is MappingStart mapping)
             {
                 return GetDefaultTag(mapping);
             }
 
-            var sequence = nodeEvent as SequenceStart;
-            if (sequence != null)
+            if (nodeEvent is SequenceStart sequence)
             {
                 return GetDefaultTag(sequence);
             }
 
-            var scalar = nodeEvent as Scalar;
-            if (scalar != null)
+            if (nodeEvent is Scalar scalar)
             {
-                TryParse(scalar, false, out string tag, out object value);
+                TryParse(scalar, false, out var tag, out _);
                 return tag;
             }
 
             throw new NotSupportedException($"NodeEvent [{nodeEvent.GetType().FullName}] not supported");
         }
 
-        public string GetDefaultTag(Type type)
+        public string? GetDefaultTag(Type type)
         {
             if (type == null)
                 throw new ArgumentNullException("type");
             EnsureScalarRules();
 
-            mapTypeToShortTag.TryGetValue(type, out string defaultTag);
+            mapTypeToShortTag.TryGetValue(type, out var defaultTag);
             return defaultTag;
         }
 
-        public bool IsTagImplicit(string tag)
+        public bool IsTagImplicit(string? tag)
         {
             if (tag == null)
             {
@@ -186,7 +186,7 @@ namespace SharpYaml.Schemas
         /// <returns>The default tag for a seq.</returns>
         protected abstract string GetDefaultTag(SequenceStart nodeEvent);
 
-        public virtual bool TryParse(Scalar scalar, bool parseValue, out string defaultTag, out object value)
+        public virtual bool TryParse(Scalar scalar, bool parseValue, [NotNullWhen(true)] out string? defaultTag, out object? value)
         {
             if (scalar == null)
                 throw new ArgumentNullException("scalar");
@@ -234,7 +234,7 @@ namespace SharpYaml.Schemas
             return false;
         }
 
-        public bool TryParse(Scalar scalar, Type type, out object value)
+        public bool TryParse(Scalar scalar, Type type, out object? value)
         {
             if (scalar == null)
                 throw new ArgumentNullException("scalar");
@@ -255,7 +255,7 @@ namespace SharpYaml.Schemas
             // Parse only values if we have some rules
             if (mapTypeToScalarResolutionRuleList.Count > 0)
             {
-                if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out List<ScalarResolutionRule> rules))
+                if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out var rules))
                 {
                     foreach (var rule in rules)
                     {
@@ -273,14 +273,14 @@ namespace SharpYaml.Schemas
             return false;
         }
 
-        public Type GetTypeForDefaultTag(string shortTag)
+        public Type? GetTypeForDefaultTag(string? shortTag)
         {
             if (shortTag == null)
             {
                 return null;
             }
 
-            mapShortTagToType.TryGetValue(shortTag, out Type type);
+            mapShortTagToType.TryGetValue(shortTag, out var type);
             return type;
         }
 
@@ -312,14 +312,14 @@ namespace SharpYaml.Schemas
         /// Add( ... );
         /// EndUpdate();   // automaticall invoke internal calculation method
         ///   </code></example>
-        protected void AddScalarRule<T>(string tag, string regex, Func<Match, T> decode, Func<T, string> encode)
+        protected void AddScalarRule<T>(string tag, string regex, Func<Match, T> decode, Func<T, string>? encode)
         {
             // Make sure the tag is expanded to its long form
             var longTag = ShortenTag(tag);
-            scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T) m), typeof(T)));
+            scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T)m), typeof(T)));
         }
 
-        protected void AddScalarRule(Type[] types, string tag, string regex, Func<Match, object> decode, Func<object, string> encode)
+        protected void AddScalarRule(Type[] types, string tag, string regex, Func<Match, object> decode, Func<object, string>? encode)
         {
             // Make sure the tag is expanded to its long form
             var longTag = ShortenTag(tag);
@@ -422,7 +422,7 @@ namespace SharpYaml.Schemas
 
         private class ScalarResolutionRule
         {
-            public ScalarResolutionRule(string shortTag, string regex, Func<Match, object> decoder, Func<object, string> encoder, params Type[] types)
+            public ScalarResolutionRule(string shortTag, string regex, Func<Match, object> decoder, Func<object, string>? encoder, params Type[] types)
             {
                 Tag = shortTag;
                 PatternSource = regex;
@@ -434,7 +434,7 @@ namespace SharpYaml.Schemas
 
             private readonly Type[] types;
             private readonly Func<Match, object> Decoder;
-            private readonly Func<object, string> Encoder;
+            private readonly Func<object, string>? Encoder;
 
             public string Tag { get; protected set; }
             public Regex Pattern { get; protected set; }

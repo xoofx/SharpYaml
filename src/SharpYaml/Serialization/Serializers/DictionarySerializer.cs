@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -67,14 +67,14 @@ namespace SharpYaml.Serialization.Serializers
         }
 
         /// <inheritdoc/>
-        public override IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+        public override IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
             return typeDescriptor is DictionaryDescriptor ? this : null;
         }
 
         protected override void ReadMember(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
 
             if (dictionaryDescriptor.IsPureDictionary)
             {
@@ -83,7 +83,7 @@ namespace SharpYaml.Serialization.Serializers
             else if (objectContext.Settings.SerializeDictionaryItemsAsMembers && dictionaryDescriptor.KeyType == typeof(string))
             {
                 // Read dictionaries that can be serialized as items
-                if (!TryReadMember(ref objectContext, out string memberName))
+                if (!TryReadMember(ref objectContext, out var memberName))
                 {
                     var value = ReadMemberValue(ref objectContext, null, null, dictionaryDescriptor.ValueType);
                     dictionaryDescriptor.AddToDictionary(objectContext.Instance, memberName, value);
@@ -109,7 +109,7 @@ namespace SharpYaml.Serialization.Serializers
 
         protected override void WriteMembers(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
             if (dictionaryDescriptor.IsPureDictionary)
             {
                 WriteDictionaryItems(ref objectContext);
@@ -133,7 +133,7 @@ namespace SharpYaml.Serialization.Serializers
 
                 WriteMemberName(ref objectContext, null, objectContext.Settings.SpecialCollectionMember);
 
-                objectContext.Writer.Emit(new MappingStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) { Anchor = objectContext.Anchor, Style = objectContext.Style});
+                objectContext.Writer.Emit(new MappingStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) { Anchor = objectContext.Anchor, Style = objectContext.Style });
                 WriteDictionaryItems(ref objectContext);
                 objectContext.Writer.Emit(new MappingEndEventInfo(objectContext.Instance, objectContext.Instance.GetType()));
             }
@@ -145,7 +145,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext"></param>
         protected virtual void ReadDictionaryItems(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
 
             var reader = objectContext.Reader;
             while (!reader.Accept<MappingEnd>())
@@ -183,7 +183,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValueType">Type of the key value.</param>
         /// <returns>KeyValuePair{System.ObjectSystem.Object}.</returns>
-        protected virtual KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
+        protected virtual KeyValuePair<object, object?> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType)
         {
             return objectContext.ObjectSerializerBackend.ReadDictionaryItem(ref objectContext, keyValueType);
         }
@@ -194,7 +194,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         protected virtual void WriteDictionaryItems(ref ObjectContext objectContext)
         {
-            var dictionaryDescriptor = (DictionaryDescriptor) objectContext.Descriptor;
+            var dictionaryDescriptor = (DictionaryDescriptor)objectContext.Descriptor;
             var keyValues = dictionaryDescriptor.GetEnumerator(objectContext.Instance).ToList();
 
             var settings = objectContext.Settings;
@@ -218,7 +218,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValue">The key value.</param>
         /// <param name="types">The types.</param>
-        protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
+        protected virtual void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object?> keyValue, KeyValuePair<Type, Type> types)
         {
             objectContext.ObjectSerializerBackend.WriteDictionaryItem(ref objectContext, keyValue, types);
         }

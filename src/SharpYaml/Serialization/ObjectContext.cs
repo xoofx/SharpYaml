@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ namespace SharpYaml.Serialization
         /// <param name="serializerContext">The serializer context.</param>
         /// <param name="instance">The instance.</param>
         /// <param name="descriptor">The descriptor.</param>
-        public ObjectContext(SerializerContext serializerContext, object instance, ITypeDescriptor descriptor) : this()
+        public ObjectContext(SerializerContext serializerContext, object? instance, ITypeDescriptor descriptor) : this()
         {
             SerializerContext = serializerContext;
             Instance = instance;
@@ -53,13 +53,13 @@ namespace SharpYaml.Serialization
         /// Gets the current YAML reader. Equivalent to calling directly <see cref="Serialization.SerializerContext.Reader"/>.
         /// </summary>
         /// <value>The current YAML reader.</value>
-        public EventReader Reader { get { return SerializerContext.Reader; } }
+        public EventReader? Reader { get { return SerializerContext.Reader; } }
 
         /// <summary>
         /// Gets the writer used while deserializing. Equivalent to calling directly <see cref="Serialization.SerializerContext.Writer"/>.
         /// </summary>
         /// <value>The writer.</value>
-        public IEventEmitter Writer { get { return SerializerContext.Writer; } }
+        public IEventEmitter? Writer { get { return SerializerContext.Writer; } }
 
         /// <summary>
         /// Gets the settings. Equivalent to calling directly <see cref="Serialization.SerializerContext.Settings"/>.
@@ -76,7 +76,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// The instance link to this context.
         /// </summary>
-        public object Instance { get; set; }
+        public object? Instance { get; set; }
 
         /// <summary>
         /// The expected type descriptor.
@@ -86,12 +86,12 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// The tag used when serializing.
         /// </summary>
-        public string Tag { get; set; }
+        public string? Tag { get; set; }
 
         /// <summary>
         /// The anchor used when serializing.
         /// </summary>
-        public string Anchor { get; set; }
+        public string? Anchor { get; set; }
 
         /// <summary>
         /// The style used when serializing.

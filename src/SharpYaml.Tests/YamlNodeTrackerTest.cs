@@ -6,10 +6,13 @@ using SharpYaml.Model;
 using Path = SharpYaml.Model.Path;
 using YamlStream = SharpYaml.Model.YamlStream;
 
-namespace SharpYaml.Tests {
-    public class YamlNodeTrackerTest {
+namespace SharpYaml.Tests
+{
+    public class YamlNodeTrackerTest
+    {
         [Test]
-        public void DeserializeTest() {
+        public void DeserializeTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
 
@@ -17,7 +20,8 @@ namespace SharpYaml.Tests {
 
             var tracker = new YamlNodeTracker();
 
-            tracker.TrackerEvent += (sender, args) => {
+            tracker.TrackerEvent += (sender, args) =>
+            {
                 if (args.EventType == TrackerEventType.MappingPairAdded ||
                     args.EventType == TrackerEventType.SequenceElementAdded ||
                     args.EventType == TrackerEventType.StreamDocumentAdded)
@@ -31,7 +35,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void ValueSetTest() {
+        public void ValueSetTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test4.yaml");
 
@@ -39,7 +44,8 @@ namespace SharpYaml.Tests {
 
             var tracker = new YamlNodeTracker();
 
-            tracker.TrackerEvent += (sender, args) => {
+            tracker.TrackerEvent += (sender, args) =>
+            {
                 if (args.EventType == TrackerEventType.MappingPairAdded ||
                     args.EventType == TrackerEventType.SequenceElementAdded ||
                     args.EventType == TrackerEventType.StreamDocumentAdded)
@@ -52,9 +58,10 @@ namespace SharpYaml.Tests {
             Assert.AreEqual(3, childrenAdded);
 
             ScalarValueChanged valueChanged = null;
-            tracker.TrackerEvent += (sender, args) => {
-                if (args is ScalarValueChanged)
-                    valueChanged = (ScalarValueChanged)args;
+            tracker.TrackerEvent += (sender, args) =>
+            {
+                if (args is ScalarValueChanged changed)
+                    valueChanged = changed;
             };
             ((YamlValue)stream[0].Contents).Value = "a silly scalar";
 
@@ -66,27 +73,33 @@ namespace SharpYaml.Tests {
         }
 
 
-        class SubscriberHandler {
+        class SubscriberHandler
+        {
             public int ACalls;
             public int BCalls;
             public int CCalls;
 
-            public void A(TrackerEventArgs args) {
+            public void A(TrackerEventArgs args)
+            {
                 ACalls++;
             }
 
-            public void B(TrackerEventArgs args) {
+            public void B(TrackerEventArgs args)
+            {
                 BCalls++;
             }
 
-            public void C(TrackerEventArgs args) {
+            public void C(TrackerEventArgs args)
+            {
                 CCalls++;
             }
         }
 
         [Test]
-        public void DisposeTest() {
-            System.WeakReference GetWeakRef() {
+        public void DisposeTest()
+        {
+            System.WeakReference GetWeakRef()
+            {
                 // In .NET versions higher than 3.5, the parents dictionary is replaced with
                 // ConditionalWeakTable, allowing tracked YAML nodes to be freed properly.
                 var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -96,7 +109,8 @@ namespace SharpYaml.Tests {
 
                 var tracker = new YamlNodeTracker();
 
-                tracker.TrackerEvent += (sender, args) => {
+                tracker.TrackerEvent += (sender, args) =>
+                {
                     if (args.EventType == TrackerEventType.MappingPairAdded ||
                         args.EventType == TrackerEventType.SequenceElementAdded ||
                         args.EventType == TrackerEventType.StreamDocumentAdded)
@@ -118,7 +132,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void SubscriberTest() {
+        public void SubscriberTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test12.yaml");
 
@@ -158,14 +173,16 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void AddPairTest() {
+        public void AddPairTest()
+        {
             var tracker = new YamlNodeTracker();
             var stream = new YamlStream(tracker);
             stream.Add(new YamlDocument());
             stream[0].Contents = new YamlMapping();
 
             TrackerEventArgs receivedArgs = null;
-            tracker.TrackerEvent += (sender, args) => {
+            tracker.TrackerEvent += (sender, args) =>
+            {
                 receivedArgs = args;
             };
 
@@ -181,7 +198,8 @@ namespace SharpYaml.Tests {
 
 
         [Test]
-        public void TrackerAssignmentTest() {
+        public void TrackerAssignmentTest()
+        {
             var tracker = new YamlNodeTracker();
             var stream = new YamlStream(tracker);
 
@@ -232,7 +250,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void UpdateMappingNextChildrenTest() {
+        public void UpdateMappingNextChildrenTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
 
@@ -242,7 +261,7 @@ namespace SharpYaml.Tests {
             var stream = YamlStream.Load(fileStream, tracker);
             var seq = (YamlSequence)((YamlMapping)stream[0].Contents)["a sequence"];
 
-            Path modifiedPath = new Path();
+            var modifiedPath = new Path();
             tracker.TrackerEvent += (sender, args) => modifiedPath = args.ParentPaths[0];
 
             seq[0] = new YamlValue("New item");
@@ -268,7 +287,8 @@ namespace SharpYaml.Tests {
 
 
         [Test]
-        public void UpdateSequenceNextChildrenTest() {
+        public void UpdateSequenceNextChildrenTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test10.yaml");
 
@@ -278,7 +298,7 @@ namespace SharpYaml.Tests {
             var stream = YamlStream.Load(fileStream, tracker);
             var seq = (YamlSequence)((YamlSequence)stream[0].Contents)[2];
 
-            Path modifiedPath = new Path();
+            var modifiedPath = new Path();
             tracker.TrackerEvent += (sender, args) => modifiedPath = args.ParentPaths[0];
 
             seq[0] = new YamlValue("New item");
@@ -304,7 +324,8 @@ namespace SharpYaml.Tests {
 
 
         [Test]
-        public void UpdateStreamNextChildrenTest() {
+        public void UpdateStreamNextChildrenTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test4.yaml");
 
@@ -314,8 +335,9 @@ namespace SharpYaml.Tests {
             var stream = YamlStream.Load(fileStream, tracker);
             var val = (YamlValue)stream[2].Contents;
 
-            Path modifiedPath = new Path();
-            tracker.TrackerEvent += (sender, args) => {
+            var modifiedPath = new Path();
+            tracker.TrackerEvent += (sender, args) =>
+            {
                 if (args.ParentPaths.Count > 0)
                     modifiedPath = args.ParentPaths[0];
             };
@@ -342,7 +364,8 @@ namespace SharpYaml.Tests {
         }
 
         [Test]
-        public void UpdateSubscriberNextChildrenTest() {
+        public void UpdateSubscriberNextChildrenTest()
+        {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
 
@@ -350,16 +373,16 @@ namespace SharpYaml.Tests {
 
             var fileStream = new StreamReader(file);
             var stream = YamlStream.Load(fileStream, tracker);
-            var rootMapping = (YamlMapping) stream[0].Contents;
-            var val = (YamlValue) rootMapping["a simple key"];
-            var map = (YamlMapping) rootMapping["a mapping"];
+            var rootMapping = (YamlMapping)stream[0].Contents;
+            var val = (YamlValue)rootMapping["a simple key"];
+            var map = (YamlMapping)rootMapping["a mapping"];
             var seq = (YamlSequence)rootMapping["a sequence"];
-            
+
             var subscriber = new SubscriberHandler();
             tracker.Subscribe(subscriber, tracker.GetPaths(seq)[0], "A");
             tracker.Subscribe(subscriber, tracker.GetPaths(map)[0], "B");
             tracker.Subscribe(subscriber, tracker.GetPaths(val)[0], "C");
-            
+
             seq[0] = new YamlValue("New item");
             map["bla"] = new YamlValue("New item");
             val.Tag = "bla";
@@ -381,18 +404,18 @@ namespace SharpYaml.Tests {
             // Make sure we're still subscribed.
             Assert.AreEqual(2, subscriber.ACalls);
             Assert.AreEqual(2, subscriber.BCalls);
-            
+
             // C should get unsubscribed and not get any seq or map changes.
             Assert.AreEqual(1, subscriber.CCalls);
 
             rootMapping.Insert(0, new KeyValuePair<YamlElement, YamlElement>(new YamlValue("a mapping 1"), new YamlMapping()));
-            
+
             seq[0] = new YamlValue("New item 3");
-            
+
             // Make sure we're still subscribed.
             Assert.AreEqual(3, subscriber.ACalls);
             Assert.AreEqual(2, subscriber.BCalls);
-            
+
             map["bla"] = new YamlValue("New item 3");
 
             // Make sure we're still subscribed.
@@ -403,7 +426,8 @@ namespace SharpYaml.Tests {
 
 
         [Test]
-        public void UpdateSubscriberNextChildrenTest2() {
+        public void UpdateSubscriberNextChildrenTest2()
+        {
             // As the indices of the parents change, the children also need to get re-subscribed.
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test11.yaml");
@@ -415,7 +439,7 @@ namespace SharpYaml.Tests {
             var rootMapping = (YamlMapping)stream[0].Contents;
             var map = (YamlMapping)rootMapping["a mapping"];
             var seq = (YamlSequence)rootMapping["a sequence"];
-            
+
             var subscriber = new SubscriberHandler();
             tracker.Subscribe(subscriber, tracker.GetPaths(map["key 1"])[0], "A");
             tracker.Subscribe(subscriber, tracker.GetPaths(seq[0])[0], "B");
@@ -433,7 +457,7 @@ namespace SharpYaml.Tests {
             // Make sure B is still subscribed and A isn't.
             Assert.AreEqual(1, subscriber.ACalls);
             Assert.AreEqual(2, subscriber.BCalls);
-            
+
             rootMapping.Insert(0, new KeyValuePair<YamlElement, YamlElement>(new YamlValue("a mapping 1"), new YamlMapping()));
 
             seq[0].Tag = "bla3";

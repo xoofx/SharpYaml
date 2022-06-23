@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -78,7 +78,7 @@ namespace SharpYaml.Tests
 
             WithTheRange(0, 10).Perform(queue.Enqueue);
 
-            Assert.AreEqual(new List<int>() {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, OrderOfElementsIn(queue));
+            Assert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue));
         }
 
         [Test]
@@ -90,7 +90,7 @@ namespace SharpYaml.Tests
             PerformTimes(5, queue.Dequeue);
             WithTheRange(10, 15).Perform(queue.Enqueue);
 
-            Assert.AreEqual(new List<int>() {5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, OrderOfElementsIn(queue));
+            Assert.AreEqual(new List<int>() { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }, OrderOfElementsIn(queue));
         }
 
         [Test]
@@ -113,7 +113,7 @@ namespace SharpYaml.Tests
             WithTheRange(0, 10).Perform(queue.Enqueue);
             queue.Insert(5, 99);
 
-            Assert.AreEqual(new List<int>() {0, 1, 2, 3, 4, 99, 5, 6, 7, 8, 9}, OrderOfElementsIn(queue));
+            Assert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 99, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue));
         }
 
         private static InsertionQueue<int> CreateQueue()

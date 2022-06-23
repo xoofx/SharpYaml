@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,10 +50,10 @@ namespace SharpYaml.Serialization
 {
     public abstract class EventInfo
     {
-        public object SourceValue { get; private set; }
-        public Type SourceType { get; private set; }
+        public object? SourceValue { get; }
+        public Type SourceType { get; }
 
-        protected EventInfo(object sourceValue, Type sourceType)
+        protected EventInfo(object? sourceValue, Type sourceType)
         {
             SourceValue = sourceValue;
             SourceType = sourceType;
@@ -72,18 +72,18 @@ namespace SharpYaml.Serialization
 
     public class ObjectEventInfo : EventInfo
     {
-        protected ObjectEventInfo(object sourceValue, Type sourceType)
+        protected ObjectEventInfo(object? sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
         {
         }
 
-        public string Anchor { get; set; }
-        public string Tag { get; set; }
+        public string? Anchor { get; set; }
+        public string? Tag { get; set; }
     }
 
     public sealed class ScalarEventInfo : ObjectEventInfo
     {
-        public ScalarEventInfo(object sourceValue, Type sourceType)
+        public ScalarEventInfo(object? sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
         {
         }

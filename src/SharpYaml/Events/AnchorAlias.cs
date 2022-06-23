@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -65,12 +65,10 @@ namespace SharpYaml.Events
         /// </summary>
         internal override EventType Type { get { return EventType.YAML_ALIAS_EVENT; } }
 
-        private readonly string value;
-
         /// <summary>
         /// Gets the value of the alias.
         /// </summary>
-        public string Value { get { return value; } }
+        public string Value { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AnchorAlias"/> class.
@@ -91,7 +89,7 @@ namespace SharpYaml.Events
                 throw new YamlException(start, end, "Anchor value must contain alphanumerical characters only.");
             }
 
-            this.value = value;
+            this.Value = value;
         }
 
         /// <summary>
@@ -111,7 +109,7 @@ namespace SharpYaml.Events
         /// </returns>
         public override string ToString()
         {
-            return FormattableString.Invariant($"Alias [value = {value}]");
+            return FormattableString.Invariant($"Alias [value = {Value}]");
         }
     }
 }

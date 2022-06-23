@@ -63,7 +63,7 @@ namespace SharpYaml.Serialization.Serializers
         }
 
         /// <inheritdoc/>
-        public virtual IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+        public virtual IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
             // always accept
             return this;
@@ -90,7 +90,7 @@ namespace SharpYaml.Serialization.Serializers
             return objectContext.ObjectSerializerBackend.GetStyle(ref objectContext);
         }
 
-        public virtual object ReadYaml(ref ObjectContext objectContext)
+        public virtual object? ReadYaml(ref ObjectContext objectContext)
         {
             // Create or transform the value to deserialize
             // If the new value to serialize is not the same as the one we were expecting to serialize
@@ -194,7 +194,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <exception cref="YamlException">Unable to deserialize property [{0}] not found in type [{1}].DoFormat(propertyName, typeDescriptor)</exception>
         protected virtual void ReadMember(ref ObjectContext objectContext)
         {
-            if (!TryReadMember(ref objectContext, out Scalar memberScalar, out string memberName))
+            if (!TryReadMember(ref objectContext, out var memberScalar, out var memberName))
             {
                 if (!objectContext.Settings.IgnoreUnmatchedProperties)
                     throw new YamlException(memberScalar.Start, memberScalar.End, $"Unable to deserialize property [{memberName}] not found in type [{objectContext.Descriptor}]");
@@ -209,7 +209,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <returns><c>true</c> if the member was successfully read, <c>false</c> otherwise.</returns>
         protected bool TryReadMember(ref ObjectContext objectContext, out string memberName)
         {
-            return TryReadMember(ref objectContext, out Scalar scalar, out memberName);
+            return TryReadMember(ref objectContext, out var scalar, out memberName);
         }
 
         /// <summary>
@@ -333,8 +333,8 @@ namespace SharpYaml.Serialization.Serializers
             return objectContext.ObjectSerializerBackend.ReadMemberName(ref objectContext, memberName, out skipMember);
         }
 
-        protected virtual object ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor member,
-            object memberValue,
+        protected virtual object? ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor? member,
+            object? memberValue,
             Type memberType)
         {
             return objectContext.ObjectSerializerBackend.ReadMemberValue(ref objectContext, member, memberValue, memberType);
@@ -362,13 +362,13 @@ namespace SharpYaml.Serialization.Serializers
             var context = objectContext.SerializerContext;
             if (isSequence)
             {
-                context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) {Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style});
+                context.Writer.Emit(new SequenceStartEventInfo(value, typeOfValue) { Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style });
                 WriteMembers(ref objectContext);
                 context.Writer.Emit(new SequenceEndEventInfo(value, typeOfValue));
             }
             else
             {
-                context.Writer.Emit(new MappingStartEventInfo(value, typeOfValue) {Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style});
+                context.Writer.Emit(new MappingStartEventInfo(value, typeOfValue) { Tag = objectContext.Tag, Anchor = objectContext.Anchor, Style = style });
                 WriteMembers(ref objectContext);
                 context.Writer.Emit(new MappingEndEventInfo(value, typeOfValue));
             }
@@ -426,12 +426,12 @@ namespace SharpYaml.Serialization.Serializers
             WriteMemberValue(ref objectContext, member, memberValue, memberType);
         }
 
-        protected virtual void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string name)
+        protected virtual void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor? member, string name)
         {
             objectContext.ObjectSerializerBackend.WriteMemberName(ref objectContext, member, name);
         }
 
-        protected virtual void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object memberValue,
+        protected virtual void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object? memberValue,
             Type memberType)
         {
             objectContext.ObjectSerializerBackend.WriteMemberValue(ref objectContext, member, memberValue, memberType);

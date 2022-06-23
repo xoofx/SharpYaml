@@ -53,7 +53,6 @@ namespace SharpYaml.Serialization
     [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class | AttributeTargets.Enum)]
     public class YamlTagAttribute : Attribute
     {
-        private readonly string tag;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlTagAttribute"/> class.
@@ -61,13 +60,13 @@ namespace SharpYaml.Serialization
         /// <param name="tag">The tag.</param>
         public YamlTagAttribute(string tag)
         {
-            this.tag = tag;
+            this.Tag = tag;
         }
 
         /// <summary>
         /// Gets the tag.
         /// </summary>
         /// <value>The tag.</value>
-        public string Tag { get { return tag; } }
+        public string Tag { get; }
     }
 }

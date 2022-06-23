@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,39 +52,27 @@ namespace SharpYaml
     /// </summary>
     public readonly struct Mark
     {
-        private readonly int index;
-        private readonly int line;
-        private readonly int column;
-
-        public Mark(int index, int line, int column) {
-            this.index = index;
-            this.line = line;
-            this.column = column;
+        public Mark(int index, int line, int column)
+        {
+            this.Index = index;
+            this.Line = line;
+            this.Column = column;
         }
 
         /// <summary>
         /// Gets / sets the absolute offset in the file
         /// </summary>
-        public int Index
-        {
-            get { return index; }
-        }
+        public int Index { get; }
 
         /// <summary>
         /// Gets / sets the number of the line
         /// </summary>
-        public int Line
-        {
-            get { return line; }
-        }
+        public int Line { get; }
 
         /// <summary>
         /// Gets / sets the index of the column
         /// </summary>
-        public int Column
-        {
-            get { return column; }
-        }
+        public int Column { get; }
 
         /// <summary>
         /// Gets a <see cref="Mark"/> with empty values.
@@ -99,7 +87,7 @@ namespace SharpYaml
         /// </returns>
         public override string ToString()
         {
-            return $"Lin: {line}, Col: {column}, Chr: {index}";
+            return $"Lin: {Line}, Col: {Column}, Chr: {Index}";
         }
     }
 }

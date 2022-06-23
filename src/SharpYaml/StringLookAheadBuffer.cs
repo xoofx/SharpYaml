@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,18 +50,17 @@ namespace SharpYaml
     internal class StringLookAheadBuffer : ILookAheadBuffer
     {
         private readonly string value;
-        private int currentIndex;
 
         public int Length { get { return value.Length; } }
 
-        public int Position { get { return currentIndex; } }
+        public int Position { get; private set; }
 
         private bool IsOutside(int index)
         {
             return index >= value.Length;
         }
 
-        public bool EndOfInput { get { return IsOutside(currentIndex); } }
+        public bool EndOfInput { get { return IsOutside(Position); } }
 
         public StringLookAheadBuffer(string value)
         {
@@ -70,7 +69,7 @@ namespace SharpYaml
 
         public char Peek(int offset)
         {
-            int index = currentIndex + offset;
+            int index = Position + offset;
             return IsOutside(index) ? '\0' : value[index];
         }
 
@@ -80,7 +79,7 @@ namespace SharpYaml
             {
                 throw new ArgumentOutOfRangeException("length", "The length must be positive.");
             }
-            currentIndex += length;
+            Position += length;
         }
 
         public void Cache(int length) { }

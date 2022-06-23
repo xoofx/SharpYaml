@@ -59,7 +59,7 @@ namespace SharpYaml
             return Type.GetTypeCode(type);
         }
 
-        private static Dictionary<Type, bool> anonymousTypes = new Dictionary<Type, bool>();
+        private static readonly Dictionary<Type, bool> anonymousTypes = new Dictionary<Type, bool>();
 
         public static bool HasInterface(this Type type, Type lookInterfaceType)
         {
@@ -86,7 +86,7 @@ namespace SharpYaml
             return false;
         }
 
-        public static Type GetInterface(this Type type, Type lookInterfaceType)
+        public static Type? GetInterface(this Type type, Type lookInterfaceType)
         {
             if (type == null)
                 throw new ArgumentNullException("type");
@@ -101,7 +101,7 @@ namespace SharpYaml
                             && interfaceType.GetGenericTypeDefinition() == lookInterfaceType)
                             return interfaceType;
 
-                for (Type t = type; t != null; t = t.GetTypeInfo().BaseType)
+                for (var t = type; t != null; t = t.GetTypeInfo().BaseType)
                     if (t.GetTypeInfo().IsGenericType && t.GetGenericTypeDefinition() == lookInterfaceType)
                         return t;
             }
@@ -156,7 +156,7 @@ namespace SharpYaml
             // type
             var isArray = type.IsArray;
             if (isArray)
-                type = type.GetElementType();
+                type = type.GetElementType()!;
             sb.Append(type.Name);
             // generic arguments
             if (type.GetTypeInfo().IsGenericType)
@@ -280,7 +280,7 @@ namespace SharpYaml
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        public static bool AreEqual(object a, object b)
+        public static bool AreEqual(object? a, object? b)
         {
             if (a == null)
                 return b == null;
@@ -295,7 +295,7 @@ namespace SharpYaml
         /// <param name="obj">Any object</param>
         /// <param name="type">Numric type</param>
         /// <returns>Numeric value or null if the object is not a numeric value.</returns>
-        public static object CastToNumericType(this Type type, object obj)
+        public static object? CastToNumericType(this Type type, object? obj)
         {
             var doubleValue = CastToDouble(obj);
             if (double.IsNaN(doubleValue))
@@ -304,29 +304,29 @@ namespace SharpYaml
             if (obj is decimal && type == typeof(decimal))
                 return obj; // do not convert into double
 
-            object result = null;
+            object? result = null;
             if (type == typeof(sbyte))
-                result = (sbyte) doubleValue;
+                result = (sbyte)doubleValue;
             if (type == typeof(byte))
-                result = (byte) doubleValue;
+                result = (byte)doubleValue;
             if (type == typeof(short))
-                result = (short) doubleValue;
+                result = (short)doubleValue;
             if (type == typeof(ushort))
-                result = (ushort) doubleValue;
+                result = (ushort)doubleValue;
             if (type == typeof(int))
-                result = (int) doubleValue;
+                result = (int)doubleValue;
             if (type == typeof(uint))
-                result = (uint) doubleValue;
+                result = (uint)doubleValue;
             if (type == typeof(long))
-                result = (long) doubleValue;
+                result = (long)doubleValue;
             if (type == typeof(ulong))
-                result = (ulong) doubleValue;
+                result = (ulong)doubleValue;
             if (type == typeof(float))
-                result = (float) doubleValue;
+                result = (float)doubleValue;
             if (type == typeof(double))
                 result = doubleValue;
             if (type == typeof(decimal))
-                result = (decimal) doubleValue;
+                result = (decimal)doubleValue;
             return result;
         }
 
@@ -335,7 +335,7 @@ namespace SharpYaml
         /// </summary>
         /// <param name="obj">boxed numeric value</param>
         /// <returns>Numeric value in double. Double.Nan if obj is not a numeric value.</returns>
-        public static double CastToDouble(object obj)
+        public static double CastToDouble(object? obj)
         {
             switch (obj)
             {

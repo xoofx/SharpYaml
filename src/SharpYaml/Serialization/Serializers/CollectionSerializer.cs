@@ -64,14 +64,14 @@ namespace SharpYaml.Serialization.Serializers
         {
         }
 
-        public override IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
+        public override IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
         {
             return typeDescriptor is CollectionDescriptor ? this : null;
         }
 
         protected override bool CheckIsSequence(ref ObjectContext objectContext)
         {
-            var collectionDescriptor = (CollectionDescriptor) objectContext.Descriptor;
+            var collectionDescriptor = (CollectionDescriptor)objectContext.Descriptor;
 
             // If the dictionary is pure, we can directly output a sequence instead of a mapping
             return collectionDescriptor.IsPureCollection;
@@ -126,7 +126,7 @@ namespace SharpYaml.Serialization.Serializers
 
                 WriteMemberName(ref objectContext, null, objectContext.Settings.SpecialCollectionMember);
 
-                objectContext.Writer.Emit(new SequenceStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) {Anchor = objectContext.Anchor, Style = objectContext.Style});
+                objectContext.Writer.Emit(new SequenceStartEventInfo(objectContext.Instance, objectContext.Instance.GetType()) { Anchor = objectContext.Anchor, Style = objectContext.Style });
                 WriteCollectionItems(ref objectContext);
                 objectContext.Writer.Emit(new SequenceEndEventInfo(objectContext.Instance, objectContext.Instance.GetType()));
             }
@@ -141,7 +141,7 @@ namespace SharpYaml.Serialization.Serializers
         /// Cannot deserialize list to readonly collection type [{0}]..DoFormat(thisObject.GetType())</exception>
         protected virtual void ReadCollectionItems(ref ObjectContext objectContext)
         {
-            var collectionDescriptor = (CollectionDescriptor) objectContext.Descriptor;
+            var collectionDescriptor = (CollectionDescriptor)objectContext.Descriptor;
             var thisObject = objectContext.Instance;
 
             if (!collectionDescriptor.HasAdd)
@@ -205,7 +205,7 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="itemType">Type of the item.</param>
         /// <param name="index"></param>
         /// <returns>The item to add to the current collection.</returns>
-        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType, int index)
+        protected virtual object ReadCollectionItem(ref ObjectContext objectContext, object? value, Type itemType, int index)
         {
             return objectContext.ObjectSerializerBackend.ReadCollectionItem(ref objectContext, value, itemType, index);
         }
@@ -216,8 +216,8 @@ namespace SharpYaml.Serialization.Serializers
         /// <param name="objectContext">The object context.</param>
         protected virtual void WriteCollectionItems(ref ObjectContext objectContext)
         {
-            var collectionDescriptor = (CollectionDescriptor) objectContext.Descriptor;
-            var collection = (IEnumerable) objectContext.Instance;
+            var collectionDescriptor = (CollectionDescriptor)objectContext.Descriptor;
+            var collection = (IEnumerable)objectContext.Instance;
             int index = 0;
             foreach (var item in collection)
             {

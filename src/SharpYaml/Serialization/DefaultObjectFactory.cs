@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using SharpYaml.Serialization.Descriptors;
 
@@ -73,7 +74,8 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="type">The type.</param>
         /// <returns>The type of the implem or the same type as input if there is no default implementation</returns>
-        public static Type GetDefaultImplementation(Type type)
+        [return: NotNullIfNotNull("type")]
+        public static Type? GetDefaultImplementation(Type? type)
         {
             if (type == null)
                 return null;
@@ -81,7 +83,7 @@ namespace SharpYaml.Serialization
             // TODO change this code. Make it configurable?
             if (type.GetTypeInfo().IsInterface)
             {
-                Type implementationType;
+                Type? implementationType;
                 if (type.GetTypeInfo().IsGenericType)
                 {
                     if (DefaultInterfaceImplementations.TryGetValue(type.GetGenericTypeDefinition(), out implementationType))
@@ -100,7 +102,7 @@ namespace SharpYaml.Serialization
             return type;
         }
 
-        public object Create(Type type)
+        public object? Create(Type type)
         {
             type = GetDefaultImplementation(type);
 

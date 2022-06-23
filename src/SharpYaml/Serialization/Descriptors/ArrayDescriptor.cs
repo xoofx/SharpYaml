@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,6 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     public class ArrayDescriptor : ObjectDescriptor
     {
-        private readonly Type elementType;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -75,7 +74,7 @@ namespace SharpYaml.Serialization.Descriptors
                 throw new ArgumentException($"Cannot support dimension [{type.GetArrayRank()}] for type [{type.FullName}]. Only supporting dimension of 1");
             }
 
-            elementType = type.GetElementType();
+            ElementType = type.GetElementType()!;
         }
 
         public override DescriptorCategory Category { get { return DescriptorCategory.Array; } }
@@ -84,7 +83,7 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the type of the array element.
         /// </summary>
         /// <value>The type of the element.</value>
-        public Type ElementType { get { return elementType; } }
+        public Type ElementType { get; }
 
         /// <summary>
         /// Creates the equivalent of list type for this array.

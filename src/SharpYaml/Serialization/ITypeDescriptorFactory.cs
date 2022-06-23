@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SharpYaml.Serialization
 {
@@ -59,6 +60,7 @@ namespace SharpYaml.Serialization
         /// <param name="type">The type.</param>
         /// <param name="memberComparer"></param>
         /// <returns>ITypeDescriptor.</returns>
-        ITypeDescriptor Find(Type type, IComparer<object> memberComparer);
+        [return: NotNullIfNotNull("type")]
+        ITypeDescriptor? Find(Type? type, IComparer<object> memberComparer);
     }
 }

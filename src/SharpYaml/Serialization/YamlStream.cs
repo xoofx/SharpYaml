@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,13 +55,11 @@ namespace SharpYaml.Serialization
     /// </summary>
     public class YamlStream : IEnumerable<YamlDocument>
     {
-        private readonly IList<YamlDocument> documents = new List<YamlDocument>();
-
         /// <summary>
         /// Gets the documents inside the stream.
         /// </summary>
         /// <value>The documents.</value>
-        public IList<YamlDocument> Documents { get { return documents; } }
+        public IList<YamlDocument> Documents { get; } = new List<YamlDocument>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlStream"/> class.
@@ -74,7 +72,7 @@ namespace SharpYaml.Serialization
         /// Initializes a new instance of the <see cref="YamlStream"/> class.
         /// </summary>
         public YamlStream(params YamlDocument[] documents)
-            : this((IEnumerable<YamlDocument>) documents)
+            : this((IEnumerable<YamlDocument>)documents)
         {
         }
 
@@ -85,7 +83,7 @@ namespace SharpYaml.Serialization
         {
             foreach (var document in documents)
             {
-                this.documents.Add(document);
+                this.Documents.Add(document);
             }
         }
 
@@ -95,7 +93,7 @@ namespace SharpYaml.Serialization
         /// <param name="document">The document.</param>
         public void Add(YamlDocument document)
         {
-            documents.Add(document);
+            Documents.Add(document);
         }
 
         /// <summary>
@@ -104,16 +102,16 @@ namespace SharpYaml.Serialization
         /// <param name="input">The input.</param>
         public void Load(TextReader input)
         {
-            documents.Clear();
+            Documents.Clear();
 
             var parser = Parser.CreateParser(input);
 
-            EventReader events = new EventReader(parser);
+            var events = new EventReader(parser);
             events.Expect<StreamStart>();
             while (!events.Accept<StreamEnd>())
             {
-                YamlDocument document = new YamlDocument(events);
-                documents.Add(document);
+                var document = new YamlDocument(events);
+                Documents.Add(document);
             }
             events.Expect<StreamEnd>();
         }
@@ -130,8 +128,8 @@ namespace SharpYaml.Serialization
 
             emitter.Emit(new StreamStart());
 
-            var lastDocument = documents.Count > 0 ? documents[documents.Count - 1] : null;
-            foreach (var document in documents)
+            var lastDocument = Documents.Count > 0 ? Documents[Documents.Count - 1] : null;
+            foreach (var document in Documents)
             {
                 bool isDocumentEndImplicit = isLastDocumentEndImplicit && document == lastDocument;
                 document.Save(emitter, isDocumentEndImplicit);
@@ -156,7 +154,7 @@ namespace SharpYaml.Serialization
         /// <summary />
         public IEnumerator<YamlDocument> GetEnumerator()
         {
-            return documents.GetEnumerator();
+            return Documents.GetEnumerator();
         }
 
         #endregion

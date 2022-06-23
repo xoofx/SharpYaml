@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,21 +55,17 @@ namespace SharpYaml.Events
     {
         internal static readonly Regex anchorValidator = new Regex(@"^[0-9a-zA-Z_\-]+$", RegexOptions.Compiled);
 
-        private readonly string anchor;
-
         /// <summary>
         /// Gets the anchor.
         /// </summary>
         /// <value></value>
-        public string Anchor { get { return anchor; } }
-
-        private readonly string tag;
+        public string? Anchor { get; }
 
         /// <summary>
         /// Gets the tag.
         /// </summary>
         /// <value></value>
-        public string Tag { get { return tag; } }
+        public string? Tag { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is canonical.
@@ -84,7 +80,7 @@ namespace SharpYaml.Events
         /// <param name="tag">The tag.</param>
         /// <param name="start">The start position of the event.</param>
         /// <param name="end">The end position of the event.</param>
-        protected NodeEvent(string anchor, string tag, Mark start, Mark end)
+        protected NodeEvent(string? anchor, string? tag, Mark start, Mark end)
             : base(start, end)
         {
             if (anchor != null)
@@ -105,14 +101,14 @@ namespace SharpYaml.Events
                 throw new ArgumentException("Tag value must not be empty.", "tag");
             }
 
-            this.anchor = anchor;
-            this.tag = tag;
+            this.Anchor = anchor;
+            this.Tag = tag;
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeEvent"/> class.
         /// </summary>
-        protected NodeEvent(string anchor, string tag)
+        protected NodeEvent(string? anchor, string? tag)
             : this(anchor, tag, Mark.Empty, Mark.Empty)
         {
         }

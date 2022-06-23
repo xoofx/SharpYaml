@@ -46,6 +46,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization.Descriptors;
@@ -61,7 +62,6 @@ namespace SharpYaml.Serialization
         internal readonly Dictionary<Type, IYamlSerializable> serializers = new Dictionary<Type, IYamlSerializable>();
         internal readonly AssemblyRegistry AssemblyRegistry;
         private IAttributeRegistry attributeRegistry;
-        private readonly IYamlSchema schema;
         private IObjectFactory objectFactory;
         private int preferredIndent;
         private string specialCollectionMember;
@@ -78,7 +78,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Initializes a new instance of the <see cref="SerializerSettings" /> class.
         /// </summary>
-        public SerializerSettings(IYamlSchema schema)
+        public SerializerSettings(IYamlSchema? schema)
         {
             PreferredIndent = 2;
             IndentLess = false;
@@ -90,7 +90,7 @@ namespace SharpYaml.Serialization
             SpecialCollectionMember = "~Items";
             LimitPrimitiveFlowSequence = 0;
             DefaultStyle = YamlStyle.Block;
-            this.schema = schema ?? CoreSchema.Instance;
+            this.Schema = schema ?? CoreSchema.Instance;
             AssemblyRegistry = new AssemblyRegistry(Schema);
             attributeRegistry = new AttributeRegistry();
             ObjectFactory = new DefaultObjectFactory();
@@ -157,10 +157,10 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <value><c>true</c> if to emit JSON compatible YAML; otherwise, <c>false</c>.</value>
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public bool EmitJsonComptible 
+        public bool EmitJsonComptible
         {
             get => EmitJsonCompatible;
-            set => EmitJsonCompatible = value; 
+            set => EmitJsonCompatible = value;
         }
 
         /// <summary>
@@ -168,7 +168,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <value><c>true</c> if to emit JSON compatible YAML; otherwise, <c>false</c>.</value>
         public bool EmitJsonCompatible { get; set; }
-        
+
         /// <summary>
         /// Gets or sets a value indicating whether the property <see cref="List{T}.Capacity" /> should be emitted. Default is false.
         /// </summary>
@@ -221,6 +221,7 @@ namespace SharpYaml.Serialization
         public IMemberNamingConvention NamingConvention
         {
             get { return _namingConvention; }
+            [MemberNotNull(nameof(_namingConvention))]
             set
             {
                 if (value == null)
@@ -263,6 +264,7 @@ namespace SharpYaml.Serialization
         public string SpecialCollectionMember
         {
             get { return specialCollectionMember; }
+            [MemberNotNull(nameof(specialCollectionMember))]
             set
             {
                 if (value == null)
@@ -286,6 +288,7 @@ namespace SharpYaml.Serialization
         public IAttributeRegistry Attributes
         {
             get { return attributeRegistry; }
+            [MemberNotNull(nameof(attributeRegistry))]
             set
             {
                 if (value == null)
@@ -301,6 +304,7 @@ namespace SharpYaml.Serialization
         public IObjectSerializerBackend ObjectSerializerBackend
         {
             get { return objectSerializerBackend; }
+            [MemberNotNull(nameof(objectSerializerBackend))]
             set
             {
                 if (value == null)
@@ -317,6 +321,7 @@ namespace SharpYaml.Serialization
         public IObjectFactory ObjectFactory
         {
             get { return objectFactory; }
+            [MemberNotNull(nameof(objectFactory))]
             set
             {
                 if (value == null)
@@ -331,7 +336,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <value>The schema.</value>
         /// <exception cref="System.ArgumentNullException">value</exception>
-        public IYamlSchema Schema { get { return schema; } }
+        public IYamlSchema Schema { get; }
 
         /// <summary>
         /// Register a mapping between a tag and a type.

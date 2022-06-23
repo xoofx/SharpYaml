@@ -61,7 +61,7 @@ namespace SharpYaml.Serialization
         /// <remarks>
         /// TODO: Explain memberValue when can be not null
         /// </remarks>
-        object ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object memberValue, Type memberType);
+        object? ReadMemberValue(ref ObjectContext objectContext, IMemberDescriptor? member, object? memberValue, Type memberType);
 
         /// <summary>
         /// Reads the collection item from the current YAML stream.
@@ -71,7 +71,7 @@ namespace SharpYaml.Serialization
         /// <param name="itemType">Type of the item.</param>
         /// <param name="index"></param>
         /// <returns>The collection item read from YAML stream.</returns>
-        object ReadCollectionItem(ref ObjectContext objectContext, object value, Type itemType, int index);
+        object? ReadCollectionItem(ref ObjectContext objectContext, object? value, Type itemType, int index);
 
         /// <summary>
         /// Reads the dictionary item from the current YAML stream.
@@ -79,7 +79,7 @@ namespace SharpYaml.Serialization
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValueType">Type of the key value.</param>
         /// <returns>The dictionary item (key,value) read from YAML stream.</returns>
-        KeyValuePair<object, object> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType);
+        KeyValuePair<object, object?> ReadDictionaryItem(ref ObjectContext objectContext, KeyValuePair<Type, Type> keyValueType);
 
         /// <summary>
         /// Writes the name of the member.
@@ -87,7 +87,7 @@ namespace SharpYaml.Serialization
         /// <param name="objectContext">The object context.</param>
         /// <param name="member">The member.</param>
         /// <param name="memberName">Name of the member.</param>
-        void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor member, string memberName);
+        void WriteMemberName(ref ObjectContext objectContext, IMemberDescriptor? member, string memberName);
 
         /// <summary>
         /// Writes the member value.
@@ -96,7 +96,7 @@ namespace SharpYaml.Serialization
         /// <param name="member">The member.</param>
         /// <param name="memberValue">The member value.</param>
         /// <param name="memberType">Type of the member.</param>
-        void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object memberValue, Type memberType);
+        void WriteMemberValue(ref ObjectContext objectContext, IMemberDescriptor member, object? memberValue, Type memberType);
 
         /// <summary>
         /// Writes the collection item.
@@ -113,6 +113,6 @@ namespace SharpYaml.Serialization
         /// <param name="objectContext">The object context.</param>
         /// <param name="keyValue">The key value.</param>
         /// <param name="types">The types.</param>
-        void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types);
+        void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object?> keyValue, KeyValuePair<Type, Type> types);
     }
 }

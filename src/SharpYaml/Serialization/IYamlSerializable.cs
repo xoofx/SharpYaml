@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="objectContext"></param>
         /// <returns>A instance of the object deserialized from Yaml.</returns>
-        object ReadYaml(ref ObjectContext objectContext);
+        object? ReadYaml(ref ObjectContext objectContext);
 
         /// <summary>
         /// Writes the specified object context to a YAML emitter.

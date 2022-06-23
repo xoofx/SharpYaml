@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,9 +44,9 @@
 // SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using SharpYaml;
 using SharpYaml.Events;
-using System.Collections.Generic;
 
 namespace SharpYaml.Serialization
 {
@@ -59,13 +59,13 @@ namespace SharpYaml.Serialization
         /// Gets or sets the anchor of the node.
         /// </summary>
         /// <value>The anchor.</value>
-        public string Anchor { get; set; }
+        public string? Anchor { get; set; }
 
         /// <summary>
         /// Gets or sets the tag of the node.
         /// </summary>
         /// <value>The tag.</value>
-        public string Tag { get; set; }
+        public string? Tag { get; set; }
 
         /// <summary>
         /// Gets the position in the input stream where the event that originated the node starts.
@@ -100,7 +100,7 @@ namespace SharpYaml.Serialization
         /// <param name="events">The events.</param>
         /// <param name="state">The state.</param>
         /// <returns>Returns the node that has been parsed.</returns>
-        static internal YamlNode ParseNode(EventReader events, DocumentLoadingState state)
+        internal static YamlNode ParseNode(EventReader events, DocumentLoadingState state)
         {
             if (events.Accept<Scalar>())
             {
@@ -119,7 +119,7 @@ namespace SharpYaml.Serialization
 
             if (events.Accept<AnchorAlias>())
             {
-                AnchorAlias alias = events.Expect<AnchorAlias>();
+                var alias = events.Expect<AnchorAlias>();
                 return state.GetNode(alias.Value, false, alias.Start, alias.End) ?? new YamlAliasNode(alias.Value);
             }
 
@@ -176,7 +176,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Gets a value indicating whether two objects are equal.
         /// </summary>
-        protected static bool SafeEquals(object first, object second)
+        protected static bool SafeEquals(object? first, object? second)
         {
             if (first != null)
             {
@@ -207,7 +207,7 @@ namespace SharpYaml.Serialization
         /// <summary>
         /// Gets the hash code of the specified object, or zero if the object is null. 
         /// </summary>
-        protected static int GetHashCode(object value)
+        protected static int GetHashCode(object? value)
         {
             return value == null ? 0 : value.GetHashCode();
         }

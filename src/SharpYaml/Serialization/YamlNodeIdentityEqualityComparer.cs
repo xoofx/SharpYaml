@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization
         #region IEqualityComparer<YamlNode> Members
 
         /// <summary />
-        public bool Equals(YamlNode x, YamlNode y)
+        public bool Equals(YamlNode? x, YamlNode? y)
         {
             return ReferenceEquals(x, y);
         }

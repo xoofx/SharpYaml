@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -78,7 +80,7 @@ namespace SharpYaml
         private int index = 0;
         private int line = 0;
         private int column = 0;
-        
+
         /// <summary>
         /// Gets the current position inside the input stream.
         /// </summary>
@@ -111,7 +113,7 @@ namespace SharpYaml
             codes.Add('"', '"');
             codes.Add('\'', '\'');
             codes.Add('\\', '\\');
-            codes.Add('/', '/');            
+            codes.Add('/', '/');
             codes.Add('N', '\x85');
             codes.Add('_', '\xA0');
             codes.Add('L', '\x2028');
@@ -148,12 +150,10 @@ namespace SharpYaml
             analyzer = buffer;
         }
 
-        private Token current;
-
         /// <summary>
         /// Gets the current token.
         /// </summary>
-        public Token Current { get { return current; } }
+        public Token Current { get; private set; }
 
         /// <summary>
         /// Moves to the next token.
@@ -161,7 +161,7 @@ namespace SharpYaml
         /// <returns></returns>
         public bool MoveNext()
         {
-            if (current != null)
+            if (Current != null)
             {
                 ConsumeCurrent();
             }
@@ -177,13 +177,13 @@ namespace SharpYaml
             }
             if (tokens.Count > 0)
             {
-                current = tokens.Dequeue();
+                Current = tokens.Dequeue();
                 tokenAvailable = false;
                 return true;
             }
             else
             {
-                current = null;
+                Current = null;
                 return false;
             }
         }
@@ -195,7 +195,7 @@ namespace SharpYaml
         {
             ++tokensParsed;
             tokenAvailable = false;
-            current = null;
+            Current = null;
         }
 
         private void FetchMoreTokens()
@@ -562,7 +562,7 @@ namespace SharpYaml
         {
             // Until the next token is not find.
 
-            for (;;)
+            for (; ; )
             {
                 // Eat whitespaces.
 
@@ -700,7 +700,7 @@ namespace SharpYaml
 
             // Create the YAML-DIRECTIVE or TAG-DIRECTIVE token.
 
-            Token token = ScanDirective();
+            var token = ScanDirective();
 
             // Append the token to the queue.
 
@@ -720,13 +720,13 @@ namespace SharpYaml
         {
             // Eat '%'.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
 
             Skip();
 
             // Scan the directive name.
 
-            string name = ScanDirectiveName(start);
+            var name = ScanDirectiveName(start);
 
             // Is it a YAML directive?
 
@@ -794,13 +794,13 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
 
             Skip();
             Skip();
             Skip();
 
-            Token token = isStartToken ? (Token) new DocumentStart(start, CurrentPosition) : new DocumentEnd(start, start);
+            var token = isStartToken ? (Token)new DocumentStart(start, CurrentPosition) : new DocumentEnd(start, start);
             tokens.Enqueue(token);
         }
 
@@ -823,7 +823,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
             Skip();
 
             // Create the FLOW-SEQUENCE-START of FLOW-MAPPING-START token.
@@ -874,7 +874,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
             Skip();
 
             Token token;
@@ -918,7 +918,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
             Skip();
 
             // Create the FLOW-ENTRY token and append it to the queue.
@@ -962,7 +962,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
             Skip();
 
             // Create the BLOCK-ENTRY token and append it to the queue.
@@ -1001,7 +1001,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
             Skip();
 
             // Create the KEY token and append it to the queue.
@@ -1014,7 +1014,7 @@ namespace SharpYaml
         /// </summary>
         private void FetchValue()
         {
-            SimpleKey simpleKey = simpleKeys.Peek();
+            var simpleKey = simpleKeys.Peek();
 
             // Have we find a simple key?
 
@@ -1063,7 +1063,7 @@ namespace SharpYaml
 
             // Consume the token.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
             Skip();
 
             // Create the VALUE token and append it to the queue.
@@ -1140,13 +1140,13 @@ namespace SharpYaml
         {
             // Eat the indicator character.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
 
             Skip();
 
             // Consume the value.
 
-            StringBuilder value = new StringBuilder();
+            var value = new StringBuilder();
             while (analyzer.IsAlpha())
             {
                 value.Append(ReadCurrentCharacter());
@@ -1199,7 +1199,7 @@ namespace SharpYaml
         /// </summary>
         Token ScanTag()
         {
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
 
             // Check if the tag is in the canonical form.
 
@@ -1236,7 +1236,7 @@ namespace SharpYaml
 
                 // First, try to scan a handle.
 
-                string firstPart = ScanTagHandle(false, start);
+                var firstPart = ScanTagHandle(false, start);
 
                 // Check if it is, indeed, handle.
 
@@ -1306,9 +1306,9 @@ namespace SharpYaml
         /// </summary>
         Token ScanBlockScalar(bool isLiteral)
         {
-            StringBuilder value = new StringBuilder();
-            StringBuilder leadingBreak = new StringBuilder();
-            StringBuilder trailingBreaks = new StringBuilder();
+            var value = new StringBuilder();
+            var leadingBreak = new StringBuilder();
+            var trailingBreaks = new StringBuilder();
 
             int chomping = 0;
             int increment = 0;
@@ -1317,7 +1317,7 @@ namespace SharpYaml
 
             // Eat the indicator '|' or '>'.
 
-            Mark start = CurrentPosition;
+            var start = CurrentPosition;
 
             Skip();
 
@@ -1400,7 +1400,7 @@ namespace SharpYaml
                 SkipLine();
             }
 
-            Mark end = CurrentPosition;
+            var end = CurrentPosition;
 
             // Set the intendation level if it was specified.
 
@@ -1481,7 +1481,7 @@ namespace SharpYaml
 
             // Create a token.
 
-            ScalarStyle style = isLiteral ? ScalarStyle.Literal : ScalarStyle.Folded;
+            var style = isLiteral ? ScalarStyle.Literal : ScalarStyle.Folded;
             return new Scalar(value.ToString(), style, start, end);
         }
 
@@ -1497,7 +1497,7 @@ namespace SharpYaml
 
             // Eat the intendation spaces and line breaks.
 
-            for (;;)
+            for (; ; )
             {
                 // Eat the intendation spaces.
 
@@ -1567,8 +1567,8 @@ namespace SharpYaml
         {
             // Eat the left quote.
 
-            Mark start = CurrentPosition;
-            Mark end = CurrentPosition;
+            var start = CurrentPosition;
+            var end = CurrentPosition;
 
             Skip();
 
@@ -1577,7 +1577,7 @@ namespace SharpYaml
             scanScalarWhitespaces.Length = 0;
             scanScalarLeadingBreak.Length = 0;
             scanScalarTrailingBreaks.Length = 0;
-            for (;;)
+            for (; ; )
             {
                 // Check that there are no document indicators at the beginning of the line.
 
@@ -1689,27 +1689,33 @@ namespace SharpYaml
                                 int nextCharacter = 0;
 
                                 // We might be dealing with a surrogate pair - try to read the next unicode character.
-                                if (codeLength == 4 && analyzer.Check('\\', codeLength) && analyzer.Check('u', codeLength + 1)) {
-                                    for (int k = 0; k < codeLength; ++k) {
-                                        if (!analyzer.IsHex(k + codeLength + 2)) {
+                                if (codeLength == 4 && analyzer.Check('\\', codeLength) && analyzer.Check('u', codeLength + 1))
+                                {
+                                    for (int k = 0; k < codeLength; ++k)
+                                    {
+                                        if (!analyzer.IsHex(k + codeLength + 2))
+                                        {
                                             foundNextCharacter = false;
                                             break;
                                         }
                                         nextCharacter = (nextCharacter << 4) + analyzer.AsHex(k + codeLength + 2);
                                     }
 
-                                    if (foundNextCharacter) {
+                                    if (foundNextCharacter)
+                                    {
                                         for (int k = 0; k < codeLength + 2; ++k)
                                             Skip();
                                     }
-                                } else 
+                                }
+                                else
                                     foundNextCharacter = false;
 
                                 if (foundNextCharacter)
                                     scanScalarValue.Append(CharHelper.ConvertFromUtf32(CharHelper.ConvertToUtf32((char)character, (char)nextCharacter)));
                                 else
                                     throw new SyntaxErrorException(start, CurrentPosition, "While parsing a quoted scalar, find invalid Unicode character escape code.");
-                            } else 
+                            }
+                            else
                                 scanScalarValue.Append(CharHelper.ConvertFromUtf32(character));
 
                             // Advance the pointer.
@@ -1837,12 +1843,12 @@ namespace SharpYaml
             bool hasLeadingBlanks = false;
             int currentIndent = indent + 1;
 
-            Mark start = CurrentPosition;
-            Mark end = CurrentPosition;
+            var start = CurrentPosition;
+            var end = CurrentPosition;
 
             // Consume the content of the plain scalar.
 
-            for (;;)
+            for (; ; )
             {
                 // Check for a document indicator.
 
@@ -1941,7 +1947,8 @@ namespace SharpYaml
 
                         // Consume a space or a tab character.
 
-                        if (!hasLeadingBlanks) {
+                        if (!hasLeadingBlanks)
+                        {
                             scanScalarWhitespaces.Append(ReadCurrentCharacter());
                         }
                         else
@@ -1959,7 +1966,8 @@ namespace SharpYaml
                             scanScalarLeadingBreak.Append(ReadLine());
                             hasLeadingBlanks = true;
                         }
-                        else {
+                        else
+                        {
                             scanScalarTrailingBreaks.Append(ReadLine());
                         }
                     }
@@ -1991,7 +1999,7 @@ namespace SharpYaml
         /// </summary>
         private void RemoveSimpleKey()
         {
-            SimpleKey key = simpleKeys.Peek();
+            var key = simpleKeys.Peek();
 
             if (key.IsPossible && key.IsRequired)
             {
@@ -2016,7 +2024,7 @@ namespace SharpYaml
         /// </summary>
         private string ScanDirectiveName(Mark start)
         {
-            StringBuilder name = new StringBuilder();
+            var name = new StringBuilder();
 
             // Consume the directive name.
 
@@ -2096,7 +2104,7 @@ namespace SharpYaml
 
             // Scan a handle.
 
-            string handle = ScanTagHandle(true, start);
+            var handle = ScanTagHandle(true, start);
 
             // Expect a whitespace.
 
@@ -2109,7 +2117,7 @@ namespace SharpYaml
 
             // Scan a prefix.
 
-            string prefix = ScanTagUri(null, start);
+            var prefix = ScanTagUri(null, start);
 
             // Expect a whitespace or line break.
 
@@ -2126,7 +2134,7 @@ namespace SharpYaml
         /// </summary>
         private string ScanTagUri(string head, Mark start)
         {
-            StringBuilder tag = new StringBuilder();
+            var tag = new StringBuilder();
             if (head != null && head.Length > 1)
             {
                 tag.Append(head.Substring(1));
@@ -2245,7 +2253,7 @@ namespace SharpYaml
 
             // Copy the '!' character.
 
-            StringBuilder tagHandle = new StringBuilder();
+            var tagHandle = new StringBuilder();
             tagHandle.Append(ReadCurrentCharacter());
 
             // Copy all subsequent alphabetical and numerical characters.
@@ -2302,7 +2310,7 @@ namespace SharpYaml
                     throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %YAML directive, find extremely long version number.");
                 }
 
-                value = value*10 + analyzer.AsDigit();
+                value = value * 10 + analyzer.AsDigit();
 
                 Skip();
             }
@@ -2343,7 +2351,7 @@ namespace SharpYaml
 
             if (simpleKeyAllowed)
             {
-                SimpleKey key = new SimpleKey(true, isRequired, tokensParsed + tokens.Count, CurrentPosition);
+                var key = new SimpleKey(true, isRequired, tokensParsed + tokens.Count, CurrentPosition);
 
                 RemoveSimpleKey();
 

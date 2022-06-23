@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,12 +55,12 @@ namespace SharpYaml
         /// <summary>
         /// Gets the position in the input stream where the event that originated the exception starts.
         /// </summary>
-        public Mark Start { get; private set; }
+        public Mark Start { get; }
 
         /// <summary>
         /// Gets the position in the input stream where the event that originated the exception ends.
         /// </summary>
-        public Mark End { get; private set; }
+        public Mark End { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlException"/> class.
@@ -89,7 +89,7 @@ namespace SharpYaml
         /// <summary>
         /// Initializes a new instance of the <see cref="YamlException"/> class.
         /// </summary>
-        public YamlException(Mark start, Mark end, string message, Exception innerException)
+        public YamlException(Mark start, Mark end, string message, Exception? innerException)
             : base($"({start}) - ({end}): {message}", innerException)
         {
             Start = start;

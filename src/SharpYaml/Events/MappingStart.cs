@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -65,28 +65,24 @@ namespace SharpYaml.Events
         /// </summary>
         internal override EventType Type { get { return EventType.YAML_MAPPING_START_EVENT; } }
 
-        private readonly bool isImplicit;
-
         /// <summary>
         /// Gets a value indicating whether this instance is implicit.
         /// </summary>
         /// <value>
         /// 	<c>true</c> if this instance is implicit; otherwise, <c>false</c>.
         /// </value>
-        public bool IsImplicit { get { return isImplicit; } }
+        public bool IsImplicit { get; }
 
         /// <summary>
         /// Gets a value indicating whether this instance is canonical.
         /// </summary>
         /// <value></value>
-        public override bool IsCanonical { get { return !isImplicit; } }
-
-        private readonly YamlStyle style;
+        public override bool IsCanonical { get { return !IsImplicit; } }
 
         /// <summary>
         /// Gets the style of the mapping.
         /// </summary>
-        public YamlStyle Style { get { return style; } }
+        public YamlStyle Style { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MappingStart"/> class.
@@ -97,11 +93,11 @@ namespace SharpYaml.Events
         /// <param name="style">The style of the mapping.</param>
         /// <param name="start">The start position of the event.</param>
         /// <param name="end">The end position of the event.</param>
-        public MappingStart(string anchor, string tag, bool isImplicit, YamlStyle style, Mark start, Mark end)
+        public MappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, Mark start, Mark end)
             : base(anchor, tag, start, end)
         {
-            this.isImplicit = isImplicit;
-            this.style = style;
+            this.IsImplicit = isImplicit;
+            this.Style = style;
         }
 
         /// <summary>
@@ -111,7 +107,7 @@ namespace SharpYaml.Events
         /// <param name="tag">The tag.</param>
         /// <param name="isImplicit">Indicates whether the event is implicit.</param>
         /// <param name="style">The style of the mapping.</param>
-        public MappingStart(string anchor, string tag, bool isImplicit, YamlStyle style)
+        public MappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style)
             : this(anchor, tag, isImplicit, style, Mark.Empty, Mark.Empty)
         {
         }
@@ -133,7 +129,7 @@ namespace SharpYaml.Events
         public override string ToString()
         {
             return FormattableString.Invariant(
-                $"Mapping start [anchor = {Anchor}, tag = {Tag}, isImplicit = {isImplicit}, style = {style}]");
+                $"Mapping start [anchor = {Anchor}, tag = {Tag}, isImplicit = {IsImplicit}, style = {Style}]");
         }
     }
 }

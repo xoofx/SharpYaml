@@ -1,4 +1,4 @@
-// Copyright (c) 2014 SharpYaml - Silicon Studio Corp.
+﻿// Copyright (c) 2014 SharpYaml - Silicon Studio Corp.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,11 +46,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace SharpYaml.Serialization
 {
     class OrderedDictionary<TKey, TValue> : IOrderedDictionary<TKey, TValue>, IList<KeyValuePair<TKey, TValue>>
+        where TKey : notnull
     {
         private readonly KeyedCollection items = new KeyedCollection();
 
@@ -108,7 +110,7 @@ namespace SharpYaml.Serialization
             return items.Remove(key);
         }
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             if (!items.Contains(key))
             {

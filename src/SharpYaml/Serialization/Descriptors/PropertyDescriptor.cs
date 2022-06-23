@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@
 // SOFTWARE.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace SharpYaml.Serialization.Descriptors
@@ -53,9 +54,8 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     public class PropertyDescriptor : MemberDescriptorBase
     {
-        private readonly PropertyInfo propertyInfo;
         private readonly MethodInfo getMethod;
-        private readonly MethodInfo setMethod;
+        private readonly MethodInfo? setMethod;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PropertyDescriptor" /> class.
@@ -70,7 +70,7 @@ namespace SharpYaml.Serialization.Descriptors
             if (propertyInfo == null)
                 throw new ArgumentNullException("propertyInfo");
 
-            this.propertyInfo = propertyInfo;
+            this.PropertyInfo = propertyInfo;
 
             getMethod = propertyInfo.GetGetMethod(true);
             if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic) != null)
@@ -83,9 +83,9 @@ namespace SharpYaml.Serialization.Descriptors
         /// Gets the property information attached to this instance.
         /// </summary>
         /// <value>The property information.</value>
-        public PropertyInfo PropertyInfo { get { return propertyInfo; } }
+        public PropertyInfo PropertyInfo { get; }
 
-        public override Type Type { get { return propertyInfo.PropertyType; } }
+        public override Type Type { get { return PropertyInfo.PropertyType; } }
 
         public override object Get(object thisObject)
         {
@@ -95,9 +95,10 @@ namespace SharpYaml.Serialization.Descriptors
         public override void Set(object thisObject, object value)
         {
             if (HasSet)
-                setMethod.Invoke(thisObject, new[] {value});
+                setMethod.Invoke(thisObject, new[] { value });
         }
 
+        [MemberNotNullWhen(true, nameof(setMethod))]
         public override bool HasSet { get { return setMethod != null; } }
 
         public override bool IsPublic { get { return getMethod.IsPublic; } }

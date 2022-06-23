@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using SharpYaml;
 
@@ -85,9 +86,9 @@ namespace SharpYaml.Serialization
         /// <param name="start">The start position.</param>
         /// <param name="end">The end position.</param>
         /// <returns></returns>
-        public YamlNode GetNode(string anchor, bool throwException, Mark start, Mark end)
+        public YamlNode? GetNode(string anchor, [DoesNotReturnIf(true)] bool throwException, Mark start, Mark end)
         {
-            if (anchors.TryGetValue(anchor, out YamlNode target))
+            if (anchors.TryGetValue(anchor, out var target))
             {
                 return target;
             }

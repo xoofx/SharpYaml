@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,7 @@ namespace SharpYaml.Serialization
         /// Gets the members of this type.
         /// </summary>
         /// <value>The members.</value>
-        IEnumerable<IMemberDescriptor> Members { get; }
+        IEnumerable<IMemberDescriptor>? Members { get; }
 
         /// <summary>
         /// Gets the member count.
@@ -88,7 +88,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns>The member.</returns>
-        IMemberDescriptor this[string name] { get; }
+        IMemberDescriptor? this[string name] { get; }
 
         /// <summary>
         /// Determines whether the named member is remmaped.

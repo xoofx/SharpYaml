@@ -1,4 +1,4 @@
-namespace SharpYaml.Serialization.Logging
+﻿namespace SharpYaml.Serialization.Logging
 {
     /// <summary>
     /// Severity log level.

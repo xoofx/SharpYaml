@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,21 +52,17 @@ namespace SharpYaml.Tokens
     /// </summary>
     public class Scalar : Token
     {
-        private readonly string value;
-
         /// <summary>
         /// Gets the value.
         /// </summary>
         /// <value>The value.</value>
-        public string Value { get { return value; } }
-
-        private readonly ScalarStyle style;
+        public string Value { get; }
 
         /// <summary>
         /// Gets the style.
         /// </summary>
         /// <value>The style.</value>
-        public ScalarStyle Style { get { return style; } }
+        public ScalarStyle Style { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Scalar"/> class.
@@ -97,8 +93,8 @@ namespace SharpYaml.Tokens
         public Scalar(string value, ScalarStyle style, Mark start, Mark end)
             : base(start, end)
         {
-            this.value = value;
-            this.style = style;
+            this.Value = value;
+            this.Style = style;
         }
     }
 }

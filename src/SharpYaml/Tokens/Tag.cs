@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,20 +52,18 @@ namespace SharpYaml.Tokens
     /// </summary>
     public class Tag : Token
     {
-        private readonly string handle;
-        private readonly string suffix;
 
         /// <summary>
         /// Gets the handle.
         /// </summary>
         /// <value>The handle.</value>
-        public string Handle { get { return handle; } }
+        public string Handle { get; }
 
         /// <summary>
         /// Gets the suffix.
         /// </summary>
         /// <value>The suffix.</value>
-        public string Suffix { get { return suffix; } }
+        public string Suffix { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Tag"/> class.
@@ -87,8 +85,8 @@ namespace SharpYaml.Tokens
         public Tag(string handle, string suffix, Mark start, Mark end)
             : base(start, end)
         {
-            this.handle = handle;
-            this.suffix = suffix;
+            this.Handle = handle;
+            this.Suffix = suffix;
         }
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@
 // SOFTWARE.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using SharpYaml.Events;
 
 namespace SharpYaml.Schemas
@@ -58,14 +59,16 @@ namespace SharpYaml.Schemas
         /// </summary>
         /// <param name="shortTag">The tag.</param>
         /// <returns>Expanded version of the tag.</returns>
-        string ExpandTag(string shortTag);
+        [return: NotNullIfNotNull("shortTag")]
+        string? ExpandTag(string shortTag);
 
         /// <summary>
         /// Shortens the tag. Example, transforms a long tag 'tag:yaml.org,2002:str' to its short version '!!str'
         /// </summary>
         /// <param name="tag">The tag.</param>
         /// <returns>Expanded version of the tag.</returns>
-        string ShortenTag(string tag);
+        [return: NotNullIfNotNull("tag")]
+        string? ShortenTag(string tag);
 
         /// <summary>
         /// Gets the default tag for the specified <see cref="NodeEvent"/>. The default tag can be different from a actual tag of this <see cref="NodeEvent"/>.
@@ -78,14 +81,14 @@ namespace SharpYaml.Schemas
         /// Gets the default tag for the specified <see cref="Type"/>. This is only valid for scalar, return null if no default tag found.
         /// </summary>
         /// <returns>A short tag.</returns>
-        string GetDefaultTag(Type type);
+        string? GetDefaultTag(Type type);
 
         /// <summary>
         /// Determines whether the short tag implicit (e.g. !!int).
         /// </summary>
         /// <param name="tag">The tag.</param>
         /// <returns><c>true</c> if [is tag implicit] [the specified tag]; otherwise, <c>false</c>.</returns>
-        bool IsTagImplicit(string tag);
+        bool IsTagImplicit(string? tag);
 
         /// <summary>
         /// Gets the default tag and value for the specified <see cref="Scalar" />. The default tag can be different from a actual tag of this <see cref="NodeEvent" />.
@@ -95,7 +98,7 @@ namespace SharpYaml.Schemas
         /// <param name="defaultTag">The default tag decoded from the scalar.</param>
         /// <param name="value">The value extracted from a scalar.</param>
         /// <returns>System.String.</returns>
-        bool TryParse(Scalar scalar, bool decodeValue, out string defaultTag, out object value);
+        bool TryParse(Scalar scalar, bool decodeValue, [NotNullWhen(true)] out string? defaultTag, out object? value);
 
         /// <summary>
         /// Gets the default tag and value for the specified <see cref="Scalar" />. The default tag can be different from a actual tag of this <see cref="NodeEvent" />.
@@ -104,14 +107,14 @@ namespace SharpYaml.Schemas
         /// <param name="type">The type.</param>
         /// <param name="value">The value extracted from a scalar.</param>
         /// <returns>System.String.</returns>
-        bool TryParse(Scalar scalar, Type type, out object value);
+        bool TryParse(Scalar scalar, Type type, out object? value);
 
         /// <summary>
         /// Gets the type for a default tag.
         /// </summary>
         /// <param name="tag">The tag in short form.</param>
         /// <returns>The type for a default tag or null if no default tag associated</returns>
-        Type GetTypeForDefaultTag(string tag);
+        Type? GetTypeForDefaultTag(string? tag);
 
         /// <summary>
         /// Registers a long/short tag association.

@@ -126,7 +126,7 @@ namespace SharpYaml.Tests
                 "Value"
             });
 
-            var instance = new TestObject {Name = "Yes", Property = "property"};
+            var instance = new TestObject { Name = "Yes", Property = "property" };
 
             // Check field accessor
             Assert.AreEqual("Yes", descriptor["Name"].Get(instance));

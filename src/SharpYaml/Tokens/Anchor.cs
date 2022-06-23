@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,13 +52,11 @@ namespace SharpYaml.Tokens
     /// </summary>
     public class Anchor : Token
     {
-        private readonly string value;
-
         /// <summary>
         /// Gets the value.
         /// </summary>
         /// <value>The value.</value>
-        public string Value { get { return value; } }
+        public string Value { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Anchor"/> class.
@@ -78,7 +76,7 @@ namespace SharpYaml.Tokens
         public Anchor(string value, Mark start, Mark end)
             : base(start, end)
         {
-            this.value = value;
+            this.Value = value;
         }
     }
 }

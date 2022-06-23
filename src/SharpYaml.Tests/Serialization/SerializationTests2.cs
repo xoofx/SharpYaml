@@ -77,7 +77,7 @@ namespace SharpYaml.Tests.Serialization
         public void TestHelloWorld()
         {
             var serializer = new Serializer();
-            var text = serializer.Serialize(new {List = new List<int>() {1, 2, 3}, Name = "Hello", Value = "World!"});
+            var text = serializer.Serialize(new { List = new List<int>() { 1, 2, 3 }, Name = "Hello", Value = "World!" });
             Console.WriteLine(text);
             Assert.AreEqual(@"List:
   - 1
@@ -137,8 +137,8 @@ Value: World!
         public void TestSimpleStruct()
         {
             var serializer = new Serializer();
-            var value = (TestStructColor) serializer.Deserialize(@"Color: {R: 255, G: 255, B: 255, A: 255}", typeof(TestStructColor));
-            Assert.AreEqual(new Color() {R = 255, G = 255, B = 255, A = 255}, value.Color);
+            var value = (TestStructColor)serializer.Deserialize(@"Color: {R: 255, G: 255, B: 255, A: 255}", typeof(TestStructColor));
+            Assert.AreEqual(new Color() { R = 255, G = 255, B = 255, A = 255 }, value.Color);
             var text = serializer.Serialize(value, typeof(TestStructColor));
             Assert.AreEqual(@"Color:
   A: 255
@@ -163,9 +163,9 @@ Value: World!
         [Test]
         public void TestSimpleStructMemberOrdering()
         {
-            var settings = new SerializerSettings() {ComparerForKeySorting = null};
+            var settings = new SerializerSettings() { ComparerForKeySorting = null };
             var serializer = new Serializer(settings);
-            var value = new TestStructColor() {Color = new Color() {R = 255, G = 255, B = 255, A = 255}};
+            var value = new TestStructColor() { Color = new Color() { R = 255, G = 255, B = 255, A = 255 } };
             var text = serializer.Serialize(value, typeof(TestStructColor));
             Assert.AreEqual(@"Color:
   R: 255
@@ -258,7 +258,7 @@ UInt16: 4
 UInt32: 6
 UInt64: 8
 ".Trim();
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 20};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
             settings.RegisterTagMapping("MyObject", typeof(MyObject));
             SerialRoundTrip(settings, text);
         }
@@ -276,14 +276,13 @@ UInt64: 8
 
             public override object Get(object thisObject)
             {
-                int id;
-                DynamicIds.TryGetValue(thisObject, out id);
+                DynamicIds.TryGetValue(thisObject, out var id);
                 return id;
             }
 
             public override void Set(object thisObject, object value)
             {
-                DynamicIds[thisObject] = (int) value;
+                DynamicIds[thisObject] = (int)value;
             }
 
             public override bool HasSet { get { return true; } }
@@ -315,7 +314,7 @@ UInt64: 8
 
             // Make sure that the dynamic member is actually round trip copied
             Assert.True(dynamicMember.DynamicIds.ContainsKey(myObject1));
-            Assert.AreEqual((object) 16, dynamicMember.DynamicIds[myObject1]);
+            Assert.AreEqual((object)16, dynamicMember.DynamicIds[myObject1]);
         }
 
         public class ObjectFloatDoublePrecision
@@ -328,7 +327,7 @@ UInt64: 8
         [Test]
         public void TestFloatDoublePrecision()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 20};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
             settings.RegisterTagMapping("ObjectFloatDoublePrecision", typeof(ObjectFloatDoublePrecision));
 
             var text = @"!ObjectFloatDoublePrecision
@@ -357,7 +356,7 @@ Float: 9.99999975E-06
         [Test]
         public void TestFloatDoubleNaNInfinity()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 20};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
             settings.RegisterTagMapping("ObjectFloatDoubleNaNInfinity", typeof(ObjectFloatDoubleNaNInfinity));
 
             var text = @"!ObjectFloatDoubleNaNInfinity
@@ -396,7 +395,7 @@ Name: Yes
 Values: [a, b, c]
 ".Trim();
 
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 20};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
             settings.RegisterTagMapping("MyObjectAndCollection", typeof(MyObjectAndCollection));
             SerialRoundTrip(settings, text);
         }
@@ -427,7 +426,7 @@ Value: 1
   - c
 ".Trim();
 
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("MyCustomCollectionWithProperties", typeof(MyCustomCollectionWithProperties));
             SerialRoundTrip(settings, text);
         }
@@ -460,7 +459,7 @@ Value: 1
   c: true
 ".Trim();
 
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("MyCustomDictionaryWithProperties", typeof(MyCustomDictionaryWithProperties));
             SerialRoundTrip(settings, text);
         }
@@ -481,7 +480,7 @@ b: false
 c: true
 ".Trim();
 
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0, SerializeDictionaryItemsAsMembers = true};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0, SerializeDictionaryItemsAsMembers = true };
             settings.RegisterTagMapping("MyCustomDictionaryWithProperties", typeof(MyCustomDictionaryWithProperties));
             SerialRoundTrip(settings, text);
         }
@@ -583,7 +582,7 @@ StringMapbyContent:
 Value: 0
 ".Trim();
 
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("MyCustomClassWithSpecialMembers", typeof(MyCustomClassWithSpecialMembers));
             SerialRoundTrip(settings, text);
         }
@@ -641,7 +640,7 @@ Value: 0
         [Test]
         public void TestClassMemberOrder()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("ClassMemberOrder", typeof(ClassMemberOrder));
             SerialRoundTrip(settings, new ClassMemberOrder());
         }
@@ -681,7 +680,7 @@ Value: 0
                 Value1 = 1;
                 Value2 = 2.0f;
                 Value3 = "3";
-                Value4 = (byte) 4;
+                Value4 = (byte)4;
             }
 
             public object Value1;
@@ -696,7 +695,7 @@ Value: 0
         [Test]
         public void TestClassWithObjectAndScalar()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("ClassWithObjectAndScalar", typeof(ClassWithObjectAndScalar));
             SerialRoundTrip(settings, new ClassWithObjectAndScalar());
         }
@@ -705,17 +704,17 @@ Value: 0
         [Test]
         public void TestNoEmitTags()
         {
-            var settings = new SerializerSettings() {EmitTags = false};
+            var settings = new SerializerSettings() { EmitTags = false };
             settings.RegisterTagMapping("ClassWithObjectAndScalar", typeof(ClassWithObjectAndScalar));
             var serializer = new Serializer(settings);
-            var text = serializer.Serialize(new ClassWithObjectAndScalar {Value4 = new ClassWithObjectAndScalar()});
+            var text = serializer.Serialize(new ClassWithObjectAndScalar { Value4 = new ClassWithObjectAndScalar() });
             Assert.False(text.Contains("!"));
         }
 
         [Test]
         public void TestImplicitDictionaryAndList()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
 
             var text = @"BasicList:
   - 1
@@ -766,14 +765,14 @@ Value: 0
                     return true;
                 if (obj.GetType() != this.GetType())
                     return false;
-                return Equals((MemberInterface) obj);
+                return Equals((MemberInterface)obj);
             }
 
             public override int GetHashCode()
             {
                 unchecked
                 {
-                    return ((Name != null ? Name.GetHashCode() : 0)*397) ^ (Value != null ? Value.GetHashCode() : 0);
+                    return ((Name != null ? Name.GetHashCode() : 0) * 397) ^ (Value != null ? Value.GetHashCode() : 0);
                 }
             }
 
@@ -810,14 +809,14 @@ Value: 0
                     return true;
                 if (obj.GetType() != this.GetType())
                     return false;
-                return Equals((MemberObject) obj);
+                return Equals((MemberObject)obj);
             }
 
             public override int GetHashCode()
             {
                 unchecked
                 {
-                    return (base.GetHashCode()*397) ^ (Object != null ? Object.GetHashCode() : 0);
+                    return (base.GetHashCode() * 397) ^ (Object != null ? Object.GetHashCode() : 0);
                 }
             }
         }
@@ -826,10 +825,10 @@ Value: 0
         {
             public ClassMemberWithInheritance()
             {
-                ThroughObject = new MemberObject() {Object = "throughObject"};
+                ThroughObject = new MemberObject() { Object = "throughObject" };
                 ThroughInterface = new MemberInterface();
-                ThroughBase = new MemberObject() {Object = "throughBase"};
-                Direct = new MemberObject() {Object = "direct"};
+                ThroughBase = new MemberObject() { Object = "throughBase" };
+                Direct = new MemberObject() { Object = "direct" };
             }
 
             public object ThroughObject { get; set; }
@@ -853,7 +852,7 @@ Value: 0
                     return true;
                 if (obj.GetType() != this.GetType())
                     return false;
-                return Equals((ClassMemberWithInheritance) obj);
+                return Equals((ClassMemberWithInheritance)obj);
             }
 
             public override int GetHashCode()
@@ -861,9 +860,9 @@ Value: 0
                 unchecked
                 {
                     int hashCode = (ThroughObject != null ? ThroughObject.GetHashCode() : 0);
-                    hashCode = (hashCode*397) ^ (ThroughInterface != null ? ThroughInterface.GetHashCode() : 0);
-                    hashCode = (hashCode*397) ^ (ThroughBase != null ? ThroughBase.GetHashCode() : 0);
-                    hashCode = (hashCode*397) ^ (Direct != null ? Direct.GetHashCode() : 0);
+                    hashCode = (hashCode * 397) ^ (ThroughInterface != null ? ThroughInterface.GetHashCode() : 0);
+                    hashCode = (hashCode * 397) ^ (ThroughBase != null ? ThroughBase.GetHashCode() : 0);
+                    hashCode = (hashCode * 397) ^ (Direct != null ? Direct.GetHashCode() : 0);
                     return hashCode;
                 }
             }
@@ -872,7 +871,7 @@ Value: 0
         [Test]
         public void TestClassMemberWithInheritance()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("ClassMemberWithInheritance", typeof(ClassMemberWithInheritance));
             settings.RegisterTagMapping("MemberInterface", typeof(MemberInterface));
             settings.RegisterTagMapping("MemberObject", typeof(MemberObject));
@@ -885,7 +884,7 @@ Value: 0
         [Test]
         public void TestEmitShortTypeName()
         {
-            var settings = new SerializerSettings() {EmitShortTypeName = true};
+            var settings = new SerializerSettings() { EmitShortTypeName = true };
             SerialRoundTrip(settings, new ClassWithObjectAndScalar());
         }
 
@@ -899,7 +898,7 @@ Value: 0
         [Test]
         public void TestClassWithChars()
         {
-            var settings = new SerializerSettings() {EmitShortTypeName = true};
+            var settings = new SerializerSettings() { EmitShortTypeName = true };
             SerialRoundTrip(settings, new ClassWithChars()
             {
                 Start = ' ',
@@ -910,13 +909,13 @@ Value: 0
         [Test]
         public void TestClassWithSpecialChars()
         {
-            var settings = new SerializerSettings() {EmitShortTypeName = true};
+            var settings = new SerializerSettings() { EmitShortTypeName = true };
             for (int i = 0; i < 32; i++)
             {
                 SerialRoundTrip(settings, new ClassWithChars()
                 {
-                    Start = (char) i,
-                    End = (char) (i + 1)
+                    Start = (char)i,
+                    End = (char)(i + 1)
                 });
             }
         }
@@ -982,7 +981,7 @@ Value: 0
         [Test]
         public void TestStyles()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 4};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 4 };
             settings.RegisterTagMapping("ClassNoStyle", typeof(ClassNoStyle));
             settings.RegisterTagMapping("ClassWithStyle", typeof(ClassWithStyle));
             settings.ObjectSerializerBackend = new FormatListObject();
@@ -991,8 +990,8 @@ Value: 0
             classNoStyle.A_ListWithCustomStyle.Add("a");
             classNoStyle.A_ListWithCustomStyle.Add("b");
             classNoStyle.A_ListWithCustomStyle.Add("c");
-            classNoStyle.B_ClassWithStyle = new ClassWithStyle() {Name = "name1", Value = 1};
-            classNoStyle.C_ClassWithStyleOverridenByLocalYamlStyle = new ClassWithStyle() {Name = "name2", Value = 2};
+            classNoStyle.B_ClassWithStyle = new ClassWithStyle() { Name = "name1", Value = 1 };
+            classNoStyle.C_ClassWithStyleOverridenByLocalYamlStyle = new ClassWithStyle() { Name = "name2", Value = 2 };
             classNoStyle.D_ListHandleByDynamicStyleFormat.Add(1);
             classNoStyle.D_ListHandleByDynamicStyleFormat.Add(2);
             classNoStyle.D_ListHandleByDynamicStyleFormat.Add(3);
@@ -1003,7 +1002,7 @@ Value: 0
             classNoStyle.E_ListDefaultPrimitiveLimitExceed.Add(3);
             classNoStyle.E_ListDefaultPrimitiveLimitExceed.Add(4);
             classNoStyle.E_ListDefaultPrimitiveLimitExceed.Add(5);
-            classNoStyle.F_ListClassWithStyleDefaultFormat.Add(new ClassWithStyle() {Name = "name3", Value = 3});
+            classNoStyle.F_ListClassWithStyleDefaultFormat.Add(new ClassWithStyle() { Name = "name3", Value = 3 });
             classNoStyle.G_ListCustom.Name = "name4";
             classNoStyle.G_ListCustom.Add(1);
             classNoStyle.G_ListCustom.Add(2);
@@ -1050,12 +1049,12 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
                 Items = new[] { 1, 2, 3 },
             };
 
-            var settings1 = new SerializerSettings {DefaultStyle = YamlStyle.Flow};
+            var settings1 = new SerializerSettings { DefaultStyle = YamlStyle.Flow };
             var serializer1 = new Serializer(settings1);
             var yaml1 = serializer1.Serialize(testObject);
             Assert.AreEqual("{Items: [1, 2, 3], Name: John Doe, Value: 42}\r\n", yaml1);
 
-            var settings2 = new SerializerSettings {DefaultStyle = YamlStyle.Block};
+            var settings2 = new SerializerSettings { DefaultStyle = YamlStyle.Block };
             var serializer2 = new Serializer(settings2);
             var yaml2 = serializer2.Serialize(testObject);
             Assert.AreEqual("Items:\r\n  - 1\r\n  - 2\r\n  - 3\r\nName: John Doe\r\nValue: 42\r\n", yaml2);
@@ -1111,8 +1110,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
             public override void WriteDictionaryItem(ref ObjectContext objectContext, KeyValuePair<object, object> keyValue, KeyValuePair<Type, Type> types)
             {
-                var itemKey = keyValue.Key as string;
-                if (itemKey != null && (itemKey.Contains("Name") || itemKey.Contains("Test")))
+                if (keyValue.Key is string itemKey && (itemKey.Contains("Name") || itemKey.Contains("Test")))
                 {
                     keyValue = new KeyValuePair<object, object>(itemKey + "!", keyValue.Value);
                 }
@@ -1134,7 +1132,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
         public void TestKeyTransform()
         {
             var specialTransform = new MyMappingKeyTransform();
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 4};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 4 };
             settings.ObjectSerializerBackend = specialTransform;
             settings.RegisterTagMapping("ClassWithKeyTransform", typeof(ClassWithKeyTransform));
 
@@ -1148,7 +1146,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             var serializer = new Serializer(settings);
             var myCustomObjectText = serializer.Serialize(myCustomObject);
 
-            var myCustomObject2 = (ClassWithKeyTransform) serializer.Deserialize(myCustomObjectText);
+            var myCustomObject2 = (ClassWithKeyTransform)serializer.Deserialize(myCustomObjectText);
 
             Assert.AreEqual(3, specialTransform.SpecialKeys.Count);
 
@@ -1161,7 +1159,7 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
             Assert.AreEqual(myCustomObject2, specialTransform.SpecialKeys[0].Item1);
             Assert.IsInstanceOf<IMemberDescriptor>(specialTransform.SpecialKeys[0].Item2);
 
-            Assert.AreEqual("Name", ((IMemberDescriptor) specialTransform.SpecialKeys[0].Item2).Name);
+            Assert.AreEqual("Name", ((IMemberDescriptor)specialTransform.SpecialKeys[0].Item2).Name);
         }
 
 
@@ -1221,13 +1219,12 @@ Enum: Value2");
             settings.RegisterAssembly(typeof(TestRemapObject).Assembly);
 
             var serializer = new Serializer(settings);
-            SerializerContext context;
 
             // Test no-remap
             var myCustomObjectText = serializer.Deserialize<TestRemapObject>(@"!TestRemapObject
 Name: Test1
 Enum: Value2
-", out context);
+", out var context);
             Assert.AreEqual("Test1", myCustomObjectText.Name);
             Assert.AreEqual(MyRemapEnum.Value2, myCustomObjectText.Enum);
             Assert.IsFalse(context.HasRemapOccurred);
@@ -1277,7 +1274,7 @@ Enum: OldValue2
             var settings = new SerializerSettings();
             settings.RegisterAssembly(typeof(TestWithMemberRenamed).Assembly);
 
-            var value = new TestWithMemberRenamed {Base = "Test"};
+            var value = new TestWithMemberRenamed { Base = "Test" };
             var serializer = new Serializer(settings);
             var text = serializer.Serialize(value);
             Assert.True(text.Contains("~Base"));
@@ -1310,14 +1307,14 @@ Enum: OldValue2
                     return true;
                 if (obj.GetType() != this.GetType())
                     return false;
-                return Equals((MyClassImmutable) obj);
+                return Equals((MyClassImmutable)obj);
             }
 
             public override int GetHashCode()
             {
                 unchecked
                 {
-                    return ((Name != null ? Name.GetHashCode() : 0)*397) ^ Value;
+                    return ((Name != null ? Name.GetHashCode() : 0) * 397) ^ Value;
                 }
             }
         }
@@ -1331,12 +1328,12 @@ Enum: OldValue2
 
             protected override void CreateOrTransformObject(ref ObjectContext objectContext)
             {
-                objectContext.Instance = objectContext.SerializerContext.IsSerializing ? new MyClassMutable((MyClassImmutable) objectContext.Instance) : new MyClassMutable();
+                objectContext.Instance = objectContext.SerializerContext.IsSerializing ? new MyClassMutable((MyClassImmutable)objectContext.Instance) : new MyClassMutable();
             }
 
             protected override void TransformObjectAfterRead(ref ObjectContext objectContext)
             {
-                objectContext.Instance = ((MyClassMutable) objectContext.Instance).ToImmutable();
+                objectContext.Instance = ((MyClassMutable)objectContext.Instance).ToImmutable();
             }
 
             /// <summary>
@@ -1393,12 +1390,12 @@ Enum: OldValue2
             settings.RegisterTagMapping("ObjectWithDictionaryAndObjectValue", typeof(ObjectWithDictionaryAndObjectValue));
 
             var item = new ObjectWithDictionaryAndObjectValue();
-            item.Values.Add("Test", new Color() {R = 1, G = 2, B = 3, A = 4});
+            item.Values.Add("Test", new Color() { R = 1, G = 2, B = 3, A = 4 });
 
             var serializer = new Serializer(settings);
             var text = serializer.Serialize(item);
 
-            var newItem = (ObjectWithDictionaryAndObjectValue) serializer.Deserialize(text);
+            var newItem = (ObjectWithDictionaryAndObjectValue)serializer.Deserialize(text);
             Assert.AreEqual(1, newItem.Values.Count);
             Assert.IsTrue(newItem.Values.ContainsKey("Test"));
             Assert.AreEqual(item.Values["Test"], newItem.Values["Test"]);
@@ -1420,12 +1417,12 @@ Enum: OldValue2
             var settings = new SerializerSettings();
             settings.RegisterTagMapping("ObjectWithMask", typeof(ObjectWithMask));
 
-            var item = new ObjectWithMask {Int1 = 1, Int2 = 2, Int3 = 3};
+            var item = new ObjectWithMask { Int1 = 1, Int2 = 2, Int3 = 3 };
 
             var serializer = new Serializer(settings);
             var text = serializer.Serialize(item);
 
-            var newItem = (ObjectWithMask) serializer.Deserialize(text);
+            var newItem = (ObjectWithMask)serializer.Deserialize(text);
 
             // Default: mask != 1 is ignored
             Assert.AreEqual(newItem.Int1, item.Int1);
@@ -1433,9 +1430,9 @@ Enum: OldValue2
             Assert.AreEqual(newItem.Int3, 0);
 
             serializer = new Serializer(settings);
-            text = serializer.Serialize(item, null, new SerializerContextSettings {MemberMask = 4});
+            text = serializer.Serialize(item, null, new SerializerContextSettings { MemberMask = 4 });
 
-            newItem = (ObjectWithMask) serializer.Deserialize(text);
+            newItem = (ObjectWithMask)serializer.Deserialize(text);
 
             // Only Int2 and Int3 should be serialized
             Assert.AreEqual(newItem.Int1, 0);
@@ -1443,9 +1440,9 @@ Enum: OldValue2
             Assert.AreEqual(newItem.Int3, item.Int3);
 
             serializer = new Serializer(settings);
-            text = serializer.Serialize(item, null, new SerializerContextSettings {MemberMask = 1 | 4});
+            text = serializer.Serialize(item, null, new SerializerContextSettings { MemberMask = 1 | 4 });
 
-            newItem = (ObjectWithMask) serializer.Deserialize(text);
+            newItem = (ObjectWithMask)serializer.Deserialize(text);
 
             // Everything should be serialized
             Assert.AreEqual(newItem.Int1, item.Int1);
@@ -1467,7 +1464,7 @@ Enum: OldValue2
         [Test]
         public void TestImplicitMemberType()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
 
             var text = @"!ClassWithImplicitMemberType
 Test:
@@ -1482,7 +1479,7 @@ Test:
         [Test]
         public void TestNonImplicitMemberType()
         {
-            var settings = new SerializerSettings() {LimitPrimitiveFlowSequence = 0};
+            var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
 
             var text = @"!ClassWithNonImplicitMemberType
 Test: !ClassWithImplicitMemberTypeInner
@@ -1522,7 +1519,7 @@ Test: !ClassWithImplicitMemberTypeInner
         {
             public ClassWithImplicitMemberType()
             {
-                Test = new ClassWithImplicitMemberTypeInner {String = "test"};
+                Test = new ClassWithImplicitMemberTypeInner { String = "test" };
             }
 
             public object Test { get; protected set; }
@@ -1532,7 +1529,7 @@ Test: !ClassWithImplicitMemberTypeInner
         {
             public ClassWithNonImplicitMemberType()
             {
-                Test = new ClassWithImplicitMemberTypeInner {String = "test"};
+                Test = new ClassWithImplicitMemberTypeInner { String = "test" };
             }
 
             public object Test { get; set; }
@@ -1594,7 +1591,7 @@ Test: !ClassWithImplicitMemberTypeInner
             settings.RegisterAssembly(typeof(OuterClass).Assembly);
             var serializer = new Serializer(settings);
 
-            string serialString = serializer.Serialize(expected);
+            var serialString = serializer.Serialize(expected);
             var actual = serializer.Deserialize(serialString) as OuterClass;
             Assert.NotNull(actual);
             Assert.True(ReferenceEquals(actual.InnerObjects[0].Array, actual.InnerObjects[1].Array));

@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -54,20 +54,18 @@ namespace SharpYaml.Tokens
     /// </summary>
     public class TagDirective : Token
     {
-        private readonly string handle;
-        private readonly string prefix;
 
         /// <summary>
         /// Gets the handle.
         /// </summary>
         /// <value>The handle.</value>
-        public string Handle { get { return handle; } }
+        public string Handle { get; }
 
         /// <summary>
         /// Gets the prefix.
         /// </summary>
         /// <value>The prefix.</value>
-        public string Prefix { get { return prefix; } }
+        public string Prefix { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TagDirective"/> class.
@@ -101,14 +99,14 @@ namespace SharpYaml.Tokens
                 throw new ArgumentException("Tag handle must start and end with '!' and contain alphanumerical characters only.", "handle");
             }
 
-            this.handle = handle;
+            this.Handle = handle;
 
             if (string.IsNullOrEmpty(prefix))
             {
                 throw new ArgumentNullException("prefix", "Tag prefix must not be empty.");
             }
 
-            this.prefix = prefix;
+            this.Prefix = prefix;
         }
 
         /// <summary>
@@ -118,10 +116,9 @@ namespace SharpYaml.Tokens
         /// <returns>
         /// true if the specified System.Object is equal to the current System.Object; otherwise, false.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            TagDirective other = obj as TagDirective;
-            return other != null && handle.Equals(other.handle) && prefix.Equals(other.prefix);
+            return obj is TagDirective other && Handle.Equals(other.Handle) && Prefix.Equals(other.Prefix);
         }
 
         /// <summary>
@@ -132,13 +129,13 @@ namespace SharpYaml.Tokens
         /// </returns>
         public override int GetHashCode()
         {
-            return handle.GetHashCode() ^ prefix.GetHashCode();
+            return Handle.GetHashCode() ^ Prefix.GetHashCode();
         }
 
         /// <summary/>
         public override string ToString()
         {
-            return FormattableString.Invariant($"{handle} => {prefix}");
+            return FormattableString.Invariant($"{Handle} => {Prefix}");
         }
     }
 }

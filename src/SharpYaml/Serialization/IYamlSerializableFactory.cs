@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +58,6 @@ namespace SharpYaml.Serialization
         /// <param name="context"></param>
         /// <param name="typeDescriptor">The typeDescriptor.</param>
         /// <returns>If supported, return an instance of <see cref="IYamlSerializable"/> else return <c>null</c>.</returns>
-        IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor);
+        IYamlSerializable? TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor);
     }
 }

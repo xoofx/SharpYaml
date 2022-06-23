@@ -55,7 +55,7 @@ namespace SharpYaml
         /// <summary>
         /// Gets the current event.
         /// </summary>
-        ParsingEvent Current { get; }
+        ParsingEvent? Current { get; }
 
         /// <summary>
         /// Moves to the next event.

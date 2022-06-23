@@ -44,6 +44,7 @@
 // SOFTWARE.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
 using SharpYaml.Serialization.Descriptors;
@@ -55,11 +56,8 @@ namespace SharpYaml.Serialization
     /// </summary>
     public class SerializerContext : ITagTypeResolver
     {
-        private readonly SerializerSettings settings;
         private readonly ITagTypeRegistry tagTypeRegistry;
         private readonly ITypeDescriptorFactory typeDescriptorFactory;
-        private IEmitter emitter;
-        private readonly SerializerContextSettings contextSettings;
         internal int AnchorCount;
 
         /// <summary>
@@ -67,17 +65,17 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="serializer">The serializer.</param>
         /// <param name="serializerContextSettings">The serializer context settings.</param>
-        internal SerializerContext(Serializer serializer, SerializerContextSettings serializerContextSettings)
+        internal SerializerContext(Serializer serializer, SerializerContextSettings? serializerContextSettings)
         {
             Serializer = serializer;
-            settings = serializer.Settings;
-            tagTypeRegistry = settings.AssemblyRegistry;
-            ObjectFactory = settings.ObjectFactory;
-            ObjectSerializerBackend = settings.ObjectSerializerBackend;
+            Settings = serializer.Settings;
+            tagTypeRegistry = Settings.AssemblyRegistry;
+            ObjectFactory = Settings.ObjectFactory;
+            ObjectSerializerBackend = Settings.ObjectSerializerBackend;
             Schema = Settings.Schema;
             ObjectSerializer = serializer.ObjectSerializer;
             typeDescriptorFactory = serializer.TypeDescriptorFactory;
-            contextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
+            ContextSettings = serializerContextSettings ?? SerializerContextSettings.Default;
         }
 
         /// <summary>
@@ -92,37 +90,37 @@ namespace SharpYaml.Serialization
         /// <value>
         /// The context settings.
         /// </value>
-        public SerializerContextSettings ContextSettings { get { return contextSettings; } }
+        public SerializerContextSettings ContextSettings { get; }
 
         /// <summary>
         /// Gets the settings.
         /// </summary>
         /// <value>The settings.</value>
-        public SerializerSettings Settings { get { return settings; } }
+        public SerializerSettings Settings { get; }
 
         /// <summary>
         /// Gets the schema.
         /// </summary>
         /// <value>The schema.</value>
-        public IYamlSchema Schema { get; private set; }
+        public IYamlSchema Schema { get; }
 
         /// <summary>
         /// Gets the serializer.
         /// </summary>
         /// <value>The serializer.</value>
-        public Serializer Serializer { get; private set; }
+        public Serializer Serializer { get; }
 
         /// <summary>
         /// Gets or sets the reader used while deserializing.
         /// </summary>
         /// <value>The reader.</value>
-        public EventReader Reader { get; set; }
+        public EventReader? Reader { get; set; }
 
         /// <summary>
         /// Gets the object serializer backend.
         /// </summary>
         /// <value>The object serializer backend.</value>
-        public IObjectSerializerBackend ObjectSerializerBackend { get; private set; }
+        public IObjectSerializerBackend ObjectSerializerBackend { get; }
 
         private IYamlSerializable ObjectSerializer { get; set; }
 
@@ -146,7 +144,7 @@ namespace SharpYaml.Serialization
         /// <value>
         /// The member mask.
         /// </value>
-        public uint MemberMask { get { return contextSettings.MemberMask; } }
+        public uint MemberMask { get { return ContextSettings.MemberMask; } }
 
         /// <summary>
         /// The default function to read an object from the current Yaml stream.
@@ -154,7 +152,7 @@ namespace SharpYaml.Serialization
         /// <param name="value">The value of the receiving object, may be null.</param>
         /// <param name="expectedType">The expected type.</param>
         /// <returns>System.Object.</returns>
-        public object ReadYaml(object value, Type expectedType)
+        public object? ReadYaml(object? value, Type? expectedType)
         {
             var node = Reader.Parser.Current;
             try
@@ -182,20 +180,20 @@ namespace SharpYaml.Serialization
         /// Gets or sets the writer used while deserializing.
         /// </summary>
         /// <value>The writer.</value>
-        public IEventEmitter Writer { get; set; }
+        public IEventEmitter? Writer { get; set; }
 
         /// <summary>
         /// Gets the emitter.
         /// </summary>
         /// <value>The emitter.</value>
-        public IEmitter Emitter { get { return emitter; } internal set { emitter = value; } }
+        public IEmitter? Emitter { get; internal init; }
 
         /// <summary>
         /// The default function to write an object to Yaml
         /// </summary>
-        public void WriteYaml(object value, Type expectedType, YamlStyle style = YamlStyle.Any)
+        public void WriteYaml(object? value, Type? expectedType, YamlStyle style = YamlStyle.Any)
         {
-            var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType)) {Style = style};
+            var objectContext = new ObjectContext(this, value, FindTypeDescriptor(expectedType)) { Style = style };
             ObjectSerializer.WriteYaml(ref objectContext);
         }
 
@@ -204,7 +202,8 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="type">The type.</param>
         /// <returns>An instance of <see cref="ITypeDescriptor"/>.</returns>
-        public ITypeDescriptor FindTypeDescriptor(Type type)
+        [return: NotNullIfNotNull("type")]
+        public ITypeDescriptor? FindTypeDescriptor(Type? type)
         {
             return typeDescriptorFactory.Find(type, Settings.ComparerForKeySorting);
         }
@@ -215,7 +214,8 @@ namespace SharpYaml.Serialization
         /// <param name="tagName">Name of the tag.</param>
         /// <param name="isAlias"></param>
         /// <returns>Type.</returns>
-        public Type TypeFromTag(string tagName, out bool isAlias)
+        [return: NotNullIfNotNull("tagName")]
+        public Type? TypeFromTag(string? tagName, out bool isAlias)
         {
             return tagTypeRegistry.TypeFromTag(tagName, out isAlias);
         }
@@ -235,7 +235,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         /// <param name="typeFullName">Full name of the type.</param>
         /// <returns>The type of null if not found</returns>
-        public Type ResolveType(string typeFullName)
+        public Type? ResolveType(string typeFullName)
         {
             return tagTypeRegistry.ResolveType(typeFullName);
         }
@@ -247,7 +247,7 @@ namespace SharpYaml.Serialization
         /// <param name="defaultTag">The default tag decoded from the scalar.</param>
         /// <param name="value">The value extracted from a scalar.</param>
         /// <returns>System.String.</returns>
-        public bool TryParseScalar(Scalar scalar, out string defaultTag, out object value)
+        public bool TryParseScalar(Scalar scalar, out string defaultTag, out object? value)
         {
             return Settings.Schema.TryParse(scalar, true, out defaultTag, out value);
         }

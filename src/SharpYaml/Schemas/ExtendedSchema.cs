@@ -1,4 +1,4 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -90,7 +90,7 @@ namespace SharpYaml.Schemas
         protected override void PrepareScalarRules()
         {
             AddScalarRule<object>("!!null", @"null|Null|NULL|\~|", m => null, null);
-            AddScalarRule(new Type[] {typeof(ulong), typeof(long), typeof(int)}, "!!int", @"([-+]?(0|[1-9][0-9_]*))", DecodeInteger, null);
+            AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"([-+]?(0|[1-9][0-9_]*))", DecodeInteger, null);
             AddScalarRule<int>("!!int", @"([-+]?)0b([01_]+)", m =>
             {
                 var v = Convert.ToInt32(m.Groups[2].Value.Replace("_", ""), 2);

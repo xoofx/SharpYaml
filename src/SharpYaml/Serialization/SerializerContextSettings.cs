@@ -1,4 +1,4 @@
-using SharpYaml.Serialization.Logging;
+﻿using SharpYaml.Serialization.Logging;
 
 namespace SharpYaml.Serialization
 {
@@ -23,7 +23,7 @@ namespace SharpYaml.Serialization
         /// <value>
         /// The logger.
         /// </value>
-        public ILogger Logger { get; set; }
+        public ILogger? Logger { get; set; }
 
         /// <summary>
         /// Gets or sets the member mask that will be used to filter <see cref="YamlMemberAttribute.Mask"/>.
