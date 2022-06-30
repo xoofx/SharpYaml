@@ -61,11 +61,6 @@ namespace SharpYaml.Serialization
         private readonly List<Assembly> lookupAssemblies;
         private readonly object lockCache = new object();
 
-        private static readonly List<Assembly> DefaultLookupAssemblies = new List<Assembly>()
-        {
-            typeof(int).GetTypeInfo().Assembly,
-        };
-
         /// <summary>
         /// Initializes a new instance of the <see cref="AssemblyRegistry"/> class.
         /// </summary>
@@ -92,6 +87,12 @@ namespace SharpYaml.Serialization
         /// <value><c>true</c> if [use short type name]; otherwise, <c>false</c>.</value>
         public bool UseShortTypeName { get; set; }
 
+        /// <summary>
+        /// If set to <c>true</c>, Deserialize using unregistered type names contained in YAML.
+        /// <b>This should be set up carefully as vulnerabilities can occur.</b>
+        /// </summary>
+        public bool UnsafeAllowDeserializeFromTagTypeName { get; set; } = false;
+
         public void RegisterAssembly(Assembly assembly, IAttributeRegistry attributeRegistry)
         {
             if (assembly == null)
@@ -100,7 +101,7 @@ namespace SharpYaml.Serialization
                 throw new ArgumentNullException("attributeRegistry");
 
             // Add automatically the assembly for lookup
-            if (!DefaultLookupAssemblies.Contains(assembly) && !lookupAssemblies.Contains(assembly))
+            if (!lookupAssemblies.Contains(assembly))
             {
                 lookupAssemblies.Add(assembly);
 
@@ -261,14 +262,18 @@ namespace SharpYaml.Serialization
 
         public virtual Type? ResolveType(string typeName)
         {
-            var type = Type.GetType(typeName);
+            Type? type = null;
+            if (UnsafeAllowDeserializeFromTagTypeName)
+            {
+                type = Type.GetType(typeName);
+            }
+
             if (type == null)
             {
                 string? assemblyName = null;
 
                 // Find assembly name start (skip up to one space if needed)
                 // We ignore everything else (version, publickeytoken, etc...)
-                if (UseShortTypeName)
                 {
                     var typeNameEnd = typeName.IndexOf(',');
                     var assemblyNameStart = typeNameEnd;

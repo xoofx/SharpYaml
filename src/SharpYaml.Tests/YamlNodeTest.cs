@@ -189,7 +189,7 @@ namespace SharpYaml.Tests
         }
 
         [Test]
-        public void TagTest()
+        public void UnsafeTagTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.dictionaryExplicit.yaml");
@@ -197,14 +197,15 @@ namespace SharpYaml.Tests
             var fileStream = new StreamReader(file);
             var stream = YamlStream.Load(fileStream);
 
-            var dict = stream[0].Contents.ToObject<object>();
+            var settings = new SerializerSettings() { UnsafeAllowDeserializeFromTagTypeName = true };
+            var dict = stream[0].Contents.ToObject<object>(settings);
 
             Assert.AreEqual(typeof(Dictionary<string, int>), dict.GetType());
             Assert.AreEqual("!System.Collections.Generic.Dictionary`2[System.String,System.Int32],mscorlib", stream[0].Contents.Tag);
 
             stream[0].Contents.Tag = "!System.Collections.Generic.Dictionary`2[System.String,System.Double],mscorlib";
 
-            var dict2 = stream[0].Contents.ToObject<object>();
+            var dict2 = stream[0].Contents.ToObject<object>(settings);
 
             Assert.AreEqual(typeof(Dictionary<string, double>), dict2.GetType());
         }
