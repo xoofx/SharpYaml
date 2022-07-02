@@ -81,6 +81,17 @@ namespace SharpYaml.Serialization
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="YamlMemberAttribute"/> class.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="order">The order.</param>
+        public YamlMemberAttribute(string name, int order)
+        {
+            this.Name = name;
+            this.Order = order;
+        }
+
+        /// <summary>
         /// Specify the way to store a property or field of some class or structure.
         /// </summary>
         /// <param name="name">The name.</param>
