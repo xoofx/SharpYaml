@@ -2,6 +2,14 @@
 
 **SharpYaml** is a .NET library that provides a **YAML parser and serialization engine** for .NET objects, **compatible with CoreCLR**.
 
+> NOTICE:
+>
+> This project is no longer actively maintained since 2016, but it's still accepting Pull-Requests.
+>
+> Small improvements and fixes are welcome, but big refactoring won't likely be.
+>
+> Please, open an issue in case you are not sure about the changes you want to bring before working on a PR.
+
 ## Usage
 
 ```C#
