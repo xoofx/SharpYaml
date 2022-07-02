@@ -83,7 +83,6 @@ namespace SharpYaml.Serialization
             PreferredIndent = 2;
             IndentLess = false;
             EmitAlias = true;
-            EmitTags = true;
             SortKeyForMapping = true;
             EmitJsonCompatible = false;
             EmitCapacityForList = false;
@@ -131,10 +130,10 @@ namespace SharpYaml.Serialization
         public bool EmitAlias { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether to emit tags when serializing. Default is true.
+        /// Gets or sets a value indicating whether to emit tags when serializing. Default is false.
         /// </summary>
         /// <value><c>true</c> to emit tags when serializing; otherwise, <c>false</c>.</value>
-        public bool EmitTags { get; set; }
+        public bool EmitTags { get; set; } = false;
 
         /// <summary>
         /// Gets or sets a value indicating whether the identation is trying to less
@@ -228,6 +227,16 @@ namespace SharpYaml.Serialization
                     throw new ArgumentNullException("value");
                 _namingConvention = value;
             }
+        }
+
+        /// <summary>
+        /// If set to <c>true</c>, Deserialize using unregistered type names contained in YAML.
+        /// <b>This should be set up carefully as vulnerabilities can occur.</b>
+        /// </summary>
+        public bool UnsafeAllowDeserializeFromTagTypeName
+        {
+            get => AssemblyRegistry.UnsafeAllowDeserializeFromTagTypeName;
+            set => AssemblyRegistry.UnsafeAllowDeserializeFromTagTypeName = value;
         }
 
         /// <summary>
@@ -340,15 +349,18 @@ namespace SharpYaml.Serialization
 
         /// <summary>
         /// Register a mapping between a tag and a type.
+        /// When this method is called, <c>EmitTags</c> is then set to true.
         /// </summary>
         /// <param name="assembly">The assembly.</param>
         public void RegisterAssembly(Assembly assembly)
         {
             AssemblyRegistry.RegisterAssembly(assembly, attributeRegistry);
+            EmitTags = true;
         }
 
         /// <summary>
         /// Register a mapping between a tag and a type.
+        /// When this method is called, <c>EmitTags</c> is then set to true.
         /// </summary>
         /// <param name="tagName">Name of the tag.</param>
         /// <param name="tagType">Type of the tag.</param>
@@ -356,6 +368,7 @@ namespace SharpYaml.Serialization
         public void RegisterTagMapping(string tagName, Type tagType, bool isAlias = false)
         {
             AssemblyRegistry.RegisterTagMapping(tagName, tagType, isAlias);
+            EmitTags = true;
         }
 
         /// <summary>

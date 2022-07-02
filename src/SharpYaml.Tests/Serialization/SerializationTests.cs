@@ -180,16 +180,22 @@ namespace SharpYaml.Tests.Serialization
         }
 
         [Test]
-        public void DeserializeExplicitType()
+        public void DeserializeUnsafeExplicitType()
         {
-            var settings = new SerializerSettings();
-            settings.RegisterAssembly(typeof(SerializationTests).Assembly);
-
-            var serializer = new Serializer();
+            var settings = new SerializerSettings(){ UnsafeAllowDeserializeFromTagTypeName = true };
+            var serializer = new Serializer(settings);
             object result = serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object));
 
             Assert.True(typeof(Z).IsAssignableFrom(result.GetType()));
             Assert.AreEqual("bbb", ((Z)result).aaa);
+        }
+
+        [Test]
+        public void DeserializeUnregisterdExplicitType()
+        {
+            var serializer = new Serializer();
+
+            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object)));
         }
 
         [Test]
@@ -206,9 +212,9 @@ namespace SharpYaml.Tests.Serialization
         }
 
         [Test]
-        public void DeserializeExplicitDictionary()
+        public void DeserializeUnsafeExplicitDictionary()
         {
-            var serializer = new Serializer();
+            var serializer = new Serializer(new SerializerSettings { UnsafeAllowDeserializeFromTagTypeName = true });
             object result = serializer.Deserialize(YamlFile("dictionaryExplicit.yaml"));
 
             Assert.True(typeof(IDictionary<string, int>).IsAssignableFrom(result.GetType()), "The deserialized object has the wrong type.");
@@ -218,6 +224,13 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(2, dictionary["key2"]);
         }
 
+        [Test]
+        public void DeserializeUnregisterdExplicitDictionary()
+        {
+            var serializer = new Serializer();
+            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("dictionaryExplicit.yaml")));
+        }
+        
         [Test]
         public void DeserializeListOfDictionaries()
         {
@@ -248,9 +261,9 @@ namespace SharpYaml.Tests.Serialization
         }
 
         [Test]
-        public void DeserializeExplicitList()
+        public void DeserializeUnsafeExplicitList()
         {
-            var serializer = new Serializer();
+            var serializer = new Serializer(new SerializerSettings { UnsafeAllowDeserializeFromTagTypeName = true });
             var result = serializer.Deserialize(YamlFile("listExplicit.yaml"));
 
             Assert.True(typeof(IList<int>).IsAssignableFrom(result.GetType()));
@@ -259,6 +272,13 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(3, list[0]);
             Assert.AreEqual(4, list[1]);
             Assert.AreEqual(5, list[2]);
+        }
+
+        [Test]
+        public void DeserializeUnregisterdExplicitList()
+        {
+            var serializer = new Serializer();
+            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("listExplicit.yaml")));
         }
 
         [Test]

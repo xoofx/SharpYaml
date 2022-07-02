@@ -706,6 +706,8 @@ Value: 0
         {
             var settings = new SerializerSettings() { EmitTags = false };
             settings.RegisterTagMapping("ClassWithObjectAndScalar", typeof(ClassWithObjectAndScalar));
+            Assert.True(settings.EmitTags);
+            settings.EmitTags = false;
             var serializer = new Serializer(settings);
             var text = serializer.Serialize(new ClassWithObjectAndScalar { Value4 = new ClassWithObjectAndScalar() });
             Assert.False(text.Contains("!"));
@@ -885,6 +887,7 @@ Value: 0
         public void TestEmitShortTypeName()
         {
             var settings = new SerializerSettings() { EmitShortTypeName = true };
+            settings.RegisterAssembly(typeof(ClassWithObjectAndScalar).Assembly);
             SerialRoundTrip(settings, new ClassWithObjectAndScalar());
         }
 
@@ -899,6 +902,7 @@ Value: 0
         public void TestClassWithChars()
         {
             var settings = new SerializerSettings() { EmitShortTypeName = true };
+            settings.RegisterAssembly(typeof(ClassWithChars).Assembly);
             SerialRoundTrip(settings, new ClassWithChars()
             {
                 Start = ' ',
@@ -910,6 +914,7 @@ Value: 0
         public void TestClassWithSpecialChars()
         {
             var settings = new SerializerSettings() { EmitShortTypeName = true };
+            settings.RegisterAssembly(typeof(ClassWithObjectAndScalar).Assembly);
             for (int i = 0; i < 32; i++)
             {
                 SerialRoundTrip(settings, new ClassWithChars()
@@ -1554,7 +1559,7 @@ Test: !ClassWithImplicitMemberTypeInner
             var text = serializer.Serialize(testObject);
             Assert.False(text.Contains("DontSerializeWhenNull: null"));
 
-            var deserialized = serializer.Deserialize(new StringReader(text)) as ClassToIgnoreNulls;
+            var deserialized = serializer.Deserialize<ClassToIgnoreNulls>(new StringReader(text));
             Assert.NotNull(deserialized);
             Assert.AreEqual(testObject.Id, deserialized.Id);
             Assert.Null(deserialized.DontSerializeWhenNull);
