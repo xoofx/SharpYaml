@@ -491,7 +491,7 @@ c: true
             public MyCustomClassWithSpecialMembers()
             {
                 StringListByContent = new List<string>();
-                StringMapbyContent = new Dictionary<string, object>();
+                ObjectMapbyContent = new Dictionary<string, object>();
                 ListByContent = new List<string>();
             }
 
@@ -528,14 +528,14 @@ c: true
             /// Idem as for <see cref="StringList"/> but for dictionary.
             /// </summary>
             /// <value>The string map.</value>
-            public IDictionary<string, object> StringMap { get; set; }
+            public IDictionary<string, object> ObjectMap { get; set; }
 
 
             /// <summary>
             /// Idem as for <see cref="StringListByContent"/> but for dictionary.
             /// </summary>
             /// <value>The content of the string mapby.</value>
-            public Dictionary<string, object> StringMapbyContent { get; private set; }
+            public Dictionary<string, object> ObjectMapbyContent { get; private set; }
 
             /// <summary>
             /// For this property, the deserializer is using the actual
@@ -567,18 +567,18 @@ ListByContent:
   - a
   - b
 Name: Yes
-StringList:
-  - 1
-  - 2
-StringListByContent:
-  - 3
-  - 4
-StringMap:
+ObjectMap:
   c: yes
   d: 3
-StringMapbyContent:
+ObjectMapbyContent:
   e: 4
   f: no
+StringList:
+  - ""1""
+  - ""2""
+StringListByContent:
+  - ""3""
+  - ""4""
 Value: 0
 ".Trim();
 
@@ -1616,13 +1616,50 @@ Test: !ClassWithImplicitMemberTypeInner
         {
             var test = new
             {
-                t = "1e3"
+                f1 = "1.2",
+                f2 = "1e3",
+                f3 = "-0.0",
+                f4 = ".inf",
+                i1 = "1234",
+                i2 = "-2",
             };
 
             var serializer = new Serializer();
             var str = serializer.Serialize(test).Trim();
             System.Console.WriteLine(str);
-            Assert.AreEqual(@"t: ""1e3""", str);
+            Assert.AreEqual("f1: \"1.2\"\r\nf2: \"1e3\"\r\nf3: \"-0.0\"\r\nf4: \".inf\"\r\ni1: \"1234\"\r\ni2: \"-2\"", str);
+        }
+
+        [Test]
+        public void TestBooleanInString()
+        {
+            var test = new
+            {
+                b1 = true,
+                b2 = false,
+                s1 = "true",
+                s2 = "false",
+            };
+
+            var serializer = new Serializer();
+            var str = serializer.Serialize(test).Trim();
+            System.Console.WriteLine(str);
+            Assert.AreEqual("b1: true\r\nb2: false\r\ns1: \"true\"\r\ns2: \"false\"", str);
+        }
+
+        [Test]
+        public void TestNullInString()
+        {
+            var test = new
+            {
+                n = (string)null,
+                s = "null",
+            };
+
+            var serializer = new Serializer();
+            var str = serializer.Serialize(test).Trim();
+            System.Console.WriteLine(str);
+            Assert.AreEqual("n: null\r\ns: \"null\"", str);
         }
 
         private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)

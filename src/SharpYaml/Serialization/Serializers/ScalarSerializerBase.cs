@@ -83,10 +83,11 @@ namespace SharpYaml.Serialization.Serializers
                 case TypeCode.Char:
                     scalar.Style = ScalarStyle.Any;
 
-                    // Force double quote for float and bool in string
-                    if (value is string str && double.TryParse(str, out _))
+                    // Force double quote for integer, float, bool and null in string
+                    if (value is string str)
                     {
-                        if (objectContext.SerializerContext.Schema.TryParse(new Scalar(str), true, out var defaultTag, out var parsedValue) && (parsedValue is double || parsedValue is bool))
+                        if (objectContext.SerializerContext.Schema.TryParse(new Scalar(str), true, out var defaultTag, out var parsedValue)
+                            && (parsedValue is double || parsedValue is bool || parsedValue is int || parsedValue == null))
                         {
                             scalar.Style = ScalarStyle.DoubleQuoted;
                         }
