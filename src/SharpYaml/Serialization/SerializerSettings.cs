@@ -131,7 +131,7 @@ namespace SharpYaml.Serialization
         public bool EmitAlias { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether to reset anchor alias in order to reuse <see cref="Serializer" /> instance. Default is true.
+        /// Gets or sets a value indicating whether to reset anchor alias in order to reuse <see cref="Serializer" /> instance. Default is false.
         /// </summary>
         /// <value><c>true</c> to reset anchor alias; otherwise, <c>false</c>.</value>
         public bool ResetAlias { get; set; }
