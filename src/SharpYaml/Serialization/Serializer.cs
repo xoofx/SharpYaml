@@ -223,6 +223,11 @@ namespace SharpYaml.Serialization
             context.WriteYaml(graph, type);
             context.Writer.DocumentEnd();
             context.Writer.StreamEnd();
+
+            if (Settings.ResetAlias && ObjectSerializer is AnchorSerializer anchorSerializer)
+            {
+                anchorSerializer.Reset();
+            }
         }
 
         /// <summary>
@@ -533,6 +538,11 @@ namespace SharpYaml.Serialization
             if (hasStreamStart)
             {
                 reader.Expect<StreamEnd>();
+            }
+
+            if (Settings.ResetAlias && ObjectSerializer is AnchorSerializer anchorSerializer)
+            {
+                anchorSerializer.Reset();
             }
 
             return result;
