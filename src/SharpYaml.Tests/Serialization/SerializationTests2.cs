@@ -47,10 +47,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using SharpYaml.Serialization;
 using SharpYaml.Serialization.Serializers;
@@ -158,6 +156,53 @@ Value: World!
             var newValue = serializer.Deserialize<TestStructWithDefaultValues>(text);
             Assert.AreEqual(value.Test.Width, newValue.Test.Width);
             Assert.AreEqual(value.Test.Height, newValue.Test.Height);
+        }
+
+        private static readonly object[] s_serializerSettingsReuseFail =
+        {
+            new object[] { new SerializerSettings { } },
+            new object[] { new SerializerSettings { EmitAlias = true, ResetAlias = false } }
+        };
+
+        [TestCaseSource(nameof(s_serializerSettingsReuseFail))]
+        public void TestSerializerReuseFail(SerializerSettings serializerSettings)
+        {
+            var serializer = new Serializer(serializerSettings);
+
+            object data = new
+            {
+                Value = "testValue"
+            };
+
+            var text = serializer.Serialize(data);
+            serializer.Deserialize(text);
+
+            text = serializer.Serialize(data);
+            Assert.Throws<AnchorNotFoundException>(() => serializer.Deserialize(text));
+        }
+
+        private static readonly object[] s_serializerSettingsReuseSuccess =
+        {
+            new object[] { new SerializerSettings { EmitAlias = true, ResetAlias = true } },
+            new object[] { new SerializerSettings { EmitAlias = false, ResetAlias = true } },
+            new object[] { new SerializerSettings { EmitAlias = false, ResetAlias = false } }
+        };
+
+        [TestCaseSource(nameof(s_serializerSettingsReuseSuccess))]
+        public void TestSerializerReuseSuccess(SerializerSettings serializerSettings)
+        {
+            var serializer = new Serializer(serializerSettings);
+
+            object data = new
+            {
+                Value = "testValue"
+            };
+
+            var text = serializer.Serialize(data);
+            serializer.Deserialize(text);
+
+            text = serializer.Serialize(data);
+            Assert.DoesNotThrow(() => serializer.Deserialize(text));
         }
 
         [Test]
