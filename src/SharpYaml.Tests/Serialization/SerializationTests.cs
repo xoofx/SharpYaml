@@ -182,7 +182,7 @@ namespace SharpYaml.Tests.Serialization
         [Test]
         public void DeserializeUnsafeExplicitType()
         {
-            var settings = new SerializerSettings(){ UnsafeAllowDeserializeFromTagTypeName = true };
+            var settings = new SerializerSettings() { UnsafeAllowDeserializeFromTagTypeName = true };
             var serializer = new Serializer(settings);
             object result = serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object));
 
@@ -230,7 +230,7 @@ namespace SharpYaml.Tests.Serialization
             var serializer = new Serializer();
             Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("dictionaryExplicit.yaml")));
         }
-        
+
         [Test]
         public void DeserializeListOfDictionaries()
         {
@@ -901,6 +901,24 @@ Mother:
             {
                 {"hello", "world"},
             });
+        }
+
+        [Test]
+        public void DeserializeDoesNotThrowWithNonPrimitiveIgnoreUnmatchedProperties()
+        {
+            var serializer = new Serializer(new SerializerSettings { IgnoreUnmatchedProperties = true });
+            var yaml = @"---
+Mother:  
+  Name: Name1
+Father:
+  Name: Name2
+Dog:
+  Name: Name3
+...";
+
+            var family = serializer.Deserialize<Family>(yaml);
+            Assert.AreEqual("Name1", family.Mother.Name);
+            Assert.AreEqual("Name2", family.Father.Name);
         }
 
         private class OnlyGenericDictionary : IDictionary<string, string>
