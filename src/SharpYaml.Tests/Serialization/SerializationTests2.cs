@@ -75,7 +75,7 @@ namespace SharpYaml.Tests.Serialization
         public void TestHelloWorld()
         {
             var serializer = new Serializer();
-            var text = serializer.Serialize(new { List = new List<int>() { 1, 2, 3 }, Name = "Hello", Value = "World!" });
+            var text = serializer.Serialize(new { List = new List<int>() { 1, 2, 3 }, Name = "Hello", Value = "World!" }).NormnalizeLineEndings();
             Console.WriteLine(text);
             Assert.AreEqual(@"List:
   - 1
@@ -83,7 +83,7 @@ namespace SharpYaml.Tests.Serialization
   - 3
 Name: Hello
 Value: World!
-", text);
+".NormnalizeLineEndings(), text);
         }
 
         public struct Color
@@ -137,13 +137,13 @@ Value: World!
             var serializer = new Serializer();
             var value = (TestStructColor)serializer.Deserialize(@"Color: {R: 255, G: 255, B: 255, A: 255}", typeof(TestStructColor));
             Assert.AreEqual(new Color() { R = 255, G = 255, B = 255, A = 255 }, value.Color);
-            var text = serializer.Serialize(value, typeof(TestStructColor));
+            var text = serializer.Serialize(value, typeof(TestStructColor)).NormnalizeLineEndings();
             Assert.AreEqual(@"Color:
   A: 255
   B: 255
   G: 255
   R: 255
-", text);
+".NormnalizeLineEndings(), text);
         }
 
         [Test]
@@ -211,13 +211,13 @@ Value: World!
             var settings = new SerializerSettings() { ComparerForKeySorting = null };
             var serializer = new Serializer(settings);
             var value = new TestStructColor() { Color = new Color() { R = 255, G = 255, B = 255, A = 255 } };
-            var text = serializer.Serialize(value, typeof(TestStructColor));
+            var text = serializer.Serialize(value, typeof(TestStructColor)).NormnalizeLineEndings();
             Assert.AreEqual(@"Color:
   R: 255
   G: 255
   B: 255
   A: 255
-", text);
+".NormnalizeLineEndings(), text);
         }
 
         public class MyObject
@@ -302,7 +302,7 @@ String: This is a test
 UInt16: 4
 UInt32: 6
 UInt64: 8
-".Trim();
+".Trim().NormnalizeLineEndings();
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
             settings.RegisterTagMapping("MyObject", typeof(MyObject));
             SerialRoundTrip(settings, text);
@@ -378,7 +378,7 @@ UInt64: 8
             var text = @"!ObjectFloatDoublePrecision
 Double: 1.0000000000000001E-05
 Float: 9.99999975E-06
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             SerialRoundTrip(settings, text);
         }
@@ -411,7 +411,7 @@ DoublePositiveInfinity: Infinity
 FloatNaN: NaN
 FloatNegativeInfinity: -Infinity
 FloatPositiveInfinity: Infinity
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             SerialRoundTrip(settings, text);
         }
@@ -438,7 +438,7 @@ FloatPositiveInfinity: Infinity
             var text = @"!MyObjectAndCollection
 Name: Yes
 Values: [a, b, c]
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 20 };
             settings.RegisterTagMapping("MyObjectAndCollection", typeof(MyObjectAndCollection));
@@ -469,7 +469,7 @@ Value: 1
   - a
   - b
   - c
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("MyCustomCollectionWithProperties", typeof(MyCustomCollectionWithProperties));
@@ -502,7 +502,7 @@ Value: 1
   a: true
   b: false
   c: true
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("MyCustomDictionaryWithProperties", typeof(MyCustomDictionaryWithProperties));
@@ -523,7 +523,7 @@ Value: 1
 a: true
 b: false
 c: true
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0, SerializeDictionaryItemsAsMembers = true };
             settings.RegisterTagMapping("MyCustomDictionaryWithProperties", typeof(MyCustomDictionaryWithProperties));
@@ -625,7 +625,7 @@ StringListByContent:
   - ""3""
   - ""4""
 Value: 0
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             var settings = new SerializerSettings() { LimitPrimitiveFlowSequence = 0 };
             settings.RegisterTagMapping("MyCustomClassWithSpecialMembers", typeof(MyCustomClassWithSpecialMembers));
@@ -786,7 +786,7 @@ StringMapbyContent:
   e: 4
   f: no
 Value: 0
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             SerialRoundTrip(settings, text, typeof(Dictionary<object, object>));
         }
@@ -1063,7 +1063,7 @@ Value: 0
             classNoStyle.G_ListCustom.Add(7);
 
             var serializer = new Serializer(settings);
-            var text = serializer.Serialize(classNoStyle).Trim();
+            var text = serializer.Serialize(classNoStyle).Trim().NormnalizeLineEndings();
 
             var textReference = @"!ClassNoStyle
 A_ListWithCustomStyle: [a, b, c]
@@ -1081,7 +1081,7 @@ E_ListDefaultPrimitiveLimitExceed:
   - 5
 F_ListClassWithStyleDefaultFormat:
   - {Name: name3, Value: 3}
-G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
+G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}".NormnalizeLineEndings();
 
             Assert.AreEqual(textReference, text);
         }
@@ -1101,13 +1101,13 @@ G_ListCustom: {Name: name4, ~Items: [1, 2, 3, 4, 5, 6, 7]}";
 
             var settings1 = new SerializerSettings { DefaultStyle = YamlStyle.Flow };
             var serializer1 = new Serializer(settings1);
-            var yaml1 = serializer1.Serialize(testObject);
-            Assert.AreEqual("{Items: [1, 2, 3], Name: John Doe, Value: 42}\r\n", yaml1);
+            var yaml1 = serializer1.Serialize(testObject).Trim().NormnalizeLineEndings();
+            Assert.AreEqual("{Items: [1, 2, 3], Name: John Doe, Value: 42}", yaml1);
 
             var settings2 = new SerializerSettings { DefaultStyle = YamlStyle.Block };
             var serializer2 = new Serializer(settings2);
-            var yaml2 = serializer2.Serialize(testObject);
-            Assert.AreEqual("Items:\r\n  - 1\r\n  - 2\r\n  - 3\r\nName: John Doe\r\nValue: 42\r\n", yaml2);
+            var yaml2 = serializer2.Serialize(testObject).Trim().NormnalizeLineEndings();
+            Assert.AreEqual("Items:\n  - 1\n  - 2\n  - 3\nName: John Doe\nValue: 42", yaml2);
         }
 
         public class ClassWithKeyTransform
@@ -1519,7 +1519,7 @@ Enum: OldValue2
             var text = @"!ClassWithImplicitMemberType
 Test:
   String: test
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             settings.RegisterTagMapping("ClassWithImplicitMemberType", typeof(ClassWithImplicitMemberType));
             settings.RegisterTagMapping("ClassWithImplicitMemberTypeInner", typeof(ClassWithImplicitMemberTypeInner));
@@ -1534,7 +1534,7 @@ Test:
             var text = @"!ClassWithNonImplicitMemberType
 Test: !ClassWithImplicitMemberTypeInner
   String: test
-".Trim();
+".Trim().NormnalizeLineEndings();
 
             settings.RegisterTagMapping("ClassWithNonImplicitMemberType", typeof(ClassWithNonImplicitMemberType));
             settings.RegisterTagMapping("ClassWithImplicitMemberTypeInner", typeof(ClassWithImplicitMemberTypeInner));
@@ -1670,9 +1670,9 @@ Test: !ClassWithImplicitMemberTypeInner
             };
 
             var serializer = new Serializer();
-            var str = serializer.Serialize(test).Trim();
+            var str = serializer.Serialize(test).Trim().NormnalizeLineEndings();
             System.Console.WriteLine(str);
-            Assert.AreEqual("f1: \"1.2\"\r\nf2: \"1e3\"\r\nf3: \"-0.0\"\r\nf4: \".inf\"\r\ni1: \"1234\"\r\ni2: \"-2\"", str);
+            Assert.AreEqual("f1: \"1.2\"\nf2: \"1e3\"\nf3: \"-0.0\"\nf4: \".inf\"\ni1: \"1234\"\ni2: \"-2\"", str);
         }
 
         [Test]
@@ -1687,9 +1687,9 @@ Test: !ClassWithImplicitMemberTypeInner
             };
 
             var serializer = new Serializer();
-            var str = serializer.Serialize(test).Trim();
+            var str = serializer.Serialize(test).Trim().NormnalizeLineEndings();
             System.Console.WriteLine(str);
-            Assert.AreEqual("b1: true\r\nb2: false\r\ns1: \"true\"\r\ns2: \"false\"", str);
+            Assert.AreEqual("b1: true\nb2: false\ns1: \"true\"\ns2: \"false\"", str);
         }
 
         [Test]
@@ -1702,13 +1702,14 @@ Test: !ClassWithImplicitMemberTypeInner
             };
 
             var serializer = new Serializer();
-            var str = serializer.Serialize(test).Trim();
+            var str = serializer.Serialize(test).Trim().NormnalizeLineEndings();
             System.Console.WriteLine(str);
-            Assert.AreEqual("n: null\r\ns: \"null\"", str);
+            Assert.AreEqual("n: null\ns: \"null\"", str);
         }
 
         private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
         {
+            text = text.Trim().NormnalizeLineEndings();
             var serializer = new Serializer(settings);
             // not working yet, scalar read/write are not yet implemented
             Console.WriteLine("Text to serialize:");
@@ -1718,7 +1719,7 @@ Test: !ClassWithImplicitMemberTypeInner
 
             Console.WriteLine();
 
-            var text2 = serializer.Serialize(value, serializedType).Trim();
+            var text2 = serializer.Serialize(value, serializedType).Trim().NormnalizeLineEndings();
             Console.WriteLine("Text deserialized:");
             Console.WriteLine("------------------");
             Console.WriteLine(text2);
@@ -1735,11 +1736,13 @@ Test: !ClassWithImplicitMemberTypeInner
             Console.WriteLine("------------------");
             Console.WriteLine(text);
 
+            text = text.Trim().NormnalizeLineEndings();
+
             // not working yet, scalar read/write are not yet implemented
             Console.WriteLine("Text to deserialize/serialize:");
             Console.WriteLine("------------------");
             var valueDeserialized = serializer.Deserialize(text);
-            var text2 = serializer.Serialize(valueDeserialized);
+            var text2 = serializer.Serialize(valueDeserialized).Trim().NormnalizeLineEndings();
             Console.WriteLine(text2);
 
             Assert.AreEqual(text, text2);
