@@ -99,7 +99,7 @@ namespace SharpYaml.Serialization.Serializers
                 case TypeCode.DateTime:
                     return DateTime.Parse(text, CultureInfo.InvariantCulture);
                 case TypeCode.String:
-                    return text;
+                    return scalar.Style == ScalarStyle.Plain && string.IsNullOrEmpty(text) ? null : text;
             }
 
             if (type == typeof(TimeSpan))

@@ -1708,6 +1708,14 @@ Test: !ClassWithImplicitMemberTypeInner
         }
 
         [Test]
+        public void EmptyStringLiteral_Is_Deserialized_To_Null()
+        {
+            var yaml = "name:";
+            var foo = new Serializer().Deserialize<FooStringNullTestClass>(yaml);
+            Assert.AreEqual(null, foo.Name);
+        }
+
+        [Test]
         public void DoubleQuotedStringLiteralNull_Is_Deserialized_To_A_String()
         {
             var yaml = "name: \"null\"";
