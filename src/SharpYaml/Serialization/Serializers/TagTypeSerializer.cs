@@ -100,8 +100,8 @@ namespace SharpYaml.Serialization.Serializers
 
             object? value = objectContext.Instance;
 
-            // Handle explicit null scalar
-            if (node is Scalar scalar && objectContext.SerializerContext.Schema.TryParse(scalar, typeof(object), out value))
+            // Handle explicit null scalar (only for non quoted literals)
+            if (node is Scalar scalar && scalar.Style != ScalarStyle.DoubleQuoted && scalar.Style != ScalarStyle.SingleQuoted && objectContext.SerializerContext.Schema.TryParse(scalar, typeof(object), out value))
             {
                 // The value was pick up, go to next
                 objectContext.Reader.Parser.MoveNext();

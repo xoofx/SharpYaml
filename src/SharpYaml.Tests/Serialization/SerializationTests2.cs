@@ -1707,6 +1707,36 @@ Test: !ClassWithImplicitMemberTypeInner
             Assert.AreEqual("n: null\ns: \"null\"", str);
         }
 
+        [Test]
+        public void DoubleQuotedStringLiteralNull_Is_Deserialized_To_A_String()
+        {
+            var yaml = "name: \"null\"";
+            var foo = new Serializer().Deserialize<FooStringNullTestClass>(yaml);
+            Assert.AreEqual("null", foo.Name);
+        }
+
+        [Test]
+        public void SingleQuotedStringLiteralNull_Is_Deserialized_To_A_String()
+        {
+            var yaml = "name: 'null'";
+            var foo = new Serializer().Deserialize<FooStringNullTestClass>(yaml);
+            Assert.AreEqual("null", foo.Name);
+        }
+
+        [Test]
+        public void NullLiteral_Is_Deserialized_To_Null()
+        {
+            var yaml = "name: null";
+            var foo = new Serializer().Deserialize<FooStringNullTestClass>(yaml);
+            Assert.AreEqual(null, foo.Name);
+        }
+
+        private class FooStringNullTestClass
+        {
+            [YamlMember("name")]
+            public string Name { get; set; }
+        }
+
         private void SerialRoundTrip(SerializerSettings settings, string text, Type serializedType = null)
         {
             text = text.Trim().NormnalizeLineEndings();
