@@ -306,5 +306,50 @@ namespace SharpYaml.Tests
             Dump.WriteLine(output);
             Assert.AreEqual(input, output);
         }
+
+        [Test]
+        public void FoldedScalarWithMultipleWordsPreservesLineBreaks()
+        {
+            // Test case for the reported issue where "a folded\nscalar" becomes "a folded scalar"
+            var input = "a folded\nscalar";
+            
+            // First, test direct parsing and emission with specific folded style
+            var yaml = EmitScalar(new Scalar(null, null, input, ScalarStyle.Folded, true, false));
+            Dump.WriteLine("Emitted YAML:");
+            Dump.WriteLine(yaml);
+            
+            // Parse it back and verify the content is preserved
+            var stream = new YamlStream();
+            stream.Load(new StringReader(yaml));
+            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
+            var scalar = (YamlScalarNode)sequence.Children[0];
+            
+            Dump.WriteLine($"Original: '{input}'");
+            Dump.WriteLine($"Round-trip result: '{scalar.Value}'");
+            
+            Assert.AreEqual(input, scalar.Value, "Folded scalar should preserve the line break between 'folded' and 'scalar'");
+            
+            // Also test the round-trip through full parse/emit cycle
+            var testYaml = ">-\n  a folded\n  scalar";
+            var parser = Parser.CreateParser(new StringReader(testYaml));
+            var output = new StringWriter();
+            var emitter = new Emitter(output);
+            
+            while (parser.MoveNext())
+            {
+                emitter.Emit(parser.Current);
+            }
+            
+            var roundTripYaml = output.ToString().Trim();
+            Dump.WriteLine("Round-trip YAML:");
+            Dump.WriteLine(roundTripYaml);
+            
+            // Parse the round-trip result
+            var stream2 = new YamlStream();
+            stream2.Load(new StringReader(roundTripYaml));
+            var scalar2 = (YamlScalarNode)stream2.Documents[0].RootNode;
+            
+            Assert.AreEqual(input, scalar2.Value, "Round-trip parsing should preserve original content");
+        }
     }
 }
