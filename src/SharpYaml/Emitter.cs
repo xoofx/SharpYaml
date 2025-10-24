@@ -546,12 +546,26 @@ namespace SharpYaml
                 scalarData.isSingleQuotedAllowed = false;
             }
 
-            if (space_break || special_characters)
+            if (space_break)
             {
                 scalarData.isFlowPlainAllowed = false;
                 scalarData.isBlockPlainAllowed = false;
                 scalarData.isSingleQuotedAllowed = false;
                 scalarData.isBlockAllowed = false;
+            }
+
+            if (special_characters)
+            {
+                scalarData.isFlowPlainAllowed = false;
+                scalarData.isBlockPlainAllowed = false;
+                scalarData.isSingleQuotedAllowed = false;
+                // Don't disable block scalars for line breaks - they're the point of folded/literal scalars
+                // However, disable block scalars for single-character strings containing only special characters
+                // as they're better represented with quoted styles
+                if (!line_breaks || (line_breaks && value.Length == 1))
+                {
+                    scalarData.isBlockAllowed = false;
+                }
             }
 
             if (line_breaks)
@@ -1520,10 +1534,25 @@ namespace SharpYaml
 
             if (style == ScalarStyle.Literal || style == ScalarStyle.Folded)
             {
-                if (!scalarData.isBlockAllowed || flowLevel != 0 || isSimpleKeyContext)
+                // Only override block styles if they're truly not possible to emit
+                // Don't override if the user explicitly requested Folded/Literal style
+                // unless we're in a context where block scalars are impossible (flow context, simple key)
+                if (flowLevel != 0 || isSimpleKeyContext)
                 {
                     style = ScalarStyle.DoubleQuoted;
                 }
+                // For both literal and folded scalars, fall back to double quotes if block scalars aren't allowed
+                else if (!scalarData.isBlockAllowed)
+                {
+                    style = ScalarStyle.DoubleQuoted;
+                }
+            }
+
+            // Final fallback: if no style is allowed, always use double quoted
+            if (!scalarData.isFlowPlainAllowed && !scalarData.isBlockPlainAllowed &&
+                !scalarData.isSingleQuotedAllowed && !scalarData.isBlockAllowed)
+            {
+                style = ScalarStyle.DoubleQuoted;
             }
 
             // TODO: What is this code supposed to mean?
@@ -1531,6 +1560,13 @@ namespace SharpYaml
             //{
             //	tagData.handle = "!";
             //}
+
+            // Final fallback: if no style is allowed, always use double quoted
+            if (!scalarData.isFlowPlainAllowed && !scalarData.isBlockPlainAllowed &&
+                !scalarData.isSingleQuotedAllowed && !scalarData.isBlockAllowed)
+            {
+                style = ScalarStyle.DoubleQuoted;
+            }
 
             scalarData.style = style;
         }
@@ -1545,7 +1581,7 @@ namespace SharpYaml
         }
 
         /// <summary>
-        /// Write an achor.
+        /// Write an anchor.
         /// </summary>
         private void ProcessAnchor()
         {
