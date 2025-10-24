@@ -43,6 +43,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -305,6 +306,47 @@ namespace SharpYaml.Tests
             var output = value.Value;
             Dump.WriteLine(output);
             Assert.AreEqual(input, output);
+        }
+
+        [Test]
+        public void FoldedScalarWithMultipleWordsPreservesLineBreaks()
+        {
+            // The real issue is not that "a folded\nscalar" should become "a folded scalar"
+            // in terms of content (that's actually correct YAML behavior)
+            // The issue is that when emitting a scalar with newlines as a folded scalar,
+            // it should preserve the newlines in the YAML structure
+            
+            var input = "a folded\nscalar";
+            
+            // When we emit a scalar with embedded newlines as a folded scalar,
+            // it should be emitted as:
+            // >-
+            //   a folded
+            //   scalar
+            // NOT as:
+            // >-
+            //   a folded scalar
+            
+            var yaml = EmitScalar(new Scalar(null, null, input, ScalarStyle.Folded, true, false));
+            Console.WriteLine("Emitted YAML:");
+            Console.WriteLine(yaml);
+            
+            // The emitted YAML should contain the folded scalar structure
+            Assert.That(yaml, Does.Contain(">-"), "Should emit as folded scalar");
+            Assert.That(yaml, Does.Contain("a folded"), "Should contain the first part");
+            Assert.That(yaml, Does.Contain("scalar"), "Should contain the second part");
+            
+            // Parse it back and verify the content is preserved
+            var stream = new YamlStream();
+            stream.Load(new StringReader(yaml));
+            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
+            var scalar = (YamlScalarNode)sequence.Children[0];
+            
+            Console.WriteLine($"Original: '{input}'");
+            Console.WriteLine($"Round-trip result: '{scalar.Value}'");
+            
+            // This should pass - the content should be preserved
+            Assert.AreEqual(input, scalar.Value, "Folded scalar content should be preserved during round-trip");
         }
     }
 }

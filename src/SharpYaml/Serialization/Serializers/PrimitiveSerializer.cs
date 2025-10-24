@@ -126,7 +126,7 @@ namespace SharpYaml.Serialization.Serializers
                     {
                         throw new YamlException(scalar.Start, scalar.End, $"Unable to decode char from [{text}]. Expecting a string of length == 1");
                     }
-                    return text.ToCharArray()[0];
+                    return text[0];
                 case TypeCode.Byte:
                     return byte.Parse(text, CultureInfo.InvariantCulture);
                 case TypeCode.SByte:
