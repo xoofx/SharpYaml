@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>SharpYaml</PackageId>
     <AssemblyName>SharpYaml</AssemblyName>
@@ -21,18 +21,15 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <NoWarn>CS1591</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyOriginatorKeyFile>SharpYaml.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MinVer" Version="6.0.0">
+    <PackageReference Include="MinVer">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <!--Add support for sourcelink-->
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 </Project>
