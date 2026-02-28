@@ -28,6 +28,13 @@ public ref struct YamlReader
         return new YamlReader(new YamlReaderState(parser, referenceReader: null));
     }
 
+    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader)
+    {
+        ArgumentNullException.ThrowIfNull(yaml);
+        var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
+        return new YamlReader(new YamlReaderState(parser, referenceReader));
+    }
+
     internal static YamlReader Create(string yaml, YamlSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(yaml);
