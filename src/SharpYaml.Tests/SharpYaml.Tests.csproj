@@ -6,8 +6,8 @@
     <NoWarn>$(NoWarn);SYSLIB1224</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="files\*.yaml" />
-    <EmbeddedResource Include="files\*.yaml" />
+    <None Remove="files\**\*.yaml" />
+    <EmbeddedResource Include="files\**\*.yaml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
