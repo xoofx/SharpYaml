@@ -367,6 +367,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             .Append("(global::SharpYaml.Serialization.YamlWriter writer, ").Append(typeName).AppendLine(" value, global::SharpYaml.YamlSerializerOptions options)");
         builder.AppendLine("    {");
 
+        builder.Append("        if (options.TryGetCustomConverter(typeof(").Append(typeName).AppendLine("), out var rootCustomConverter) && rootCustomConverter is not null)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            rootCustomConverter.Write(writer, value, options);");
+        builder.AppendLine("            return;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+
         if (typeSymbol is INamedTypeSymbol nullableType && nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
         {
             var underlyingType = nullableType.TypeArguments[0];
@@ -563,14 +570,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     builder.AppendLine("            else");
                     builder.AppendLine("            {");
                     builder.Append("                writer.WritePropertyName(").Append(member.SerializedNameExpression).AppendLine(");");
-                    EmitWriteMemberValue(builder, member, indexByType, valueExpression: memberValueVar);
+                    EmitWriteMemberValueWithCustomConverter(builder, member, indexByType, valueExpression: memberValueVar);
                     builder.AppendLine("            }");
                 }
                 else
                 {
                     builder.AppendLine("            // Value types are never null.");
                     builder.Append("            writer.WritePropertyName(").Append(member.SerializedNameExpression).AppendLine(");");
-                    EmitWriteMemberValue(builder, member, indexByType, valueExpression: memberValueVar);
+                    EmitWriteMemberValueWithCustomConverter(builder, member, indexByType, valueExpression: memberValueVar);
                 }
                 builder.AppendLine("        }");
                 builder.Append("        else if (").Append(ignoreVar).AppendLine(" == global::SharpYaml.YamlIgnoreCondition.WhenWritingDefault)");
@@ -583,13 +590,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("            else");
                 builder.AppendLine("            {");
                 builder.Append("                writer.WritePropertyName(").Append(member.SerializedNameExpression).AppendLine(");");
-                EmitWriteMemberValue(builder, member, indexByType, valueExpression: memberValueVar);
+                EmitWriteMemberValueWithCustomConverter(builder, member, indexByType, valueExpression: memberValueVar);
                 builder.AppendLine("            }");
                 builder.AppendLine("        }");
                 builder.AppendLine("        else");
                 builder.AppendLine("        {");
                 builder.Append("            writer.WritePropertyName(").Append(member.SerializedNameExpression).AppendLine(");");
-                EmitWriteMemberValue(builder, member, indexByType, valueExpression: memberValueVar);
+                EmitWriteMemberValueWithCustomConverter(builder, member, indexByType, valueExpression: memberValueVar);
                 builder.AppendLine("        }");
             }
 
@@ -608,6 +615,17 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.Append("    private static ").Append(typeName).Append(typeSymbol.IsReferenceType ? "?" : string.Empty).Append(" ReadValue").Append(index)
             .AppendLine("(ref global::SharpYaml.Serialization.YamlReader reader, global::SharpYaml.YamlSerializerOptions options)");
         builder.AppendLine("    {");
+
+        builder.Append("        if (options.TryGetCustomConverter(typeof(").Append(typeName).AppendLine("), out var rootCustomConverter) && rootCustomConverter is not null)");
+        builder.AppendLine("        {");
+        builder.Append("            var untyped = rootCustomConverter.Read(ref reader, typeof(").Append(typeName).AppendLine("), options);");
+        builder.AppendLine("            if (untyped is null)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                return default;");
+        builder.AppendLine("            }");
+        builder.Append("            return (").Append(typeName).AppendLine(")untyped;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
 
         if (typeSymbol is INamedTypeSymbol nullableType && nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
         {
@@ -1040,7 +1058,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine();
                 builder.AppendLine("            {");
                 builder.AppendLine("                matched = true;");
-                EmitReadMemberValue(builder, member, indexByType);
+                EmitReadMemberValueWithCustomConverter(builder, member, indexByType);
                 builder.AppendLine("            }");
             }
 
@@ -1206,6 +1224,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.AppendLine("                throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this member type.\");");
+    }
+
+    private static void EmitWriteMemberValueWithCustomConverter(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType, string valueExpression)
+    {
+        var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        builder.Append("                if (options.TryGetCustomConverter(typeof(").Append(memberTypeName).AppendLine("), out var memberCustomConverter) && memberCustomConverter is not null)");
+        builder.AppendLine("                {");
+        builder.Append("                    memberCustomConverter.Write(writer, ").Append(valueExpression).AppendLine(", options);");
+        builder.AppendLine("                }");
+        builder.AppendLine("                else");
+        builder.AppendLine("                {");
+        EmitWriteMemberValue(builder, member, indexByType, valueExpression);
+        builder.AppendLine("                }");
     }
 
     private static void EmitReadMemberValue(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType)
@@ -1604,6 +1635,27 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("                throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this member type.\");");
     }
 
+    private static void EmitReadMemberValueWithCustomConverter(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType)
+    {
+        var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        builder.Append("                if (options.TryGetCustomConverter(typeof(").Append(memberTypeName).AppendLine("), out var memberCustomConverter) && memberCustomConverter is not null)");
+        builder.AppendLine("                {");
+        builder.Append("                    var untyped = memberCustomConverter.Read(ref reader, typeof(").Append(memberTypeName).AppendLine("), options);");
+        builder.AppendLine("                    if (untyped is null)");
+        builder.AppendLine("                    {");
+        builder.Append("                        ").Append(member.AssignExpression("default")).AppendLine(";");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    else");
+        builder.AppendLine("                    {");
+        builder.Append("                        ").Append(member.AssignExpression($"({memberTypeName})untyped")).AppendLine(";");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                }");
+        builder.AppendLine("                else");
+        builder.AppendLine("                {");
+        EmitReadMemberValue(builder, member, indexByType);
+        builder.AppendLine("                }");
+    }
+
     private static bool TryEmitWriteScalar(StringBuilder builder, ITypeSymbol typeSymbol, string valueExpression, string indent)
     {
         if (typeSymbol.SpecialType == SpecialType.System_String)
@@ -1859,6 +1911,187 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.Append(indent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this scalar type.\");");
     }
 
+    private static void EmitReadScalarAssignment(StringBuilder builder, ITypeSymbol typeSymbol, string targetExpression, string textExpression = "reader.ScalarValue", string indent = "        ")
+    {
+        // Caller ensures TokenType == Scalar; this helper only parses and assigns into an existing local variable.
+        var spanExpression = textExpression + ".AsSpan()";
+
+        if (typeSymbol.SpecialType == SpecialType.System_String)
+        {
+            builder.Append(indent).Append(targetExpression).Append(" = ").Append(textExpression).AppendLine(" ?? string.Empty;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Boolean)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseBool(").Append(spanExpression).AppendLine(", out var parsedBool))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid boolean scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = parsedBool;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Int32)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt32(").Append(spanExpression).AppendLine(", out var parsedInt32))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid integer scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = parsedInt32;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Int64)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(").Append(spanExpression).AppendLine(", out var parsedInt64))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid integer scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = parsedInt64;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_UInt32)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt32(").Append(spanExpression).AppendLine(", out var parsedUInt32))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid uint32 scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = parsedUInt32;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_UInt64)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(").Append(spanExpression).AppendLine(", out var parsedUInt64))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid uint64 scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = parsedUInt64;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Byte)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(").Append(spanExpression).AppendLine(", out var parsedByte) || parsedByte > byte.MaxValue)");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid byte scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = (byte)parsedByte;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_SByte)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(").Append(spanExpression).AppendLine(", out var parsedSByte) || parsedSByte is < sbyte.MinValue or > sbyte.MaxValue)");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid sbyte scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = (sbyte)parsedSByte;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Int16)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(").Append(spanExpression).AppendLine(", out var parsedInt16) || parsedInt16 is < short.MinValue or > short.MaxValue)");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid int16 scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = (short)parsedInt16;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_UInt16)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(").Append(spanExpression).AppendLine(", out var parsedUInt16) || parsedUInt16 > ushort.MaxValue)");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid uint16 scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = (ushort)parsedUInt16;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Double)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(").Append(spanExpression).AppendLine(", out var parsedDouble))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid float scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = parsedDouble;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Single)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(").Append(spanExpression).AppendLine(", out var parsedSingle))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid float scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = (float)parsedSingle;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Decimal)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseDecimal(").Append(spanExpression).AppendLine(", out var parsedDecimal))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid decimal scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = parsedDecimal;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_IntPtr)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(").Append(spanExpression).AppendLine(", out var parsedIntPtr))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid nint scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = (nint)parsedIntPtr;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_UIntPtr)
+        {
+            builder.Append(indent).Append("if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(").Append(spanExpression).AppendLine(", out var parsedUIntPtr))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid nuint scalar '{reader.ScalarValue}'.\");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = (nuint)parsedUIntPtr;");
+            return;
+        }
+
+        if (typeSymbol.SpecialType == SpecialType.System_Char)
+        {
+            builder.Append(indent).Append("var textChar = ").Append(textExpression).AppendLine(" ?? string.Empty;");
+            builder.Append(indent).AppendLine("if (textChar.Length != 1) { throw new global::System.FormatException($\"Invalid char scalar '{textChar}'.\"); }");
+            builder.Append(indent).Append(targetExpression).AppendLine(" = textChar[0];");
+            return;
+        }
+
+        if (typeSymbol is INamedTypeSymbol named && named.TypeKind == TypeKind.Enum)
+        {
+            var enumTypeName = named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.Append(indent).Append("var enumText = ").Append(textExpression).AppendLine(" ?? string.Empty;");
+            builder.Append(indent).Append("if (global::System.Enum.TryParse<").Append(enumTypeName).AppendLine(">(enumText, ignoreCase: true, out var parsedEnum))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).Append("    ").Append(targetExpression).AppendLine(" = parsedEnum;");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).AppendLine("else if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(enumText.AsSpan(), out var numeric))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).Append("    ").Append(targetExpression).Append(" = (").Append(enumTypeName).AppendLine(")global::System.Enum.ToObject(typeof(" + enumTypeName + "), numeric);");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).AppendLine("else");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.FormatException($\"Invalid enum scalar '{enumText}'.\");");
+            builder.Append(indent).AppendLine("}");
+            return;
+        }
+
+        builder.Append(indent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this scalar type.\");");
+    }
+
     private static bool TryGetArrayElementType(ITypeSymbol type, out ITypeSymbol elementType)
     {
         if (type is IArrayTypeSymbol arrayType && arrayType.Rank == 1)
@@ -1904,40 +2137,69 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static void EmitWriteKnownType(StringBuilder builder, ITypeSymbol typeSymbol, Dictionary<ITypeSymbol, int> indexByType, string valueExpression, string indent)
     {
-        if (TryEmitWriteScalar(builder, typeSymbol, valueExpression, indent))
+        var typeName = typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        builder.Append(indent).Append("if (options.TryGetCustomConverter(typeof(").Append(typeName).AppendLine("), out var elementCustomConverter) && elementCustomConverter is not null)");
+        builder.Append(indent).AppendLine("{");
+        builder.Append(indent).Append("    elementCustomConverter.Write(writer, ").Append(valueExpression).AppendLine(", options);");
+        builder.Append(indent).AppendLine("}");
+        builder.Append(indent).AppendLine("else");
+        builder.Append(indent).AppendLine("{");
+
+        var innerIndent = indent + "    ";
+        if (TryEmitWriteScalar(builder, typeSymbol, valueExpression, innerIndent))
         {
+            builder.Append(indent).AppendLine("}");
             return;
         }
 
         if (indexByType.TryGetValue(typeSymbol, out var typeIndex))
         {
-            builder.Append(indent).Append("WriteValue").Append(typeIndex).Append("(writer, ").Append(valueExpression).AppendLine(", options);");
+            builder.Append(innerIndent).Append("WriteValue").Append(typeIndex).Append("(writer, ").Append(valueExpression).AppendLine(", options);");
+            builder.Append(indent).AppendLine("}");
             return;
         }
 
-        builder.Append(indent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this element type.\");");
+        builder.Append(innerIndent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this element type.\");");
+        builder.Append(indent).AppendLine("}");
     }
 
     private static void EmitReadKnownType(StringBuilder builder, ITypeSymbol typeSymbol, Dictionary<ITypeSymbol, int> indexByType, string valueVarName, string indent)
     {
+        var typeName = typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        builder.Append(indent).Append("var ").Append(valueVarName).Append(" = default(").Append(typeName).AppendLine(");");
+        builder.Append(indent).Append("if (options.TryGetCustomConverter(typeof(").Append(typeName).AppendLine("), out var elementCustomConverter) && elementCustomConverter is not null)");
+        builder.Append(indent).AppendLine("{");
+        builder.Append(indent).Append("    var untyped = elementCustomConverter.Read(ref reader, typeof(").Append(typeName).AppendLine("), options);");
+        builder.Append(indent).AppendLine("    if (untyped is not null)");
+        builder.Append(indent).AppendLine("    {");
+        builder.Append(indent).Append("        ").Append(valueVarName).Append(" = (").Append(typeName).AppendLine(")untyped;");
+        builder.Append(indent).AppendLine("    }");
+        builder.Append(indent).AppendLine("}");
+        builder.Append(indent).AppendLine("else");
+        builder.Append(indent).AppendLine("{");
+
+        var innerIndent = indent + "    ";
         if (IsKnownScalar(typeSymbol))
         {
-            builder.Append(indent).AppendLine("if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
-            builder.Append(indent).AppendLine("{");
-            builder.Append(indent).AppendLine("    throw new global::System.InvalidOperationException($\"Expected a scalar token but found '{reader.TokenType}'.\");");
+            builder.Append(innerIndent).AppendLine("if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+            builder.Append(innerIndent).AppendLine("{");
+            builder.Append(innerIndent).AppendLine("    throw new global::System.InvalidOperationException($\"Expected a scalar token but found '{reader.TokenType}'.\");");
+            builder.Append(innerIndent).AppendLine("}");
+            EmitReadScalarAssignment(builder, typeSymbol, valueVarName, indent: innerIndent);
+            builder.Append(innerIndent).AppendLine("reader.Read();");
             builder.Append(indent).AppendLine("}");
-            EmitReadScalar(builder, typeSymbol, valueVarName, indent: indent);
-            builder.Append(indent).AppendLine("reader.Read();");
             return;
         }
 
         if (indexByType.TryGetValue(typeSymbol, out var typeIndex))
         {
-            builder.Append(indent).Append("var ").Append(valueVarName).Append(" = ReadValue").Append(typeIndex).AppendLine("(ref reader, options);");
+            builder.Append(innerIndent).Append(valueVarName).Append(" = ReadValue").Append(typeIndex).AppendLine("(ref reader, options);");
+            builder.Append(indent).AppendLine("}");
             return;
         }
 
-        builder.Append(indent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this element type.\");");
+        builder.Append(innerIndent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this element type.\");");
+        builder.Append(indent).AppendLine("}");
     }
 
     private static bool IsKnownScalar(ITypeSymbol type)

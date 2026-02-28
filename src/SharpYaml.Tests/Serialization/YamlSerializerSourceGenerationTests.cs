@@ -70,6 +70,18 @@ internal sealed class GeneratedCollections
     public Dictionary<string, GeneratedPerson> PeopleByName { get; set; } = new();
 }
 
+internal sealed class ConstantIntConverter : YamlConverter<int>
+{
+    public override int Read(ref YamlReader reader, YamlSerializerOptions options)
+    {
+        reader.Skip();
+        return 123;
+    }
+
+    public override void Write(YamlWriter writer, int value, YamlSerializerOptions options)
+        => writer.WriteScalar("123");
+}
+
 #pragma warning disable SYSLIB1224
 [JsonSerializable(typeof(GeneratedPerson))]
 [JsonSerializable(typeof(GeneratedContainer))]
@@ -313,5 +325,27 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(dict);
         Assert.AreEqual(1, dict["a"]);
         Assert.AreEqual(2, dict["b"]);
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsCustomConverters()
+    {
+        var context = new TestYamlSerializerContext();
+        context.Options.Converters.Add(new ConstantIntConverter());
+
+        var primitivesTypeInfo = context.GetTypeInfo<GeneratedPrimitives>();
+        var yaml = YamlSerializer.Serialize(new GeneratedPrimitives { Int32Value = 5 }, primitivesTypeInfo);
+        StringAssert.Contains(yaml, "Int32Value: 123");
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, primitivesTypeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.AreEqual(123, roundtripped.Int32Value);
+
+        var listTypeInfo = context.GetTypeInfo<List<int>>();
+        var yamlList = YamlSerializer.Serialize(new List<int> { 1, 2 }, listTypeInfo);
+        StringAssert.Contains(yamlList, "- 123");
+        var list = YamlSerializer.Deserialize(yamlList, listTypeInfo);
+        Assert.IsNotNull(list);
+        CollectionAssert.AreEqual(new[] { 123, 123 }, list);
     }
 }

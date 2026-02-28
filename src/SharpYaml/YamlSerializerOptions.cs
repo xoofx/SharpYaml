@@ -120,7 +120,7 @@ public sealed class YamlSerializerOptions
     public YamlConverter GetConverter(Type typeToConvert)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
-        if (TryGetCustomConverter(typeToConvert, out var converter))
+        if (TryGetCustomConverter(typeToConvert, out var converter) && converter is not null)
         {
             return converter;
         }
@@ -128,7 +128,17 @@ public sealed class YamlSerializerOptions
         throw new NotSupportedException($"No YAML converter is registered for '{typeToConvert}'.");
     }
 
-    internal bool TryGetCustomConverter(Type typeToConvert, out YamlConverter converter)
+    /// <summary>
+    /// Attempts to resolve a custom converter for <paramref name="typeToConvert"/> from <see cref="Converters"/>.
+    /// </summary>
+    /// <param name="typeToConvert">The CLR type to resolve.</param>
+    /// <param name="converter">When successful, receives the converter instance.</param>
+    /// <returns><see langword="true"/> when a custom converter was resolved; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="typeToConvert"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// A converter factory returned <see langword="null"/> or returned a converter that does not handle <paramref name="typeToConvert"/>.
+    /// </exception>
+    public bool TryGetCustomConverter(Type typeToConvert, out YamlConverter? converter)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
 
@@ -165,7 +175,7 @@ public sealed class YamlSerializerOptions
             }
         }
 
-        converter = null!;
+        converter = null;
         return false;
     }
 
