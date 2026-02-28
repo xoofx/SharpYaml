@@ -6,6 +6,11 @@ namespace SharpYaml;
 public enum YamlTypeDiscriminatorStyle
 {
     /// <summary>
+    /// Use the serializer options default.
+    /// </summary>
+    Unspecified = -1,
+
+    /// <summary>
     /// Use YAML tags only.
     /// </summary>
     Tag = 0,
@@ -20,4 +25,3 @@ public enum YamlTypeDiscriminatorStyle
     /// </summary>
     Both = 2,
 }
-

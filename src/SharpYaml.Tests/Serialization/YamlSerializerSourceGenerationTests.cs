@@ -84,6 +84,46 @@ internal sealed class GeneratedReferenceContainer
     public GeneratedReferenceNode? Second { get; set; }
 }
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(GeneratedDog), "dog")]
+[JsonDerivedType(typeof(GeneratedCat), "cat")]
+internal abstract class GeneratedAnimal
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+internal sealed class GeneratedDog : GeneratedAnimal
+{
+    public int BarkVolume { get; set; }
+}
+
+internal sealed class GeneratedCat : GeneratedAnimal
+{
+    public bool LikesCream { get; set; }
+}
+
+internal sealed class GeneratedZoo
+{
+    public GeneratedAnimal? Animal { get; set; }
+}
+
+[YamlPolymorphic(DiscriminatorStyle = YamlTypeDiscriminatorStyle.Tag)]
+[YamlDerivedType(typeof(GeneratedTaggedDog), "dog", Tag = "!dog")]
+internal abstract class GeneratedTaggedAnimal
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+internal sealed class GeneratedTaggedDog : GeneratedTaggedAnimal
+{
+    public int BarkVolume { get; set; }
+}
+
+internal sealed class GeneratedTaggedZoo
+{
+    public GeneratedTaggedAnimal? Animal { get; set; }
+}
+
 internal sealed class ConstantIntConverter : YamlConverter<int>
 {
     public override int Read(ref YamlReader reader, YamlSerializerOptions options)
@@ -108,6 +148,10 @@ internal sealed class ConstantIntConverter : YamlConverter<int>
 [JsonSerializable(typeof(int[]))]
 [JsonSerializable(typeof(GeneratedReferenceNode))]
 [JsonSerializable(typeof(GeneratedReferenceContainer))]
+[JsonSerializable(typeof(GeneratedAnimal))]
+[JsonSerializable(typeof(GeneratedZoo))]
+[JsonSerializable(typeof(GeneratedTaggedAnimal))]
+[JsonSerializable(typeof(GeneratedTaggedZoo))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
 }
@@ -405,5 +449,66 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(roundtripped);
         Assert.IsNotNull(roundtripped.Next);
         Assert.IsTrue(ReferenceEquals(roundtripped, roundtripped.Next));
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsPolymorphism_PropertyDiscriminator()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var typeInfo = context.GetTypeInfo<GeneratedZoo>();
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedZoo
+            {
+                Animal = new GeneratedDog { Name = "Rex", BarkVolume = 7 },
+            },
+            typeInfo);
+
+        StringAssert.Contains(yaml, "$type: dog");
+        StringAssert.Contains(yaml, "BarkVolume: 7");
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsInstanceOfType(roundtripped.Animal, typeof(GeneratedDog));
+        var dog = (GeneratedDog)roundtripped.Animal!;
+        Assert.AreEqual("Rex", dog.Name);
+        Assert.AreEqual(7, dog.BarkVolume);
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsPolymorphism_TagDiscriminator()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var typeInfo = context.GetTypeInfo<GeneratedTaggedZoo>();
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedTaggedZoo
+            {
+                Animal = new GeneratedTaggedDog { Name = "Rex", BarkVolume = 7 },
+            },
+            typeInfo);
+
+        StringAssert.Contains(yaml, "!dog");
+        Assert.IsFalse(yaml.Contains("$type", StringComparison.Ordinal));
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsInstanceOfType(roundtripped.Animal, typeof(GeneratedTaggedDog));
+        var dog = (GeneratedTaggedDog)roundtripped.Animal!;
+        Assert.AreEqual("Rex", dog.Name);
+        Assert.AreEqual(7, dog.BarkVolume);
+    }
+
+    [TestMethod]
+    public void GeneratedContextErrorsIncludeSourceNameAndLocation()
+    {
+        var context = new TestYamlSerializerContext();
+        context.Options.SourceName = "generated.yaml";
+
+        var typeInfo = context.GetTypeInfo<GeneratedPerson>();
+        var exception = Assert.ThrowsException<YamlException>(() => YamlSerializer.Deserialize("123", typeInfo));
+        Assert.AreEqual("generated.yaml", exception.SourceName);
+        StringAssert.Contains(exception.Message, "Lin:");
+        StringAssert.Contains(exception.Message, "Col:");
     }
 }

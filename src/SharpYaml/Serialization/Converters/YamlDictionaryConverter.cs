@@ -15,12 +15,14 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
 
     public override Dictionary<string, TValue>? Read(ref YamlReader reader, YamlSerializerOptions options)
     {
-        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
-            var resolved = reader.ReferenceReader.Resolve(alias);
-            reader.Read();
-            return (Dictionary<string, TValue>)resolved;
+            return (Dictionary<string, TValue>)rootAliasValue!;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
@@ -31,7 +33,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
 
         if (reader.TokenType != YamlTokenType.StartMapping)
         {
-            throw new InvalidOperationException($"Expected a mapping token but found '{reader.TokenType}'.");
+            throw YamlThrowHelper.ThrowExpectedMapping(ref reader);
         }
 
         _valueConverter ??= _resolver.GetConverter(typeof(TValue));
@@ -48,7 +50,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
         {
             if (reader.TokenType != YamlTokenType.Scalar)
             {
-                throw new InvalidOperationException($"Expected a scalar key token but found '{reader.TokenType}'.");
+                throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
             }
 
             var key = reader.ScalarValue ?? string.Empty;
@@ -60,7 +62,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
                 switch (options.DuplicateKeyHandling)
                 {
                     case YamlDuplicateKeyHandling.Error:
-                        throw new InvalidOperationException($"Duplicate mapping key '{key}'.");
+                        throw YamlThrowHelper.ThrowDuplicateMappingKey(ref reader, key);
                     case YamlDuplicateKeyHandling.FirstWins:
                         break;
                     case YamlDuplicateKeyHandling.LastWins:

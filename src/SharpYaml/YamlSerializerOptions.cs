@@ -30,6 +30,15 @@ public sealed class YamlSerializerOptions
     public YamlNamingPolicy? PropertyNamingPolicy { get; set; }
 
     /// <summary>
+    /// Gets or sets an optional name for the YAML source.
+    /// </summary>
+    /// <remarks>
+    /// This value is used to annotate <see cref="YamlException"/> messages with a source name
+    /// (for example, a file path) when reporting parse errors.
+    /// </remarks>
+    public string? SourceName { get; set; }
+
+    /// <summary>
     /// Gets or sets the policy used to convert dictionary keys during serialization.
     /// </summary>
     public YamlNamingPolicy? DictionaryKeyPolicy { get; set; }

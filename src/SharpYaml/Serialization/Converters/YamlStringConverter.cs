@@ -17,10 +17,10 @@ internal sealed class YamlStringConverter : YamlConverter<string?>
 
         if (reader.TokenType == YamlTokenType.Alias)
         {
-            throw new NotSupportedException("Aliases are not supported when deserializing into string.");
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into string unless ReferenceHandling is Preserve.");
         }
 
-        throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
+        throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
     }
 
     public override void Write(YamlWriter writer, string? value, YamlSerializerOptions options)
@@ -28,4 +28,3 @@ internal sealed class YamlStringConverter : YamlConverter<string?>
         writer.WriteScalar(value);
     }
 }
-

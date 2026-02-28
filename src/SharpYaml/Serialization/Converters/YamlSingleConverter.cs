@@ -10,13 +10,13 @@ internal sealed class YamlSingleConverter : YamlConverter<float>
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
+            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
         }
 
         var value = reader.ScalarValue.AsSpan();
         if (!YamlScalar.TryParseDouble(value, out var parsed))
         {
-            throw new FormatException($"Invalid float scalar '{reader.ScalarValue}'.");
+            throw YamlThrowHelper.ThrowInvalidFloatScalar(ref reader);
         }
 
         reader.Read();

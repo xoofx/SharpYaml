@@ -8,7 +8,7 @@ internal sealed class YamlEnumConverter<TEnum> : YamlConverter<TEnum> where TEnu
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
+            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
         }
 
         var text = reader.ScalarValue ?? string.Empty;
@@ -24,7 +24,7 @@ internal sealed class YamlEnumConverter<TEnum> : YamlConverter<TEnum> where TEnu
             return (TEnum)Enum.ToObject(typeof(TEnum), numeric);
         }
 
-        throw new FormatException($"Invalid enum scalar '{text}'.");
+        throw YamlThrowHelper.ThrowInvalidEnumScalar(ref reader, text);
     }
 
     public override void Write(YamlWriter writer, TEnum value, YamlSerializerOptions options)

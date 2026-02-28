@@ -10,13 +10,13 @@ internal sealed class YamlBooleanConverter : YamlConverter<bool>
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
+            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
         }
 
         var value = reader.ScalarValue.AsSpan();
         if (!YamlScalar.TryParseBool(value, out var result))
         {
-            throw new FormatException($"Invalid boolean scalar '{reader.ScalarValue}'.");
+            throw YamlThrowHelper.ThrowInvalidBooleanScalar(ref reader);
         }
 
         reader.Read();

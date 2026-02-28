@@ -10,13 +10,13 @@ internal sealed class YamlInt64Converter : YamlConverter<long>
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
+            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
         }
 
         var value = reader.ScalarValue.AsSpan();
         if (!YamlScalar.TryParseInt64(value, out var result))
         {
-            throw new FormatException($"Invalid integer scalar '{reader.ScalarValue}'.");
+            throw YamlThrowHelper.ThrowInvalidIntegerScalar(ref reader);
         }
 
         reader.Read();

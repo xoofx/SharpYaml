@@ -16,6 +16,5 @@ public sealed class YamlPolymorphicAttribute : Attribute
     /// <summary>
     /// Gets or sets the discriminator style.
     /// </summary>
-    public YamlTypeDiscriminatorStyle? DiscriminatorStyle { get; set; }
+    public YamlTypeDiscriminatorStyle DiscriminatorStyle { get; set; } = YamlTypeDiscriminatorStyle.Unspecified;
 }
-

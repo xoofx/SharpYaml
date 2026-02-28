@@ -19,12 +19,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     public override T? Read(ref YamlReader reader, YamlSerializerOptions options)
     {
-        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
-            var resolved = reader.ReferenceReader.Resolve(alias);
-            reader.Read();
-            return (T)resolved;
+            return (T)rootAliasValue!;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into '{typeof(T)}' unless ReferenceHandling is Preserve.");
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
@@ -35,10 +37,22 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         if (reader.TokenType != YamlTokenType.StartMapping)
         {
-            throw new InvalidOperationException($"Expected a mapping token but found '{reader.TokenType}'.");
+            throw YamlThrowHelper.ThrowExpectedMapping(ref reader);
         }
 
-        var contract = _contract ??= Contract.Create(typeof(T), options);
+        Contract contract;
+        try
+        {
+            contract = _contract ??= Contract.Create(typeof(T), options);
+        }
+        catch (YamlException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, exception.Message, exception);
+        }
         if (contract.Polymorphism is not null)
         {
             return ReadPolymorphic(ref reader, options, contract);
@@ -94,9 +108,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         {
             if (reader.TokenType != YamlTokenType.Scalar)
             {
-                throw new InvalidOperationException($"Expected a scalar key token but found '{reader.TokenType}'.");
+                throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
             }
 
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
 
@@ -109,7 +125,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var wasSeen = seenMembers is not null && !seenMembers.Add(member);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
             {
-                throw new InvalidOperationException($"Duplicate mapping key '{key}'.");
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, $"Duplicate mapping key '{key}'.");
             }
 
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
@@ -173,7 +189,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
             else if (polymorphism.UnknownDerivedTypeHandling == YamlUnknownDerivedTypeHandling.Fail)
             {
-                throw new InvalidOperationException($"Unknown type discriminator '{discriminatorValue}' for '{typeof(T)}'.");
+                throw YamlThrowHelper.ThrowUnknownTypeDiscriminator(ref reader, discriminatorValue, typeof(T));
             }
         }
 
@@ -187,7 +203,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         targetType ??= typeof(T);
 
-        var bufferedReader = YamlReader.Create(buffered, reader.ReferenceReader);
+        var bufferedReader = YamlReader.Create(buffered, reader.ReferenceReader, reader.SourceName);
         if (!bufferedReader.Read())
         {
             return default;
@@ -294,7 +310,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 return;
 
             case YamlTokenType.Alias:
-                writer.WriteAlias(reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value."));
+                var alias = reader.Alias;
+                if (alias is null)
+                {
+                    throw YamlThrowHelper.ThrowAliasMissingValue(ref reader);
+                }
+
+                writer.WriteAlias(alias);
                 reader.Read();
                 return;
 
@@ -336,7 +358,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 {
                     if (reader.TokenType != YamlTokenType.Scalar)
                     {
-                        throw new InvalidOperationException($"Expected a scalar key token but found '{reader.TokenType}'.");
+                        throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
                     }
 
                     var key = reader.ScalarValue ?? string.Empty;
@@ -347,7 +369,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     {
                         if (reader.TokenType != YamlTokenType.Scalar)
                         {
-                            throw new InvalidOperationException($"Expected '{discriminatorPropertyName}' to be a scalar discriminator.");
+                            throw YamlThrowHelper.ThrowExpectedDiscriminatorScalar(ref reader, discriminatorPropertyName);
                         }
 
                         discriminatorValue = reader.ScalarValue ?? string.Empty;
@@ -360,7 +382,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 return;
 
             default:
-                throw new InvalidOperationException($"Unexpected token '{reader.TokenType}'.");
+                throw YamlThrowHelper.ThrowUnexpectedToken(ref reader);
         }
     }
 
@@ -552,7 +574,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var yamlPolymorphic = type.GetCustomAttribute<YamlPolymorphicAttribute>(inherit: false);
             var jsonPolymorphic = type.GetCustomAttribute<JsonPolymorphicAttribute>(inherit: false);
 
-            var style = yamlPolymorphic?.DiscriminatorStyle ?? options.PolymorphismOptions.DiscriminatorStyle;
+            var style = options.PolymorphismOptions.DiscriminatorStyle;
+            if (yamlPolymorphic is not null && yamlPolymorphic.DiscriminatorStyle != YamlTypeDiscriminatorStyle.Unspecified)
+            {
+                style = yamlPolymorphic.DiscriminatorStyle;
+            }
 
             var discriminatorPropertyName = yamlPolymorphic?.TypeDiscriminatorPropertyName;
             if (string.IsNullOrWhiteSpace(discriminatorPropertyName))

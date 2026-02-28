@@ -16,12 +16,9 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
 
     public override object? Read(ref YamlReader reader, Type typeToConvert, YamlSerializerOptions options)
     {
-        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
-            var resolved = reader.ReferenceReader.Resolve(alias);
-            reader.Read();
-            return resolved;
+            return rootAliasValue;
         }
 
         if (options.UnsafeAllowDeserializeFromTagTypeName && reader.Tag is not null)
@@ -94,7 +91,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 {
                     if (reader.TokenType != YamlTokenType.Scalar)
                     {
-                        throw new InvalidOperationException($"Expected a scalar key token but found '{reader.TokenType}'.");
+                        throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
                     }
 
                     var key = reader.ScalarValue ?? string.Empty;
@@ -106,7 +103,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                         switch (options.DuplicateKeyHandling)
                         {
                             case YamlDuplicateKeyHandling.Error:
-                                throw new InvalidOperationException($"Duplicate mapping key '{key}'.");
+                                throw YamlThrowHelper.ThrowDuplicateMappingKey(ref reader, key);
                             case YamlDuplicateKeyHandling.FirstWins:
                                 break;
                             case YamlDuplicateKeyHandling.LastWins:
@@ -123,10 +120,10 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 return dict;
 
             case YamlTokenType.Alias:
-                throw new NotSupportedException("Aliases are not supported when deserializing into object unless ReferenceHandling is Preserve.");
+                throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into object unless ReferenceHandling is Preserve.");
 
             default:
-                throw new InvalidOperationException($"Unexpected token '{reader.TokenType}'.");
+                throw YamlThrowHelper.ThrowUnexpectedToken(ref reader);
         }
     }
 

@@ -53,6 +53,11 @@ namespace SharpYaml
     public class YamlException : Exception
     {
         /// <summary>
+        /// Gets the optional source name associated with the YAML payload (for example, a file path).
+        /// </summary>
+        public string? SourceName { get; }
+
+        /// <summary>
         /// Gets the position in the input stream where the event that originated the exception starts.
         /// </summary>
         public Mark Start { get; }
@@ -90,8 +95,25 @@ namespace SharpYaml
         /// Initializes a new instance of the <see cref="YamlException"/> class.
         /// </summary>
         public YamlException(Mark start, Mark end, string message, Exception? innerException)
-            : base($"({start}) - ({end}): {message}", innerException)
+            : this(null, start, end, message, innerException)
         {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="YamlException"/> class.
+        /// </summary>
+        public YamlException(string? sourceName, Mark start, Mark end, string message)
+            : this(sourceName, start, end, message, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="YamlException"/> class.
+        /// </summary>
+        public YamlException(string? sourceName, Mark start, Mark end, string message, Exception? innerException)
+            : base(FormatMessage(sourceName, start, end, message), innerException)
+        {
+            SourceName = sourceName;
             Start = start;
             End = end;
         }
@@ -104,6 +126,16 @@ namespace SharpYaml
         public YamlException(string message, Exception inner)
             : base(message, inner)
         {
+        }
+
+        private static string FormatMessage(string? sourceName, Mark start, Mark end, string message)
+        {
+            if (string.IsNullOrEmpty(sourceName))
+            {
+                return $"({start}) - ({end}): {message}";
+            }
+
+            return $"{sourceName}: ({start}) - ({end}): {message}";
         }
     }
 }

@@ -15,12 +15,14 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
 
     public override IEnumerable<TElement>? Read(ref YamlReader reader, YamlSerializerOptions options)
     {
-        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
-            var resolved = reader.ReferenceReader.Resolve(alias);
-            reader.Read();
-            return (IEnumerable<TElement>)resolved;
+            return (IEnumerable<TElement>)rootAliasValue!;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an enumerable unless ReferenceHandling is Preserve.");
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
@@ -31,7 +33,7 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
 
         if (reader.TokenType != YamlTokenType.StartSequence)
         {
-            throw new InvalidOperationException($"Expected a sequence token but found '{reader.TokenType}'.");
+            throw YamlThrowHelper.ThrowExpectedSequence(ref reader);
         }
 
         _elementConverter ??= _resolver.GetConverter(typeof(TElement));
