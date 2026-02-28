@@ -96,6 +96,38 @@ public ref struct YamlReader
     internal YamlReferenceReader? ReferenceReader => _state.ReferenceReader;
 
     /// <summary>
+    /// Attempts to resolve the current alias token into an anchored object value.
+    /// </summary>
+    /// <param name="value">When successful, receives the resolved anchored object.</param>
+    /// <returns><see langword="true"/> when the current token is an alias and reference handling is enabled; otherwise <see langword="false"/>.</returns>
+    public bool TryReadAlias(out object? value)
+    {
+        if (TokenType == YamlTokenType.Alias && _state.ReferenceReader is not null)
+        {
+            var alias = Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
+            value = _state.ReferenceReader.Resolve(alias);
+            Read();
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Registers an anchored value for later alias resolution.
+    /// </summary>
+    /// <param name="anchor">The anchor name, without the <c>&amp;</c> prefix.</param>
+    /// <param name="value">The anchored value instance.</param>
+    public void RegisterAnchor(string anchor, object value)
+    {
+        ArgumentNullException.ThrowIfNull(anchor);
+        ArgumentNullException.ThrowIfNull(value);
+
+        _state.ReferenceReader?.Register(anchor, value);
+    }
+
+    /// <summary>
     /// Advances to the next token.
     /// </summary>
     public bool Read() => _state.Read();

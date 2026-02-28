@@ -38,6 +38,40 @@ public sealed class YamlWriter
     internal YamlReferenceWriter? ReferenceWriter => _referenceWriter;
 
     /// <summary>
+    /// Attempts to preserve object references by writing an alias when <paramref name="value"/> was previously
+    /// anchored, or by writing an anchor for the next value when it is seen for the first time.
+    /// </summary>
+    /// <param name="value">The value to track.</param>
+    /// <returns><see langword="true"/> when an alias was written and no further output for this value is required.</returns>
+    /// <remarks>
+    /// This method is intended for use by generated serializers and custom converters. It is a no-op unless
+    /// <see cref="YamlSerializerOptions.ReferenceHandling"/> is <see cref="YamlReferenceHandling.Preserve"/>.
+    /// </remarks>
+    public bool TryWriteReference(object? value)
+    {
+        if (_referenceWriter is null || value is null)
+        {
+            return false;
+        }
+
+        // Match the reflection pipeline behavior: do not anchor scalar strings and do not track value types.
+        if (value is string || value.GetType().IsValueType)
+        {
+            return false;
+        }
+
+        if (_referenceWriter.TryGetAnchor(value, out var existing))
+        {
+            WriteAlias(existing);
+            return true;
+        }
+
+        var anchor = _referenceWriter.GetOrAddAnchor(value);
+        WriteAnchor(anchor);
+        return false;
+    }
+
+    /// <summary>
     /// Writes a YAML tag for the next value.
     /// </summary>
     /// <param name="tag">The YAML tag, such as <c>!dog</c>.</param>

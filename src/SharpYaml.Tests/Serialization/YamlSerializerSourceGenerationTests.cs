@@ -70,6 +70,20 @@ internal sealed class GeneratedCollections
     public Dictionary<string, GeneratedPerson> PeopleByName { get; set; } = new();
 }
 
+internal sealed class GeneratedReferenceNode
+{
+    public string Name { get; set; } = string.Empty;
+
+    public GeneratedReferenceNode? Next { get; set; }
+}
+
+internal sealed class GeneratedReferenceContainer
+{
+    public GeneratedReferenceNode? First { get; set; }
+
+    public GeneratedReferenceNode? Second { get; set; }
+}
+
 internal sealed class ConstantIntConverter : YamlConverter<int>
 {
     public override int Read(ref YamlReader reader, YamlSerializerOptions options)
@@ -92,6 +106,8 @@ internal sealed class ConstantIntConverter : YamlConverter<int>
 [JsonSerializable(typeof(List<int>))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
 [JsonSerializable(typeof(int[]))]
+[JsonSerializable(typeof(GeneratedReferenceNode))]
+[JsonSerializable(typeof(GeneratedReferenceContainer))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
 }
@@ -347,5 +363,47 @@ public class YamlSerializerSourceGenerationTests
         var list = YamlSerializer.Deserialize(yamlList, listTypeInfo);
         Assert.IsNotNull(list);
         CollectionAssert.AreEqual(new[] { 123, 123 }, list);
+    }
+
+    [TestMethod]
+    public void GeneratedContextPreservesSharedReferences()
+    {
+        var context = new TestYamlSerializerContext();
+        context.Options.ReferenceHandling = YamlReferenceHandling.Preserve;
+
+        var shared = new GeneratedReferenceNode { Name = "shared" };
+        var container = new GeneratedReferenceContainer { First = shared, Second = shared };
+
+        var typeInfo = context.GetTypeInfo<GeneratedReferenceContainer>();
+        var yaml = YamlSerializer.Serialize(container, typeInfo);
+        StringAssert.Contains(yaml, "&id002");
+        StringAssert.Contains(yaml, "*id002");
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsNotNull(roundtripped.First);
+        Assert.IsNotNull(roundtripped.Second);
+        Assert.IsTrue(ReferenceEquals(roundtripped.First, roundtripped.Second));
+        Assert.AreEqual("shared", roundtripped.First.Name);
+    }
+
+    [TestMethod]
+    public void GeneratedContextPreservesCycles()
+    {
+        var context = new TestYamlSerializerContext();
+        context.Options.ReferenceHandling = YamlReferenceHandling.Preserve;
+
+        var node = new GeneratedReferenceNode { Name = "self" };
+        node.Next = node;
+
+        var typeInfo = context.GetTypeInfo<GeneratedReferenceNode>();
+        var yaml = YamlSerializer.Serialize(node, typeInfo);
+        StringAssert.Contains(yaml, "&id001");
+        StringAssert.Contains(yaml, "*id001");
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsNotNull(roundtripped.Next);
+        Assert.IsTrue(ReferenceEquals(roundtripped, roundtripped.Next));
     }
 }
