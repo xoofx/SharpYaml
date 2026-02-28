@@ -483,6 +483,11 @@ public sealed class YamlWriter
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
+            // Control characters (including NUL) must be quoted and escaped.
+            if (char.IsControl(c))
+            {
+                return false;
+            }
             if (c is ':' or '#' or '{' or '}' or '[' or ']' or ',' or '&' or '*' or '!' or '|' or '>' or '\'' or '"' or '%' or '@' or '`')
             {
                 return false;
@@ -525,7 +530,15 @@ public sealed class YamlWriter
                     _writer.Write("\\t");
                     break;
                 default:
+                    if (char.IsControl(c))
+                    {
+                        _writer.Write("\\u");
+                        _writer.Write(((int)c).ToString("X4", global::System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
                     _writer.Write(c);
+                    }
                     break;
             }
         }
