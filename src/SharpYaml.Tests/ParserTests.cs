@@ -342,7 +342,7 @@ namespace SharpYaml.Tests
             var eventNumber = 1;
             foreach (var expected in events)
             {
-                Assert.IsTrue(parser.MoveNext(), "Missing parse event number {0}", eventNumber);
+                Assert.IsTrue(parser.MoveNext(), $"Missing parse event number {eventNumber}");
                 AssertEvent(expected, parser.Current, eventNumber);
                 eventNumber++;
             }
@@ -351,7 +351,7 @@ namespace SharpYaml.Tests
 
         private void AssertEvent(ParsingEvent expected, ParsingEvent actual, int eventNumber)
         {
-            Assert.AreEqual(expected.GetType(), actual.GetType(), "Parse event {0} is not of the expected type.", eventNumber);
+            Assert.AreEqual(expected.GetType(), actual.GetType(), $"Parse event {eventNumber} is not of the expected type.");
 
             foreach (var property in expected.GetType().GetProperties())
             {
@@ -372,24 +372,26 @@ namespace SharpYaml.Tests
                     {
                         var expectedCount = expectedCollection.Count;
                         var valueCount = collection.Count;
-                        Assert.AreEqual(expectedCount, valueCount, "Compared size of collections in property {0} in parse event {1}",
-                            property.Name, eventNumber);
+                        Assert.AreEqual(
+                            expectedCount,
+                            valueCount,
+                            $"Compared size of collections in property {property.Name} in parse event {eventNumber}");
                     }
 
                     var values = ((IEnumerable)value).GetEnumerator();
                     var expectedValues = enumerable.GetEnumerator();
                     while (expectedValues.MoveNext())
                     {
-                        Assert.IsTrue(values.MoveNext(), "Property {0} in parse event {1} had too few elements", property.Name, eventNumber);
+                        Assert.IsTrue(values.MoveNext(), $"Property {property.Name} in parse event {eventNumber} had too few elements");
                         Assert.AreEqual(expectedValues.Current, values.Current,
-                            "Compared element in property {0} in parse event {1}", property.Name, eventNumber);
+                            $"Compared element in property {property.Name} in parse event {eventNumber}");
                     }
-                    Assert.IsFalse(values.MoveNext(), "Property {0} in parse event {1} had too many elements", property.Name, eventNumber);
+                    Assert.IsFalse(values.MoveNext(), $"Property {property.Name} in parse event {eventNumber} had too many elements");
                 }
                 else
                 {
                     Dump.WriteLine("\t{0} = {1}", property.Name, value);
-                    Assert.AreEqual(expectedValue, value, "Compared property {0} in parse event {1}", property.Name, eventNumber);
+                    Assert.AreEqual(expectedValue, value, $"Compared property {property.Name} in parse event {eventNumber}");
                 }
             }
         }

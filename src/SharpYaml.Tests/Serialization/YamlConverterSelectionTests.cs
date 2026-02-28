@@ -37,7 +37,7 @@ public sealed class YamlConverterSelectionTests
     {
         var options = new YamlSerializerOptions();
 
-        var ex = Assert.ThrowsException<NotSupportedException>(() => options.GetConverter(typeof(int)));
+        var ex = Assert.Throws<NotSupportedException>(() => options.GetConverter(typeof(int)));
         StringAssert.Contains(ex.Message, "No YAML converter is registered");
     }
 
@@ -62,4 +62,3 @@ public sealed class YamlConverterSelectionTests
             => new AlwaysInt32Converter("factory");
     }
 }
-

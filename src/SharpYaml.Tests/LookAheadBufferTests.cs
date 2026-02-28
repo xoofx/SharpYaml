@@ -233,7 +233,7 @@ namespace SharpYaml.Tests
             var reader = CreateFakeReader(TestString);
             var buffer = CreateBuffer(reader, Capacity);
 
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => buffer.Peek(4));
+            Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Peek(4));
         }
 
         [TestMethod]
@@ -244,7 +244,7 @@ namespace SharpYaml.Tests
 
             buffer.Peek(3);
 
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => buffer.Skip(5));
+            Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Skip(5));
         }
 
         private static TextReader CreateFakeReader(string text)

@@ -506,7 +506,7 @@ public class YamlSerializerSourceGenerationTests
         context.Options.SourceName = "generated.yaml";
 
         var typeInfo = context.GetTypeInfo<GeneratedPerson>();
-        var exception = Assert.ThrowsException<YamlException>(() => YamlSerializer.Deserialize("123", typeInfo));
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("123", typeInfo));
         Assert.AreEqual("generated.yaml", exception.SourceName);
         StringAssert.Contains(exception.Message, "Lin:");
         StringAssert.Contains(exception.Message, "Col:");

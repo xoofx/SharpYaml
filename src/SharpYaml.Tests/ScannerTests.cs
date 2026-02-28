@@ -364,7 +364,7 @@ namespace SharpYaml.Tests
             var tokenNumber = 1;
             foreach (var expected in tokens)
             {
-                Assert.IsTrue(scanner.MoveNext(), "Missing token number {0}", tokenNumber);
+                Assert.IsTrue(scanner.MoveNext(), $"Missing token number {tokenNumber}");
                 AssertToken(expected, scanner.Current, tokenNumber);
                 tokenNumber++;
             }
@@ -375,7 +375,7 @@ namespace SharpYaml.Tests
         {
             Dump.WriteLine(expected.GetType().Name);
             Assert.IsNotNull(actual);
-            Assert.AreEqual(expected.GetType(), actual.GetType(), "Token {0} is not of the expected type", tokenNumber);
+            Assert.AreEqual(expected.GetType(), actual.GetType(), $"Token {tokenNumber} is not of the expected type");
 
             foreach (var property in expected.GetType().GetProperties())
             {
@@ -384,7 +384,7 @@ namespace SharpYaml.Tests
                     var value = property.GetValue(actual, null);
                     var expectedValue = property.GetValue(expected, null);
                     Dump.WriteLine("\t{0} = {1}", property.Name, value);
-                    Assert.AreEqual(expectedValue, value, "Comparing property {0} in token {1}", property.Name, tokenNumber);
+                    Assert.AreEqual(expectedValue, value, $"Comparing property {property.Name} in token {tokenNumber}");
                 }
             }
         }

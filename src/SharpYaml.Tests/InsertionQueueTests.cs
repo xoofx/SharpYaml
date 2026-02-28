@@ -58,7 +58,7 @@ namespace SharpYaml.Tests
         {
             var queue = CreateQueue();
 
-            Assert.ThrowsException<InvalidOperationException>(() => queue.Dequeue());
+            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
         }
 
         [TestMethod]
@@ -69,7 +69,7 @@ namespace SharpYaml.Tests
             queue.Enqueue(1);
             queue.Dequeue();
 
-            Assert.ThrowsException<InvalidOperationException>(() => queue.Dequeue());
+            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
         }
 
         [TestMethod]
@@ -103,7 +103,7 @@ namespace SharpYaml.Tests
             queue.Insert(0, 99);
             PerformTimes(2, queue.Dequeue);
 
-            Assert.ThrowsException<InvalidOperationException>(() => queue.Dequeue());
+            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
         }
 
         [TestMethod]

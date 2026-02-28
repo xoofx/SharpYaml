@@ -94,7 +94,7 @@ public class YamlPolymorphismTests
     public void UnknownDiscriminatorFailsByDefault()
     {
         var yaml = "Name: Rex\n$type: lizard\n";
-        Assert.ThrowsException<YamlException>(() => SharpYaml.YamlSerializer.Deserialize<Animal>(yaml));
+        Assert.Throws<YamlException>(() => SharpYaml.YamlSerializer.Deserialize<Animal>(yaml));
     }
 
     [TestMethod]

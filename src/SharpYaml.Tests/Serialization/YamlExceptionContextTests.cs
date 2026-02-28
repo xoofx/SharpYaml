@@ -13,7 +13,7 @@ public sealed class YamlExceptionContextTests
             SourceName = "config.yaml",
         };
 
-        var exception = Assert.ThrowsException<YamlException>(() => YamlSerializer.Deserialize<int>("a: b", options));
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<int>("a: b", options));
         Assert.AreEqual("config.yaml", exception.SourceName);
         StringAssert.Contains(exception.Message, "Lin:");
         StringAssert.Contains(exception.Message, "Col:");
