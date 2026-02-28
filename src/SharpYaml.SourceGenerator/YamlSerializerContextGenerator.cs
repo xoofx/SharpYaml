@@ -192,6 +192,38 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     continue;
                 }
 
+                if (TryGetArrayElementType(memberType, out var arrayElementType) || TryGetListElementType(memberType, out arrayElementType))
+                {
+                    if (IsKnownScalar(arrayElementType) || indexByType.ContainsKey(arrayElementType))
+                    {
+                        continue;
+                    }
+
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        UnsupportedMemberType,
+                        member.Locations.FirstOrDefault(),
+                        named.ToDisplayString(),
+                        member.Name,
+                        arrayElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+                    continue;
+                }
+
+                if (TryGetDictionaryValueType(memberType, out var dictionaryValueType))
+                {
+                    if (IsKnownScalar(dictionaryValueType) || indexByType.ContainsKey(dictionaryValueType))
+                    {
+                        continue;
+                    }
+
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        UnsupportedMemberType,
+                        member.Locations.FirstOrDefault(),
+                        named.ToDisplayString(),
+                        member.Name,
+                        dictionaryValueType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+                    continue;
+                }
+
                 if (!indexByType.ContainsKey(memberType))
                 {
                     context.ReportDiagnostic(Diagnostic.Create(
@@ -434,6 +466,67 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
+        if (TryGetArrayElementType(typeSymbol, out var arrayElementType))
+        {
+            builder.AppendLine("        if (value is null)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            writer.WriteNullValue();");
+            builder.AppendLine("            return;");
+            builder.AppendLine("        }");
+            builder.AppendLine();
+            builder.AppendLine("        writer.WriteStartSequence();");
+            builder.AppendLine("        for (var i = 0; i < value.Length; i++)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            var element = value[i];");
+            EmitWriteKnownType(builder, arrayElementType, indexByType, "element", indent: "            ");
+            builder.AppendLine("        }");
+            builder.AppendLine("        writer.WriteEndSequence();");
+            builder.AppendLine("        return;");
+            builder.AppendLine("    }");
+            return;
+        }
+
+        if (TryGetListElementType(typeSymbol, out var listElementType))
+        {
+            builder.AppendLine("        if (value is null)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            writer.WriteNullValue();");
+            builder.AppendLine("            return;");
+            builder.AppendLine("        }");
+            builder.AppendLine();
+            builder.AppendLine("        writer.WriteStartSequence();");
+            builder.AppendLine("        for (var i = 0; i < value.Count; i++)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            var element = value[i];");
+            EmitWriteKnownType(builder, listElementType, indexByType, "element", indent: "            ");
+            builder.AppendLine("        }");
+            builder.AppendLine("        writer.WriteEndSequence();");
+            builder.AppendLine("        return;");
+            builder.AppendLine("    }");
+            return;
+        }
+
+        if (TryGetDictionaryValueType(typeSymbol, out var dictionaryValueType))
+        {
+            builder.AppendLine("        if (value is null)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            writer.WriteNullValue();");
+            builder.AppendLine("            return;");
+            builder.AppendLine("        }");
+            builder.AppendLine();
+            builder.AppendLine("        writer.WriteStartMapping();");
+            builder.AppendLine("        foreach (var pair in value)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            var key = options.DictionaryKeyPolicy?.ConvertName(pair.Key) ?? pair.Key;");
+            builder.AppendLine("            writer.WritePropertyName(key);");
+            EmitWriteKnownType(builder, dictionaryValueType, indexByType, "pair.Value", indent: "            ");
+            builder.AppendLine("        }");
+            builder.AppendLine("        writer.WriteEndMapping();");
+            builder.AppendLine("        return;");
+            builder.AppendLine("    }");
+            return;
+        }
+
         if (typeSymbol is INamedTypeSymbol named && (named.TypeKind == TypeKind.Class || named.TypeKind == TypeKind.Struct))
         {
             if (named.TypeKind == TypeKind.Class)
@@ -555,6 +648,104 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append("            return (").Append(typeName).AppendLine(")global::System.Enum.ToObject(typeof(" + typeName + "), numeric);");
             builder.AppendLine("        }");
             builder.AppendLine("        throw new global::System.FormatException($\"Invalid enum scalar '{text}'.\");");
+            builder.AppendLine("    }");
+            return;
+        }
+
+        if (TryGetArrayElementType(typeSymbol, out var arrayElementType))
+        {
+            var elementTypeName = arrayElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("        {");
+            builder.AppendLine("            reader.Read();");
+            builder.AppendLine("            return default;");
+            builder.AppendLine("        }");
+            builder.AppendLine("        if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            throw new global::System.InvalidOperationException($\"Expected a sequence token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("        }");
+            builder.AppendLine("        reader.Read();");
+            builder.Append("        var list = new global::System.Collections.Generic.List<").Append(elementTypeName).AppendLine(">();");
+            builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+            builder.AppendLine("        {");
+            EmitReadKnownType(builder, arrayElementType, indexByType, "element", indent: "            ");
+            builder.AppendLine("            list.Add(element);");
+            builder.AppendLine("        }");
+            builder.AppendLine("        reader.Read();");
+            builder.AppendLine("        return list.ToArray();");
+            builder.AppendLine("    }");
+            return;
+        }
+
+        if (TryGetListElementType(typeSymbol, out var listElementType))
+        {
+            var elementTypeName = listElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("        {");
+            builder.AppendLine("            reader.Read();");
+            builder.AppendLine("            return default;");
+            builder.AppendLine("        }");
+            builder.AppendLine("        if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            throw new global::System.InvalidOperationException($\"Expected a sequence token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("        }");
+            builder.AppendLine("        reader.Read();");
+            builder.Append("        var list = new global::System.Collections.Generic.List<").Append(elementTypeName).AppendLine(">();");
+            builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+            builder.AppendLine("        {");
+            EmitReadKnownType(builder, listElementType, indexByType, "element", indent: "            ");
+            builder.AppendLine("            list.Add(element);");
+            builder.AppendLine("        }");
+            builder.AppendLine("        reader.Read();");
+            builder.AppendLine("        return list;");
+            builder.AppendLine("    }");
+            return;
+        }
+
+        if (TryGetDictionaryValueType(typeSymbol, out var dictionaryValueType))
+        {
+            var valueTypeName = dictionaryValueType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("        {");
+            builder.AppendLine("            reader.Read();");
+            builder.AppendLine("            return default;");
+            builder.AppendLine("        }");
+            builder.AppendLine("        if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            throw new global::System.InvalidOperationException($\"Expected a mapping token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("        }");
+            builder.AppendLine("        reader.Read();");
+            builder.Append("        var dictionary = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
+                .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
+            builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+            builder.AppendLine("            {");
+            builder.AppendLine("                throw new global::System.InvalidOperationException($\"Expected a scalar key token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("            }");
+            builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
+            builder.AppendLine("            reader.Read();");
+            EmitReadKnownType(builder, dictionaryValueType, indexByType, "value", indent: "            ");
+            builder.AppendLine("            if (dictionary.ContainsKey(key))");
+            builder.AppendLine("            {");
+            builder.AppendLine("                switch (options.DuplicateKeyHandling)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
+            builder.AppendLine("                        throw new global::System.InvalidOperationException($\"Duplicate mapping key '{key}'.\");");
+            builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
+            builder.AppendLine("                        break;");
+            builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
+            builder.AppendLine("                        dictionary[key] = value;");
+            builder.AppendLine("                        break;");
+            builder.AppendLine("                }");
+            builder.AppendLine("            }");
+            builder.AppendLine("            else");
+            builder.AppendLine("            {");
+            builder.AppendLine("                dictionary[key] = value;");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine("        reader.Read();");
+            builder.AppendLine("        return dictionary;");
             builder.AppendLine("    }");
             return;
         }
@@ -950,6 +1141,64 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
+        if (TryGetArrayElementType(member.Type, out var arrayElementType))
+        {
+            builder.Append("                if (").Append(valueExpression).AppendLine(" is null)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    writer.WriteNullValue();");
+            builder.AppendLine("                }");
+            builder.AppendLine("                else");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    writer.WriteStartSequence();");
+            builder.Append("                    for (var i = 0; i < ").Append(valueExpression).AppendLine(".Length; i++)");
+            builder.AppendLine("                    {");
+            builder.Append("                        var element = ").Append(valueExpression).AppendLine("[i];");
+            EmitWriteKnownType(builder, arrayElementType, indexByType, "element", indent: "                        ");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    writer.WriteEndSequence();");
+            builder.AppendLine("                }");
+            return;
+        }
+
+        if (TryGetListElementType(member.Type, out var listElementType))
+        {
+            builder.Append("                if (").Append(valueExpression).AppendLine(" is null)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    writer.WriteNullValue();");
+            builder.AppendLine("                }");
+            builder.AppendLine("                else");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    writer.WriteStartSequence();");
+            builder.Append("                    for (var i = 0; i < ").Append(valueExpression).AppendLine(".Count; i++)");
+            builder.AppendLine("                    {");
+            builder.Append("                        var element = ").Append(valueExpression).AppendLine("[i];");
+            EmitWriteKnownType(builder, listElementType, indexByType, "element", indent: "                        ");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    writer.WriteEndSequence();");
+            builder.AppendLine("                }");
+            return;
+        }
+
+        if (TryGetDictionaryValueType(member.Type, out var dictionaryValueType))
+        {
+            builder.Append("                if (").Append(valueExpression).AppendLine(" is null)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    writer.WriteNullValue();");
+            builder.AppendLine("                }");
+            builder.AppendLine("                else");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    writer.WriteStartMapping();");
+            builder.Append("                    foreach (var pair in ").Append(valueExpression).AppendLine(")");
+            builder.AppendLine("                    {");
+            builder.AppendLine("                        var key = options.DictionaryKeyPolicy?.ConvertName(pair.Key) ?? pair.Key;");
+            builder.AppendLine("                        writer.WritePropertyName(key);");
+            EmitWriteKnownType(builder, dictionaryValueType, indexByType, "pair.Value", indent: "                        ");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    writer.WriteEndMapping();");
+            builder.AppendLine("                }");
+            return;
+        }
+
         if (indexByType.TryGetValue(member.Type, out var typeIndex))
         {
             builder.Append("                WriteValue").Append(typeIndex).Append("(writer, ").Append(valueExpression).AppendLine(", options);");
@@ -1242,6 +1491,110 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
+        if (TryGetArrayElementType(member.Type, out var arrayElementType))
+        {
+            var elementTypeName = arrayElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("                {");
+            builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
+            builder.AppendLine("                    reader.Read();");
+            builder.AppendLine("                }");
+            builder.AppendLine("                else");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+            builder.AppendLine("                    {");
+            builder.AppendLine("                        throw new global::System.InvalidOperationException($\"Expected a sequence token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    reader.Read();");
+            builder.Append("                    var list = new global::System.Collections.Generic.List<").Append(elementTypeName).AppendLine(">();");
+            builder.AppendLine("                    while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+            builder.AppendLine("                    {");
+            EmitReadKnownType(builder, arrayElementType, indexByType, "element", indent: "                        ");
+            builder.AppendLine("                        list.Add(element);");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    reader.Read();");
+            builder.Append("                    ").Append(member.AssignExpression("list.ToArray()")).AppendLine(";");
+            builder.AppendLine("                }");
+            return;
+        }
+
+        if (TryGetListElementType(member.Type, out var listElementType))
+        {
+            var elementTypeName = listElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("                {");
+            builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
+            builder.AppendLine("                    reader.Read();");
+            builder.AppendLine("                }");
+            builder.AppendLine("                else");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+            builder.AppendLine("                    {");
+            builder.AppendLine("                        throw new global::System.InvalidOperationException($\"Expected a sequence token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    reader.Read();");
+            builder.Append("                    var list = new global::System.Collections.Generic.List<").Append(elementTypeName).AppendLine(">();");
+            builder.AppendLine("                    while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+            builder.AppendLine("                    {");
+            EmitReadKnownType(builder, listElementType, indexByType, "element", indent: "                        ");
+            builder.AppendLine("                        list.Add(element);");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    reader.Read();");
+            builder.Append("                    ").Append(member.AssignExpression("list")).AppendLine(";");
+            builder.AppendLine("                }");
+            return;
+        }
+
+        if (TryGetDictionaryValueType(member.Type, out var dictionaryValueType))
+        {
+            var valueTypeName = dictionaryValueType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("                {");
+            builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
+            builder.AppendLine("                    reader.Read();");
+            builder.AppendLine("                }");
+            builder.AppendLine("                else");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+            builder.AppendLine("                    {");
+            builder.AppendLine("                        throw new global::System.InvalidOperationException($\"Expected a mapping token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    reader.Read();");
+            builder.Append("                    var dictionary = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
+                .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
+            builder.AppendLine("                    while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
+            builder.AppendLine("                    {");
+            builder.AppendLine("                        if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+            builder.AppendLine("                        {");
+            builder.AppendLine("                            throw new global::System.InvalidOperationException($\"Expected a scalar key token but found '{reader.TokenType}'.\");");
+            builder.AppendLine("                        }");
+            builder.AppendLine("                        var entryKey = reader.ScalarValue ?? string.Empty;");
+            builder.AppendLine("                        reader.Read();");
+            EmitReadKnownType(builder, dictionaryValueType, indexByType, "value", indent: "                        ");
+            builder.AppendLine("                        if (dictionary.ContainsKey(entryKey))");
+            builder.AppendLine("                        {");
+            builder.AppendLine("                            switch (options.DuplicateKeyHandling)");
+            builder.AppendLine("                            {");
+            builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
+            builder.AppendLine("                                    throw new global::System.InvalidOperationException($\"Duplicate mapping key '{entryKey}'.\");");
+            builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
+            builder.AppendLine("                                    break;");
+            builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
+            builder.AppendLine("                                    dictionary[entryKey] = value;");
+            builder.AppendLine("                                    break;");
+            builder.AppendLine("                            }");
+            builder.AppendLine("                        }");
+            builder.AppendLine("                        else");
+            builder.AppendLine("                        {");
+            builder.AppendLine("                            dictionary[entryKey] = value;");
+            builder.AppendLine("                        }");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    reader.Read();");
+            builder.Append("                    ").Append(member.AssignExpression("dictionary")).AppendLine(";");
+            builder.AppendLine("                }");
+            return;
+        }
+
         if (indexByType.TryGetValue(member.Type, out var typeIndex))
         {
             builder.Append("                ").Append(member.AssignExpression($"ReadValue{typeIndex}(ref reader, options)")).AppendLine(";");
@@ -1504,6 +1857,87 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.Append(indent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this scalar type.\");");
+    }
+
+    private static bool TryGetArrayElementType(ITypeSymbol type, out ITypeSymbol elementType)
+    {
+        if (type is IArrayTypeSymbol arrayType && arrayType.Rank == 1)
+        {
+            elementType = arrayType.ElementType;
+            return true;
+        }
+
+        elementType = null!;
+        return false;
+    }
+
+    private static bool TryGetListElementType(ITypeSymbol type, out ITypeSymbol elementType)
+    {
+        if (type is INamedTypeSymbol named
+            && named.IsGenericType
+            && string.Equals(named.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), "global::System.Collections.Generic.List<T>", StringComparison.Ordinal)
+            && named.TypeArguments.Length == 1)
+        {
+            elementType = named.TypeArguments[0];
+            return true;
+        }
+
+        elementType = null!;
+        return false;
+    }
+
+    private static bool TryGetDictionaryValueType(ITypeSymbol type, out ITypeSymbol valueType)
+    {
+        if (type is INamedTypeSymbol named
+            && named.IsGenericType
+            && string.Equals(named.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), "global::System.Collections.Generic.Dictionary<TKey, TValue>", StringComparison.Ordinal)
+            && named.TypeArguments.Length == 2
+            && named.TypeArguments[0].SpecialType == SpecialType.System_String)
+        {
+            valueType = named.TypeArguments[1];
+            return true;
+        }
+
+        valueType = null!;
+        return false;
+    }
+
+    private static void EmitWriteKnownType(StringBuilder builder, ITypeSymbol typeSymbol, Dictionary<ITypeSymbol, int> indexByType, string valueExpression, string indent)
+    {
+        if (TryEmitWriteScalar(builder, typeSymbol, valueExpression, indent))
+        {
+            return;
+        }
+
+        if (indexByType.TryGetValue(typeSymbol, out var typeIndex))
+        {
+            builder.Append(indent).Append("WriteValue").Append(typeIndex).Append("(writer, ").Append(valueExpression).AppendLine(", options);");
+            return;
+        }
+
+        builder.Append(indent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this element type.\");");
+    }
+
+    private static void EmitReadKnownType(StringBuilder builder, ITypeSymbol typeSymbol, Dictionary<ITypeSymbol, int> indexByType, string valueVarName, string indent)
+    {
+        if (IsKnownScalar(typeSymbol))
+        {
+            builder.Append(indent).AppendLine("if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    throw new global::System.InvalidOperationException($\"Expected a scalar token but found '{reader.TokenType}'.\");");
+            builder.Append(indent).AppendLine("}");
+            EmitReadScalar(builder, typeSymbol, valueVarName, indent: indent);
+            builder.Append(indent).AppendLine("reader.Read();");
+            return;
+        }
+
+        if (indexByType.TryGetValue(typeSymbol, out var typeIndex))
+        {
+            builder.Append(indent).Append("var ").Append(valueVarName).Append(" = ReadValue").Append(typeIndex).AppendLine("(ref reader, options);");
+            return;
+        }
+
+        builder.Append(indent).AppendLine("throw new global::System.NotSupportedException(\"The generated YAML serializer does not support this element type.\");");
     }
 
     private static bool IsKnownScalar(ITypeSymbol type)

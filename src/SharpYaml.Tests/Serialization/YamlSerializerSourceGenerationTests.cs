@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -56,12 +57,29 @@ internal sealed class GeneratedPrimitives
     public GeneratedColor? NullableColor { get; set; }
 }
 
+internal sealed class GeneratedCollections
+{
+    public int[] Numbers { get; set; } = Array.Empty<int>();
+
+    public List<string> Names { get; set; } = new();
+
+    public Dictionary<string, int> Map { get; set; } = new();
+
+    public List<GeneratedPerson> People { get; set; } = new();
+
+    public Dictionary<string, GeneratedPerson> PeopleByName { get; set; } = new();
+}
+
 #pragma warning disable SYSLIB1224
 [JsonSerializable(typeof(GeneratedPerson))]
 [JsonSerializable(typeof(GeneratedContainer))]
 [JsonSerializable(typeof(GeneratedPrimitives))]
 [JsonSerializable(typeof(GeneratedColor))]
 [JsonSerializable(typeof(int?))]
+[JsonSerializable(typeof(GeneratedCollections))]
+[JsonSerializable(typeof(List<int>))]
+[JsonSerializable(typeof(Dictionary<string, int>))]
+[JsonSerializable(typeof(int[]))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
 }
@@ -224,5 +242,76 @@ public class YamlSerializerSourceGenerationTests
         var yamlNull = YamlSerializer.Serialize((int?)null, nullableTypeInfo);
         Assert.AreEqual("null\n", yamlNull);
         Assert.IsNull(YamlSerializer.Deserialize(yamlNull, nullableTypeInfo));
+    }
+
+    [TestMethod]
+    public void GeneratedContextRoundTripsCollectionMembers()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedCollections>();
+
+        var value = new GeneratedCollections
+        {
+            Numbers = new[] { 1, 2, 3 },
+            Names = new List<string> { "Ada", "Bob" },
+            Map = new Dictionary<string, int>
+            {
+                ["one"] = 1,
+                ["two"] = 2,
+            },
+            People = new List<GeneratedPerson>
+            {
+                new GeneratedPerson { FirstName = "Ada", Age = 37 },
+                new GeneratedPerson { FirstName = "Bob", Age = 28 },
+            },
+            PeopleByName = new Dictionary<string, GeneratedPerson>
+            {
+                ["ada"] = new GeneratedPerson { FirstName = "Ada", Age = 37 },
+            },
+        };
+
+        var yaml = YamlSerializer.Serialize(value, typeInfo);
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+
+        Assert.IsNotNull(roundtripped);
+        CollectionAssert.AreEqual(value.Numbers, roundtripped.Numbers);
+        CollectionAssert.AreEqual(value.Names, roundtripped.Names);
+        Assert.AreEqual(2, roundtripped.Map.Count);
+        Assert.AreEqual(1, roundtripped.Map["one"]);
+        Assert.AreEqual(2, roundtripped.Map["two"]);
+        Assert.AreEqual(2, roundtripped.People.Count);
+        Assert.AreEqual("Ada", roundtripped.People[0].FirstName);
+        Assert.AreEqual(37, roundtripped.People[0].Age);
+        Assert.AreEqual("Bob", roundtripped.People[1].FirstName);
+        Assert.AreEqual(28, roundtripped.People[1].Age);
+        Assert.AreEqual("Ada", roundtripped.PeopleByName["ada"].FirstName);
+
+        StringAssert.Contains(yaml, "Numbers:");
+        StringAssert.Contains(yaml, "- 1");
+        StringAssert.Contains(yaml, "Map:");
+        StringAssert.Contains(yaml, "People:");
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsRootCollections()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var listTypeInfo = context.GetTypeInfo<List<int>>();
+        var yamlList = YamlSerializer.Serialize(new List<int> { 1, 2, 3 }, listTypeInfo);
+        var list = YamlSerializer.Deserialize(yamlList, listTypeInfo);
+        Assert.IsNotNull(list);
+        CollectionAssert.AreEqual(new[] { 1, 2, 3 }, list);
+
+        var arrayTypeInfo = context.GetTypeInfo<int[]>();
+        var yamlArray = YamlSerializer.Serialize(new[] { 4, 5 }, arrayTypeInfo);
+        CollectionAssert.AreEqual(new[] { 4, 5 }, YamlSerializer.Deserialize(yamlArray, arrayTypeInfo));
+
+        var dictTypeInfo = context.GetTypeInfo<Dictionary<string, int>>();
+        var yamlDict = YamlSerializer.Serialize(new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 }, dictTypeInfo);
+        var dict = YamlSerializer.Deserialize(yamlDict, dictTypeInfo);
+        Assert.IsNotNull(dict);
+        Assert.AreEqual(1, dict["a"]);
+        Assert.AreEqual(2, dict["b"]);
     }
 }
