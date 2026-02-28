@@ -231,6 +231,48 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
+    public void GeneratedContextCanBeUsedDirectlyWithSerializerOverloads()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var value = new GeneratedPerson
+        {
+            FirstName = "Ada",
+            Age = 37,
+        };
+
+        var yaml = YamlSerializer.Serialize(value, typeof(GeneratedPerson), context);
+        var person = (GeneratedPerson?)YamlSerializer.Deserialize(yaml, typeof(GeneratedPerson), context);
+
+        StringAssert.Contains(yaml, "first_name: Ada");
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(37, person.Age);
+    }
+
+    [TestMethod]
+    public void GenericSerializerUsesTypeInfoResolverFromOptions()
+    {
+        var options = new YamlSerializerOptions
+        {
+            TypeInfoResolver = TestYamlSerializerContext.Default,
+        };
+
+        var value = new GeneratedPerson
+        {
+            FirstName = "Ada",
+            Age = 37,
+        };
+
+        var yaml = YamlSerializer.Serialize(value, options);
+        var person = YamlSerializer.Deserialize<GeneratedPerson>(yaml, options);
+
+        StringAssert.Contains(yaml, "first_name: Ada");
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(37, person.Age);
+    }
+
+    [TestMethod]
     public void GeneratedContextDefaultAppliesJsonSourceGenerationOptions()
     {
         var context = TestYamlSerializerContextWithOptions.Default;

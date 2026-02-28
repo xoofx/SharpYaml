@@ -18,14 +18,24 @@ Core APIs:
 
 - `Serialize<T>(T value, YamlSerializerOptions? options = null)`
 - `Serialize(object? value, Type inputType, YamlSerializerOptions? options = null)`
+- `Serialize<T>(T value, YamlSerializerContext context)`
+- `Serialize(object? value, Type inputType, YamlSerializerContext context)`
 - `Serialize<T>(TextWriter writer, T value, YamlSerializerOptions? options = null)`
 - `Serialize(TextWriter writer, object? value, Type inputType, YamlSerializerOptions? options = null)`
+- `Serialize<T>(TextWriter writer, T value, YamlSerializerContext context)`
+- `Serialize(TextWriter writer, object? value, Type inputType, YamlSerializerContext context)`
 - `Deserialize<T>(string yaml, YamlSerializerOptions? options = null)`
 - `Deserialize(string yaml, Type returnType, YamlSerializerOptions? options = null)`
+- `Deserialize<T>(string yaml, YamlSerializerContext context)`
+- `Deserialize(string yaml, Type returnType, YamlSerializerContext context)`
 - `Deserialize<T>(TextReader reader, YamlSerializerOptions? options = null)`
 - `Deserialize(TextReader reader, Type returnType, YamlSerializerOptions? options = null)`
+- `Deserialize<T>(TextReader reader, YamlSerializerContext context)`
+- `Deserialize(TextReader reader, Type returnType, YamlSerializerContext context)`
 - `Deserialize<T>(ReadOnlySpan<char> yaml, YamlSerializerOptions? options = null)`
 - `Deserialize(ReadOnlySpan<char> yaml, Type returnType, YamlSerializerOptions? options = null)`
+- `Deserialize<T>(ReadOnlySpan<char> yaml, YamlSerializerContext context)`
+- `Deserialize(ReadOnlySpan<char> yaml, Type returnType, YamlSerializerContext context)`
 
 Metadata APIs:
 
@@ -112,6 +122,16 @@ var context = new MyYamlContext();
 var typeInfo = context.GetTypeInfo<MyModel>();
 var yaml = YamlSerializer.Serialize(model, typeInfo);
 var model2 = YamlSerializer.Deserialize(yaml, typeInfo);
+
+var yamlFromContext = YamlSerializer.Serialize(model, typeof(MyModel), MyYamlContext.Default);
+var modelFromContext = (MyModel?)YamlSerializer.Deserialize(yamlFromContext, typeof(MyModel), MyYamlContext.Default);
+
+var options = new YamlSerializerOptions
+{
+    TypeInfoResolver = MyYamlContext.Default
+};
+var yamlFromResolver = YamlSerializer.Serialize(model, options);
+var modelFromResolver = YamlSerializer.Deserialize<MyModel>(yamlFromResolver, options);
 ```
 
 ## Removed Legacy Surface
