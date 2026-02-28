@@ -316,6 +316,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("    }");
         builder.AppendLine();
 
+        var typeInfoPropertyNames = CreateTypeInfoPropertyNames(model, types);
+
         for (var index = 0; index < types.Length; index++)
         {
             var serializableType = types[index].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -354,7 +356,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         for (var index = 0; index < types.Length; index++)
         {
             var serializableType = types[index].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            builder.Append("    public global::SharpYaml.YamlTypeInfo<").Append(serializableType).Append("> TypeInfo").Append(index).AppendLine();
+            var propertyName = typeInfoPropertyNames[index];
+            builder.Append("    public global::SharpYaml.YamlTypeInfo<").Append(serializableType).Append("> ").Append(propertyName).AppendLine();
             builder.AppendLine("    {");
             builder.Append("        get => _typeInfo").Append(index).Append(" ??= new GeneratedTypeInfo").Append(index).AppendLine("(Options);");
             builder.AppendLine("    }");
@@ -364,7 +367,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("    {");
             builder.AppendLine("        if (global::System.Object.ReferenceEquals(options, Options))");
             builder.AppendLine("        {");
-            builder.Append("            return TypeInfo").Append(index).AppendLine(";");
+            builder.Append("            return ").Append(propertyName).AppendLine(";");
             builder.AppendLine("        }");
             builder.AppendLine();
             builder.Append("        return new GeneratedTypeInfo").Append(index).AppendLine("(options);");
@@ -2990,6 +2993,135 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             unknownOverrideValue,
             derivedTypes.ToImmutable());
         return true;
+    }
+
+    private static ImmutableArray<string> CreateTypeInfoPropertyNames(ContextModel model, ImmutableArray<ITypeSymbol> types)
+    {
+        var names = ImmutableArray.CreateBuilder<string>(types.Length);
+        var usedNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var member in model.ContextSymbol.GetMembers())
+        {
+            usedNames.Add(member.Name);
+        }
+
+        usedNames.Add("Default");
+        usedNames.Add("Options");
+        usedNames.Add("TypeInfo");
+        usedNames.Add("GetTypeInfo");
+
+        for (var i = 0; i < types.Length; i++)
+        {
+            var baseName = SanitizeTypeInfoPropertyName(BuildTypeInfoPropertyBaseName(types[i]));
+            if (string.IsNullOrEmpty(baseName))
+            {
+                baseName = "TypeInfo";
+            }
+
+            var candidate = baseName;
+            var suffix = 1;
+            while (!SyntaxFacts.IsValidIdentifier(candidate) || usedNames.Contains(candidate))
+            {
+                candidate = baseName + suffix.ToString();
+                suffix++;
+            }
+
+            usedNames.Add(candidate);
+            names.Add(candidate);
+        }
+
+        return names.ToImmutable();
+    }
+
+    private static string BuildTypeInfoPropertyBaseName(ITypeSymbol typeSymbol)
+    {
+        if (typeSymbol is IArrayTypeSymbol arrayType)
+        {
+            var elementName = BuildTypeInfoPropertyBaseName(arrayType.ElementType);
+            return arrayType.Rank == 1
+                ? elementName + "Array"
+                : elementName + arrayType.Rank.ToString() + "DArray";
+        }
+
+        if (typeSymbol is INamedTypeSymbol namedType)
+        {
+            if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T && namedType.TypeArguments.Length == 1)
+            {
+                return "Nullable" + BuildTypeInfoPropertyBaseName(namedType.TypeArguments[0]);
+            }
+
+            var name = new StringBuilder();
+            AppendContainingTypeNames(name, namedType.ContainingType);
+            name.Append(StripGenericArity(namedType.Name));
+            if (namedType.IsGenericType)
+            {
+                for (var i = 0; i < namedType.TypeArguments.Length; i++)
+                {
+                    name.Append(BuildTypeInfoPropertyBaseName(namedType.TypeArguments[i]));
+                }
+            }
+
+            return name.ToString();
+        }
+
+        if (!string.IsNullOrEmpty(typeSymbol.Name))
+        {
+            return typeSymbol.Name;
+        }
+
+        return typeSymbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+    }
+
+    private static void AppendContainingTypeNames(StringBuilder builder, INamedTypeSymbol? containingType)
+    {
+        if (containingType is null)
+        {
+            return;
+        }
+
+        AppendContainingTypeNames(builder, containingType.ContainingType);
+        builder.Append(StripGenericArity(containingType.Name));
+    }
+
+    private static string StripGenericArity(string typeName)
+    {
+        var tickIndex = typeName.IndexOf('`');
+        return tickIndex >= 0 ? typeName.Substring(0, tickIndex) : typeName;
+    }
+
+    private static string SanitizeTypeInfoPropertyName(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return "TypeInfo";
+        }
+
+        var builder = new StringBuilder(text.Length + 1);
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (char.IsLetterOrDigit(c) || c == '_')
+            {
+                builder.Append(c);
+            }
+        }
+
+        if (builder.Length == 0)
+        {
+            return "TypeInfo";
+        }
+
+        if (!char.IsLetter(builder[0]) && builder[0] != '_')
+        {
+            builder.Insert(0, '_');
+        }
+
+        var candidate = builder.ToString();
+        if (SyntaxFacts.GetKeywordKind(candidate) != SyntaxKind.None)
+        {
+            candidate += "Value";
+        }
+
+        return candidate;
     }
 
     private static void ApplySourceGenerationOptionsAttribute(AttributeData attribute, SourceGenerationOptionsModel model)

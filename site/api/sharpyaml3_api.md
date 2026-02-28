@@ -123,6 +123,9 @@ var typeInfo = context.GetTypeInfo<MyModel>();
 var yaml = YamlSerializer.Serialize(model, typeInfo);
 var model2 = YamlSerializer.Deserialize(yaml, typeInfo);
 
+var yamlViaProperty = YamlSerializer.Serialize(model, context.MyModel);
+var modelViaProperty = YamlSerializer.Deserialize(yamlViaProperty, context.MyModel);
+
 var yamlFromContext = YamlSerializer.Serialize(model, typeof(MyModel), MyYamlContext.Default);
 var modelFromContext = (MyModel?)YamlSerializer.Deserialize(yamlFromContext, typeof(MyModel), MyYamlContext.Default);
 
@@ -133,6 +136,13 @@ var options = new YamlSerializerOptions
 var yamlFromResolver = YamlSerializer.Serialize(model, options);
 var modelFromResolver = YamlSerializer.Deserialize<MyModel>(yamlFromResolver, options);
 ```
+
+Generated type info property naming follows Json-style patterns:
+
+- Simple CLR types: `Boolean`, `Int32`, `WeatherForecast`
+- Nullable: `NullableInt32`
+- Arrays: `Int32Array`
+- Closed generics: `ListInt32`, `DictionaryStringInt32`
 
 ## Removed Legacy Surface
 

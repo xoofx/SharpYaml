@@ -141,6 +141,8 @@ internal sealed class ConstantIntConverter : YamlConverter<int>
 [JsonSerializable(typeof(GeneratedContainer))]
 [JsonSerializable(typeof(GeneratedPrimitives))]
 [JsonSerializable(typeof(GeneratedColor))]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(int?))]
 [JsonSerializable(typeof(GeneratedCollections))]
 [JsonSerializable(typeof(List<int>))]
@@ -202,6 +204,34 @@ public class YamlSerializerSourceGenerationTests
         var person = YamlSerializer.Deserialize(yaml, typeInfo);
 
         StringAssert.Contains(yaml, "first_name");
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(37, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextExposesJsonLikeTypeInfoPropertyNames()
+    {
+        var context = TestYamlSerializerContext.Default;
+
+        Assert.IsNotNull(context.GeneratedPerson);
+        Assert.IsNotNull(context.Boolean);
+        Assert.IsNotNull(context.Int32);
+        Assert.IsNotNull(context.NullableInt32);
+        Assert.IsNotNull(context.ListInt32);
+        Assert.IsNotNull(context.DictionaryStringInt32);
+        Assert.IsNotNull(context.Int32Array);
+
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedPerson
+            {
+                FirstName = "Ada",
+                Age = 37,
+            },
+            context.GeneratedPerson);
+        var person = YamlSerializer.Deserialize(yaml, context.GeneratedPerson);
+
+        StringAssert.Contains(yaml, "first_name: Ada");
         Assert.IsNotNull(person);
         Assert.AreEqual("Ada", person.FirstName);
         Assert.AreEqual(37, person.Age);
