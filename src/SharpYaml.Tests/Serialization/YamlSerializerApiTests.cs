@@ -30,15 +30,49 @@ public class YamlSerializerApiTests
         {
         }
 
-        public override string Serialize(string value)
+        public override void Write(YamlWriter writer, string value)
         {
-            return $"value: {value}";
+            writer.WriteStartMapping();
+            writer.WritePropertyName("value");
+            writer.WriteScalar(value);
+            writer.WriteEndMapping();
         }
 
-        public override string Deserialize(string yaml)
+        public override string Read(ref YamlReader reader)
         {
-            var parts = yaml.Split(':', 2);
-            return parts.Length == 2 ? parts[1].Trim() : string.Empty;
+            if (reader.TokenType != YamlTokenType.StartMapping)
+            {
+                throw YamlThrowHelper.ThrowExpectedMapping(ref reader);
+            }
+
+            reader.Read();
+            var value = string.Empty;
+            while (reader.TokenType != YamlTokenType.EndMapping)
+            {
+                if (reader.TokenType != YamlTokenType.Scalar)
+                {
+                    throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
+                }
+
+                var key = reader.ScalarValue ?? string.Empty;
+                reader.Read();
+                if (string.Equals(key, "value", StringComparison.Ordinal))
+                {
+                    if (reader.TokenType != YamlTokenType.Scalar)
+                    {
+                        throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
+                    }
+
+                    value = reader.ScalarValue ?? string.Empty;
+                    reader.Read();
+                    continue;
+                }
+
+                reader.Skip();
+            }
+
+            reader.Read();
+            return value;
         }
     }
 
@@ -163,7 +197,7 @@ public class YamlSerializerApiTests
         var yaml = YamlSerializer.Serialize("hello", typeInfo);
         var value = YamlSerializer.Deserialize(yaml, typeInfo);
 
-        Assert.AreEqual("value: hello", yaml);
+        Assert.AreEqual("value: hello\n", yaml);
         Assert.AreEqual("hello", value);
     }
 
@@ -179,7 +213,7 @@ public class YamlSerializerApiTests
         var yaml = YamlSerializer.Serialize("hello", typeof(string), options);
         var value = YamlSerializer.Deserialize(yaml, typeof(string), options);
 
-        Assert.AreEqual("value: hello", yaml);
+        Assert.AreEqual("value: hello\n", yaml);
         Assert.AreEqual("hello", value);
     }
 

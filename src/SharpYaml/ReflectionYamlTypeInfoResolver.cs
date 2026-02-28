@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 using SharpYaml.Serialization;
 using SharpYaml.Serialization.Converters;
@@ -20,24 +19,14 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
             _converter = converter;
         }
 
-        public override string SerializeAsString(object? value)
+        public override void Write(YamlWriter writer, object? value)
         {
-            using var writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
-            var yamlWriter = new YamlWriter(writer, Options);
-            _converter.Write(yamlWriter, value, Options);
-            var text = writer.ToString();
-            return text.EndsWith("\n", StringComparison.Ordinal) ? text : text + "\n";
+            ArgumentNullException.ThrowIfNull(writer);
+            _converter.Write(writer, value, Options);
         }
 
-        public override object? DeserializeFromString(string yaml)
+        public override object? ReadAsObject(ref YamlReader reader)
         {
-            ArgumentNullException.ThrowIfNull(yaml);
-            var reader = YamlReader.Create(yaml, Options);
-            if (!reader.Read())
-            {
-                return null;
-            }
-
             return _converter.Read(ref reader, Type, Options);
         }
     }

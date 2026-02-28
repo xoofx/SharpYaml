@@ -53,6 +53,36 @@ public sealed class YamlWriterTests
     }
 
     [TestMethod]
+    public void Constructor_WithStringBuilder_WritesExpectedYaml()
+    {
+        var options = new YamlSerializerOptions { WriteIndented = true, IndentSize = 2 };
+        var buffer = new System.Text.StringBuilder();
+        var writer = new YamlWriter(buffer, options);
+
+        writer.WriteStartMapping();
+        writer.WritePropertyName("enabled");
+        writer.WriteScalar(true);
+        writer.WritePropertyName("port");
+        writer.WriteScalar(5432);
+        writer.WriteEndMapping();
+
+        Assert.AreEqual("enabled: true\nport: 5432", buffer.ToString());
+    }
+
+    [TestMethod]
+    public void CharacterScalar_WithSpecialCharacter_IsQuoted()
+    {
+        var options = new YamlSerializerOptions { WriteIndented = true, IndentSize = 2 };
+        var writer = CreateWriter(options, out var buffer);
+
+        writer.WriteStartSequence();
+        writer.WriteScalar(':');
+        writer.WriteEndSequence();
+
+        Assert.AreEqual("- \":\"", buffer.ToString());
+    }
+
+    [TestMethod]
     public void EmptyContainers_AreWrittenInline()
     {
         var options = new YamlSerializerOptions { WriteIndented = true, IndentSize = 2 };
@@ -90,4 +120,3 @@ public sealed class YamlWriterTests
         return new YamlWriter(buffer, options);
     }
 }
-

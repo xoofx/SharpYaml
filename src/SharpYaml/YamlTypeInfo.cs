@@ -1,4 +1,5 @@
 using System;
+using SharpYaml.Serialization;
 
 namespace SharpYaml;
 
@@ -35,19 +36,19 @@ public abstract class YamlTypeInfo
     public YamlSerializerOptions Options { get; }
 
     /// <summary>
-    /// Serializes a value as YAML text.
+    /// Writes a value to an existing YAML writer.
     /// </summary>
+    /// <param name="writer">The writer that receives the value payload.</param>
     /// <param name="value">The value to serialize.</param>
-    /// <returns>The YAML payload.</returns>
-    public abstract string SerializeAsString(object? value);
+    /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
+    public abstract void Write(YamlWriter writer, object? value);
 
     /// <summary>
-    /// Deserializes YAML text into a value.
+    /// Reads a value from an existing YAML reader.
     /// </summary>
-    /// <param name="yaml">The YAML payload.</param>
+    /// <param name="reader">The reader positioned on the value token.</param>
     /// <returns>The deserialized value.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
-    public abstract object? DeserializeFromString(string yaml);
+    public abstract object? ReadAsObject(ref YamlReader reader);
 }
 
 /// <summary>
@@ -65,30 +66,31 @@ public abstract class YamlTypeInfo<T> : YamlTypeInfo
     }
 
     /// <summary>
-    /// Serializes a value as YAML text.
+    /// Writes a value to an existing YAML writer.
     /// </summary>
+    /// <param name="writer">The writer that receives the value payload.</param>
     /// <param name="value">The value to serialize.</param>
-    /// <returns>The YAML payload.</returns>
-    public abstract string Serialize(T value);
+    /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
+    public abstract void Write(YamlWriter writer, T value);
 
     /// <summary>
-    /// Deserializes YAML text into a value.
+    /// Reads a value from an existing YAML reader.
     /// </summary>
-    /// <param name="yaml">The YAML payload.</param>
+    /// <param name="reader">The reader positioned on the value token.</param>
     /// <returns>The deserialized value.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
-    public abstract T? Deserialize(string yaml);
+    public abstract T? Read(ref YamlReader reader);
 
     /// <inheritdoc />
-    public override string SerializeAsString(object? value)
+    public override void Write(YamlWriter writer, object? value)
     {
-        return Serialize((T)value!);
+        ArgumentNullException.ThrowIfNull(writer);
+        Write(writer, (T)value!);
     }
 
     /// <inheritdoc />
-    public override object? DeserializeFromString(string yaml)
+    public override object? ReadAsObject(ref YamlReader reader)
     {
-        return Deserialize(yaml);
+        return Read(ref reader);
     }
 }
 

@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Text;
+using SharpYaml.Serialization;
 
 namespace SharpYaml;
 
@@ -10,6 +12,8 @@ public static class YamlSerializer
 {
     private const string ReflectionSwitchName = "SharpYaml.YamlSerializer.IsReflectionEnabledByDefault";
     private static readonly bool ReflectionEnabledByDefault = AppContext.TryGetSwitch(ReflectionSwitchName, out var enabledBySwitch) ? enabledBySwitch : true;
+    [ThreadStatic]
+    private static StringBuilder? s_cachedStringBuilder;
 
     /// <summary>
     /// Gets a value indicating whether reflection-based serialization is enabled by default.
@@ -45,7 +49,7 @@ public static class YamlSerializer
 
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var typeInfo = ResolveTypeInfo(effectiveOptions, inputType);
-        return typeInfo.SerializeAsString(value);
+        return SerializeCore(typeInfo, value);
     }
 
     /// <summary>
@@ -107,7 +111,7 @@ public static class YamlSerializer
 
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var typeInfo = ResolveTypeInfo(effectiveOptions, returnType);
-        return typeInfo.DeserializeFromString(yaml);
+        return DeserializeCore(typeInfo, yaml);
     }
 
     /// <summary>
@@ -174,7 +178,7 @@ public static class YamlSerializer
     public static string Serialize<T>(T value, YamlTypeInfo<T> typeInfo)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
-        return typeInfo.Serialize(value);
+        return SerializeCore(typeInfo, value);
     }
 
     /// <summary>
@@ -189,7 +193,7 @@ public static class YamlSerializer
     {
         ArgumentNullException.ThrowIfNull(yaml);
         ArgumentNullException.ThrowIfNull(typeInfo);
-        return typeInfo.Deserialize(yaml);
+        return DeserializeCore(typeInfo, yaml);
     }
 
     /// <summary>
@@ -203,7 +207,93 @@ public static class YamlSerializer
     public static T? Deserialize<T>(ReadOnlySpan<char> yaml, YamlTypeInfo<T> typeInfo)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
-        return typeInfo.Deserialize(yaml.ToString());
+        return DeserializeCore(typeInfo, yaml.ToString());
+    }
+
+    private static string SerializeCore(YamlTypeInfo typeInfo, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
+        var writer = new YamlWriter(stringBuilder, typeInfo.Options);
+        typeInfo.Write(writer, value);
+        if (stringBuilder.Length == 0 || stringBuilder[stringBuilder.Length - 1] != '\n')
+        {
+            stringBuilder.Append('\n');
+        }
+
+        return GetStringAndReleaseBuilder(stringBuilder);
+    }
+
+    private static string SerializeCore<T>(YamlTypeInfo<T> typeInfo, T value)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
+        var writer = new YamlWriter(stringBuilder, typeInfo.Options);
+        typeInfo.Write(writer, value);
+        if (stringBuilder.Length == 0 || stringBuilder[stringBuilder.Length - 1] != '\n')
+        {
+            stringBuilder.Append('\n');
+        }
+
+        return GetStringAndReleaseBuilder(stringBuilder);
+    }
+
+    private static object? DeserializeCore(YamlTypeInfo typeInfo, string yaml)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        ArgumentNullException.ThrowIfNull(yaml);
+
+        var reader = YamlReader.Create(yaml, typeInfo.Options);
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return typeInfo.ReadAsObject(ref reader);
+    }
+
+    private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, string yaml)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        ArgumentNullException.ThrowIfNull(yaml);
+
+        var reader = YamlReader.Create(yaml, typeInfo.Options);
+        if (!reader.Read())
+        {
+            return default;
+        }
+
+        return typeInfo.Read(ref reader);
+    }
+
+    private static StringBuilder AcquireStringBuilder(int minimumCapacity)
+    {
+        var cached = s_cachedStringBuilder;
+        if (cached is not null)
+        {
+            s_cachedStringBuilder = null;
+            cached.Clear();
+            if (cached.Capacity < minimumCapacity)
+            {
+                cached.EnsureCapacity(minimumCapacity);
+            }
+
+            return cached;
+        }
+
+        return new StringBuilder(minimumCapacity);
+    }
+
+    private static string GetStringAndReleaseBuilder(StringBuilder builder)
+    {
+        var result = builder.ToString();
+        if (builder.Capacity <= 1024 * 1024)
+        {
+            builder.Clear();
+            s_cachedStringBuilder = builder;
+        }
+
+        return result;
     }
 
     private static void EnsureReflectionAvailable(YamlSerializerOptions options, Type requestedType)

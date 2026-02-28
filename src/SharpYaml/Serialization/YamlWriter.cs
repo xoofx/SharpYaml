@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using SharpYaml.Serialization.References;
@@ -10,7 +11,8 @@ namespace SharpYaml.Serialization;
 /// </summary>
 public sealed class YamlWriter
 {
-    private readonly TextWriter _writer;
+    private readonly TextWriter? _writer;
+    private readonly StringBuilder? _stringBuilder;
     private readonly YamlSerializerOptions _options;
     private readonly YamlReferenceWriter? _referenceWriter;
     private readonly StringBuilder _indentBuilder = new();
@@ -33,7 +35,19 @@ public sealed class YamlWriter
         _referenceWriter = _options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
     }
 
-    internal TextWriter Writer => _writer;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="YamlWriter"/> class that writes directly to a <see cref="StringBuilder"/>.
+    /// </summary>
+    /// <param name="stringBuilder">The destination string builder.</param>
+    /// <param name="options">The serializer options used for formatting.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="stringBuilder"/> is <see langword="null"/>.</exception>
+    public YamlWriter(StringBuilder stringBuilder, YamlSerializerOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(stringBuilder);
+        _stringBuilder = stringBuilder;
+        _options = options ?? YamlSerializerOptions.Default;
+        _referenceWriter = _options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
+    }
 
     internal YamlReferenceWriter? ReferenceWriter => _referenceWriter;
 
@@ -112,8 +126,8 @@ public sealed class YamlWriter
         }
 
         WriteValuePrefixForAlias();
-        _writer.Write('*');
-        _writer.Write(alias);
+        Write('*');
+        Write(alias);
         CompleteValueAfterScalar();
     }
 
@@ -168,6 +182,7 @@ public sealed class YamlWriter
     /// <exception cref="InvalidOperationException">The writer is not positioned within a mapping key.</exception>
     public void WritePropertyName(string name)
     {
+        ArgumentNullException.ThrowIfNull(name);
         if (_depth == 0 || _frames[_depth - 1].Kind != ContainerKind.Mapping)
         {
             throw new InvalidOperationException("Property names can only be written inside a mapping.");
@@ -188,7 +203,7 @@ public sealed class YamlWriter
 
         WriteIndent();
         WriteScalarCore(name, isKey: true);
-        _writer.Write(':');
+        Write(':');
 
         frame.HasContent = true;
         frame.ExpectingKey = false;
@@ -204,13 +219,209 @@ public sealed class YamlWriter
 
         if (value is null)
         {
-            _writer.Write("null");
+            Write("null");
             CompleteValueAfterScalar();
             return;
         }
 
         WriteScalarCore(value, isKey: false);
         CompleteValueAfterScalar();
+    }
+
+    /// <summary>
+    /// Writes a scalar value from a character span.
+    /// </summary>
+    /// <param name="value">The scalar text.</param>
+    public void WriteScalar(ReadOnlySpan<char> value)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+        WriteScalarCore(value, isKey: false);
+        CompleteValueAfterScalar();
+    }
+
+    /// <summary>
+    /// Writes a boolean scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(bool value)
+    {
+        WritePlainScalar(value ? "true" : "false");
+    }
+
+    /// <summary>
+    /// Writes an 8-bit unsigned integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(byte value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes an 8-bit signed integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(sbyte value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a 16-bit signed integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(short value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a 16-bit unsigned integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(ushort value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a 32-bit signed integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(int value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a 32-bit unsigned integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(uint value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a 64-bit signed integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(long value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a 64-bit unsigned integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(ulong value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a decimal scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(decimal value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a platform-sized signed integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(nint value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a platform-sized unsigned integer scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(nuint value)
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a character scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(char value)
+    {
+        Span<char> span = stackalloc char[1];
+        span[0] = value;
+        WriteScalar(span);
+    }
+
+    /// <summary>
+    /// Writes a double-precision floating-point scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(double value)
+    {
+        if (double.IsPositiveInfinity(value))
+        {
+            WritePlainScalar(".inf");
+            return;
+        }
+
+        if (double.IsNegativeInfinity(value))
+        {
+            WritePlainScalar("-.inf");
+            return;
+        }
+
+        if (double.IsNaN(value))
+        {
+            WritePlainScalar(".nan");
+            return;
+        }
+
+        WriteSpanFormattableScalar(value, format: "R", plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a single-precision floating-point scalar value.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar(float value)
+    {
+        if (float.IsPositiveInfinity(value))
+        {
+            WritePlainScalar(".inf");
+            return;
+        }
+
+        if (float.IsNegativeInfinity(value))
+        {
+            WritePlainScalar("-.inf");
+            return;
+        }
+
+        if (float.IsNaN(value))
+        {
+            WritePlainScalar(".nan");
+            return;
+        }
+
+        WriteSpanFormattableScalar(value, format: "R", plainSafe: true);
+    }
+
+    /// <summary>
+    /// Writes a scalar value for a span-formattable type using invariant culture formatting.
+    /// </summary>
+    /// <typeparam name="T">The value type to write.</typeparam>
+    /// <param name="value">The value to write.</param>
+    public void WriteScalar<T>(T value)
+        where T : ISpanFormattable
+    {
+        WriteSpanFormattableScalar(value, format: default, plainSafe: false);
     }
 
     /// <summary>
@@ -235,7 +446,7 @@ public sealed class YamlWriter
                 throw new InvalidOperationException("A scalar value cannot be written when a key is expected.");
             }
 
-            _writer.Write(' ');
+            Write(' ');
             return;
         }
 
@@ -245,7 +456,7 @@ public sealed class YamlWriter
         }
 
         WriteIndent();
-        _writer.Write("- ");
+        Write("- ");
         frame.HasContent = true;
     }
 
@@ -266,7 +477,7 @@ public sealed class YamlWriter
                 throw new InvalidOperationException("An alias value cannot be written when a key is expected.");
             }
 
-            _writer.Write(' ');
+            Write(' ');
             return;
         }
 
@@ -276,7 +487,7 @@ public sealed class YamlWriter
         }
 
         WriteIndent();
-        _writer.Write("- ");
+        Write("- ");
         frame.HasContent = true;
     }
 
@@ -289,14 +500,14 @@ public sealed class YamlWriter
 
         if (writeLeadingSpace)
         {
-            _writer.Write(' ');
+            Write(' ');
         }
 
         var wroteAny = false;
         if (_pendingAnchor is not null)
         {
-            _writer.Write('&');
-            _writer.Write(_pendingAnchor);
+            Write('&');
+            Write(_pendingAnchor);
             wroteAny = true;
         }
 
@@ -304,10 +515,10 @@ public sealed class YamlWriter
         {
             if (wroteAny)
             {
-                _writer.Write(' ');
+                Write(' ');
             }
 
-            _writer.Write(_pendingTag);
+            Write(_pendingTag);
             wroteAny = true;
         }
 
@@ -316,7 +527,7 @@ public sealed class YamlWriter
 
         if (writeTrailingSpace && wroteAny)
         {
-            _writer.Write(' ');
+            Write(' ');
         }
     }
 
@@ -402,7 +613,7 @@ public sealed class YamlWriter
                 }
 
                 WriteIndent();
-                _writer.Write('-');
+                Write('-');
                 if (_pendingAnchor is not null || _pendingTag is not null)
                 {
                     WriteNodeProperties(writeLeadingSpace: true, writeTrailingSpace: false);
@@ -440,12 +651,12 @@ public sealed class YamlWriter
     {
         if ((pendingStart == PendingStartKind.None || pendingStart == PendingStartKind.Root) && _depth == 0)
         {
-            _writer.Write(kind == ContainerKind.Mapping ? "{}" : "[]");
+            Write(kind == ContainerKind.Mapping ? "{}" : "[]");
             return;
         }
 
-        _writer.Write(' ');
-        _writer.Write(kind == ContainerKind.Mapping ? "{}" : "[]");
+        Write(' ');
+        Write(kind == ContainerKind.Mapping ? "{}" : "[]");
     }
 
     private void WriteIndent()
@@ -468,34 +679,57 @@ public sealed class YamlWriter
             _indentBuilder.Append(' ', spaces);
         }
 
-        _writer.Write(_indentBuilder);
+        Write(_indentBuilder);
     }
 
     private void WriteNewLine()
     {
-        _writer.Write('\n');
+        Write('\n');
+    }
+
+    private void WriteSpanFormattableScalar<T>(T value, ReadOnlySpan<char> format, bool plainSafe)
+        where T : ISpanFormattable
+    {
+        Span<char> buffer = stackalloc char[64];
+        if (!value.TryFormat(buffer, out var written, format, CultureInfo.InvariantCulture))
+        {
+            throw new InvalidOperationException($"Unable to format scalar value of type '{typeof(T)}'.");
+        }
+
+        if (plainSafe)
+        {
+            WritePlainScalar(buffer[..written]);
+            return;
+        }
+
+        WriteScalar(buffer[..written]);
     }
 
     private void WriteScalarCore(string value, bool isKey)
     {
+        WriteScalarCore(value.AsSpan(), isKey);
+    }
+
+    private void WriteScalarCore(ReadOnlySpan<char> value, bool isKey)
+    {
         if (value.Length == 0)
         {
-            _writer.Write("''");
+            Write("''");
             return;
         }
 
         if (IsPlainSafe(value, isKey))
         {
-            _writer.Write(value);
+            Write(value);
             return;
         }
 
-        _writer.Write('"');
+        Write('"');
         WriteEscaped(value);
-        _writer.Write('"');
+        Write('"');
     }
 
-    private static bool IsPlainSafe(string value, bool isKey)
+    private static bool IsPlainSafe(ReadOnlySpan<char> value, bool isKey)
     {
         // Keep it conservative: if in doubt, quote.
         if (value.Length == 0)
@@ -508,15 +742,15 @@ public sealed class YamlWriter
             return false;
         }
 
-        if (value.Contains('\n') || value.Contains('\r') || value.Contains('\t'))
-        {
-            return false;
-        }
-
         // Disallow YAML special characters and common ambiguities.
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
+            if (c is '\n' or '\r' or '\t')
+            {
+                return false;
+            }
+
             // Control characters (including NUL) must be quoted and escaped.
             if (char.IsControl(c))
             {
@@ -528,12 +762,13 @@ public sealed class YamlWriter
             }
         }
 
-        if (!isKey && (value.StartsWith("- ", StringComparison.Ordinal) || value.StartsWith("? ", StringComparison.Ordinal)))
+        if (!isKey && value.Length >= 2 &&
+            ((value[0] == '-' && value[1] == ' ') || (value[0] == '?' && value[1] == ' ')))
         {
             return false;
         }
 
-        if (isKey && value == "-")
+        if (isKey && value.Length == 1 && value[0] == '-')
         {
             return false;
         }
@@ -541,7 +776,7 @@ public sealed class YamlWriter
         return true;
     }
 
-    private void WriteEscaped(string value)
+    private void WriteEscaped(ReadOnlySpan<char> value)
     {
         for (var i = 0; i < value.Length; i++)
         {
@@ -549,33 +784,93 @@ public sealed class YamlWriter
             switch (c)
             {
                 case '\\':
-                    _writer.Write("\\\\");
+                    Write("\\\\");
                     break;
                 case '"':
-                    _writer.Write("\\\"");
+                    Write("\\\"");
                     break;
                 case '\n':
-                    _writer.Write("\\n");
+                    Write("\\n");
                     break;
                 case '\r':
-                    _writer.Write("\\r");
+                    Write("\\r");
                     break;
                 case '\t':
-                    _writer.Write("\\t");
+                    Write("\\t");
                     break;
                 default:
                     if (char.IsControl(c))
                     {
-                        _writer.Write("\\u");
-                        _writer.Write(((int)c).ToString("X4", global::System.Globalization.CultureInfo.InvariantCulture));
+                        Write("\\u");
+                        Write(((int)c).ToString("X4", CultureInfo.InvariantCulture));
                     }
                     else
                     {
-                    _writer.Write(c);
+                        Write(c);
                     }
                     break;
             }
         }
+    }
+
+    private void WritePlainScalar(string value)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+        Write(value);
+        CompleteValueAfterScalar();
+    }
+
+    private void WritePlainScalar(ReadOnlySpan<char> value)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+        Write(value);
+        CompleteValueAfterScalar();
+    }
+
+    private void Write(string value)
+    {
+        if (_stringBuilder is not null)
+        {
+            _stringBuilder.Append(value);
+            return;
+        }
+
+        _writer!.Write(value);
+    }
+
+    private void Write(char value)
+    {
+        if (_stringBuilder is not null)
+        {
+            _stringBuilder.Append(value);
+            return;
+        }
+
+        _writer!.Write(value);
+    }
+
+    private void Write(ReadOnlySpan<char> value)
+    {
+        if (_stringBuilder is not null)
+        {
+            _stringBuilder.Append(value);
+            return;
+        }
+
+        _writer!.Write(value);
+    }
+
+    private void Write(StringBuilder value)
+    {
+        if (_stringBuilder is not null)
+        {
+            _stringBuilder.Append(value);
+            return;
+        }
+
+        _writer!.Write(value);
     }
 
     private enum ContainerKind
