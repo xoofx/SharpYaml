@@ -1,0 +1,72 @@
+#nullable enable
+
+using System.Collections.Generic;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharpYaml.Serialization;
+
+namespace SharpYaml.Tests.Serialization;
+
+[TestClass]
+public sealed class YamlSerializerOptionsImmutabilityTests
+{
+    private sealed class NoopInt32Converter : YamlConverter<int>
+    {
+        public override int Read(ref YamlReader reader, SharpYaml.YamlSerializerOptions options)
+        {
+            reader.Skip();
+            return 0;
+        }
+
+        public override void Write(YamlWriter writer, int value, SharpYaml.YamlSerializerOptions options)
+        {
+            writer.WriteScalar(value);
+        }
+    }
+
+    [TestMethod]
+    public void Converters_AreCopiedFromInitializer()
+    {
+        var list = new List<YamlConverter>
+        {
+            new NoopInt32Converter(),
+        };
+
+        var options = new SharpYaml.YamlSerializerOptions
+        {
+            Converters = list,
+        };
+
+        list.Add(new NoopInt32Converter());
+
+        Assert.AreEqual(1, options.Converters.Count);
+    }
+
+    [TestMethod]
+    public void Context_DoesNotOverrideExistingTypeInfoResolver()
+    {
+        var resolver = new DummyResolver();
+        var options = new SharpYaml.YamlSerializerOptions
+        {
+            TypeInfoResolver = resolver,
+        };
+
+        var context = new DummyContext(options);
+        Assert.AreSame(options, context.Options);
+        Assert.AreSame(resolver, context.Options.TypeInfoResolver);
+    }
+
+    private sealed class DummyResolver : SharpYaml.IYamlTypeInfoResolver
+    {
+        public SharpYaml.YamlTypeInfo? GetTypeInfo(System.Type type, SharpYaml.YamlSerializerOptions options) => null;
+    }
+
+    private sealed class DummyContext : YamlSerializerContext
+    {
+        public DummyContext(SharpYaml.YamlSerializerOptions options) : base(options)
+        {
+        }
+
+        public override SharpYaml.YamlTypeInfo? GetTypeInfo(System.Type type, SharpYaml.YamlSerializerOptions options) => null;
+    }
+}
+

@@ -8,6 +8,59 @@ namespace SharpYaml.Tests.Serialization;
 public sealed class YamlWriterTests
 {
     [TestMethod]
+    public void RootScalar_QuotesAndEscapesAsNeeded()
+    {
+        var cases = new (string Value, string ExpectedYaml)[]
+        {
+            ("plain", "plain"),
+            ("", "''"),
+            (" leading", "\" leading\""),
+            ("trailing ", "\"trailing \""),
+            ("a:b", "\"a:b\""),
+            ("a#b", "\"a#b\""),
+            ("a\nb", "\"a\\nb\""),
+            ("\u0001", "\"\\u0001\""),
+        };
+
+        foreach (var @case in cases)
+        {
+            var writer = CreateWriter(new YamlSerializerOptions(), out var buffer);
+            writer.WriteScalar(@case.Value);
+
+            Assert.AreEqual(@case.ExpectedYaml, buffer.ToString());
+        }
+    }
+
+    [TestMethod]
+    public void PropertyName_WithDash_IsQuoted()
+    {
+        var writer = CreateWriter(new YamlSerializerOptions(), out var buffer);
+
+        writer.WriteStartMapping();
+        writer.WritePropertyName("-");
+        writer.WriteScalar("x");
+        writer.WriteEndMapping();
+
+        Assert.AreEqual("\"-\": x", buffer.ToString());
+    }
+
+    [TestMethod]
+    public void RootScalars_ForNumbersAndSpecialFloats_AreEmittedPlain()
+    {
+        var writer = CreateWriter(new YamlSerializerOptions(), out var buffer);
+
+        writer.WriteStartSequence();
+        writer.WriteScalar(42);
+        writer.WriteScalar(1.5);
+        writer.WriteScalar(double.PositiveInfinity);
+        writer.WriteScalar(double.NegativeInfinity);
+        writer.WriteScalar(double.NaN);
+        writer.WriteEndSequence();
+
+        Assert.AreEqual("- 42\n- 1.5\n- .inf\n- -.inf\n- .nan", buffer.ToString());
+    }
+
+    [TestMethod]
     public void Mapping_WithScalar_WritesOnSingleLine()
     {
         var options = new YamlSerializerOptions { WriteIndented = true, IndentSize = 2 };
