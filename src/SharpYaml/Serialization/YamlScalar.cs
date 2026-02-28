@@ -223,36 +223,61 @@ public static class YamlScalar
             {
                 sign = -1;
             }
+
             cleaned = cleaned.Slice(1);
         }
 
-        if (cleaned.Length >= 2 && cleaned[0] == '0')
-        {
-            var prefix = cleaned[1];
-            if (prefix is 'x' or 'X')
-            {
-                return TryParseInt64Base(cleaned.Slice(2), 16, sign, out result);
-            }
-
-            if (prefix is 'o' or 'O')
-            {
-                return TryParseInt64Base(cleaned.Slice(2), 8, sign, out result);
-            }
-
-            if (prefix is 'b' or 'B')
-            {
-                return TryParseInt64Base(cleaned.Slice(2), 2, sign, out result);
-            }
-        }
-
-        if (!long.TryParse(cleaned, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out result))
+        if (cleaned.Length == 0)
         {
             result = default;
             return false;
         }
 
-        result *= sign;
-        return true;
+        ulong magnitude;
+        if (cleaned.Length >= 2 && cleaned[0] == '0')
+        {
+            var prefix = cleaned[1];
+            if (prefix is 'x' or 'X')
+            {
+                if (!TryParseUInt64Base(cleaned.Slice(2), 16, out magnitude))
+                {
+                    result = default;
+                    return false;
+                }
+
+                return TryApplySignedMagnitude(magnitude, sign, out result);
+            }
+
+            if (prefix is 'o' or 'O')
+            {
+                if (!TryParseUInt64Base(cleaned.Slice(2), 8, out magnitude))
+                {
+                    result = default;
+                    return false;
+                }
+
+                return TryApplySignedMagnitude(magnitude, sign, out result);
+            }
+
+            if (prefix is 'b' or 'B')
+            {
+                if (!TryParseUInt64Base(cleaned.Slice(2), 2, out magnitude))
+                {
+                    result = default;
+                    return false;
+                }
+
+                return TryApplySignedMagnitude(magnitude, sign, out result);
+            }
+        }
+
+        if (!ulong.TryParse(cleaned, NumberStyles.None, CultureInfo.InvariantCulture, out magnitude))
+        {
+            result = default;
+            return false;
+        }
+
+        return TryApplySignedMagnitude(magnitude, sign, out result);
     }
 
     /// <summary>
@@ -315,50 +340,34 @@ public static class YamlScalar
         return value;
     }
 
-    private static bool TryParseInt64Base(ReadOnlySpan<char> value, int numberBase, int sign, out long result)
+    private static bool TryApplySignedMagnitude(ulong magnitude, int sign, out long result)
     {
-        if (value.Length == 0)
+        if (sign >= 0)
+        {
+            if (magnitude > (ulong)long.MaxValue)
+            {
+                result = default;
+                return false;
+            }
+
+            result = (long)magnitude;
+            return true;
+        }
+
+        var maxNegativeMagnitude = (ulong)long.MaxValue + 1;
+        if (magnitude > maxNegativeMagnitude)
         {
             result = default;
             return false;
         }
 
-        long accumulator = 0;
-        for (var i = 0; i < value.Length; i++)
+        if (magnitude == maxNegativeMagnitude)
         {
-            var c = value[i];
-            int digit;
-            if (c is >= '0' and <= '9')
-            {
-                digit = c - '0';
-            }
-            else if (c is >= 'a' and <= 'f')
-            {
-                digit = 10 + (c - 'a');
-            }
-            else if (c is >= 'A' and <= 'F')
-            {
-                digit = 10 + (c - 'A');
-            }
-            else
-            {
-                result = default;
-                return false;
-            }
-
-            if (digit >= numberBase)
-            {
-                result = default;
-                return false;
-            }
-
-            checked
-            {
-                accumulator = (accumulator * numberBase) + digit;
-            }
+            result = long.MinValue;
+            return true;
         }
 
-        result = accumulator * sign;
+        result = -(long)magnitude;
         return true;
     }
 
@@ -409,4 +418,3 @@ public static class YamlScalar
         return true;
     }
 }
-
