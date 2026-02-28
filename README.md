@@ -66,6 +66,7 @@ var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
 - API reference: `site/api/sharpyaml3_api.md`
 - v2 to v3 migration: `site/migration/v2_to_v3.md`
 - v3 specification: `site/specs/sharpyaml3_specs.md`
+- NativeAOT smoke sample: `src/SharpYaml.AotSmoke/`
 
 ## License
 
