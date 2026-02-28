@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,32 +46,33 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization
 {
+        [TestClass]
     public class YamlStreamTests : YamlTest
     {
-        [Test]
+        [TestMethod]
         public void LoadSimpleDocument()
         {
             var stream = new YamlStream();
             stream.Load(YamlFile("test2.yaml"));
 
             Assert.AreEqual(1, stream.Documents.Count);
-            Assert.IsInstanceOf<YamlScalarNode>(stream.Documents[0].RootNode);
+            Assert.IsInstanceOfType(stream.Documents[0].RootNode, typeof(YamlScalarNode));
             Assert.AreEqual("a scalar", ((YamlScalarNode)stream.Documents[0].RootNode).Value);
         }
 
-        [Test]
+        [TestMethod]
         public void BackwardAliasReferenceWorks()
         {
             var stream = new YamlStream();
             stream.Load(YamlFile("backwardsAlias.yaml"));
 
             Assert.AreEqual(1, stream.Documents.Count);
-            Assert.IsInstanceOf<YamlSequenceNode>(stream.Documents[0].RootNode);
+            Assert.IsInstanceOfType(stream.Documents[0].RootNode, typeof(YamlSequenceNode));
 
             var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
             Assert.AreEqual(3, sequence.Children.Count);
@@ -82,14 +83,14 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreSame(sequence.Children[0], sequence.Children[2]);
         }
 
-        [Test]
+        [TestMethod]
         public void ForwardAliasReferenceWorks()
         {
             var stream = new YamlStream();
             stream.Load(YamlFile("forwardAlias.yaml"));
 
             Assert.AreEqual(1, stream.Documents.Count);
-            Assert.IsInstanceOf<YamlSequenceNode>(stream.Documents[0].RootNode);
+            Assert.IsInstanceOfType(stream.Documents[0].RootNode, typeof(YamlSequenceNode));
 
             var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
             Assert.AreEqual(3, sequence.Children.Count);
@@ -100,113 +101,113 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreSame(sequence.Children[0], sequence.Children[2]);
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample1()
         {
             RoundtripTest("test1.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample2()
         {
             RoundtripTest("test2.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample3()
         {
             RoundtripTest("test3.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample4()
         {
             RoundtripTest("test4.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample5()
         {
             RoundtripTest("test6.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample6()
         {
             RoundtripTest("test6.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample7()
         {
             RoundtripTest("test7.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample8()
         {
             RoundtripTest("test8.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample9()
         {
             RoundtripTest("test9.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample10()
         {
             RoundtripTest("test10.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample11()
         {
             RoundtripTest("test11.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample12()
         {
             RoundtripTest("test12.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample13()
         {
             RoundtripTest("test13.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripExample14()
         {
             RoundtripTest("test14.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripBackreference()
         {
             RoundtripTest("backreference.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void FailBackreference()
         {
             RoundtripTest("fail-backreference.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripTags()
         {
             RoundtripTest("tags.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void AllAliasesMustBeResolved()
         {
             var original = new YamlStream();
-            Assert.Throws<AnchorNotFoundException>(() => original.Load(YamlFile("invalid-reference.yaml")));
+            Assert.ThrowsException<AnchorNotFoundException>(() => original.Load(YamlFile("invalid-reference.yaml")));
         }
 
         private void RoundtripTest(string yamlFileName)
@@ -300,7 +301,7 @@ namespace SharpYaml.Tests.Serialization
         }
 
         // Todo: Sample.. belongs elsewhere?
-        [Test]
+        [TestMethod]
         public void RoundtripSample()
         {
             var original = new YamlStream();
@@ -309,3 +310,6 @@ namespace SharpYaml.Tests.Serialization
         }
     }
 }
+
+
+

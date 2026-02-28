@@ -5,7 +5,7 @@
     <AssemblyTitle>SharpYaml</AssemblyTitle>
     <RootNamespace>SharpYaml</RootNamespace>
     <Description>A YAML portable .NET library. providing parsing and serialization of object graphs, compatible with CoreCLR.</Description>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Authors>Alexandre Mutel</Authors>
     <Copyright>Alexandre Mutel</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -16,8 +16,8 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <LangVersion>10</LangVersion>
-    <Nullable>annotations</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
@@ -25,10 +25,6 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyOriginatorKeyFile>SharpYaml.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <DefineConstants>$(DefineConstants);NETSTANDARD1_6;NETPOST45</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

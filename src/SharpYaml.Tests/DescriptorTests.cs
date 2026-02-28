@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -49,12 +49,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 using SharpYaml.Serialization.Descriptors;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class DescriptorTests
     {
         public class TestObject
@@ -97,7 +98,7 @@ namespace SharpYaml.Tests
             }
         }
 
-        [Test]
+        [TestMethod]
         public void TestObjectDescriptor()
         {
             var attributeRegistry = new AttributeRegistry();
@@ -114,17 +115,19 @@ namespace SharpYaml.Tests
             descriptor.SortMembers(new DefaultKeyComparer());
 
             // Check names and their orders
-            Assert.AreEqual(descriptor.Members.Select(memberDescriptor => memberDescriptor.Name), new[]
-            {
-                "Collection",
-                "CollectionReadOnly",
-                "DefaultValue",
-                "Item1",
-                "Item2",
-                "Name",
-                "Property",
-                "Value"
-            });
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "Collection",
+                    "CollectionReadOnly",
+                    "DefaultValue",
+                    "Item1",
+                    "Item2",
+                    "Name",
+                    "Property",
+                    "Value"
+                },
+                descriptor.Members.Select(memberDescriptor => memberDescriptor.Name).ToArray());
 
             var instance = new TestObject { Name = "Yes", Property = "property" };
 
@@ -139,20 +142,21 @@ namespace SharpYaml.Tests
             Assert.AreEqual("property1", instance.Property);
 
             // Check ShouldSerialize
-            Assert.True(descriptor["Name"].ShouldSerialize(instance));
+            Assert.IsTrue(descriptor["Name"].ShouldSerialize(instance));
 
-            Assert.False(descriptor["Value"].ShouldSerialize(instance));
+            Assert.IsFalse(descriptor["Value"].ShouldSerialize(instance));
             instance.Value = 1;
-            Assert.True(descriptor["Value"].ShouldSerialize(instance));
+            Assert.IsTrue(descriptor["Value"].ShouldSerialize(instance));
 
-            Assert.False(descriptor["DefaultValue"].ShouldSerialize(instance));
+            Assert.IsFalse(descriptor["DefaultValue"].ShouldSerialize(instance));
             instance.DefaultValue++;
-            Assert.True(descriptor["DefaultValue"].ShouldSerialize(instance));
+            Assert.IsTrue(descriptor["DefaultValue"].ShouldSerialize(instance));
 
             // Check HasSet
-            Assert.True(descriptor["Collection"].HasSet);
-            Assert.False(descriptor["CollectionReadOnly"].HasSet);
+            Assert.IsTrue(descriptor["Collection"].HasSet);
+            Assert.IsFalse(descriptor["CollectionReadOnly"].HasSet);
         }
+
 
         public class TestObjectNamingConvention
         {
@@ -164,7 +168,7 @@ namespace SharpYaml.Tests
             public string CustomName { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void TestObjectWithCustomNamingConvention()
         {
             var attributeRegistry = new AttributeRegistry();
@@ -174,12 +178,14 @@ namespace SharpYaml.Tests
             descriptor.SortMembers(new DefaultKeyComparer());
 
             // Check names and their orders
-            Assert.AreEqual(descriptor.Members.Select(memberDescriptor => memberDescriptor.Name), new[]
-            {
-                "myname",
-                "name",
-                "this_is_camel_name"
-            });
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "myname",
+                    "name",
+                    "this_is_camel_name"
+                },
+                descriptor.Members.Select(memberDescriptor => memberDescriptor.Name).ToArray());
         }
 
         /// <summary>
@@ -190,7 +196,7 @@ namespace SharpYaml.Tests
             public string Name { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void TestCollectionDescriptor()
         {
             var attributeRegistry = new AttributeRegistry();
@@ -199,7 +205,7 @@ namespace SharpYaml.Tests
 
             // No Capacity as a member
             Assert.AreEqual(0, descriptor.Count);
-            Assert.True(descriptor.IsPureCollection);
+            Assert.IsTrue(descriptor.IsPureCollection);
             Assert.AreEqual(typeof(string), descriptor.ElementType);
 
             descriptor = new CollectionDescriptor(attributeRegistry, typeof(NonPureCollection), false, false,
@@ -208,7 +214,7 @@ namespace SharpYaml.Tests
 
             // Has name as a member
             Assert.AreEqual(1, descriptor.Count);
-            Assert.False(descriptor.IsPureCollection);
+            Assert.IsFalse(descriptor.IsPureCollection);
             Assert.AreEqual(typeof(int), descriptor.ElementType);
 
             descriptor = new CollectionDescriptor(attributeRegistry, typeof(ArrayList), false, false, new DefaultNamingConvention());
@@ -216,7 +222,7 @@ namespace SharpYaml.Tests
 
             // No Capacity
             Assert.AreEqual(0, descriptor.Count);
-            Assert.True(descriptor.IsPureCollection);
+            Assert.IsTrue(descriptor.IsPureCollection);
             Assert.AreEqual(typeof(object), descriptor.ElementType);
         }
 
@@ -228,7 +234,7 @@ namespace SharpYaml.Tests
             public string Name { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void TestDictionaryDescriptor()
         {
             var attributeRegistry = new AttributeRegistry();
@@ -237,7 +243,7 @@ namespace SharpYaml.Tests
             descriptor.Initialize();
 
             Assert.AreEqual(0, descriptor.Count);
-            Assert.True(descriptor.IsPureDictionary);
+            Assert.IsTrue(descriptor.IsPureDictionary);
             Assert.AreEqual(typeof(int), descriptor.KeyType);
             Assert.AreEqual(typeof(string), descriptor.ValueType);
 
@@ -245,12 +251,12 @@ namespace SharpYaml.Tests
                 new DefaultNamingConvention());
             descriptor.Initialize();
             Assert.AreEqual(1, descriptor.Count);
-            Assert.False(descriptor.IsPureDictionary);
+            Assert.IsFalse(descriptor.IsPureDictionary);
             Assert.AreEqual(typeof(float), descriptor.KeyType);
             Assert.AreEqual(typeof(object), descriptor.ValueType);
         }
 
-        [Test]
+        [TestMethod]
         public void TestArrayDescriptor()
         {
             var attributeRegistry = new AttributeRegistry();
@@ -267,18 +273,21 @@ namespace SharpYaml.Tests
             B
         }
 
-        [Test]
+        [TestMethod]
         public void TestPrimitiveDescriptor()
         {
             var attributeRegistry = new AttributeRegistry();
             var descriptor = new PrimitiveDescriptor(attributeRegistry, typeof(int), new DefaultNamingConvention());
             Assert.AreEqual(0, descriptor.Count);
 
-            Assert.True(PrimitiveDescriptor.IsPrimitive(typeof(MyEnum)));
-            Assert.True(PrimitiveDescriptor.IsPrimitive(typeof(object)));
-            Assert.True(PrimitiveDescriptor.IsPrimitive(typeof(DateTime)));
-            Assert.True(PrimitiveDescriptor.IsPrimitive(typeof(TimeSpan)));
-            Assert.False(PrimitiveDescriptor.IsPrimitive(typeof(IList)));
+            Assert.IsTrue(PrimitiveDescriptor.IsPrimitive(typeof(MyEnum)));
+            Assert.IsTrue(PrimitiveDescriptor.IsPrimitive(typeof(object)));
+            Assert.IsTrue(PrimitiveDescriptor.IsPrimitive(typeof(DateTime)));
+            Assert.IsTrue(PrimitiveDescriptor.IsPrimitive(typeof(TimeSpan)));
+            Assert.IsFalse(PrimitiveDescriptor.IsPrimitive(typeof(IList)));
         }
     }
 }
+
+
+

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,14 +43,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Tokens;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class ScannerTests : ScannerTestHelper
     {
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample1()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test1.yaml"),
@@ -62,7 +63,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample2()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test2.yaml"),
@@ -71,7 +72,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample3()
         {
             var scanner = ScannerFor("test3.yaml");
@@ -83,7 +84,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample4()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test4.yaml"),
@@ -96,7 +97,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample5()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test5.yaml"),
@@ -108,7 +109,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample6()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test6.yaml"),
@@ -118,7 +119,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample7()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test7.yaml"),
@@ -137,7 +138,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample8()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test8.yaml"),
@@ -152,7 +153,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample9()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test9.yaml"),
@@ -172,7 +173,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample10()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test10.yaml"),
@@ -204,7 +205,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample11()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test11.yaml"),
@@ -244,7 +245,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample12()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test12.yaml"),
@@ -279,7 +280,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample13()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test13.yaml"),
@@ -311,7 +312,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample14()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test14.yaml"),
@@ -329,7 +330,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample15()
         {
             AssertSequenceOfTokensFrom(ScannerFor("test15.yaml"),
@@ -363,17 +364,17 @@ namespace SharpYaml.Tests
             var tokenNumber = 1;
             foreach (var expected in tokens)
             {
-                Assert.True(scanner.MoveNext(), "Missing token number {0}", tokenNumber);
+                Assert.IsTrue(scanner.MoveNext(), "Missing token number {0}", tokenNumber);
                 AssertToken(expected, scanner.Current, tokenNumber);
                 tokenNumber++;
             }
-            Assert.False(scanner.MoveNext(), "Found extra tokens");
+            Assert.IsFalse(scanner.MoveNext(), "Found extra tokens");
         }
 
         private void AssertToken(Token expected, Token actual, int tokenNumber)
         {
             Dump.WriteLine(expected.GetType().Name);
-            Assert.NotNull(actual);
+            Assert.IsNotNull(actual);
             Assert.AreEqual(expected.GetType(), actual.GetType(), "Token {0} is not of the expected type", tokenNumber);
 
             foreach (var property in expected.GetType().GetProperties())
@@ -389,3 +390,6 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+
+

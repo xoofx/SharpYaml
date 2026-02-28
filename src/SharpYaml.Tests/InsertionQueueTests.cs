@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,21 +46,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class InsertionQueueTests
     {
-        [Test]
+        [TestMethod]
         public void ShouldThrowExceptionWhenDequeuingEmptyContainer()
         {
             var queue = CreateQueue();
 
-            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
+            Assert.ThrowsException<InvalidOperationException>(() => queue.Dequeue());
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldThrowExceptionWhenDequeuingContainerThatBecomesEmpty()
         {
             var queue = new InsertionQueue<int>();
@@ -68,20 +69,20 @@ namespace SharpYaml.Tests
             queue.Enqueue(1);
             queue.Dequeue();
 
-            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
+            Assert.ThrowsException<InvalidOperationException>(() => queue.Dequeue());
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldCorrectlyDequeueElementsAfterEnqueuing()
         {
             var queue = CreateQueue();
 
             WithTheRange(0, 10).Perform(queue.Enqueue);
 
-            Assert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue));
+            CollectionAssert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue).ToList());
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldCorrectlyDequeueElementsWhenIntermixingEnqueuing()
         {
             var queue = CreateQueue();
@@ -90,10 +91,10 @@ namespace SharpYaml.Tests
             PerformTimes(5, queue.Dequeue);
             WithTheRange(10, 15).Perform(queue.Enqueue);
 
-            Assert.AreEqual(new List<int>() { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }, OrderOfElementsIn(queue));
+            CollectionAssert.AreEqual(new List<int>() { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }, OrderOfElementsIn(queue).ToList());
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldThrowExceptionWhenDequeuingAfterInserting()
         {
             var queue = CreateQueue();
@@ -102,10 +103,10 @@ namespace SharpYaml.Tests
             queue.Insert(0, 99);
             PerformTimes(2, queue.Dequeue);
 
-            Assert.Throws<InvalidOperationException>(() => queue.Dequeue());
+            Assert.ThrowsException<InvalidOperationException>(() => queue.Dequeue());
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldCorrectlyDequeueElementsWhenInserting()
         {
             var queue = CreateQueue();
@@ -113,7 +114,7 @@ namespace SharpYaml.Tests
             WithTheRange(0, 10).Perform(queue.Enqueue);
             queue.Insert(5, 99);
 
-            Assert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 99, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue));
+            CollectionAssert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 99, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue).ToList());
         }
 
         private static InsertionQueue<int> CreateQueue()
@@ -160,3 +161,6 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+
+

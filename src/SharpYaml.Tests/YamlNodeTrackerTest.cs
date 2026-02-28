@@ -1,16 +1,17 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Model;
 using Path = SharpYaml.Model.Path;
 using YamlStream = SharpYaml.Model.YamlStream;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class YamlNodeTrackerTest
     {
-        [Test]
+        [TestMethod]
         public void DeserializeTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -34,7 +35,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(9, childrenAdded);
         }
 
-        [Test]
+        [TestMethod]
         public void ValueSetTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -95,7 +96,7 @@ namespace SharpYaml.Tests
             }
         }
 
-        [Test]
+        [TestMethod]
         public void DisposeTest()
         {
             System.WeakReference GetWeakRef()
@@ -131,7 +132,7 @@ namespace SharpYaml.Tests
             Assert.IsFalse(weakRef.IsAlive);
         }
 
-        [Test]
+        [TestMethod]
         public void SubscriberTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -172,7 +173,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(1, handler.CCalls);
         }
 
-        [Test]
+        [TestMethod]
         public void AddPairTest()
         {
             var tracker = new YamlNodeTracker();
@@ -197,7 +198,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void TrackerAssignmentTest()
         {
             var tracker = new YamlNodeTracker();
@@ -249,7 +250,7 @@ namespace SharpYaml.Tests
             Assert.IsTrue(eventList[0] is MappingPairAdded);
         }
 
-        [Test]
+        [TestMethod]
         public void UpdateMappingNextChildrenTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -286,7 +287,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void UpdateSequenceNextChildrenTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -323,7 +324,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void UpdateStreamNextChildrenTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -363,7 +364,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(3, modifiedPath.Indices[0].Index); // Index of the sequence is now 3.
         }
 
-        [Test]
+        [TestMethod]
         public void UpdateSubscriberNextChildrenTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -425,7 +426,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void UpdateSubscriberNextChildrenTest2()
         {
             // As the indices of the parents change, the children also need to get re-subscribed.
@@ -467,3 +468,6 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+
+

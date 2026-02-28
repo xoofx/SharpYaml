@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,14 +44,15 @@
 // SOFTWARE.
 
 using System.IO;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization
 {
+        [TestClass]
     public class ExceptionWithNestedSerialization
     {
-        [Test]
+        [TestMethod]
         public void NestedDocumentShouldDeserializeProperly()
         {
             var serializer = new Serializer(new SerializerSettings() { EmitDefaultValues = true });
@@ -80,10 +81,11 @@ namespace SharpYaml.Tests.Serialization
 
             // deserialize payload - fails if EmitDefaults is set
             var message = deserializer.Deserialize<AMessage>(e2.Payload);
-            Assert.NotNull(message.Payload);
+            Assert.IsNotNull(message.Payload);
             Assert.AreEqual(message.Payload.X, 5);
             Assert.AreEqual(message.Payload.Y, 6);
         }
+
 
         public class Env
         {
@@ -91,11 +93,13 @@ namespace SharpYaml.Tests.Serialization
             public string Payload { get; set; }
         }
 
+
         public class Message<TPayload>
         {
             public int id { get; set; }
             public TPayload Payload { get; set; }
         }
+
 
         public class PayloadA
         {
@@ -103,8 +107,12 @@ namespace SharpYaml.Tests.Serialization
             public int Y { get; set; }
         }
 
+
         public class AMessage : Message<PayloadA>
         {
         }
     }
 }
+
+
+

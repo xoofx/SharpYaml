@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,16 +52,17 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 using SharpYaml.Serialization;
 using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Tests.Serialization
 {
+        [TestClass]
     public class SerializationTests : YamlTest
     {
-        [Test]
+        [TestMethod]
         public void UnicodeEscapes()
         {
             var serializer = new Serializer();
@@ -99,23 +100,23 @@ namespace SharpYaml.Tests.Serialization
             }
         }
 
-        [Test]
+        [TestMethod]
         public void Roundtrip()
             => Roundtrip<X>(new SerializerSettings());
 
-        [Test]
+        [TestMethod]
         public void RoundtripWithDefaults()
             => Roundtrip<X>(new SerializerSettings() { EmitDefaultValues = true });
 
-        [Test]
+        [TestMethod]
         public void RoundtripWithRespectPrivateSetters()
             => Roundtrip<PrivateSetters>(new SerializerSettings() { EmitDefaultValues = true }, true);
 
-        [Test]
+        [TestMethod]
         public void RoundtripFloatingPointEdgeCases()
             => Roundtrip<FloatingPointEdgeCases>(new SerializerSettings());
 
-        [Test]
+        [TestMethod]
         public void RoundtripNoPrivateSetters()
         {
             var settings = new SerializerSettings();
@@ -146,7 +147,7 @@ namespace SharpYaml.Tests.Serialization
             }
         }
 
-        [Test]
+        [TestMethod]
         public void CircularReference()
         {
             var serializer = new Serializer();
@@ -170,7 +171,7 @@ namespace SharpYaml.Tests.Serialization
             public Y Child2 { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeScalar()
         {
             var sut = new Serializer();
@@ -179,65 +180,65 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual("a scalar", result);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeUnsafeExplicitType()
         {
             var settings = new SerializerSettings() { UnsafeAllowDeserializeFromTagTypeName = true };
             var serializer = new Serializer(settings);
             object result = serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object));
 
-            Assert.True(typeof(Z).IsAssignableFrom(result.GetType()));
+            Assert.IsTrue(typeof(Z).IsAssignableFrom(result.GetType()));
             Assert.AreEqual("bbb", ((Z)result).aaa);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeUnregisterdExplicitType()
         {
             var serializer = new Serializer();
 
-            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object)));
+            Assert.ThrowsException<YamlException>(() => serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object)));
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeDictionary()
         {
             var serializer = new Serializer();
             var result = serializer.Deserialize(YamlFile("dictionary.yaml"));
 
-            Assert.True(typeof(IDictionary<object, object>).IsAssignableFrom(result.GetType()), "The deserialized object has the wrong type.");
+            Assert.IsTrue(typeof(IDictionary<object, object>).IsAssignableFrom(result.GetType()), "The deserialized object has the wrong type.");
 
             var dictionary = (IDictionary<object, object>)result;
             Assert.AreEqual("value1", dictionary["key1"]);
             Assert.AreEqual("value2", dictionary["key2"]);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeUnsafeExplicitDictionary()
         {
             var serializer = new Serializer(new SerializerSettings { UnsafeAllowDeserializeFromTagTypeName = true });
             object result = serializer.Deserialize(YamlFile("dictionaryExplicit.yaml"));
 
-            Assert.True(typeof(IDictionary<string, int>).IsAssignableFrom(result.GetType()), "The deserialized object has the wrong type.");
+            Assert.IsTrue(typeof(IDictionary<string, int>).IsAssignableFrom(result.GetType()), "The deserialized object has the wrong type.");
 
             var dictionary = (IDictionary<string, int>)result;
             Assert.AreEqual(1, dictionary["key1"]);
             Assert.AreEqual(2, dictionary["key2"]);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeUnregisterdExplicitDictionary()
         {
             var serializer = new Serializer();
-            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("dictionaryExplicit.yaml")));
+            Assert.ThrowsException<YamlException>(() => serializer.Deserialize(YamlFile("dictionaryExplicit.yaml")));
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeListOfDictionaries()
         {
             var serializer = new Serializer();
             var result = serializer.Deserialize(YamlFile("listOfDictionaries.yaml"), typeof(List<Dictionary<string, string>>));
 
-            Assert.IsInstanceOf<List<Dictionary<string, string>>>(result);
+            Assert.IsInstanceOfType(result, typeof(List<Dictionary<string, string>>));
 
             var list = (List<Dictionary<string, string>>)result;
             Assert.AreEqual("conn1", list[0]["connection"]);
@@ -246,13 +247,13 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual("path2", list[1]["path"]);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeList()
         {
             var serializer = new Serializer();
             var result = serializer.Deserialize(YamlFile("list.yaml"));
 
-            Assert.True(typeof(IList).IsAssignableFrom(result.GetType()));
+            Assert.IsTrue(typeof(IList).IsAssignableFrom(result.GetType()));
 
             var list = (IList)result;
             Assert.AreEqual("one", list[0]);
@@ -260,13 +261,13 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual("three", list[2]);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeUnsafeExplicitList()
         {
             var serializer = new Serializer(new SerializerSettings { UnsafeAllowDeserializeFromTagTypeName = true });
             var result = serializer.Deserialize(YamlFile("listExplicit.yaml"));
 
-            Assert.True(typeof(IList<int>).IsAssignableFrom(result.GetType()));
+            Assert.IsTrue(typeof(IList<int>).IsAssignableFrom(result.GetType()));
 
             var list = (IList<int>)result;
             Assert.AreEqual(3, list[0]);
@@ -274,14 +275,14 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(5, list[2]);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeUnregisterdExplicitList()
         {
             var serializer = new Serializer();
-            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("listExplicit.yaml")));
+            Assert.ThrowsException<YamlException>(() => serializer.Deserialize(YamlFile("listExplicit.yaml")));
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeEnumerable()
         {
             var settings = new SerializerSettings();
@@ -298,7 +299,7 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual("Yo", result.First().aaa);
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripList()
         {
             var serializer = new Serializer();
@@ -319,13 +320,13 @@ namespace SharpYaml.Tests.Serialization
             }
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeArray()
         {
             var serializer = new Serializer();
             var result = serializer.Deserialize(YamlFile("list.yaml"), typeof(String[]));
 
-            Assert.True(result is String[]);
+            Assert.IsTrue(result is String[]);
 
             var array = (String[])result;
             Assert.AreEqual("one", array[0]);
@@ -333,7 +334,7 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual("three", array[2]);
         }
 
-        [Test]
+        [TestMethod]
         public void Enums()
         {
             var settings = new SerializerSettings();
@@ -351,7 +352,7 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(flags, deserialized);
         }
 
-        [Test]
+        [TestMethod]
         public void CustomTags()
         {
             var settings = new SerializerSettings();
@@ -367,7 +368,7 @@ namespace SharpYaml.Tests.Serialization
         }
 
         // Convertible are not supported
-        //[Test]
+        //[TestMethod]
         //public void DeserializeConvertible()
         //{
         //	var settings = new SerializerSettings();
@@ -377,11 +378,11 @@ namespace SharpYaml.Tests.Serialization
         //	var serializer = new Serializer(settings);
         //	var result = serializer.Deserialize(YamlFile("convertible.yaml"), typeof(Z));
 
-        //	Assert.True(typeof(Z).IsAssignableFrom(result.GetType()));
+        //	Assert.IsTrue(typeof(Z).IsAssignableFrom(result.GetType()));
         //	Assert.AreEqual("[hello, world]", ((Z)result).aaa);
         //}
 
-        [Test]
+        [TestMethod]
         public void RoundtripWithTypeConverter()
         {
             var buffer = new StringWriter();
@@ -409,6 +410,7 @@ namespace SharpYaml.Tests.Serialization
             public string Value;
         }
 
+
         public class CustomTypeConverter : ScalarSerializerBase, IYamlSerializableFactory
         {
             public IYamlSerializable TryCreate(SerializerContext context, ITypeDescriptor typeDescriptor)
@@ -427,7 +429,7 @@ namespace SharpYaml.Tests.Serialization
             }
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripDictionary()
         {
             var entries = new Dictionary<string, string>
@@ -451,7 +453,7 @@ namespace SharpYaml.Tests.Serialization
             }
         }
 
-        [Test]
+        [TestMethod]
         public void SerializeAnonymousType()
         {
             var data = new { Key = 3 };
@@ -466,13 +468,13 @@ namespace SharpYaml.Tests.Serialization
             var bufferText = buffer.ToString();
             var parsed = serializer.Deserialize<Dictionary<string, string>>(bufferText);
 
-            Assert.NotNull(parsed);
+            Assert.IsNotNull(parsed);
             Assert.AreEqual(1, parsed.Count);
-            Assert.True(parsed.ContainsKey("Key"));
+            Assert.IsTrue(parsed.ContainsKey("Key"));
             Assert.AreEqual(parsed["Key"], "3");
         }
 
-        [Test]
+        [TestMethod]
         public void SerializationIncludesDefaultValueWhenAsked()
         {
             var settings = new SerializerSettings() { EmitDefaultValues = true };
@@ -485,10 +487,10 @@ namespace SharpYaml.Tests.Serialization
 
             Dump.WriteLine(buffer);
             var bufferText = buffer.ToString();
-            Assert.True(bufferText.Contains("MyString"));
+            Assert.IsTrue(bufferText.Contains("MyString"));
         }
 
-        [Test]
+        [TestMethod]
         public void SerializationDoesNotIncludeDefaultValueWhenNotAsked()
         {
             var settings = new SerializerSettings() { EmitDefaultValues = false };
@@ -502,10 +504,10 @@ namespace SharpYaml.Tests.Serialization
 
             Dump.WriteLine(buffer);
             var bufferText = buffer.ToString();
-            Assert.False(bufferText.Contains("MyString"));
+            Assert.IsFalse(bufferText.Contains("MyString"));
         }
 
-        [Test]
+        [TestMethod]
         public void SerializationOfNullWorksInJson()
         {
             var settings = new SerializerSettings() { EmitDefaultValues = true, EmitJsonComptible = true };
@@ -518,10 +520,10 @@ namespace SharpYaml.Tests.Serialization
 
             Dump.WriteLine(buffer);
             var bufferText = buffer.ToString();
-            Assert.True(bufferText.Contains("MyString"));
+            Assert.IsTrue(bufferText.Contains("MyString"));
         }
 
-        [Test]
+        [TestMethod]
         public void JsonKeysAreQuoted()
         {
             var settings = new SerializerSettings() { EmitDefaultValues = true, EmitJsonComptible = true, EmitTags = false };
@@ -541,7 +543,7 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(10, dict.First().Value);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializationOfNullWorksInJson()
         {
             var settings = new SerializerSettings() { EmitDefaultValues = true, EmitJsonComptible = true };
@@ -557,10 +559,10 @@ namespace SharpYaml.Tests.Serialization
             var bufferText = buffer.ToString();
             var copy = (X)serializer.Deserialize(bufferText, typeof(X));
 
-            Assert.Null(copy.MyString);
+            Assert.IsNull(copy.MyString);
         }
 
-        [Test]
+        [TestMethod]
         public void SerializationRespectsYamlIgnoreAttribute()
         {
             var settings = new SerializerSettings();
@@ -575,7 +577,7 @@ namespace SharpYaml.Tests.Serialization
 
             var copy = (ContainsIgnore)serializer.Deserialize(new StringReader(buffer.ToString()), typeof(ContainsIgnore));
 
-            Assert.Throws<NotImplementedException>(() =>
+            Assert.ThrowsException<NotImplementedException>(() =>
             {
                 if (copy.IgnoreMe == null)
                 {
@@ -589,7 +591,7 @@ namespace SharpYaml.Tests.Serialization
             public String IgnoreMe { get { throw new NotImplementedException("Accessing a [YamlIgnore] property"); } set { throw new NotImplementedException("Accessing a [YamlIgnore] property"); } }
         }
 
-        [Test]
+        [TestMethod]
         public void SerializeArrayOfIdenticalObjects()
         {
             var obj1 = new Z { aaa = "abc" };
@@ -598,7 +600,7 @@ namespace SharpYaml.Tests.Serialization
 
             var result = SerializeThenDeserialize(objects);
 
-            Assert.NotNull(result);
+            Assert.IsNotNull(result);
             Assert.AreEqual(3, result.Length);
             Assert.AreEqual(obj1.aaa, result[0].aaa);
             Assert.AreEqual(obj1.aaa, result[1].aaa);
@@ -619,12 +621,13 @@ namespace SharpYaml.Tests.Serialization
             return serializer.Deserialize<T>(new StringReader(serialized));
         }
 
+
         public class Z
         {
             public string aaa { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void RoundtripAlias()
         {
             var input = new ConventionTest { AliasTest = "Fourth" };
@@ -634,7 +637,7 @@ namespace SharpYaml.Tests.Serialization
             var serialized = writer.ToString();
 
             // Ensure serialisation is correct
-            Assert.True(serialized.Contains("fourthTest: Fourth"));
+            Assert.IsTrue(serialized.Contains("fourthTest: Fourth"));
 
             var output = serializer.Deserialize<ConventionTest>(serialized);
 
@@ -660,7 +663,7 @@ namespace SharpYaml.Tests.Serialization
             public string fourthTest { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void DefaultValueAttributeIsUsedWhenPresentWithoutEmitDefaults()
         {
             var input = new HasDefaults { Value = HasDefaults.DefaultValue };
@@ -671,10 +674,10 @@ namespace SharpYaml.Tests.Serialization
             var serialized = writer.ToString();
 
             Dump.WriteLine(serialized);
-            Assert.False(serialized.Contains("Value"));
+            Assert.IsFalse(serialized.Contains("Value"));
         }
 
-        [Test]
+        [TestMethod]
         public void DefaultValueAttributeIsIgnoredWhenPresentWithEmitDefaults()
         {
             var input = new HasDefaults { Value = HasDefaults.DefaultValue };
@@ -685,10 +688,10 @@ namespace SharpYaml.Tests.Serialization
             var serialized = writer.ToString();
 
             Dump.WriteLine(serialized);
-            Assert.True(serialized.Contains("Value"));
+            Assert.IsTrue(serialized.Contains("Value"));
         }
 
-        [Test]
+        [TestMethod]
         public void DefaultValueAttributeIsIgnoredWhenValueIsDifferent()
         {
             var input = new HasDefaults { Value = "non-default" };
@@ -700,8 +703,9 @@ namespace SharpYaml.Tests.Serialization
 
             Dump.WriteLine(serialized);
 
-            Assert.True(serialized.Contains("Value"));
+            Assert.IsTrue(serialized.Contains("Value"));
         }
+
 
         public class HasDefaults
         {
@@ -711,7 +715,7 @@ namespace SharpYaml.Tests.Serialization
             public string Value { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void NullValuesInListsAreAlwaysEmittedWithoutEmitDefaults()
         {
             var input = new[] { "foo", null, "bar" };
@@ -725,7 +729,7 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(3, Regex.Matches(serialized, "-").Count);
         }
 
-        [Test]
+        [TestMethod]
         public void NullValuesInListsAreAlwaysEmittedWithEmitDefaults()
         {
             var input = new[] { "foo", null, "bar" };
@@ -739,7 +743,7 @@ namespace SharpYaml.Tests.Serialization
             Assert.AreEqual(3, Regex.Matches(serialized, "-").Count);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeTwoDocuments()
         {
             var yaml = @"---
@@ -753,15 +757,15 @@ Name: Brad
             reader.Expect<StreamStart>();
 
             var andy = serializer.Deserialize<Person>(reader);
-            Assert.NotNull(andy);
+            Assert.IsNotNull(andy);
             Assert.AreEqual("Andy", andy.Name);
 
             var brad = serializer.Deserialize<Person>(reader);
-            Assert.NotNull(brad);
+            Assert.IsNotNull(brad);
             Assert.AreEqual("Brad", brad.Name);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeManyDocuments()
         {
             var yaml = @"---
@@ -789,10 +793,12 @@ Name: Charles
             Assert.AreEqual("Charles", people[2].Name);
         }
 
+
         public class Person
         {
             public string Name { get; set; }
         }
+
 
         public class ExtendedPerson
         {
@@ -800,7 +806,7 @@ Name: Charles
             public int Age { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeIntoExisting()
         {
             var serializer = new Serializer();
@@ -818,7 +824,7 @@ Name: Andy
             Assert.AreEqual(30, andy.Age);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeWithExistingObject()
         {
             var serializer = new Serializer();
@@ -832,13 +838,14 @@ Name: Andy
             Assert.AreEqual(30, andy.Age);
         }
 
+
         public class Family
         {
             public ExtendedPerson Mother { get; set; }
             public ExtendedPerson Father { get; set; }
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeIntoExistingSubObjects()
         {
             var serializer = new Serializer();
@@ -862,7 +869,7 @@ Father:
             Assert.AreEqual(22, family.Mother.Age);
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeWithRepeatedSubObjects()
         {
             var serializer = new Serializer();
@@ -883,15 +890,15 @@ Mother:
         }
 
 
-        [Test]
+        [TestMethod]
         public void DeserializeEmptyDocument()
         {
             var serializer = new Serializer();
             var array = (int[])serializer.Deserialize(new StringReader(""), typeof(int[]));
-            Assert.Null(array);
+            Assert.IsNull(array);
         }
 
-        [Test]
+        [TestMethod]
         public void SerializeGenericDictionaryShouldNotThrowTargetException()
         {
             var serializer = new Serializer();
@@ -903,7 +910,7 @@ Mother:
             });
         }
 
-        [Test]
+        [TestMethod]
         public void DeserializeDoesNotThrowWithNonPrimitiveIgnoreUnmatchedProperties()
         {
             var serializer = new Serializer(new SerializerSettings { IgnoreUnmatchedProperties = true });
@@ -1007,12 +1014,12 @@ Dog:
             #endregion
         }
 
-        [Test]
+        [TestMethod]
         public void UndefinedForwardReferencesFail()
         {
             var serializer = new Serializer();
 
-            Assert.Throws<AnchorNotFoundException>(() =>
+            Assert.ThrowsException<AnchorNotFoundException>(() =>
                 serializer.Deserialize<X>(YamlText(@"
 					Nothing: *forward
 					MyString: ForwardReference
@@ -1132,3 +1139,6 @@ Dog:
         }
     }
 }
+
+
+

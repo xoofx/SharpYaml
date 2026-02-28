@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 using SharpYaml.Model;
 using SharpYaml.Serialization;
@@ -10,9 +10,10 @@ using YamlStream = SharpYaml.Model.YamlStream;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class YamlNodeTest
     {
-        [Test]
+        [TestMethod]
         public void ReadYamlReference()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -47,7 +48,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(":-)", firstCollectionIndicator.ToObject<string>());
         }
 
-        [Test]
+        [TestMethod]
         public void YamlValue()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -73,7 +74,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(float.PositiveInfinity, value.ToObject<float>());
         }
 
-        [Test]
+        [TestMethod]
         public void FromObject()
         {
             var stream = new YamlStream();
@@ -93,7 +94,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual("[item 4, item 5, item 6]", serialized.ToString().Trim());
         }
 
-        [Test]
+        [TestMethod]
         public void DeepClone()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -120,7 +121,7 @@ namespace SharpYaml.Tests
             Assert.AreNotEqual(serialized.ToString(), serialized3.ToString());
         }
 
-        [Test]
+        [TestMethod]
         public void MappingStringKey()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -138,7 +139,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void AllowMissingKeyLookup()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -151,7 +152,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void ToStringTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -165,7 +166,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual("item 1", ((YamlSequence)stream[0].Contents)[0].ToString());
         }
 
-        [Test]
+        [TestMethod]
         public void StyleTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -188,7 +189,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(1, serialized.ToString().Split(new[] { "\r\n" }, System.StringSplitOptions.RemoveEmptyEntries).Length);
         }
 
-        [Test]
+        [TestMethod]
         public void UnsafeTagTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -211,7 +212,7 @@ namespace SharpYaml.Tests
         }
 
 
-        [Test]
+        [TestMethod]
         public void ScalarStyleTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -230,7 +231,7 @@ namespace SharpYaml.Tests
             Assert.IsTrue(serialized.ToString().StartsWith("!!float 3.14"));
         }
 
-        [Test]
+        [TestMethod]
         public void IsCanonicalTest()
         {
             var file = System.Reflection.Assembly.GetExecutingAssembly()
@@ -251,3 +252,6 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+
+

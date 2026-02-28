@@ -1,14 +1,15 @@
-﻿using System.Linq;
-using NUnit.Framework;
+using System.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Model;
 using Path = SharpYaml.Model.Path;
 using YamlStream = SharpYaml.Model.YamlStream;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class PathTrieTest
     {
-        [Test]
+        [TestMethod]
         public void BasicTest()
         {
             var trie = new PathTrie();
@@ -70,3 +71,6 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+
+

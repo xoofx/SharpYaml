@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -49,12 +49,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests
 {
+    [TestClass]
     public class EmitterTests : YamlTest
     {
         public EmitterTests()
@@ -63,91 +64,91 @@ namespace SharpYaml.Tests
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 #endif
         }
-        [Test]
+        [TestMethod]
         public void EmitExample1()
         {
             ParseAndEmit("test1.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample2()
         {
             ParseAndEmit("test2.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample3()
         {
             ParseAndEmit("test3.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample4()
         {
             ParseAndEmit("test4.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample5()
         {
             ParseAndEmit("test5.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample6()
         {
             ParseAndEmit("test6.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample7()
         {
             ParseAndEmit("test7.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample8()
         {
             ParseAndEmit("test8.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample9()
         {
             ParseAndEmit("test9.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample10()
         {
             ParseAndEmit("test10.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample11()
         {
             ParseAndEmit("test11.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample12()
         {
             ParseAndEmit("test12.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample13()
         {
             ParseAndEmit("test13.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitExample14()
         {
             ParseAndEmit("test14.yaml");
         }
 
-        [Test]
+        [TestMethod]
         public void EmitUnicode()
         {
             var encoding = Encoding.GetEncoding(28595); // Cyrillic
@@ -165,7 +166,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual("'" + input + "'", result);
         }
 
-        [Test]
+        [TestMethod]
         public void EmitUnicodeEscapes()
         {
             var encoding = new UTF8Encoding(false);
@@ -236,26 +237,26 @@ namespace SharpYaml.Tests
             return buffer.ToString();
         }
 
-        [Test]
-        [TestCase("LF hello\nworld")]
-        [TestCase("CRLF hello\r\nworld")]
+        [TestMethod]
+        [DataRow("LF hello\nworld")]
+        [DataRow("CRLF hello\r\nworld")]
         public void FoldedStyleDoesNotLooseCharacters(string text)
         {
             var yaml = EmitScalar(new Scalar(null, null, text, ScalarStyle.Folded, true, false));
             Dump.WriteLine(yaml);
-            Assert.True(yaml.Contains("world"));
+            Assert.IsTrue(yaml.Contains("world"));
         }
 
         // We are disabling this and want to keep the \n in the output. It is better to have folded > ? 
-        //[Test]
+        //[TestMethod]
         //public void FoldedStyleIsSelectedWhenNewLinesAreFoundInLiteral()
         //{
         //    var yaml = EmitScalar(new Scalar(null, null, "hello\nworld", ScalarStyle.Any, true, false));
         //    Dump.WriteLine(yaml);
-        //    Assert.True(yaml.Contains(">"));
+        //    Assert.IsTrue(yaml.Contains(">"));
         //}
 
-        [Test]
+        [TestMethod]
         public void FoldedStyleDoesNotGenerateExtraLineBreaks()
         {
             var yaml = EmitScalar(new Scalar(null, null, "hello\nworld", ScalarStyle.Folded, true, false));
@@ -270,7 +271,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual("hello\nworld", scalar.Value);
         }
 
-        [Test]
+        [TestMethod]
         public void FoldedStyleDoesNotCollapseLineBreaks()
         {
             var yaml = EmitScalar(new Scalar(null, null, ">+\n", ScalarStyle.Folded, true, false));
@@ -284,7 +285,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(">+\n", scalar.Value);
         }
 
-        [Test]
+        [TestMethod]
         public void FoldedStylePreservesNewLines()
         {
             var input = "id: 0\nPayload:\n  X: 5\n  Y: 6\n";
@@ -308,7 +309,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(input, output);
         }
 
-        [Test]
+        [TestMethod]
         public void FoldedScalarWithMultipleWordsPreservesLineBreaks()
         {
             // The real issue is not that "a folded\nscalar" should become "a folded scalar"
@@ -332,9 +333,9 @@ namespace SharpYaml.Tests
             Console.WriteLine(yaml);
             
             // The emitted YAML should contain the folded scalar structure
-            Assert.That(yaml, Does.Contain(">-"), "Should emit as folded scalar");
-            Assert.That(yaml, Does.Contain("a folded"), "Should contain the first part");
-            Assert.That(yaml, Does.Contain("scalar"), "Should contain the second part");
+            StringAssert.Contains(yaml, ">-", "Should emit as folded scalar");
+            StringAssert.Contains(yaml, "a folded", "Should contain the first part");
+            StringAssert.Contains(yaml, "scalar", "Should contain the second part");
             
             // Parse it back and verify the content is preserved
             var stream = new YamlStream();
@@ -350,3 +351,5 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+

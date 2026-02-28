@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,22 +44,24 @@
 // SOFTWARE.
 
 using System.IO;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization
 {
+        [TestClass]
     public class ObjectFactoryTests
     {
         public class FooBase
         {
         }
 
+
         public class FooDerived : FooBase
         {
         }
 
-        [Test]
+        [TestMethod]
         public void NotSpecifyingObjectFactoryUsesDefault()
         {
             var settings = new SerializerSettings();
@@ -67,10 +69,10 @@ namespace SharpYaml.Tests.Serialization
             var serializer = new Serializer(settings);
             var result = serializer.Deserialize(new StringReader("!foo {}"));
 
-            Assert.IsInstanceOf<FooBase>(result);
+            Assert.IsInstanceOfType(result, typeof(FooBase));
         }
 
-        [Test]
+        [TestMethod]
         public void ObjectFactoryIsInvoked()
         {
             var settings = new SerializerSettings()
@@ -83,7 +85,10 @@ namespace SharpYaml.Tests.Serialization
 
             var result = serializer.Deserialize(new StringReader("!foo {}"));
 
-            Assert.IsInstanceOf<FooDerived>(result);
+            Assert.IsInstanceOfType(result, typeof(FooDerived));
         }
     }
 }
+
+
+

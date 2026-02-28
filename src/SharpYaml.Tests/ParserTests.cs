@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,14 +44,15 @@
 // SOFTWARE.
 
 using System.Collections;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class ParserTests : ParserTestHelper
     {
-        [Test]
+        [TestMethod]
         public void EmptyDocument()
         {
             AssertSequenceOfEventsFrom(ParserFor("empty.yaml"),
@@ -59,7 +60,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyEventsOnExample1()
         {
             AssertSequenceOfEventsFrom(ParserFor("test1.yaml"),
@@ -73,7 +74,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample2()
         {
             AssertSequenceOfEventsFrom(ParserFor("test2.yaml"),
@@ -84,7 +85,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample3()
         {
             AssertSequenceOfEventsFrom(ParserFor("test3.yaml"),
@@ -95,7 +96,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample4()
         {
             AssertSequenceOfEventsFrom(ParserFor("test4.yaml"),
@@ -112,7 +113,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample5()
         {
             AssertSequenceOfEventsFrom(ParserFor("test5.yaml"),
@@ -125,7 +126,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample6()
         {
             var parser = ParserFor("test6.yaml");
@@ -137,7 +138,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample7()
         {
             AssertSequenceOfEventsFrom(ParserFor("test7.yaml"),
@@ -163,7 +164,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample8()
         {
             AssertSequenceOfEventsFrom(ParserFor("test8.yaml"),
@@ -178,7 +179,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample9()
         {
             AssertSequenceOfEventsFrom(ParserFor("test9.yaml"),
@@ -194,7 +195,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample10()
         {
             AssertSequenceOfEventsFrom(ParserFor("test10.yaml"),
@@ -218,7 +219,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample11()
         {
             AssertSequenceOfEventsFrom(ParserFor("test11.yaml"),
@@ -246,7 +247,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample12()
         {
             AssertSequenceOfEventsFrom(ParserFor("test12.yaml"),
@@ -272,7 +273,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample13()
         {
             AssertSequenceOfEventsFrom(ParserFor("test13.yaml"),
@@ -296,7 +297,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokensOnExample14()
         {
             AssertSequenceOfEventsFrom(ParserFor("test14.yaml"),
@@ -313,7 +314,7 @@ namespace SharpYaml.Tests
                 StreamEnd);
         }
 
-        [Test]
+        [TestMethod]
         public void VerifyTokenWithLocalTags()
         {
             AssertSequenceOfEventsFrom(ParserFor("local-tags.yaml"),
@@ -341,11 +342,11 @@ namespace SharpYaml.Tests
             var eventNumber = 1;
             foreach (var expected in events)
             {
-                Assert.True(parser.MoveNext(), "Missing parse event number {0}", eventNumber);
+                Assert.IsTrue(parser.MoveNext(), "Missing parse event number {0}", eventNumber);
                 AssertEvent(expected, parser.Current, eventNumber);
                 eventNumber++;
             }
-            Assert.False(parser.MoveNext(), "Found extra parse events");
+            Assert.IsFalse(parser.MoveNext(), "Found extra parse events");
         }
 
         private void AssertEvent(ParsingEvent expected, ParsingEvent actual, int eventNumber)
@@ -379,11 +380,11 @@ namespace SharpYaml.Tests
                     var expectedValues = enumerable.GetEnumerator();
                     while (expectedValues.MoveNext())
                     {
-                        Assert.True(values.MoveNext(), "Property {0} in parse event {1} had too few elements", property.Name, eventNumber);
+                        Assert.IsTrue(values.MoveNext(), "Property {0} in parse event {1} had too few elements", property.Name, eventNumber);
                         Assert.AreEqual(expectedValues.Current, values.Current,
                             "Compared element in property {0} in parse event {1}", property.Name, eventNumber);
                     }
-                    Assert.False(values.MoveNext(), "Property {0} in parse event {1} had too many elements", property.Name, eventNumber);
+                    Assert.IsFalse(values.MoveNext(), "Property {0} in parse event {1} had too many elements", property.Name, eventNumber);
                 }
                 else
                 {
@@ -394,3 +395,6 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+
+

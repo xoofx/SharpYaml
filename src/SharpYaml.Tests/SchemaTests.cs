@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -44,22 +44,23 @@
 // SOFTWARE.
 
 using System;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class SchemaTests
     {
-        [Test]
+        [TestMethod]
         public void TestFailsafeSchema()
         {
             var schema = new FailsafeSchema();
             TestFailsafeSchemaCommon(schema);
         }
 
-        [Test]
+        [TestMethod]
         public void TestJsonSchema()
         {
             var schema = new JsonSchema();
@@ -69,7 +70,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual(null, schema.GetDefaultTag(new Scalar(null, null, "boom", ScalarStyle.Plain, true, false)));
         }
 
-        [Test]
+        [TestMethod]
         public void TestCoreSchema()
         {
             var schema = new CoreSchema();
@@ -77,7 +78,7 @@ namespace SharpYaml.Tests
             TestCoreSchemaCommon(schema);
         }
 
-        [Test]
+        [TestMethod]
         public void TestExtendedSchema()
         {
             var schema = new ExtendedSchema();
@@ -150,9 +151,12 @@ namespace SharpYaml.Tests
 
         private void TryParse(IYamlSchema schema, string scalar, string expectedShortTag, object expectedValue)
         {
-            Assert.True(schema.TryParse(new Scalar(scalar), true, out var tag, out var value));
+            Assert.IsTrue(schema.TryParse(new Scalar(scalar), true, out var tag, out var value));
             Assert.AreEqual(expectedShortTag, tag);
             Assert.AreEqual(expectedValue, value);
         }
     }
 }
+
+
+

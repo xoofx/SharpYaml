@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,16 +45,17 @@
 
 using System;
 using System.IO;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SharpYaml.Tests
 {
+        [TestClass]
     public class LookAheadBufferTests
     {
         private const string TestString = "abcdefghi";
         private const int Capacity = 4;
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadOnceWhenPeekingAtOffsetZero()
         {
             var reader = CreateFakeReader(TestString);
@@ -63,7 +64,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('a', buffer.Peek(0));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadTwiceWhenPeekingAtOffsetOne()
         {
             var reader = CreateFakeReader(TestString);
@@ -74,7 +75,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('b', buffer.Peek(1));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadThriceWhenPeekingAtOffsetTwo()
         {
             var reader = CreateFakeReader(TestString);
@@ -86,7 +87,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('c', buffer.Peek(2));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldNotHaveReadAfterSkippingOneCharacter()
         {
             var reader = CreateFakeReader(TestString);
@@ -100,7 +101,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('c', buffer.Peek(1));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadOnceAfterSkippingOneCharacter()
         {
             var reader = CreateFakeReader(TestString);
@@ -113,7 +114,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('d', buffer.Peek(2));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadTwiceAfterSkippingOneCharacter()
         {
             var reader = CreateFakeReader(TestString);
@@ -126,7 +127,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('e', buffer.Peek(3));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadOnceAfterSkippingFiveCharacters()
         {
             var reader = CreateFakeReader(TestString);
@@ -141,7 +142,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('f', buffer.Peek(0));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadOnceAfterSkippingSixCharacters()
         {
             var reader = CreateFakeReader(TestString);
@@ -158,7 +159,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('g', buffer.Peek(0));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadOnceAfterSkippingSevenCharacters()
         {
             var reader = CreateFakeReader(TestString);
@@ -175,7 +176,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('h', buffer.Peek(0));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadOnceAfterSkippingEightCharacters()
         {
             var reader = CreateFakeReader(TestString);
@@ -192,7 +193,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('i', buffer.Peek(0));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldHaveReadOnceAfterSkippingNineCharacters()
         {
             var reader = CreateFakeReader(TestString);
@@ -209,7 +210,7 @@ namespace SharpYaml.Tests
             Assert.AreEqual('\0', buffer.Peek(0));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldFindEndOfInput()
         {
             var reader = CreateFakeReader(TestString);
@@ -223,19 +224,19 @@ namespace SharpYaml.Tests
             buffer.Skip(4);
             buffer.Peek(0);
 
-            Assert.True(buffer.EndOfInput);
+            Assert.IsTrue(buffer.EndOfInput);
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldThrowWhenPeekingBeyondCapacity()
         {
             var reader = CreateFakeReader(TestString);
             var buffer = CreateBuffer(reader, Capacity);
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Peek(4));
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => buffer.Peek(4));
         }
 
-        [Test]
+        [TestMethod]
         public void ShouldThrowWhenSkippingBeyondCurrentBuffer()
         {
             var reader = CreateFakeReader(TestString);
@@ -243,7 +244,7 @@ namespace SharpYaml.Tests
 
             buffer.Peek(3);
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Skip(5));
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => buffer.Skip(5));
         }
 
         private static TextReader CreateFakeReader(string text)
@@ -257,3 +258,6 @@ namespace SharpYaml.Tests
         }
     }
 }
+
+
+

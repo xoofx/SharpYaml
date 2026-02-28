@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,14 +45,15 @@
 
 using System;
 using System.IO;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization
 {
+        [TestClass]
     public class Program
     {
-        [Test]
+        [TestMethod]
         public void LoadYamlStream()
         {
             // Setup the input
@@ -106,3 +107,6 @@ namespace SharpYaml.Tests.Serialization
 ...";
     }
 }
+
+
+
