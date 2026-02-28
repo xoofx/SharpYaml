@@ -21,9 +21,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using SharpYaml.Events;
 using SharpYaml.Schemas;
-using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Model
 {
@@ -42,11 +42,43 @@ namespace SharpYaml.Model
         /// <summary>Initializes a new instance of this type.</summary>
         public YamlValue(object value, IYamlSchema? schema = null)
         {
-            var valueString = PrimitiveSerializer.ConvertValue(value);
+            ArgumentNullException.ThrowIfNull(value);
+
+            var valueString = ConvertValue(value);
             if (schema == null)
                 schema = CoreSchema.Instance;
 
             Scalar = new Scalar(schema.GetDefaultTag(value.GetType()), valueString);
+        }
+
+        private static string ConvertValue(object value)
+        {
+            if (value is string str)
+            {
+                return str;
+            }
+
+            if (value is bool boolean)
+            {
+                return boolean ? "true" : "false";
+            }
+
+            if (value is char ch)
+            {
+                return ch.ToString(CultureInfo.InvariantCulture);
+            }
+
+            if (value is Enum)
+            {
+                return value.ToString() ?? string.Empty;
+            }
+
+            if (value is IFormattable formattable)
+            {
+                return formattable.ToString(format: null, CultureInfo.InvariantCulture) ?? string.Empty;
+            }
+
+            return value.ToString() ?? string.Empty;
         }
 
         internal Scalar Scalar
