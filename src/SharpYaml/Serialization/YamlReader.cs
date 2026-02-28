@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using SharpYaml.Events;
 
 namespace SharpYaml.Serialization;
 
@@ -16,6 +18,13 @@ public ref struct YamlReader
     internal YamlReader(YamlReaderState state)
     {
         _state = state;
+    }
+
+    internal static YamlReader Create(string yaml)
+    {
+        ArgumentNullException.ThrowIfNull(yaml);
+        var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
+        return new YamlReader(new YamlReaderState(parser));
     }
 
     /// <summary>
@@ -44,6 +53,16 @@ public ref struct YamlReader
     public string? Alias => _state.Alias;
 
     /// <summary>
+    /// Gets the start location of the current token.
+    /// </summary>
+    public Mark Start => _state.Start;
+
+    /// <summary>
+    /// Gets the end location of the current token.
+    /// </summary>
+    public Mark End => _state.End;
+
+    /// <summary>
     /// Advances to the next token.
     /// </summary>
     public bool Read() => _state.Read();
@@ -69,15 +88,139 @@ public ref struct YamlReader
 
     internal sealed class YamlReaderState
     {
-        public YamlTokenType TokenType { get; set; }
-        public string? ScalarValue { get; set; }
-        public string? Tag { get; set; }
-        public string? Anchor { get; set; }
-        public string? Alias { get; set; }
+        private readonly IParser _parser;
 
-        public bool Read() => throw new NotImplementedException("YamlReader is not yet wired to a token source.");
+        public YamlReaderState(IParser parser)
+        {
+            _parser = parser;
+            TokenType = YamlTokenType.None;
+        }
 
-        public void Skip() => throw new NotImplementedException("YamlReader is not yet wired to a token source.");
+        public YamlTokenType TokenType { get; private set; }
+        public string? ScalarValue { get; private set; }
+        public string? Tag { get; private set; }
+        public string? Anchor { get; private set; }
+        public string? Alias { get; private set; }
+        public Mark Start { get; private set; } = Mark.Empty;
+        public Mark End { get; private set; } = Mark.Empty;
+
+        public bool Read()
+        {
+            while (_parser.MoveNext())
+            {
+                var current = _parser.Current;
+                if (current is null)
+                {
+                    continue;
+                }
+
+                Start = current.Start;
+                End = current.End;
+
+                // These are stream/document framing tokens that most converters should not see.
+                if (current is StreamStart or StreamEnd or DocumentStart or DocumentEnd)
+                {
+                    continue;
+                }
+
+                ScalarValue = null;
+                Tag = null;
+                Anchor = null;
+                Alias = null;
+
+                switch (current)
+                {
+                    case MappingStart mappingStart:
+                        TokenType = YamlTokenType.StartMapping;
+                        Tag = mappingStart.Tag;
+                        Anchor = mappingStart.Anchor;
+                        return true;
+
+                    case MappingEnd:
+                        TokenType = YamlTokenType.EndMapping;
+                        return true;
+
+                    case SequenceStart sequenceStart:
+                        TokenType = YamlTokenType.StartSequence;
+                        Tag = sequenceStart.Tag;
+                        Anchor = sequenceStart.Anchor;
+                        return true;
+
+                    case SequenceEnd:
+                        TokenType = YamlTokenType.EndSequence;
+                        return true;
+
+                    case Scalar scalar:
+                        TokenType = YamlTokenType.Scalar;
+                        ScalarValue = scalar.Value;
+                        Tag = scalar.Tag;
+                        Anchor = scalar.Anchor;
+                        return true;
+
+                    case AnchorAlias alias:
+                        TokenType = YamlTokenType.Alias;
+                        Alias = alias.Value;
+                        return true;
+                }
+
+                // Ignore any other event types (directives, etc.) for now.
+            }
+
+            TokenType = YamlTokenType.None;
+            ScalarValue = null;
+            Tag = null;
+            Anchor = null;
+            Alias = null;
+            Start = Mark.Empty;
+            End = Mark.Empty;
+            return false;
+        }
+
+        public void Skip()
+        {
+            switch (TokenType)
+            {
+                case YamlTokenType.StartMapping:
+                case YamlTokenType.StartSequence:
+                    SkipContainer();
+                    return;
+
+                case YamlTokenType.Scalar:
+                case YamlTokenType.Alias:
+                    Read();
+                    return;
+
+                default:
+                    Read();
+                    return;
+            }
+        }
+
+        private void SkipContainer()
+        {
+            var depth = 1;
+
+            while (Read())
+            {
+                if (TokenType is YamlTokenType.StartMapping or YamlTokenType.StartSequence)
+                {
+                    depth++;
+                }
+                else if (TokenType is YamlTokenType.EndMapping or YamlTokenType.EndSequence)
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // Move past the end token.
+            if (TokenType is YamlTokenType.EndMapping or YamlTokenType.EndSequence)
+            {
+                Read();
+            }
+        }
     }
 }
-
