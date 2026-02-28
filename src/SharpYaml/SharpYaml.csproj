@@ -26,10 +26,6 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <SharpYamlSourceGeneratorAssembly>$(MSBuildThisFileDirectory)..\SharpYaml.SourceGenerator\bin\$(Configuration)\netstandard2.0\SharpYaml.SourceGenerator.dll</SharpYamlSourceGeneratorAssembly>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="MinVer">
       <PrivateAssets>all</PrivateAssets>
@@ -38,11 +34,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="$(SharpYamlSourceGeneratorAssembly)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="$(SharpYamlSourceGeneratorAssembly).pdb" Condition="Exists('$(SharpYamlSourceGeneratorAssembly).pdb')" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all"
+                      Pack="true"
+                      PackagePath="analyzers/dotnet/cs"
+                      Visible="false" />
   </ItemGroup>
 </Project>
