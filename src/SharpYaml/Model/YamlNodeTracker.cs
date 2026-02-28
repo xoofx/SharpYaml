@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -7,17 +7,22 @@ using SharpYaml.Events;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Child Index value type.</summary>
     public struct ChildIndex
     {
+        /// <summary>Gets index.</summary>
         public int Index;
+        /// <summary>Gets a value indicating whether is Key.</summary>
         public bool IsKey;
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public ChildIndex(int index, bool isKey)
         {
             Index = index;
             IsKey = isKey;
         }
 
+        /// <summary>Resolves this path against a YAML node.</summary>
         public YamlNode? Resolve(YamlNode parent)
         {
             if (parent is YamlStream stream)
@@ -57,17 +62,20 @@ namespace SharpYaml.Model
             return null;
         }
 
+        /// <summary>Determines whether the specified object is equal to the current instance.</summary>
         public bool Equals(ChildIndex other)
         {
             return Index == other.Index && IsKey == other.IsKey;
         }
 
+        /// <summary>Determines whether the specified object is equal to the current instance.</summary>
         public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             return obj is ChildIndex index && Equals(index);
         }
 
+        /// <summary>Returns a hash code for the current instance.</summary>
         public override int GetHashCode()
         {
             unchecked
@@ -77,17 +85,22 @@ namespace SharpYaml.Model
         }
     }
 
+    /// <summary>Represents the Path value type.</summary>
     public struct Path
     {
+        /// <summary>Gets root.</summary>
         public YamlNode Root;
+        /// <summary>Gets indices.</summary>
         public ChildIndex[] Indices;
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public Path(YamlNode root, ChildIndex[] indices)
         {
             Root = root;
             Indices = indices;
         }
 
+        /// <summary>Resolves this path against a YAML node.</summary>
         public YamlNode? Resolve()
         {
             var node = Root;
@@ -102,17 +115,20 @@ namespace SharpYaml.Model
             return node;
         }
 
+        /// <summary>Determines whether the specified object is equal to the current instance.</summary>
         public bool Equals(Path other)
         {
             return Equals(Root, other.Root) && Indices.SequenceEqual(other.Indices);
         }
 
+        /// <summary>Determines whether the specified object is equal to the current instance.</summary>
         public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             return obj is Path path && Equals(path);
         }
 
+        /// <summary>Returns a hash code for the current instance.</summary>
         public override int GetHashCode()
         {
             unchecked
@@ -122,17 +138,20 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Creates a clone of the current value.</summary>
         public Path Clone()
         {
             return new Path(Root, Indices.ToArray());
         }
 
+        /// <summary>Appends a child index to the current path.</summary>
         public void Append(ChildIndex childIndex)
         {
             Array.Resize(ref Indices, Indices.Length + 1);
             Indices[Indices.Length - 1] = childIndex;
         }
 
+        /// <summary>Gets parent Path.</summary>
         public Path? GetParentPath()
         {
             if (Indices.Length == 0)
@@ -142,41 +161,65 @@ namespace SharpYaml.Model
         }
     }
 
+    /// <summary>Defines the Tracker Event Type enumeration.</summary>
     public enum TrackerEventType
     {
+        /// <summary>Specifies stream Document Added.</summary>
         StreamDocumentAdded,
+        /// <summary>Specifies stream Document Removed.</summary>
         StreamDocumentRemoved,
+        /// <summary>Specifies stream Document Changed.</summary>
         StreamDocumentChanged,
+        /// <summary>Specifies document Start Changed.</summary>
         DocumentStartChanged,
+        /// <summary>Specifies document End Changed.</summary>
         DocumentEndChanged,
+        /// <summary>Specifies document Contents Changed.</summary>
         DocumentContentsChanged,
+        /// <summary>Specifies sequence Start Changed.</summary>
         SequenceStartChanged,
+        /// <summary>Specifies sequence Element Added.</summary>
         SequenceElementAdded,
+        /// <summary>Specifies sequence Element Removed.</summary>
         SequenceElementRemoved,
+        /// <summary>Specifies sequence Element Changed.</summary>
         SequenceElementChanged,
+        /// <summary>Specifies mapping Start Changed.</summary>
         MappingStartChanged,
+        /// <summary>Specifies mapping Pair Added.</summary>
         MappingPairAdded,
+        /// <summary>Specifies mapping Pair Removed.</summary>
         MappingPairRemoved,
+        /// <summary>Specifies mapping Pair Changed.</summary>
         MappingPairChanged,
+        /// <summary>Specifies scalar Properties Changed.</summary>
         ScalarPropertiesChanged,
+        /// <summary>Specifies scalar Value Changed.</summary>
         ScalarValueChanged
     }
 
+    /// <summary>Represents the Tracker Event Args.</summary>
     public abstract class TrackerEventArgs : EventArgs
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public TrackerEventArgs(YamlNode node, IList<Path> parentPaths)
         {
             Node = node;
             ParentPaths = parentPaths;
         }
 
+        /// <summary>Gets node.</summary>
         public YamlNode Node { get; }
+        /// <summary>Gets parent Paths.</summary>
         public IList<Path> ParentPaths { get; }
+        /// <summary>Gets event Type.</summary>
         public abstract TrackerEventType EventType { get; }
     }
 
+    /// <summary>Represents the Child Event Args.</summary>
     public abstract class ChildEventArgs<TParent, TChild> : TrackerEventArgs where TParent : YamlNode
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public ChildEventArgs(TParent node, IList<Path> parentPaths, TChild child, int index) :
             base(node, parentPaths)
         {
@@ -184,13 +227,18 @@ namespace SharpYaml.Model
             Index = index;
         }
 
+        /// <summary>Gets node.</summary>
         public new TParent Node { get { return (TParent)base.Node; } }
+        /// <summary>Gets child.</summary>
         public TChild Child { get; }
+        /// <summary>Gets index.</summary>
         public int Index { get; }
     }
 
+    /// <summary>Represents the Child Changed Event Args.</summary>
     public abstract class ChildChangedEventArgs<TParent, TChild> : TrackerEventArgs where TParent : YamlNode
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public ChildChangedEventArgs(TParent node, IList<Path> parentPaths, TChild oldChild, TChild newChild, int index) :
             base(node, parentPaths)
         {
@@ -199,14 +247,20 @@ namespace SharpYaml.Model
             Index = index;
         }
 
+        /// <summary>Gets node.</summary>
         public new TParent Node { get { return (TParent)base.Node; } }
+        /// <summary>Gets old Child.</summary>
         public TChild? OldChild { get; }
+        /// <summary>Gets new Child.</summary>
         public TChild NewChild { get; }
+        /// <summary>Gets index.</summary>
         public int Index { get; }
     }
 
+    /// <summary>Represents the Property Changed Event Args.</summary>
     public abstract class PropertyChangedEventArgs<TNode, TProperty> : TrackerEventArgs where TNode : YamlNode
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public PropertyChangedEventArgs(TNode node, IList<Path> parentPaths, TProperty? oldValue, TProperty newValue)
             : base(node, parentPaths)
         {
@@ -214,185 +268,237 @@ namespace SharpYaml.Model
             NewValue = newValue;
         }
 
+        /// <summary>Gets node.</summary>
         public new TNode Node { get { return (TNode)base.Node; } }
+        /// <summary>Gets old Value.</summary>
         public TProperty? OldValue { get; }
+        /// <summary>Gets new Value.</summary>
         public TProperty NewValue { get; }
     }
 
+    /// <summary>Represents the Stream Document Added.</summary>
     public class StreamDocumentAdded : ChildEventArgs<YamlStream, YamlDocument>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public StreamDocumentAdded(YamlStream node, IList<Path> parentPaths, YamlDocument child, int index)
             : base(node, parentPaths, child, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.StreamDocumentAdded;
         }
     }
 
+    /// <summary>Represents the Stream Document Removed.</summary>
     public class StreamDocumentRemoved : ChildEventArgs<YamlStream, YamlDocument>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public StreamDocumentRemoved(YamlStream node, IList<Path> parentPaths, YamlDocument child, int index)
             : base(node, parentPaths, child, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.StreamDocumentRemoved;
         }
     }
 
+    /// <summary>Represents the Stream Document Changed.</summary>
     public class StreamDocumentChanged : ChildChangedEventArgs<YamlStream, YamlDocument>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public StreamDocumentChanged(YamlStream node, IList<Path> parentPaths, YamlDocument oldChild, YamlDocument newChild, int index)
             : base(node, parentPaths, oldChild, newChild, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.StreamDocumentChanged;
         }
     }
 
+    /// <summary>Represents the Document Start Changed.</summary>
     public class DocumentStartChanged : PropertyChangedEventArgs<YamlDocument, DocumentStart>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public DocumentStartChanged(YamlDocument node, IList<Path> parentPaths, DocumentStart? oldValue, DocumentStart newValue)
             : base(node, parentPaths, oldValue, newValue) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.DocumentStartChanged;
         }
     }
 
+    /// <summary>Represents the Document End Changed.</summary>
     public class DocumentEndChanged : PropertyChangedEventArgs<YamlDocument, DocumentEnd>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public DocumentEndChanged(YamlDocument node, IList<Path> parentPaths, DocumentEnd oldValue, DocumentEnd newValue)
             : base(node, parentPaths, oldValue, newValue) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.DocumentEndChanged;
         }
     }
 
+    /// <summary>Represents the Document Contents Changed.</summary>
     public class DocumentContentsChanged : PropertyChangedEventArgs<YamlDocument, YamlElement>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public DocumentContentsChanged(YamlDocument node, IList<Path> parentPaths, YamlElement oldValue, YamlElement newValue)
             : base(node, parentPaths, oldValue, newValue) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.DocumentContentsChanged;
         }
     }
 
+    /// <summary>Represents the Sequence Start Changed.</summary>
     public class SequenceStartChanged : PropertyChangedEventArgs<YamlSequence, SequenceStart>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public SequenceStartChanged(YamlSequence node, IList<Path> parentPaths, SequenceStart oldValue, SequenceStart newValue)
             : base(node, parentPaths, oldValue, newValue) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.SequenceStartChanged;
         }
     }
 
+    /// <summary>Represents the Sequence Element Added.</summary>
     public class SequenceElementAdded : ChildEventArgs<YamlSequence, YamlElement>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public SequenceElementAdded(YamlSequence node, IList<Path> parentPaths, YamlElement child, int index)
             : base(node, parentPaths, child, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.SequenceElementAdded;
         }
     }
 
+    /// <summary>Represents the Sequence Element Removed.</summary>
     public class SequenceElementRemoved : ChildEventArgs<YamlSequence, YamlElement>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public SequenceElementRemoved(YamlSequence node, IList<Path> parentPaths, YamlElement child, int index)
             : base(node, parentPaths, child, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.SequenceElementRemoved;
         }
     }
 
+    /// <summary>Represents the Sequence Element Changed.</summary>
     public class SequenceElementChanged : ChildChangedEventArgs<YamlSequence, YamlElement>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public SequenceElementChanged(YamlSequence node, IList<Path> parentPaths, YamlElement oldChild, YamlElement newChild, int index)
             : base(node, parentPaths, oldChild, newChild, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.SequenceElementChanged;
         }
     }
 
+    /// <summary>Represents the Mapping Start Changed.</summary>
     public class MappingStartChanged : PropertyChangedEventArgs<YamlMapping, MappingStart>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public MappingStartChanged(YamlMapping node, IList<Path> parentPaths, MappingStart oldValue, MappingStart newValue)
             : base(node, parentPaths, oldValue, newValue) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.MappingStartChanged;
         }
     }
 
+    /// <summary>Represents the Mapping Pair Added.</summary>
     public class MappingPairAdded : ChildEventArgs<YamlMapping, KeyValuePair<YamlElement, YamlElement>>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public MappingPairAdded(YamlMapping node, IList<Path> parentPaths, KeyValuePair<YamlElement, YamlElement> child, int index)
             : base(node, parentPaths, child, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.MappingPairAdded;
         }
     }
 
+    /// <summary>Represents the Mapping Pair Removed.</summary>
     public class MappingPairRemoved : ChildEventArgs<YamlMapping, KeyValuePair<YamlElement, YamlElement>>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public MappingPairRemoved(YamlMapping node, IList<Path> parentPaths, KeyValuePair<YamlElement, YamlElement> child, int index)
             : base(node, parentPaths, child, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.MappingPairRemoved;
         }
     }
 
+    /// <summary>Represents the Mapping Pair Changed.</summary>
     public class MappingPairChanged : ChildChangedEventArgs<YamlMapping, KeyValuePair<YamlElement, YamlElement>>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public MappingPairChanged(YamlMapping node, IList<Path> parentPaths, KeyValuePair<YamlElement, YamlElement> oldChild, KeyValuePair<YamlElement, YamlElement> newChild, int index)
             : base(node, parentPaths, oldChild, newChild, index) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.MappingPairChanged;
         }
     }
 
+    /// <summary>Represents the Scalar Properties Changed.</summary>
     public class ScalarPropertiesChanged : PropertyChangedEventArgs<YamlValue, Scalar>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public ScalarPropertiesChanged(YamlValue node, IList<Path> parentPaths, Scalar? oldValue, Scalar newValue) : base(node, parentPaths, oldValue, newValue) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.ScalarPropertiesChanged;
         }
     }
 
+    /// <summary>Represents the Scalar Value Changed.</summary>
     public class ScalarValueChanged : PropertyChangedEventArgs<YamlValue, string>
     {
+        /// <summary>Initializes a new instance of this type.</summary>
         public ScalarValueChanged(YamlValue node, IList<Path> parentPaths, string oldValue, string newValue) : base(node, parentPaths, oldValue, newValue) { }
 
+        /// <summary>Gets event Type.</summary>
         public override TrackerEventType EventType
         {
             get => TrackerEventType.ScalarValueChanged;
         }
     }
 
+    /// <summary>Represents the Yaml Node Tracker.</summary>
     public class YamlNodeTracker
     {
         readonly struct ParentAndIndex
@@ -528,6 +634,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets paths.</summary>
         public IList<Path> GetPaths(YamlNode child)
         {
             if (child is YamlStream)
@@ -833,6 +940,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Occurs when tracker Event.</summary>
         public event EventHandler<TrackerEventArgs>? TrackerEvent;
 
         private Dictionary<Path, Dictionary<WeakReference, string>>? subscribers;
@@ -865,6 +973,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Subscribes a handler to tracker events.</summary>
         public void Subscribe(object subscriber, Path? filterPath, string methodName)
         {
             if (subscribers == null)
@@ -897,6 +1006,7 @@ namespace SharpYaml.Model
             dict[reference] = methodName;
         }
 
+        /// <summary>Unsubscribes a handler from tracker events.</summary>
         public void Unsubscribe(object subscriber)
         {
             foreach (var pair in subscribers)

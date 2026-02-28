@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,10 +19,14 @@
 // THE SOFTWARE.
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Element.</summary>
     public abstract class YamlElement : YamlNode
     {
+        /// <summary>Gets or sets anchor.</summary>
         public abstract string? Anchor { get; set; }
+        /// <summary>Gets or sets tag.</summary>
         public abstract string? Tag { get; set; }
+        /// <summary>Gets is Canonical.</summary>
         public abstract bool IsCanonical { get; }
     }
 }

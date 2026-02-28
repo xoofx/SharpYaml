@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -47,6 +47,7 @@ using System;
 
 namespace SharpYaml
 {
+    /// <summary>Defines the I Look Ahead Buffer contract.</summary>
     public interface ILookAheadBuffer
     {
         /// <summary>

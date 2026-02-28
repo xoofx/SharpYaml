@@ -138,8 +138,6 @@ namespace SharpYaml.Tests
             var file = System.Reflection.Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("SharpYaml.Tests.files.test12.yaml");
 
-            var childrenAdded = 0;
-
             var tracker = new YamlNodeTracker();
 
             var fileStream = new StreamReader(file);

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,6 +52,7 @@ namespace SharpYaml
     /// </summary>
     public readonly struct Mark
     {
+        /// <summary>Initializes a new mark at the specified source location.</summary>
         public Mark(int index, int line, int column)
         {
             this.Index = index;

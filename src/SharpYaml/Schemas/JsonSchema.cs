@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -109,6 +109,7 @@ namespace SharpYaml.Schemas
             RegisterTag(FloatShortTag, FloatLongTag);
         }
 
+        /// <summary>Registers scalar resolution rules for the JSON schema.</summary>
         protected override void PrepareScalarRules()
         {
             // 10.2.1.1. Null
@@ -134,6 +135,7 @@ namespace SharpYaml.Schemas
             // and in order to have a more concise set of regex
         }
 
+        /// <summary>Decodes a matched integer scalar into an <see cref="int"/>, <see cref="long"/>, or <see cref="ulong"/>.</summary>
         protected object DecodeInteger(Match m)
         {
             var valueStr = m.Value.Replace("_", "");
@@ -151,6 +153,7 @@ namespace SharpYaml.Schemas
             return ulong.Parse(valueStr, CultureInfo.InvariantCulture);
         }
 
+        /// <summary>Registers default tag mappings for JSON-schema scalar types.</summary>
         protected override void RegisterDefaultTagMappings()
         {
             base.RegisterDefaultTagMappings();

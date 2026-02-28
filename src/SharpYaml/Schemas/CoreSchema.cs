@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -58,8 +58,10 @@ namespace SharpYaml.Schemas
     /// </remarks>
     public class CoreSchema : JsonSchema
     {
+        /// <summary>Gets instance.</summary>
         public static readonly CoreSchema Instance = new CoreSchema();
 
+        /// <summary>Registers scalar resolution rules for the YAML core schema.</summary>
         protected override void PrepareScalarRules()
         {
             // 10.2.1.1. Null

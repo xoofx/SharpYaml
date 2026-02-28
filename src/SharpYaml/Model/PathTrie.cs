@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Path Trie.</summary>
     public class PathTrie
     {
         class PathTrieNode
@@ -87,6 +88,7 @@ namespace SharpYaml.Model
 
         private readonly Dictionary<YamlNode, PathTrieNode> roots = new Dictionary<YamlNode, PathTrieNode>();
 
+        /// <summary>Adds an item.</summary>
         public void Add(Path path)
         {
             if (!roots.TryGetValue(path.Root, out var root))
@@ -98,6 +100,7 @@ namespace SharpYaml.Model
             root.Add(path.Indices, 0);
         }
 
+        /// <summary>Removes an item.</summary>
         public bool Remove(Path path, bool removeChildren)
         {
             if (!roots.TryGetValue(path.Root, out var root))
@@ -112,6 +115,7 @@ namespace SharpYaml.Model
             return true;
         }
 
+        /// <summary>Determines whether a value exists.</summary>
         public bool Contains(Path path, bool orChildren)
         {
             if (!roots.TryGetValue(path.Root, out var root))
@@ -124,6 +128,7 @@ namespace SharpYaml.Model
             return node.Self || orChildren;
         }
 
+        /// <summary>Gets subpaths.</summary>
         public IEnumerable<Path> GetSubpaths(Path path)
         {
             if (!roots.TryGetValue(path.Root, out var root))

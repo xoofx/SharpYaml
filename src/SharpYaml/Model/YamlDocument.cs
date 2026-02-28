@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,12 +25,14 @@ using DocumentStart = SharpYaml.Events.DocumentStart;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Document.</summary>
     public class YamlDocument : YamlNode
     {
         private DocumentStart _documentStart;
         private DocumentEnd _documentEnd;
         private YamlElement? _contents;
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public YamlDocument()
         {
             _documentStart = new DocumentStart(null, new TagDirectiveCollection(), true);
@@ -46,6 +48,7 @@ namespace SharpYaml.Model
             Contents = contents;
         }
 
+        /// <summary>Loads data.</summary>
         public static YamlDocument Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var documentStart = eventReader.Allow<DocumentStart>();
@@ -57,6 +60,7 @@ namespace SharpYaml.Model
             return new YamlDocument(documentStart, documentEnd, contents, tracker);
         }
 
+        /// <summary>Gets document Start.</summary>
         public DocumentStart DocumentStart
         {
             get => _documentStart;
@@ -71,6 +75,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets document End.</summary>
         public DocumentEnd DocumentEnd
         {
             get => _documentEnd;
@@ -85,6 +90,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets contents.</summary>
         public YamlElement? Contents
         {
             get { return _contents; }
@@ -102,6 +108,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets tracker.</summary>
         public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
@@ -120,6 +127,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Creates a deep clone of the current value.</summary>
         public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             return new YamlDocument(_documentStart, _documentEnd, (YamlElement?)Contents?.DeepClone(), tracker);

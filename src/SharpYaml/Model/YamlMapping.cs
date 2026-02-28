@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ using SharpYaml.Events;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Mapping.</summary>
     public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement?>, IList<KeyValuePair<YamlElement, YamlElement?>>
     {
         private MappingStart _mappingStart;
@@ -34,6 +35,7 @@ namespace SharpYaml.Model
 
         private Dictionary<string, YamlValue>? stringKeys;
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public YamlMapping()
         {
             _mappingStart = new MappingStart();
@@ -64,6 +66,7 @@ namespace SharpYaml.Model
             this.MappingEnd = mappingEnd;
         }
 
+        /// <summary>Gets mapping Start.</summary>
         public MappingStart MappingStart
         {
             get => _mappingStart;
@@ -81,6 +84,7 @@ namespace SharpYaml.Model
 
         internal MappingEnd MappingEnd { get; }
 
+        /// <summary>Gets anchor.</summary>
         public override string? Anchor
         {
             get { return _mappingStart.Anchor; }
@@ -95,6 +99,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets tag.</summary>
         public override string? Tag
         {
             get { return _mappingStart.Tag; }
@@ -109,6 +114,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets style.</summary>
         public override YamlStyle Style
         {
             get { return _mappingStart.Style; }
@@ -123,8 +129,10 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets a value indicating whether is Canonical.</summary>
         public override bool IsCanonical { get { return _mappingStart.IsCanonical; } }
 
+        /// <summary>Gets is Implicit.</summary>
         public override bool IsImplicit
         {
             get { return _mappingStart.IsImplicit; }
@@ -139,6 +147,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Loads data.</summary>
         public static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker)
         {
             var mappingStart = eventReader.Allow<MappingStart>();
@@ -167,6 +176,7 @@ namespace SharpYaml.Model
             return GetEnumerator();
         }
 
+        /// <summary>Gets enumerator.</summary>
         public IEnumerator<KeyValuePair<YamlElement, YamlElement?>> GetEnumerator()
         {
             return _keys.Select(k => new KeyValuePair<YamlElement, YamlElement?>(k, _contents[k])).GetEnumerator();
@@ -177,6 +187,7 @@ namespace SharpYaml.Model
             Add(item.Key, item.Value);
         }
 
+        /// <summary>Removes all elements from the collection.</summary>
         public void Clear()
         {
             var values = Tracker == null ? null : this.ToList();
@@ -208,9 +219,12 @@ namespace SharpYaml.Model
             return Remove(item.Key);
         }
 
+        /// <summary>Gets count.</summary>
         public int Count { get { return _contents.Count; } }
+        /// <summary>Gets a value indicating whether is Read Only.</summary>
         public bool IsReadOnly { get { return false; } }
 
+        /// <summary>Adds an item.</summary>
         public void Add(YamlElement key, YamlElement? value)
         {
             _contents.Add(key, value);
@@ -230,6 +244,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets tracker.</summary>
         public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
@@ -252,11 +267,13 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Determines whether key.</summary>
         public bool ContainsKey(YamlElement key)
         {
             return _contents.ContainsKey(key);
         }
 
+        /// <summary>Determines whether key.</summary>
         public bool ContainsKey(string key)
         {
             if (stringKeys == null)
@@ -265,6 +282,7 @@ namespace SharpYaml.Model
             return stringKeys.ContainsKey(key);
         }
 
+        /// <summary>Removes an item.</summary>
         public bool Remove(YamlElement key)
         {
             var index = _keys.IndexOf(key);
@@ -278,6 +296,7 @@ namespace SharpYaml.Model
         }
 
 
+        /// <summary>Removes an item.</summary>
         public bool Remove(string key)
         {
             if (stringKeys == null)
@@ -295,11 +314,13 @@ namespace SharpYaml.Model
             return false;
         }
 
+        /// <summary>Tries to get Value.</summary>
         public bool TryGetValue(YamlElement key, [MaybeNullWhen(false)] out YamlElement value)
         {
             return _contents.TryGetValue(key, out value);
         }
 
+        /// <summary>Tries to get Value.</summary>
         public bool TryGetValue(string key, [MaybeNullWhen(false)] out YamlElement value)
         {
             if (stringKeys == null)
@@ -314,6 +335,7 @@ namespace SharpYaml.Model
             return TryGetValue(yamlKey, out value);
         }
 
+        /// <summary>Gets or sets an element at the specified index.</summary>
         public YamlElement? this[YamlElement key]
         {
             get
@@ -369,6 +391,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets or sets an element at the specified index.</summary>
         public YamlElement? this[string key]
         {
             get
@@ -393,14 +416,18 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets keys.</summary>
         public ICollection<YamlElement> Keys { get { return _keys; } }
+        /// <summary>Gets values.</summary>
         public ICollection<YamlElement?> Values { get { return _contents.Values; } }
 
+        /// <summary>Gets the zero-based index of the specified item.</summary>
         public int IndexOf(KeyValuePair<YamlElement, YamlElement?> item)
         {
             return _keys.IndexOf(item.Key);
         }
 
+        /// <summary>Inserts an item at the specified index.</summary>
         public void Insert(int index, KeyValuePair<YamlElement, YamlElement?> item)
         {
             if (_contents.ContainsKey(item.Key))
@@ -427,6 +454,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Removes at.</summary>
         public void RemoveAt(int index)
         {
             var key = _keys[index];
@@ -450,6 +478,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets or sets an element at the specified index.</summary>
         public KeyValuePair<YamlElement, YamlElement?> this[int index]
         {
             get { return new KeyValuePair<YamlElement, YamlElement?>(_keys[index], _contents[_keys[index]]); }
@@ -491,6 +520,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Creates a deep clone of the current value.</summary>
         public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             var keysClone = new List<YamlElement>(_keys.Count);

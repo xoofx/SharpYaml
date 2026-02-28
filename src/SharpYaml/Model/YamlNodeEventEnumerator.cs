@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@ using SharpYaml.Events;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Node Event Enumerator.</summary>
     public sealed class YamlNodeEventEnumerator : IEnumerable<ParsingEvent>, IEnumerator<ParsingEvent>
     {
         private readonly YamlNode root;
@@ -31,6 +32,7 @@ namespace SharpYaml.Model
         private Stack<YamlNode>? nodePath;
         private Stack<int>? indexPath;
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public YamlNodeEventEnumerator(YamlNode root)
         {
             this.root = root;
@@ -38,6 +40,7 @@ namespace SharpYaml.Model
             currentIndex = -1;
         }
 
+        /// <summary>Gets enumerator.</summary>
         public IEnumerator<ParsingEvent> GetEnumerator()
         {
             return this;
@@ -48,8 +51,10 @@ namespace SharpYaml.Model
             return GetEnumerator();
         }
 
+        /// <summary>Releases resources used by the current instance.</summary>
         public void Dispose() { }
 
+        /// <summary>Advances the enumerator to the next element.</summary>
         public bool MoveNext()
         {
             if (currentNode == null)
@@ -182,6 +187,7 @@ namespace SharpYaml.Model
             currentIndex = indexPath.Pop() + 1;
         }
 
+        /// <summary>Resets the enumerator to its initial position.</summary>
         public void Reset()
         {
             Current = null!;
@@ -191,6 +197,7 @@ namespace SharpYaml.Model
             currentIndex = -1;
         }
 
+        /// <summary>Gets or sets current.</summary>
         public ParsingEvent Current { get; private set; } = null!;
 
         object IEnumerator.Current => Current;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,10 +25,12 @@ using SharpYaml.Events;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Stream.</summary>
     public class YamlStream : YamlNode, IList<YamlDocument>
     {
         private readonly List<YamlDocument> _documents;
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public YamlStream(YamlNodeTracker? tracker = null)
         {
             StreamStart = new StreamStart();
@@ -58,11 +60,13 @@ namespace SharpYaml.Model
         internal StreamStart StreamStart { get; }
         internal StreamEnd StreamEnd { get; }
 
+        /// <summary>Loads data.</summary>
         public static YamlStream Load(TextReader stream, YamlNodeTracker? tracker = null)
         {
             return Load(new EventReader(Parser.CreateParser(stream)), tracker);
         }
 
+        /// <summary>Loads data.</summary>
         public static YamlStream Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var streamStart = eventReader.Allow<StreamStart>();
@@ -81,11 +85,13 @@ namespace SharpYaml.Model
             return GetEnumerator();
         }
 
+        /// <summary>Gets enumerator.</summary>
         public IEnumerator<YamlDocument> GetEnumerator()
         {
             return _documents.GetEnumerator();
         }
 
+        /// <summary>Adds an item.</summary>
         public void Add(YamlDocument item)
         {
             _documents.Add(item);
@@ -97,6 +103,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets tracker.</summary>
         public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
@@ -116,6 +123,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Removes all elements from the collection.</summary>
         public void Clear()
         {
             var copy = Tracker == null ? null : new List<YamlDocument>(_documents);
@@ -129,16 +137,19 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Determines whether a value exists.</summary>
         public bool Contains(YamlDocument item)
         {
             return _documents.Contains(item);
         }
 
+        /// <summary>Copies the elements to an array starting at the specified index.</summary>
         public void CopyTo(YamlDocument[] array, int arrayIndex)
         {
             _documents.CopyTo(array, arrayIndex);
         }
 
+        /// <summary>Removes an item.</summary>
         public bool Remove(YamlDocument item)
         {
             var index = IndexOf(item);
@@ -151,15 +162,19 @@ namespace SharpYaml.Model
             return false;
         }
 
+        /// <summary>Gets count.</summary>
         public int Count { get { return _documents.Count; } }
 
+        /// <summary>Gets a value indicating whether is Read Only.</summary>
         public bool IsReadOnly { get { return false; } }
 
+        /// <summary>Gets the zero-based index of the specified item.</summary>
         public int IndexOf(YamlDocument item)
         {
             return _documents.IndexOf(item);
         }
 
+        /// <summary>Inserts an item at the specified index.</summary>
         public void Insert(int index, YamlDocument item)
         {
             _documents.Insert(index, item);
@@ -176,6 +191,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Removes at.</summary>
         public void RemoveAt(int index)
         {
             var oldValue = _documents[index];
@@ -192,6 +208,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets or sets an element at the specified index.</summary>
         public YamlDocument this[int index]
         {
             get { return _documents[index]; }
@@ -209,6 +226,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Creates a deep clone of the current value.</summary>
         public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             var documentsClone = new List<YamlDocument>(_documents.Count);

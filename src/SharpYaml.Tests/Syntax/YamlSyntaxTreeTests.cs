@@ -31,7 +31,7 @@ public class YamlSyntaxTreeTests
     }
 
     [TestMethod]
-    [DynamicData(nameof(RoundTripCases), DynamicDataSourceType.Method)]
+    [DynamicData(nameof(RoundTripCases))]
     public void ParseAndRoundTripPreservesOriginalText(string yaml)
     {
         var tree = YamlSyntaxTree.Parse(yaml);

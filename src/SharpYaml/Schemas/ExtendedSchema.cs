@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -87,6 +87,7 @@ namespace SharpYaml.Schemas
             RegisterTag(MergeShortTag, MergeLongTag);
         }
 
+        /// <summary>Registers scalar resolution rules for the extended YAML schema.</summary>
         protected override void PrepareScalarRules()
         {
             AddScalarRule<object>("!!null", @"null|Null|NULL|\~|", m => null, null);
@@ -158,6 +159,7 @@ namespace SharpYaml.Schemas
             // and in order to have a more concise set of regex
         }
 
+        /// <summary>Registers default tag mappings for extended-schema scalar types.</summary>
         protected override void RegisterDefaultTagMappings()
         {
             base.RegisterDefaultTagMappings();

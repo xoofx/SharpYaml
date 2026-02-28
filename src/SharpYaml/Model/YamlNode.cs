@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -30,10 +30,13 @@ using StreamStart = SharpYaml.Events.StreamStart;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Node.</summary>
     public abstract class YamlNode
     {
+        /// <summary>Gets or sets tracker.</summary>
         public virtual YamlNodeTracker? Tracker { get; internal set; }
 
+        /// <summary>Reads the next YAML element from the event stream.</summary>
         protected static YamlElement? ReadElement(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             if (eventReader.Accept<MappingStart>())
@@ -48,16 +51,19 @@ namespace SharpYaml.Model
             return null;
         }
 
+        /// <summary>Enumerates parsing events for this YAML node.</summary>
         public IEnumerable<ParsingEvent> EnumerateEvents()
         {
             return new YamlNodeEventEnumerator(this);
         }
 
+        /// <summary>Writes to.</summary>
         public void WriteTo(TextWriter writer, bool suppressDocumentTags = false)
         {
             WriteTo(new Emitter(writer), suppressDocumentTags);
         }
 
+        /// <summary>Writes to.</summary>
         public void WriteTo(IEmitter emitter, bool suppressDocumentTags = false)
         {
             var events = EnumerateEvents().ToList();
@@ -84,6 +90,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Returns a string representation of the current instance.</summary>
         public override string ToString()
         {
             var sb = new StringBuilder();
@@ -91,17 +98,20 @@ namespace SharpYaml.Model
             return sb.ToString().Trim();
         }
 
+        /// <summary>Converts this node to an instance of <typeparamref name="T"/>.</summary>
         public T? ToObject<T>(YamlSerializerOptions? options = null)
         {
             return (T?)ToObject(typeof(T), options);
         }
 
+        /// <summary>Converts this YAML node to an object.</summary>
         public object? ToObject(Type type, YamlSerializerOptions? options = null)
         {
             ArgumentNullException.ThrowIfNull(type);
             return YamlSerializer.Deserialize(ToString(), type, options);
         }
 
+        /// <summary>Creates a YAML element from an object.</summary>
         public static YamlElement FromObject(object value, YamlSerializerOptions? options = null, Type? expectedType = null)
         {
             ArgumentNullException.ThrowIfNull(value);
@@ -117,6 +127,7 @@ namespace SharpYaml.Model
             return stream[0].Contents;
         }
 
+        /// <summary>Creates a deep clone of the current value.</summary>
         public abstract YamlNode DeepClone(YamlNodeTracker? tracker = null);
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -141,7 +141,7 @@ namespace SharpYaml.Serialization
                 throw new ArgumentNullException("type");
 
             // Prefix all tags by !
-            tag = Uri.EscapeUriString(tag);
+            tag = EscapeTag(tag);
             if (tag.StartsWith("tag:", StringComparison.Ordinal))
             {
                 // shorten tag
@@ -230,7 +230,7 @@ namespace SharpYaml.Serialization
                     // Else try to use schema tag for scalars
                     // Else use full name of the type
                     var typeName = UseShortTypeName ? type.GetShortAssemblyQualifiedName() : type.AssemblyQualifiedName;
-                    tagName = schema.GetDefaultTag(type) ?? Uri.EscapeUriString($"!{typeName}");
+                    tagName = schema.GetDefaultTag(type) ?? EscapeTag($"!{typeName}");
                     typeToTag.Add(type, tagName);
                 }
                 return tagName;
@@ -304,6 +304,13 @@ namespace SharpYaml.Serialization
                 }
             }
             return type;
+        }
+
+        private static string EscapeTag(string tag)
+        {
+#pragma warning disable SYSLIB0013
+            return Uri.EscapeUriString(tag);
+#pragma warning restore SYSLIB0013
         }
 
         readonly struct MappedType

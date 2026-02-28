@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@ using SharpYaml.Serialization.Serializers;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Value.</summary>
     public class YamlValue : YamlElement
     {
         private Scalar _scalar;
@@ -38,6 +39,7 @@ namespace SharpYaml.Model
             Scalar = scalar ?? throw new ArgumentNullException(nameof(scalar));
         }
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public YamlValue(object value, IYamlSchema? schema = null)
         {
             var valueString = PrimitiveSerializer.ConvertValue(value);
@@ -62,6 +64,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Loads data.</summary>
         public static YamlValue Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var scalar = eventReader.Allow<Scalar>();
@@ -69,11 +72,13 @@ namespace SharpYaml.Model
             return new YamlValue(scalar, tracker);
         }
 
+        /// <summary>Creates a deep clone of the current value.</summary>
         public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             return new YamlValue(_scalar, tracker);
         }
 
+        /// <summary>Gets anchor.</summary>
         public override string? Anchor
         {
             get { return _scalar.Anchor; }
@@ -90,6 +95,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets tag.</summary>
         public override string? Tag
         {
             get { return _scalar.Tag; }
@@ -106,6 +112,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets style.</summary>
         public ScalarStyle Style
         {
             get { return _scalar.Style; }
@@ -122,8 +129,10 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets a value indicating whether is Canonical.</summary>
         public override bool IsCanonical { get { return _scalar.IsCanonical; } }
 
+        /// <summary>Gets a value indicating whether is Plain Implicit.</summary>
         public bool IsPlainImplicit
         {
             get { return _scalar.IsPlainImplicit; }
@@ -140,6 +149,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets a value indicating whether is Quoted Implicit.</summary>
         public bool IsQuotedImplicit
         {
             get { return _scalar.IsQuotedImplicit; }
@@ -156,6 +166,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets value.</summary>
         public string Value
         {
             get { return _scalar.Value; }

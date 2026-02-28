@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -73,6 +73,7 @@ namespace SharpYaml.Schemas
         private int updateCountter;
         private bool needFirstUpdate = true;
 
+        /// <summary>Initializes a new schema instance and registers default tag mappings.</summary>
         protected SchemaBase()
         {
             RegisterDefaultTagMappings();
@@ -88,6 +89,7 @@ namespace SharpYaml.Schemas
         /// </summary>
         public const string StrLongTag = "tag:yaml.org,2002:str";
 
+        /// <summary>Expands a short tag into its long form.</summary>
         [return: NotNullIfNotNull("shortTag")]
         public string? ExpandTag(string? shortTag)
         {
@@ -97,6 +99,7 @@ namespace SharpYaml.Schemas
             return shortTagToLongTag.TryGetValue(shortTag, out var tagExpanded) ? tagExpanded : shortTag;
         }
 
+        /// <summary>Converts a long tag into its short form.</summary>
         [return: NotNullIfNotNull("longTag")]
         public string? ShortenTag(string? longTag)
         {
@@ -106,6 +109,7 @@ namespace SharpYaml.Schemas
             return longTagToShortTag.TryGetValue(longTag, out var tagShortened) ? tagShortened : longTag;
         }
 
+        /// <summary>Gets default Tag.</summary>
         public string GetDefaultTag(NodeEvent nodeEvent)
         {
             EnsureScalarRules();
@@ -132,6 +136,7 @@ namespace SharpYaml.Schemas
             throw new NotSupportedException($"NodeEvent [{nodeEvent.GetType().FullName}] not supported");
         }
 
+        /// <summary>Gets default Tag.</summary>
         public string? GetDefaultTag(Type type)
         {
             if (type == null)
@@ -142,6 +147,7 @@ namespace SharpYaml.Schemas
             return defaultTag;
         }
 
+        /// <summary>Determines whether tag Implicit.</summary>
         public bool IsTagImplicit(string? tag)
         {
             if (tag == null)
@@ -186,6 +192,7 @@ namespace SharpYaml.Schemas
         /// <returns>The default tag for a seq.</returns>
         protected abstract string GetDefaultTag(SequenceStart nodeEvent);
 
+        /// <summary>Tries to parse.</summary>
         public virtual bool TryParse(Scalar scalar, bool parseValue, [NotNullWhen(true)] out string? defaultTag, out object? value)
         {
             if (scalar == null)
@@ -234,6 +241,7 @@ namespace SharpYaml.Schemas
             return false;
         }
 
+        /// <summary>Tries to parse.</summary>
         public bool TryParse(Scalar scalar, Type type, out object? value)
         {
             if (scalar == null)
@@ -273,6 +281,7 @@ namespace SharpYaml.Schemas
             return false;
         }
 
+        /// <summary>Gets type For Default Tag.</summary>
         public Type? GetTypeForDefaultTag(string? shortTag)
         {
             if (shortTag == null)
@@ -319,6 +328,7 @@ namespace SharpYaml.Schemas
             scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T)m), typeof(T)));
         }
 
+        /// <summary>Adds a scalar resolution rule for one or more CLR types.</summary>
         protected void AddScalarRule(Type[] types, string tag, string regex, Func<Match, object> decode, Func<object, string>? encode)
         {
             // Make sure the tag is expanded to its long form
@@ -326,6 +336,7 @@ namespace SharpYaml.Schemas
             scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, decode, encode, types));
         }
 
+        /// <summary>Registers a default tag mapping for <typeparamref name="T"/>.</summary>
         protected void RegisterDefaultTagMapping<T>(string tag, bool isDefault = false)
         {
             if (tag == null)
@@ -333,6 +344,7 @@ namespace SharpYaml.Schemas
             RegisterDefaultTagMapping(tag, typeof(T), isDefault);
         }
 
+        /// <summary>Registers a default tag mapping for the specified CLR type.</summary>
         protected void RegisterDefaultTagMapping(string tag, Type type, bool isDefault)
         {
             if (tag == null)

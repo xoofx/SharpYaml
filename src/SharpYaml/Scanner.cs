@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -90,6 +90,7 @@ namespace SharpYaml
         private int flowLevel;
         private int tokensParsed;
 
+        /// <summary>Defines the max buffer length constant.</summary>
         public const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
         private readonly TBuffer analyzer;
         private bool tokenAvailable;

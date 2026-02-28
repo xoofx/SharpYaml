@@ -1,4 +1,4 @@
-﻿// Copyright (c) SharpYaml - Alexandre Mutel
+// Copyright (c) SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,13 @@ using SharpYaml.Events;
 
 namespace SharpYaml.Model
 {
+    /// <summary>Represents the Yaml Sequence.</summary>
     public class YamlSequence : YamlContainer, IList<YamlElement>
     {
         private SequenceStart _sequenceStart;
         private readonly List<YamlElement> _contents;
 
+        /// <summary>Initializes a new instance of this type.</summary>
         public YamlSequence()
         {
             _sequenceStart = new SequenceStart();
@@ -56,6 +58,7 @@ namespace SharpYaml.Model
             this.SequenceEnd = sequenceEnd;
         }
 
+        /// <summary>Gets sequence Start.</summary>
         public SequenceStart SequenceStart
         {
             get => _sequenceStart;
@@ -70,6 +73,7 @@ namespace SharpYaml.Model
 
         internal SequenceEnd SequenceEnd { get; }
 
+        /// <summary>Gets anchor.</summary>
         public override string? Anchor
         {
             get { return _sequenceStart.Anchor; }
@@ -84,6 +88,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets tag.</summary>
         public override string? Tag
         {
             get { return _sequenceStart.Tag; }
@@ -98,6 +103,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets style.</summary>
         public override YamlStyle Style
         {
             get { return _sequenceStart.Style; }
@@ -112,8 +118,10 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets a value indicating whether is Canonical.</summary>
         public override bool IsCanonical { get { return _sequenceStart.IsCanonical; } }
 
+        /// <summary>Gets is Implicit.</summary>
         public override bool IsImplicit
         {
             get { return _sequenceStart.IsImplicit; }
@@ -128,6 +136,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Loads data.</summary>
         public static YamlSequence Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
             var sequenceStart = eventReader.Allow<SequenceStart>();
@@ -150,11 +159,13 @@ namespace SharpYaml.Model
             return GetEnumerator();
         }
 
+        /// <summary>Gets enumerator.</summary>
         public IEnumerator<YamlElement> GetEnumerator()
         {
             return _contents.GetEnumerator();
         }
 
+        /// <summary>Adds an item.</summary>
         public void Add(YamlElement item)
         {
             _contents.Add(item);
@@ -166,6 +177,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets tracker.</summary>
         public override YamlNodeTracker? Tracker
         {
             get { return base.Tracker; }
@@ -185,6 +197,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Removes all elements from the collection.</summary>
         public void Clear()
         {
             var copy = Tracker == null ? null : new List<YamlElement>(_contents);
@@ -198,16 +211,19 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Determines whether a value exists.</summary>
         public bool Contains(YamlElement item)
         {
             return _contents.Contains(item);
         }
 
+        /// <summary>Copies the elements to an array starting at the specified index.</summary>
         public void CopyTo(YamlElement[] array, int arrayIndex)
         {
             _contents.CopyTo(array, arrayIndex);
         }
 
+        /// <summary>Removes an item.</summary>
         public bool Remove(YamlElement item)
         {
             var index = IndexOf(item);
@@ -220,15 +236,19 @@ namespace SharpYaml.Model
             return false;
         }
 
+        /// <summary>Gets count.</summary>
         public int Count { get { return _contents.Count; } }
 
+        /// <summary>Gets a value indicating whether is Read Only.</summary>
         public bool IsReadOnly { get { return false; } }
 
+        /// <summary>Gets the zero-based index of the specified item.</summary>
         public int IndexOf(YamlElement item)
         {
             return _contents.IndexOf(item);
         }
 
+        /// <summary>Inserts an item at the specified index.</summary>
         public void Insert(int index, YamlElement item)
         {
             _contents.Insert(index, item);
@@ -245,6 +265,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Removes at.</summary>
         public void RemoveAt(int index)
         {
             var oldValue = _contents[index];
@@ -261,6 +282,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Gets or sets an element at the specified index.</summary>
         public YamlElement this[int index]
         {
             get { return _contents[index]; }
@@ -278,6 +300,7 @@ namespace SharpYaml.Model
             }
         }
 
+        /// <summary>Creates a deep clone of the current value.</summary>
         public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
         {
             var contentsClone = new List<YamlElement>(_contents.Count);

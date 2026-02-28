@@ -259,7 +259,7 @@ namespace SharpYaml.Serialization
         public ITagTypeRegistry TagTypeRegistry { get { return AssemblyRegistry; } }
 
         /// <summary>
-        /// Gets or sets the default <see cref="YamlStyle"/>. Default is <see cref="YamlStyle.Block"/>. See <see cref="DynamicStyleFormat"/> to understand the resolution of styles.
+        /// Gets or sets the default <see cref="YamlStyle"/>. Default is <see cref="YamlStyle.Block"/>.
         /// </summary>
         /// <value>The default style.</value>
         public YamlStyle DefaultStyle { get; set; }

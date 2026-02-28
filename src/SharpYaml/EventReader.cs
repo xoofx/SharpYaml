@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -75,6 +75,7 @@ namespace SharpYaml
         /// <value>The parser.</value>
         public IParser Parser { get; }
 
+        /// <summary>Gets or sets current Depth.</summary>
         public int CurrentDepth { get; private set; } = 0;
 
         /// <summary>
