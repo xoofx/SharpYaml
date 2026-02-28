@@ -14,7 +14,7 @@ internal sealed class YamlBooleanConverter : YamlConverter<bool>
         }
 
         var value = reader.ScalarValue.AsSpan();
-        if (!YamlScalarParser.TryParseBool(value, out var result))
+        if (!YamlScalar.TryParseBool(value, out var result))
         {
             throw new FormatException($"Invalid boolean scalar '{reader.ScalarValue}'.");
         }
@@ -28,4 +28,3 @@ internal sealed class YamlBooleanConverter : YamlConverter<bool>
         writer.WriteScalar(value ? "true" : "false");
     }
 }
-

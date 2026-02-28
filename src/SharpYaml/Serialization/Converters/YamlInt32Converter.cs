@@ -14,7 +14,7 @@ internal sealed class YamlInt32Converter : YamlConverter<int>
         }
 
         var value = reader.ScalarValue.AsSpan();
-        if (!YamlScalarParser.TryParseInt32(value, out var result))
+        if (!YamlScalar.TryParseInt32(value, out var result))
         {
             throw new FormatException($"Invalid integer scalar '{reader.ScalarValue}'.");
         }
@@ -28,4 +28,3 @@ internal sealed class YamlInt32Converter : YamlConverter<int>
         writer.WriteScalar(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }
-

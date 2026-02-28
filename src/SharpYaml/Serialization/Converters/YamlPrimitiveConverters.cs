@@ -14,7 +14,7 @@ internal sealed class YamlByteConverter : YamlConverter<byte>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > byte.MaxValue)
+        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > byte.MaxValue)
         {
             throw new FormatException($"Invalid byte scalar '{reader.ScalarValue}'.");
         }
@@ -38,7 +38,7 @@ internal sealed class YamlSByteConverter : YamlConverter<sbyte>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < sbyte.MinValue or > sbyte.MaxValue)
+        if (!YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < sbyte.MinValue or > sbyte.MaxValue)
         {
             throw new FormatException($"Invalid sbyte scalar '{reader.ScalarValue}'.");
         }
@@ -62,7 +62,7 @@ internal sealed class YamlInt16Converter : YamlConverter<short>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < short.MinValue or > short.MaxValue)
+        if (!YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < short.MinValue or > short.MaxValue)
         {
             throw new FormatException($"Invalid int16 scalar '{reader.ScalarValue}'.");
         }
@@ -86,7 +86,7 @@ internal sealed class YamlUInt16Converter : YamlConverter<ushort>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > ushort.MaxValue)
+        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > ushort.MaxValue)
         {
             throw new FormatException($"Invalid uint16 scalar '{reader.ScalarValue}'.");
         }
@@ -110,7 +110,7 @@ internal sealed class YamlUInt32Converter : YamlConverter<uint>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseUInt32(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseUInt32(reader.ScalarValue.AsSpan(), out var parsed))
         {
             throw new FormatException($"Invalid uint32 scalar '{reader.ScalarValue}'.");
         }
@@ -134,7 +134,7 @@ internal sealed class YamlUInt64Converter : YamlConverter<ulong>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed))
         {
             throw new FormatException($"Invalid uint64 scalar '{reader.ScalarValue}'.");
         }
@@ -183,7 +183,7 @@ internal sealed class YamlDecimalConverter : YamlConverter<decimal>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseDecimal(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseDecimal(reader.ScalarValue.AsSpan(), out var parsed))
         {
             throw new FormatException($"Invalid decimal scalar '{reader.ScalarValue}'.");
         }
@@ -207,7 +207,7 @@ internal sealed class YamlIntPtrConverter : YamlConverter<nint>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed))
         {
             throw new FormatException($"Invalid nint scalar '{reader.ScalarValue}'.");
         }
@@ -231,7 +231,7 @@ internal sealed class YamlUIntPtrConverter : YamlConverter<nuint>
             throw new InvalidOperationException($"Expected a scalar token but found '{reader.TokenType}'.");
         }
 
-        if (!YamlScalarParser.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed))
         {
             throw new FormatException($"Invalid nuint scalar '{reader.ScalarValue}'.");
         }
@@ -243,4 +243,3 @@ internal sealed class YamlUIntPtrConverter : YamlConverter<nuint>
     public override void Write(YamlWriter writer, nuint value, YamlSerializerOptions options)
         => writer.WriteScalar(((ulong)value).ToString(CultureInfo.InvariantCulture));
 }
-

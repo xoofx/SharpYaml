@@ -23,7 +23,7 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
             return (List<TElement>)resolved;
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalarParser.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
         {
             reader.Read();
             return null;

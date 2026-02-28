@@ -14,7 +14,7 @@ internal sealed class YamlSingleConverter : YamlConverter<float>
         }
 
         var value = reader.ScalarValue.AsSpan();
-        if (!YamlScalarParser.TryParseDouble(value, out var parsed))
+        if (!YamlScalar.TryParseDouble(value, out var parsed))
         {
             throw new FormatException($"Invalid float scalar '{reader.ScalarValue}'.");
         }
@@ -46,4 +46,3 @@ internal sealed class YamlSingleConverter : YamlConverter<float>
         writer.WriteScalar(value.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
     }
 }
-

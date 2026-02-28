@@ -14,7 +14,7 @@ internal sealed class YamlDoubleConverter : YamlConverter<double>
         }
 
         var value = reader.ScalarValue.AsSpan();
-        if (!YamlScalarParser.TryParseDouble(value, out var result))
+        if (!YamlScalar.TryParseDouble(value, out var result))
         {
             throw new FormatException($"Invalid float scalar '{reader.ScalarValue}'.");
         }

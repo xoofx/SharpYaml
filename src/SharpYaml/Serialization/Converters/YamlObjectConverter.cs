@@ -27,7 +27,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return (T)resolved;
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalarParser.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
         {
             reader.Read();
             return default;

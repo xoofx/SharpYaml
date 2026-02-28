@@ -1,10 +1,16 @@
 using System;
 using System.Globalization;
 
-namespace SharpYaml.Serialization.Converters;
+namespace SharpYaml.Serialization;
 
-internal static class YamlScalarParser
+/// <summary>
+/// Provides YAML scalar parsing helpers aligned with the YAML 1.2 core schema conventions used by <see cref="SharpYaml.YamlSerializer"/>.
+/// </summary>
+public static class YamlScalar
 {
+    /// <summary>
+    /// Determines whether a scalar represents YAML null (for example <c>null</c> or <c>~</c>).
+    /// </summary>
     public static bool IsNull(ReadOnlySpan<char> value)
     {
         value = Trim(value);
@@ -21,6 +27,9 @@ internal static class YamlScalarParser
         return value.Equals("null", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Parses a YAML boolean scalar (<c>true</c>/<c>false</c>).
+    /// </summary>
     public static bool TryParseBool(ReadOnlySpan<char> value, out bool result)
     {
         value = Trim(value);
@@ -40,6 +49,9 @@ internal static class YamlScalarParser
         return false;
     }
 
+    /// <summary>
+    /// Parses a YAML integer scalar into <see cref="int"/>.
+    /// </summary>
     public static bool TryParseInt32(ReadOnlySpan<char> value, out int result)
     {
         if (TryParseInt64(value, out var longValue) && longValue is >= int.MinValue and <= int.MaxValue)
@@ -52,6 +64,9 @@ internal static class YamlScalarParser
         return false;
     }
 
+    /// <summary>
+    /// Parses a YAML integer scalar into <see cref="uint"/>.
+    /// </summary>
     public static bool TryParseUInt32(ReadOnlySpan<char> value, out uint result)
     {
         if (TryParseUInt64(value, out var ulongValue) && ulongValue <= uint.MaxValue)
@@ -64,6 +79,9 @@ internal static class YamlScalarParser
         return false;
     }
 
+    /// <summary>
+    /// Parses a YAML integer scalar into <see cref="ulong"/>, including common base prefixes (<c>0x</c>, <c>0o</c>, <c>0b</c>) and underscores.
+    /// </summary>
     public static bool TryParseUInt64(ReadOnlySpan<char> value, out ulong result)
     {
         value = Trim(value);
@@ -125,6 +143,9 @@ internal static class YamlScalarParser
         return ulong.TryParse(cleaned, NumberStyles.None, CultureInfo.InvariantCulture, out result);
     }
 
+    /// <summary>
+    /// Parses a YAML floating-point scalar into <see cref="decimal"/>.
+    /// </summary>
     public static bool TryParseDecimal(ReadOnlySpan<char> value, out decimal result)
     {
         value = Trim(value);
@@ -163,6 +184,9 @@ internal static class YamlScalarParser
         return decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
     }
 
+    /// <summary>
+    /// Parses a YAML integer scalar into <see cref="long"/>, including common base prefixes (<c>0x</c>, <c>0o</c>, <c>0b</c>) and underscores.
+    /// </summary>
     public static bool TryParseInt64(ReadOnlySpan<char> value, out long result)
     {
         value = Trim(value);
@@ -231,6 +255,9 @@ internal static class YamlScalarParser
         return true;
     }
 
+    /// <summary>
+    /// Parses a YAML floating-point scalar into <see cref="double"/>, including <c>.inf</c> and <c>.nan</c>.
+    /// </summary>
     public static bool TryParseDouble(ReadOnlySpan<char> value, out double result)
     {
         value = Trim(value);
@@ -382,3 +409,4 @@ internal static class YamlScalarParser
         return true;
     }
 }
+

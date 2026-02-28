@@ -21,27 +21,40 @@ public ref struct YamlReader
         _state = state;
     }
 
-    internal static YamlReader Create(string yaml)
+    /// <summary>
+    /// Creates a YAML reader over a string payload.
+    /// </summary>
+    /// <param name="yaml">The YAML payload.</param>
+    /// <param name="options">Options used for parsing behaviors such as reference handling.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
+    public static YamlReader Create(string yaml, YamlSerializerOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(yaml);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
-        return new YamlReader(new YamlReaderState(parser, referenceReader: null));
+        var effectiveOptions = options ?? YamlSerializerOptions.Default;
+        var referenceReader = effectiveOptions.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
+        return new YamlReader(new YamlReaderState(parser, referenceReader));
+    }
+
+    /// <summary>
+    /// Creates a YAML reader over a text reader.
+    /// </summary>
+    /// <param name="reader">The YAML payload reader.</param>
+    /// <param name="options">Options used for parsing behaviors such as reference handling.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
+    public static YamlReader Create(TextReader reader, YamlSerializerOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        var parser = SharpYaml.Parser.CreateParser(reader);
+        var effectiveOptions = options ?? YamlSerializerOptions.Default;
+        var referenceReader = effectiveOptions.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
+        return new YamlReader(new YamlReaderState(parser, referenceReader));
     }
 
     internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader)
     {
         ArgumentNullException.ThrowIfNull(yaml);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
-        return new YamlReader(new YamlReaderState(parser, referenceReader));
-    }
-
-    internal static YamlReader Create(string yaml, YamlSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(yaml);
-        ArgumentNullException.ThrowIfNull(options);
-
-        var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
-        var referenceReader = options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
         return new YamlReader(new YamlReaderState(parser, referenceReader));
     }
 

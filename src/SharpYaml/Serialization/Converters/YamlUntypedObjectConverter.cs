@@ -37,25 +37,25 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
         {
             case YamlTokenType.Scalar:
                 var text = reader.ScalarValue.AsSpan();
-                if (YamlScalarParser.IsNull(text))
+                if (YamlScalar.IsNull(text))
                 {
                     reader.Read();
                     return null;
                 }
 
-                if (YamlScalarParser.TryParseBool(text, out var boolean))
+                if (YamlScalar.TryParseBool(text, out var boolean))
                 {
                     reader.Read();
                     return boolean;
                 }
 
-                if (YamlScalarParser.TryParseInt64(text, out var integer))
+                if (YamlScalar.TryParseInt64(text, out var integer))
                 {
                     reader.Read();
                     return integer;
                 }
 
-                if (YamlScalarParser.TryParseDouble(text, out var floating))
+                if (YamlScalar.TryParseDouble(text, out var floating))
                 {
                     reader.Read();
                     return floating;
