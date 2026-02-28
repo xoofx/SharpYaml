@@ -1,4 +1,8 @@
 using System;
+using System.IO;
+using System.Runtime.CompilerServices;
+using SharpYaml.Serialization;
+using SharpYaml.Serialization.Converters;
 
 namespace SharpYaml;
 
@@ -9,20 +13,36 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
 {
     private sealed class ReflectionYamlTypeInfo : YamlTypeInfo
     {
-        public ReflectionYamlTypeInfo(Type type, YamlSerializerOptions options) : base(type, options)
+        private readonly YamlConverter _converter;
+
+        public ReflectionYamlTypeInfo(Type type, YamlSerializerOptions options, YamlConverter converter) : base(type, options)
         {
+            _converter = converter;
         }
 
         public override string SerializeAsString(object? value)
         {
-            return YamlSerializer.SerializeWithReflection(value, Type, Options);
+            using var writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
+            var yamlWriter = new YamlWriter(writer, Options);
+            _converter.Write(yamlWriter, value, Options);
+            var text = writer.ToString();
+            return text.EndsWith("\n", StringComparison.Ordinal) ? text : text + "\n";
         }
 
         public override object? DeserializeFromString(string yaml)
         {
-            return YamlSerializer.DeserializeWithReflection(yaml, Type, Options);
+            ArgumentNullException.ThrowIfNull(yaml);
+            var reader = YamlReader.Create(yaml);
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return _converter.Read(ref reader, Type, Options);
         }
     }
+
+    private readonly ConditionalWeakTable<YamlSerializerOptions, YamlBuiltInConverterResolver> _converterResolvers = new();
 
     /// <summary>
     /// Gets a shared default reflection resolver instance.
@@ -34,7 +54,8 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
     {
         ArgumentNullException.ThrowIfNull(type);
         ArgumentNullException.ThrowIfNull(options);
-        return new ReflectionYamlTypeInfo(type, options);
+        var resolver = _converterResolvers.GetValue(options, static o => new YamlBuiltInConverterResolver(o));
+        var converter = resolver.GetConverter(type);
+        return new ReflectionYamlTypeInfo(type, options, converter);
     }
 }
-

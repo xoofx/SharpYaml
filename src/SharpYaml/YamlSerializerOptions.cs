@@ -120,6 +120,17 @@ public sealed class YamlSerializerOptions
     public YamlConverter GetConverter(Type typeToConvert)
     {
         ArgumentNullException.ThrowIfNull(typeToConvert);
+        if (TryGetCustomConverter(typeToConvert, out var converter))
+        {
+            return converter;
+        }
+
+        throw new NotSupportedException($"No YAML converter is registered for '{typeToConvert}'.");
+    }
+
+    internal bool TryGetCustomConverter(Type typeToConvert, out YamlConverter converter)
+    {
+        ArgumentNullException.ThrowIfNull(typeToConvert);
 
         // Search user-provided converters first (same precedence rule as System.Text.Json).
         for (var i = 0; i < _converters.Count; i++)
@@ -143,16 +154,19 @@ public sealed class YamlSerializerOptions
                     throw new InvalidOperationException($"Converter factory '{factory.GetType()}' returned an invalid converter for '{typeToConvert}'.");
                 }
 
-                return created;
+                converter = created;
+                return true;
             }
 
             if (candidate.CanConvert(typeToConvert))
             {
-                return candidate;
+                converter = candidate;
+                return true;
             }
         }
 
-        throw new NotSupportedException($"No YAML converter is registered for '{typeToConvert}'.");
+        converter = null!;
+        return false;
     }
 
     private int _indentSize = 2;

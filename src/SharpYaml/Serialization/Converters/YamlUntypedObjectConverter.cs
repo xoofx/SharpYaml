@@ -1,0 +1,148 @@
+using System;
+using System.Collections.Generic;
+
+namespace SharpYaml.Serialization.Converters;
+
+internal sealed class YamlUntypedObjectConverter : YamlConverter
+{
+    private readonly IYamlConverterResolver _resolver;
+
+    public YamlUntypedObjectConverter(IYamlConverterResolver resolver)
+    {
+        _resolver = resolver;
+    }
+
+    public override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(object);
+
+    public override object? Read(ref YamlReader reader, Type typeToConvert, YamlSerializerOptions options)
+    {
+        if (options.UnsafeAllowDeserializeFromTagTypeName && reader.Tag is not null)
+        {
+            var activated = TryReadUnsafeTaggedValue(ref reader, options);
+            if (activated is not null)
+            {
+                return activated;
+            }
+        }
+
+        switch (reader.TokenType)
+        {
+            case YamlTokenType.Scalar:
+                var text = reader.ScalarValue.AsSpan();
+                if (YamlScalarParser.IsNull(text))
+                {
+                    reader.Read();
+                    return null;
+                }
+
+                if (YamlScalarParser.TryParseBool(text, out var boolean))
+                {
+                    reader.Read();
+                    return boolean;
+                }
+
+                if (YamlScalarParser.TryParseInt64(text, out var integer))
+                {
+                    reader.Read();
+                    return integer;
+                }
+
+                if (YamlScalarParser.TryParseDouble(text, out var floating))
+                {
+                    reader.Read();
+                    return floating;
+                }
+
+                var str = reader.ScalarValue ?? string.Empty;
+                reader.Read();
+                return str;
+
+            case YamlTokenType.StartSequence:
+                reader.Read();
+                var list = new List<object?>();
+                while (reader.TokenType != YamlTokenType.EndSequence)
+                {
+                    list.Add(Read(ref reader, typeof(object), options));
+                }
+                reader.Read();
+                return list;
+
+            case YamlTokenType.StartMapping:
+                reader.Read();
+                var dict = new Dictionary<string, object?>(options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                while (reader.TokenType != YamlTokenType.EndMapping)
+                {
+                    if (reader.TokenType != YamlTokenType.Scalar)
+                    {
+                        throw new InvalidOperationException($"Expected a scalar key token but found '{reader.TokenType}'.");
+                    }
+
+                    var key = reader.ScalarValue ?? string.Empty;
+                    reader.Read();
+                    var value = Read(ref reader, typeof(object), options);
+
+                    if (dict.ContainsKey(key))
+                    {
+                        switch (options.DuplicateKeyHandling)
+                        {
+                            case YamlDuplicateKeyHandling.Error:
+                                throw new InvalidOperationException($"Duplicate mapping key '{key}'.");
+                            case YamlDuplicateKeyHandling.FirstWins:
+                                break;
+                            case YamlDuplicateKeyHandling.LastWins:
+                                dict[key] = value;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        dict[key] = value;
+                    }
+                }
+                reader.Read();
+                return dict;
+
+            case YamlTokenType.Alias:
+                throw new NotSupportedException("Aliases are not supported when deserializing into object.");
+
+            default:
+                throw new InvalidOperationException($"Unexpected token '{reader.TokenType}'.");
+        }
+    }
+
+    public override void Write(YamlWriter writer, object? value, YamlSerializerOptions options)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        var converter = _resolver.GetConverter(value.GetType());
+        converter.Write(writer, value, options);
+    }
+
+    private object? TryReadUnsafeTaggedValue(ref YamlReader reader, YamlSerializerOptions options)
+    {
+        var tag = reader.Tag;
+        if (string.IsNullOrWhiteSpace(tag) || tag[0] != '!')
+        {
+            return null;
+        }
+
+        var typeName = tag.Substring(1);
+        var type = Type.GetType(typeName, throwOnError: false);
+        if (type is null && typeName.Contains(",mscorlib", StringComparison.Ordinal))
+        {
+            type = Type.GetType(typeName.Replace(",mscorlib", ",System.Private.CoreLib", StringComparison.Ordinal), throwOnError: false);
+        }
+
+        if (type is null)
+        {
+            return null;
+        }
+
+        var converter = _resolver.GetConverter(type);
+        return converter.Read(ref reader, type, options);
+    }
+}

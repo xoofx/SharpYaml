@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using SharpYaml.Serialization;
 
 namespace SharpYaml;
 
@@ -45,14 +44,8 @@ public static class YamlSerializer
         ArgumentNullException.ThrowIfNull(inputType);
 
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
-        var typeInfo = effectiveOptions.TypeInfoResolver?.GetTypeInfo(inputType, effectiveOptions);
-        if (typeInfo is not null)
-        {
-            return typeInfo.SerializeAsString(value);
-        }
-
-        EnsureReflectionAvailable(effectiveOptions, inputType);
-        return SerializeWithReflection(value, inputType, effectiveOptions);
+        var typeInfo = ResolveTypeInfo(effectiveOptions, inputType);
+        return typeInfo.SerializeAsString(value);
     }
 
     /// <summary>
@@ -113,14 +106,8 @@ public static class YamlSerializer
         ArgumentNullException.ThrowIfNull(returnType);
 
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
-        var typeInfo = effectiveOptions.TypeInfoResolver?.GetTypeInfo(returnType, effectiveOptions);
-        if (typeInfo is not null)
-        {
-            return typeInfo.DeserializeFromString(yaml);
-        }
-
-        EnsureReflectionAvailable(effectiveOptions, returnType);
-        return DeserializeWithReflection(yaml, returnType, effectiveOptions);
+        var typeInfo = ResolveTypeInfo(effectiveOptions, returnType);
+        return typeInfo.DeserializeFromString(yaml);
     }
 
     /// <summary>
@@ -219,18 +206,6 @@ public static class YamlSerializer
         return typeInfo.Deserialize(yaml.ToString());
     }
 
-    internal static string SerializeWithReflection(object? value, Type inputType, YamlSerializerOptions options)
-    {
-        var legacySerializer = new Serializer(YamlSerializerOptionsAdapter.ToLegacySettings(options));
-        return legacySerializer.Serialize(value, inputType);
-    }
-
-    internal static object? DeserializeWithReflection(string yaml, Type returnType, YamlSerializerOptions options)
-    {
-        var legacySerializer = new Serializer(YamlSerializerOptionsAdapter.ToLegacySettings(options));
-        return legacySerializer.Deserialize(yaml, returnType);
-    }
-
     private static void EnsureReflectionAvailable(YamlSerializerOptions options, Type requestedType)
     {
         if (IsReflectionEnabledByDefault)
@@ -241,5 +216,27 @@ public static class YamlSerializer
         throw new InvalidOperationException(
             $"Reflection serialization is disabled and no metadata was found for '{requestedType}'. " +
             $"Provide metadata via {nameof(YamlSerializerOptions)}.{nameof(YamlSerializerOptions.TypeInfoResolver)} or enable the '{ReflectionSwitchName}' AppContext switch.");
+    }
+
+    private static YamlTypeInfo ResolveTypeInfo(YamlSerializerOptions options, Type requestedType)
+    {
+        var typeInfo = options.TypeInfoResolver?.GetTypeInfo(requestedType, options);
+        if (typeInfo is not null)
+        {
+            return typeInfo;
+        }
+
+        if (!IsReflectionEnabledByDefault)
+        {
+            EnsureReflectionAvailable(options, requestedType);
+        }
+
+        typeInfo = ReflectionYamlTypeInfoResolver.Default.GetTypeInfo(requestedType, options);
+        if (typeInfo is null)
+        {
+            throw new InvalidOperationException($"No metadata is available for '{requestedType}'.");
+        }
+
+        return typeInfo;
     }
 }
