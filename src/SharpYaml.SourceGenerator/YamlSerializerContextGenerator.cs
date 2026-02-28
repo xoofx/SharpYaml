@@ -20,6 +20,21 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private sealed class SourceGenerationOptionsModel
+    {
+        public bool? WriteIndented { get; set; }
+
+        public int? IndentSize { get; set; }
+
+        public bool? PropertyNameCaseInsensitive { get; set; }
+
+        public string? DefaultIgnoreCondition { get; set; }
+
+        public string? PropertyNamingPolicy { get; set; }
+
+        public string? DictionaryKeyPolicy { get; set; }
+    }
+
     private sealed class ContextModel
     {
         public ContextModel(
@@ -27,12 +42,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             string namespaceName,
             string typeName,
             ImmutableArray<string> serializableTypes,
+            SourceGenerationOptionsModel sourceGenerationOptions,
             bool isValid)
         {
             ContextSymbol = contextSymbol;
             NamespaceName = namespaceName;
             TypeName = typeName;
             SerializableTypes = serializableTypes;
+            SourceGenerationOptions = sourceGenerationOptions;
             IsValid = isValid;
         }
 
@@ -43,6 +60,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string TypeName { get; }
 
         public ImmutableArray<string> SerializableTypes { get; }
+
+        public SourceGenerationOptionsModel SourceGenerationOptions { get; }
 
         public bool IsValid { get; }
     }
@@ -88,25 +107,30 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         var serializableTypes = ImmutableArray.CreateBuilder<string>();
+        var sourceGenerationOptions = new SourceGenerationOptionsModel();
         foreach (var attribute in classSymbol.GetAttributes())
         {
-            if (!IsJsonSerializableAttribute(attribute))
+            if (IsJsonSerializableAttribute(attribute))
             {
+                if (attribute.ConstructorArguments.Length != 1)
+                {
+                    continue;
+                }
+
+                var argument = attribute.ConstructorArguments[0];
+                if (argument.Kind != TypedConstantKind.Type || argument.Value is not ITypeSymbol typeSymbol)
+                {
+                    continue;
+                }
+
+                serializableTypes.Add(typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
                 continue;
             }
 
-            if (attribute.ConstructorArguments.Length != 1)
+            if (IsJsonSourceGenerationOptionsAttribute(attribute))
             {
-                continue;
+                ApplySourceGenerationOptionsAttribute(attribute, sourceGenerationOptions);
             }
-
-            var argument = attribute.ConstructorArguments[0];
-            if (argument.Kind != TypedConstantKind.Type || argument.Value is not ITypeSymbol typeSymbol)
-            {
-                continue;
-            }
-
-            serializableTypes.Add(typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
         }
 
         if (serializableTypes.Count == 0)
@@ -122,6 +146,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             namespaceName,
             classSymbol.Name,
             serializableTypes.Distinct(StringComparer.Ordinal).ToImmutableArray(),
+            sourceGenerationOptions,
             isPartial);
     }
 
@@ -131,6 +156,82 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             attribute.AttributeClass?.ToDisplayString(),
             "System.Text.Json.Serialization.JsonSerializableAttribute",
             StringComparison.Ordinal);
+    }
+
+    private static bool IsJsonSourceGenerationOptionsAttribute(AttributeData attribute)
+    {
+        return string.Equals(
+            attribute.AttributeClass?.ToDisplayString(),
+            "System.Text.Json.Serialization.JsonSourceGenerationOptionsAttribute",
+            StringComparison.Ordinal);
+    }
+
+    private static void ApplySourceGenerationOptionsAttribute(AttributeData attribute, SourceGenerationOptionsModel options)
+    {
+        foreach (var namedArgument in attribute.NamedArguments)
+        {
+            switch (namedArgument.Key)
+            {
+                case "WriteIndented":
+                    options.WriteIndented = GetBooleanValue(namedArgument.Value);
+                    break;
+                case "IndentSize":
+                    options.IndentSize = GetIntValue(namedArgument.Value);
+                    break;
+                case "PropertyNameCaseInsensitive":
+                    options.PropertyNameCaseInsensitive = GetBooleanValue(namedArgument.Value);
+                    break;
+                case "DefaultIgnoreCondition":
+                    options.DefaultIgnoreCondition = MapJsonIgnoreCondition(namedArgument.Value);
+                    break;
+                case "PropertyNamingPolicy":
+                    options.PropertyNamingPolicy = MapJsonKnownNamingPolicy(namedArgument.Value);
+                    break;
+                case "DictionaryKeyPolicy":
+                    options.DictionaryKeyPolicy = MapJsonKnownNamingPolicy(namedArgument.Value);
+                    break;
+            }
+        }
+    }
+
+    private static bool? GetBooleanValue(TypedConstant constant)
+    {
+        return constant.Value is bool value ? value : null;
+    }
+
+    private static int? GetIntValue(TypedConstant constant)
+    {
+        return constant.Value is int value ? value : null;
+    }
+
+    private static string? MapJsonIgnoreCondition(TypedConstant constant)
+    {
+        if (constant.Value is not int value)
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            0 => "Never",
+            2 => "WhenWritingDefault",
+            3 => "WhenWritingNull",
+            _ => null,
+        };
+    }
+
+    private static string? MapJsonKnownNamingPolicy(TypedConstant constant)
+    {
+        if (constant.Value is not int value)
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            1 => "CamelCase",
+            _ => null,
+        };
     }
 
     private static bool DerivesFromYamlSerializerContext(INamedTypeSymbol symbol)
@@ -179,6 +280,22 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         builder.Append("partial class ").Append(model.TypeName).AppendLine();
         builder.AppendLine("{");
+
+        builder.Append("    public static ").Append(model.TypeName).AppendLine(" Default { get; } = CreateDefaultContext();");
+        builder.AppendLine();
+        builder.Append("    private static ").Append(model.TypeName).AppendLine(" CreateDefaultContext()");
+        builder.AppendLine("    {");
+        builder.Append("        var context = new ").Append(model.TypeName).AppendLine("();");
+        builder.AppendLine("        ApplySourceGenerationOptions(context.Options);");
+        builder.AppendLine("        return context;");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    private static void ApplySourceGenerationOptions(global::SharpYaml.YamlSerializerOptions options)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(options);");
+        AppendOptionAssignments(builder, model.SourceGenerationOptions);
+        builder.AppendLine("    }");
+        builder.AppendLine();
 
         for (var index = 0; index < model.SerializableTypes.Length; index++)
         {
@@ -252,5 +369,50 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         builder.AppendLine("}");
         return builder.ToString();
+    }
+
+    private static void AppendOptionAssignments(StringBuilder builder, SourceGenerationOptionsModel options)
+    {
+        if (options.WriteIndented.HasValue)
+        {
+            builder.Append("        options.WriteIndented = ")
+                .Append(options.WriteIndented.Value ? "true" : "false")
+                .AppendLine(";");
+        }
+
+        if (options.IndentSize.HasValue)
+        {
+            builder.Append("        options.IndentSize = ")
+                .Append(options.IndentSize.Value)
+                .AppendLine(";");
+        }
+
+        if (options.PropertyNameCaseInsensitive.HasValue)
+        {
+            builder.Append("        options.PropertyNameCaseInsensitive = ")
+                .Append(options.PropertyNameCaseInsensitive.Value ? "true" : "false")
+                .AppendLine(";");
+        }
+
+        if (!string.IsNullOrEmpty(options.DefaultIgnoreCondition))
+        {
+            builder.Append("        options.DefaultIgnoreCondition = global::SharpYaml.YamlIgnoreCondition.")
+                .Append(options.DefaultIgnoreCondition)
+                .AppendLine(";");
+        }
+
+        if (!string.IsNullOrEmpty(options.PropertyNamingPolicy))
+        {
+            builder.Append("        options.PropertyNamingPolicy = global::SharpYaml.YamlNamingPolicy.")
+                .Append(options.PropertyNamingPolicy)
+                .AppendLine(";");
+        }
+
+        if (!string.IsNullOrEmpty(options.DictionaryKeyPolicy))
+        {
+            builder.Append("        options.DictionaryKeyPolicy = global::SharpYaml.YamlNamingPolicy.")
+                .Append(options.DictionaryKeyPolicy)
+                .AppendLine(";");
+        }
     }
 }

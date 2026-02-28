@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -19,10 +20,28 @@ internal sealed class GeneratedContainer
     public GeneratedPerson? Person { get; set; }
 }
 
+internal sealed class GeneratedWithDefaultOptions
+{
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string? Optional { get; set; }
+}
+
 #pragma warning disable SYSLIB1224
 [JsonSerializable(typeof(GeneratedPerson))]
 [JsonSerializable(typeof(GeneratedContainer))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
+{
+}
+
+[JsonSourceGenerationOptions(
+    WriteIndented = false,
+    PropertyNameCaseInsensitive = true,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(GeneratedWithDefaultOptions))]
+internal partial class TestYamlSerializerContextWithOptions : YamlSerializerContext
 {
 }
 #pragma warning restore SYSLIB1224
@@ -71,5 +90,31 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(container.Person);
         Assert.AreEqual("Ada", container.Person.FirstName);
         Assert.AreEqual(37, container.Person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextDefaultAppliesJsonSourceGenerationOptions()
+    {
+        var context = TestYamlSerializerContextWithOptions.Default;
+        var options = context.Options;
+
+        Assert.IsFalse(options.WriteIndented);
+        Assert.IsTrue(options.PropertyNameCaseInsensitive);
+        Assert.AreEqual(YamlIgnoreCondition.WhenWritingNull, options.DefaultIgnoreCondition);
+        Assert.AreSame(YamlNamingPolicy.CamelCase, options.PropertyNamingPolicy);
+        Assert.AreSame(YamlNamingPolicy.CamelCase, options.DictionaryKeyPolicy);
+        Assert.AreSame(context, options.TypeInfoResolver);
+
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedWithDefaultOptions
+            {
+                DisplayName = "Ada",
+                Optional = null,
+            },
+            typeof(GeneratedWithDefaultOptions),
+            options);
+
+        StringAssert.Contains(yaml, "displayName: Ada");
+        Assert.IsFalse(yaml.Contains("optional:", StringComparison.Ordinal));
     }
 }
