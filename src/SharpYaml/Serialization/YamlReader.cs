@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using SharpYaml.Events;
+using SharpYaml.Serialization.References;
 
 namespace SharpYaml.Serialization;
 
@@ -24,7 +25,17 @@ public ref struct YamlReader
     {
         ArgumentNullException.ThrowIfNull(yaml);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
-        return new YamlReader(new YamlReaderState(parser));
+        return new YamlReader(new YamlReaderState(parser, referenceReader: null));
+    }
+
+    internal static YamlReader Create(string yaml, YamlSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(yaml);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
+        var referenceReader = options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
+        return new YamlReader(new YamlReaderState(parser, referenceReader));
     }
 
     /// <summary>
@@ -62,6 +73,8 @@ public ref struct YamlReader
     /// </summary>
     public Mark End => _state.End;
 
+    internal YamlReferenceReader? ReferenceReader => _state.ReferenceReader;
+
     /// <summary>
     /// Advances to the next token.
     /// </summary>
@@ -90,10 +103,11 @@ public ref struct YamlReader
     {
         private readonly IParser _parser;
 
-        public YamlReaderState(IParser parser)
+        public YamlReaderState(IParser parser, YamlReferenceReader? referenceReader)
         {
             _parser = parser;
             TokenType = YamlTokenType.None;
+            ReferenceReader = referenceReader;
         }
 
         public YamlTokenType TokenType { get; private set; }
@@ -103,6 +117,7 @@ public ref struct YamlReader
         public string? Alias { get; private set; }
         public Mark Start { get; private set; } = Mark.Empty;
         public Mark End { get; private set; } = Mark.Empty;
+        public YamlReferenceReader? ReferenceReader { get; }
 
         public bool Read()
         {

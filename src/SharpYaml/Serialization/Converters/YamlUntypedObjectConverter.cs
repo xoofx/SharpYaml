@@ -16,6 +16,14 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
 
     public override object? Read(ref YamlReader reader, Type typeToConvert, YamlSerializerOptions options)
     {
+        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        {
+            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
+            var resolved = reader.ReferenceReader.Resolve(alias);
+            reader.Read();
+            return resolved;
+        }
+
         if (options.UnsafeAllowDeserializeFromTagTypeName && reader.Tag is not null)
         {
             var activated = TryReadUnsafeTaggedValue(ref reader, options);
@@ -58,8 +66,14 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 return str;
 
             case YamlTokenType.StartSequence:
+                var sequenceAnchor = reader.Anchor;
                 reader.Read();
                 var list = new List<object?>();
+                if (reader.ReferenceReader is not null && sequenceAnchor is not null)
+                {
+                    reader.ReferenceReader.Register(sequenceAnchor, list);
+                }
+
                 while (reader.TokenType != YamlTokenType.EndSequence)
                 {
                     list.Add(Read(ref reader, typeof(object), options));
@@ -68,8 +82,14 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 return list;
 
             case YamlTokenType.StartMapping:
+                var mappingAnchor = reader.Anchor;
                 reader.Read();
                 var dict = new Dictionary<string, object?>(options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                if (reader.ReferenceReader is not null && mappingAnchor is not null)
+                {
+                    reader.ReferenceReader.Register(mappingAnchor, dict);
+                }
+
                 while (reader.TokenType != YamlTokenType.EndMapping)
                 {
                     if (reader.TokenType != YamlTokenType.Scalar)
@@ -103,7 +123,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 return dict;
 
             case YamlTokenType.Alias:
-                throw new NotSupportedException("Aliases are not supported when deserializing into object.");
+                throw new NotSupportedException("Aliases are not supported when deserializing into object unless ReferenceHandling is Preserve.");
 
             default:
                 throw new InvalidOperationException($"Unexpected token '{reader.TokenType}'.");

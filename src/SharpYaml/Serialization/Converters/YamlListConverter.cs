@@ -15,6 +15,14 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
 
     public override List<TElement>? Read(ref YamlReader reader, YamlSerializerOptions options)
     {
+        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        {
+            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
+            var resolved = reader.ReferenceReader.Resolve(alias);
+            reader.Read();
+            return (List<TElement>)resolved;
+        }
+
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalarParser.IsNull(reader.ScalarValue.AsSpan()))
         {
             reader.Read();
@@ -27,9 +35,15 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
         }
 
         _elementConverter ??= _resolver.GetConverter(typeof(TElement));
+        var anchor = reader.Anchor;
         reader.Read();
 
         var list = new List<TElement>();
+        if (reader.ReferenceReader is not null && anchor is not null)
+        {
+            reader.ReferenceReader.Register(anchor, list);
+        }
+
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
             var value = _elementConverter.Read(ref reader, typeof(TElement), options);
@@ -50,6 +64,18 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
 
         _elementConverter ??= _resolver.GetConverter(typeof(TElement));
 
+        if (writer.ReferenceWriter is not null)
+        {
+            if (writer.ReferenceWriter.TryGetAnchor(value, out var existing))
+            {
+                writer.WriteAlias(existing);
+                return;
+            }
+
+            var anchor = writer.ReferenceWriter.GetOrAddAnchor(value);
+            writer.WriteAnchor(anchor);
+        }
+
         writer.WriteStartSequence();
         for (var i = 0; i < value.Count; i++)
         {
@@ -58,4 +84,3 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
         writer.WriteEndSequence();
     }
 }
-

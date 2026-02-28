@@ -15,6 +15,14 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
 
     public override Dictionary<string, TValue>? Read(ref YamlReader reader, YamlSerializerOptions options)
     {
+        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        {
+            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
+            var resolved = reader.ReferenceReader.Resolve(alias);
+            reader.Read();
+            return (Dictionary<string, TValue>)resolved;
+        }
+
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalarParser.IsNull(reader.ScalarValue.AsSpan()))
         {
             reader.Read();
@@ -27,9 +35,15 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
         }
 
         _valueConverter ??= _resolver.GetConverter(typeof(TValue));
+        var anchor = reader.Anchor;
         reader.Read();
 
         var dictionary = new Dictionary<string, TValue>(options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        if (reader.ReferenceReader is not null && anchor is not null)
+        {
+            reader.ReferenceReader.Register(anchor, dictionary);
+        }
+
         while (reader.TokenType != YamlTokenType.EndMapping)
         {
             if (reader.TokenType != YamlTokenType.Scalar)
@@ -74,6 +88,18 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
 
         _valueConverter ??= _resolver.GetConverter(typeof(TValue));
 
+        if (writer.ReferenceWriter is not null)
+        {
+            if (writer.ReferenceWriter.TryGetAnchor(value, out var existing))
+            {
+                writer.WriteAlias(existing);
+                return;
+            }
+
+            var anchor = writer.ReferenceWriter.GetOrAddAnchor(value);
+            writer.WriteAnchor(anchor);
+        }
+
         writer.WriteStartMapping();
         foreach (var pair in value)
         {
@@ -84,4 +110,3 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
         writer.WriteEndMapping();
     }
 }
-

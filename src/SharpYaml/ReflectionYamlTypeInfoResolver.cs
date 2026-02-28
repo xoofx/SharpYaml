@@ -32,7 +32,7 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
         public override object? DeserializeFromString(string yaml)
         {
             ArgumentNullException.ThrowIfNull(yaml);
-            var reader = YamlReader.Create(yaml);
+            var reader = YamlReader.Create(yaml, Options);
             if (!reader.Read())
             {
                 return null;

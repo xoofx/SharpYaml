@@ -17,6 +17,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     public override T? Read(ref YamlReader reader, YamlSerializerOptions options)
     {
+        if (reader.TokenType == YamlTokenType.Alias && reader.ReferenceReader is not null)
+        {
+            var alias = reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value.");
+            var resolved = reader.ReferenceReader.Resolve(alias);
+            reader.Read();
+            return (T)resolved;
+        }
+
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalarParser.IsNull(reader.ScalarValue.AsSpan()))
         {
             reader.Read();
@@ -30,6 +38,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         var contract = _contract ??= Contract.Create(typeof(T), options);
         var instance = (T)contract.CreateInstance();
+        if (reader.ReferenceReader is not null && reader.Anchor is not null)
+        {
+            reader.ReferenceReader.Register(reader.Anchor, instance!);
+        }
         HashSet<Member>? seenMembers = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<Member>();
 
         reader.Read();
@@ -79,6 +91,19 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         var contract = _contract ??= Contract.Create(typeof(T), options);
+
+        if (writer.ReferenceWriter is not null && value is not string && !typeof(T).IsValueType)
+        {
+            if (writer.ReferenceWriter.TryGetAnchor(value, out var existing))
+            {
+                writer.WriteAlias(existing);
+                return;
+            }
+
+            var anchor = writer.ReferenceWriter.GetOrAddAnchor(value);
+            writer.WriteAnchor(anchor);
+        }
+
         writer.WriteStartMapping();
 
         var members = options.MappingOrder == YamlMappingOrderPolicy.Sorted

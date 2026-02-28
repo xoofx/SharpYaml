@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using SharpYaml.Serialization.References;
 
 namespace SharpYaml.Serialization;
 
@@ -11,9 +12,12 @@ public sealed class YamlWriter
 {
     private readonly TextWriter _writer;
     private readonly YamlSerializerOptions _options;
+    private readonly YamlReferenceWriter? _referenceWriter;
     private readonly StringBuilder _indentBuilder = new();
     private ContainerFrame[] _frames = new ContainerFrame[8];
     private int _depth;
+    private string? _pendingAnchor;
+    private string? _pendingTag;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlWriter"/> class.
@@ -26,9 +30,58 @@ public sealed class YamlWriter
         ArgumentNullException.ThrowIfNull(writer);
         _writer = writer;
         _options = options ?? YamlSerializerOptions.Default;
+        _referenceWriter = _options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
     }
 
     internal TextWriter Writer => _writer;
+
+    internal YamlReferenceWriter? ReferenceWriter => _referenceWriter;
+
+    /// <summary>
+    /// Writes a YAML tag for the next value.
+    /// </summary>
+    /// <param name="tag">The YAML tag, such as <c>!dog</c>.</param>
+    public void WriteTag(string tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        if (tag.Length == 0)
+        {
+            throw new ArgumentException("Tag cannot be empty.", nameof(tag));
+        }
+
+        _pendingTag = tag;
+    }
+
+    /// <summary>
+    /// Writes a YAML anchor for the next value.
+    /// </summary>
+    public void WriteAnchor(string anchor)
+    {
+        ArgumentNullException.ThrowIfNull(anchor);
+        if (anchor.Length == 0)
+        {
+            throw new ArgumentException("Anchor cannot be empty.", nameof(anchor));
+        }
+
+        _pendingAnchor = anchor;
+    }
+
+    /// <summary>
+    /// Writes a YAML alias value (a reference to an anchor).
+    /// </summary>
+    public void WriteAlias(string alias)
+    {
+        ArgumentNullException.ThrowIfNull(alias);
+        if (alias.Length == 0)
+        {
+            throw new ArgumentException("Alias cannot be empty.", nameof(alias));
+        }
+
+        WriteValuePrefixForAlias();
+        _writer.Write('*');
+        _writer.Write(alias);
+        CompleteValueAfterScalar();
+    }
 
     /// <summary>
     /// Writes the start of a mapping.
@@ -113,6 +166,7 @@ public sealed class YamlWriter
     public void WriteScalar(string? value)
     {
         WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
 
         if (value is null)
         {
@@ -161,6 +215,77 @@ public sealed class YamlWriter
         frame.HasContent = true;
     }
 
+    private void WriteValuePrefixForAlias()
+    {
+        if (_depth == 0)
+        {
+            return;
+        }
+
+        ref var frame = ref _frames[_depth - 1];
+        EnsureContainerStarted(ref frame);
+
+        if (frame.Kind == ContainerKind.Mapping)
+        {
+            if (frame.ExpectingKey)
+            {
+                throw new InvalidOperationException("An alias value cannot be written when a key is expected.");
+            }
+
+            _writer.Write(' ');
+            return;
+        }
+
+        if (frame.HasContent)
+        {
+            WriteNewLine();
+        }
+
+        WriteIndent();
+        _writer.Write("- ");
+        frame.HasContent = true;
+    }
+
+    private void WriteNodeProperties(bool writeLeadingSpace, bool writeTrailingSpace)
+    {
+        if (_pendingAnchor is null && _pendingTag is null)
+        {
+            return;
+        }
+
+        if (writeLeadingSpace)
+        {
+            _writer.Write(' ');
+        }
+
+        var wroteAny = false;
+        if (_pendingAnchor is not null)
+        {
+            _writer.Write('&');
+            _writer.Write(_pendingAnchor);
+            wroteAny = true;
+        }
+
+        if (_pendingTag is not null)
+        {
+            if (wroteAny)
+            {
+                _writer.Write(' ');
+            }
+
+            _writer.Write(_pendingTag);
+            wroteAny = true;
+        }
+
+        _pendingAnchor = null;
+        _pendingTag = null;
+
+        if (writeTrailingSpace && wroteAny)
+        {
+            _writer.Write(' ');
+        }
+    }
+
     private void EnsureContainerStarted(ref ContainerFrame frame)
     {
         if (frame.PendingStart == PendingStartKind.None)
@@ -206,7 +331,16 @@ public sealed class YamlWriter
 
         if (_depth == 0)
         {
-            pendingStart = PendingStartKind.None;
+            if (_pendingAnchor is not null || _pendingTag is not null)
+            {
+                // Root node properties must be followed by a newline before content.
+                WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: false);
+                pendingStart = PendingStartKind.Root;
+            }
+            else
+            {
+                pendingStart = PendingStartKind.None;
+            }
         }
         else
         {
@@ -221,6 +355,10 @@ public sealed class YamlWriter
                 }
 
                 pendingStart = PendingStartKind.MappingValue;
+                if (_pendingAnchor is not null || _pendingTag is not null)
+                {
+                    WriteNodeProperties(writeLeadingSpace: true, writeTrailingSpace: false);
+                }
             }
             else
             {
@@ -231,6 +369,10 @@ public sealed class YamlWriter
 
                 WriteIndent();
                 _writer.Write('-');
+                if (_pendingAnchor is not null || _pendingTag is not null)
+                {
+                    WriteNodeProperties(writeLeadingSpace: true, writeTrailingSpace: false);
+                }
                 parent.HasContent = true;
                 pendingStart = PendingStartKind.SequenceItem;
             }
@@ -262,7 +404,7 @@ public sealed class YamlWriter
 
     private void WriteEmptyContainerInline(ContainerKind kind, PendingStartKind pendingStart)
     {
-        if (pendingStart == PendingStartKind.None && _depth == 0)
+        if ((pendingStart == PendingStartKind.None || pendingStart == PendingStartKind.Root) && _depth == 0)
         {
             _writer.Write(kind == ContainerKind.Mapping ? "{}" : "[]");
             return;
@@ -400,6 +542,7 @@ public sealed class YamlWriter
         None,
         MappingValue,
         SequenceItem,
+        Root,
     }
 
     private struct ContainerFrame
