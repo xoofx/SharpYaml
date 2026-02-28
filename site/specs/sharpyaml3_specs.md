@@ -539,6 +539,8 @@ The incremental generator must:
 ### 10.1 Migrate test framework
 
 - Replace NUnit with MSTest in `src/SharpYaml.Tests/`.
+- Use MSTest APIs directly (`Assert.AreEqual`, `Assert.IsTrue`, `Assert.ThrowsException`, etc.).
+- Do not introduce any NUnit compatibility layer/wrapper, adapter assertions, or fluent facade.
 - Use:
   - `MSTest.TestFramework`
   - `MSTest.TestAdapter`
@@ -636,6 +638,7 @@ This is the recommended execution order. Each step should be a self-contained PR
 
 9. **Test suite migration and hardening**
    - Complete NUnit -> MSTest conversion.
+   - Ensure tests use direct MSTest assertions only (no NUnit wrapper/facade).
    - Add generator and NativeAOT integration tests.
    - Add golden file coverage.
 
