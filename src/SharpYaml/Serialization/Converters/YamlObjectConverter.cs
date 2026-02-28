@@ -95,7 +95,20 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     private T? ReadObjectCore(ref YamlReader reader, YamlSerializerOptions options, Contract contract)
     {
-        var instance = (T)contract.CreateInstance();
+        T instance;
+        try
+        {
+            instance = (T)contract.CreateInstance();
+        }
+        catch (YamlException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, exception.Message, exception);
+        }
+
         if (reader.ReferenceReader is not null && reader.Anchor is not null)
         {
             reader.ReferenceReader.Register(reader.Anchor, instance!);
@@ -135,8 +148,32 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
 
             var converter = member.Converter ??= _resolver.GetConverter(member.MemberType);
-            var value = converter.Read(ref reader, member.MemberType, options);
-            member.SetValue(instance!, value);
+            object? value;
+            try
+            {
+                value = converter.Read(ref reader, member.MemberType, options);
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+
+            try
+            {
+                member.SetValue(instance!, value);
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
         }
 
         reader.Read();
@@ -421,7 +458,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     throw new NotSupportedException($"Type '{type}' cannot be instantiated.");
                 }
 
-                var instance = Activator.CreateInstance(type);
+                object? instance;
+                try
+                {
+                    instance = Activator.CreateInstance(type);
+                }
+                catch (MissingMethodException exception)
+                {
+                    throw new NotSupportedException($"Type '{type}' does not have a public parameterless constructor.", exception);
+                }
                 if (instance is null)
                 {
                     throw new NotSupportedException($"Type '{type}' does not have a public parameterless constructor.");
