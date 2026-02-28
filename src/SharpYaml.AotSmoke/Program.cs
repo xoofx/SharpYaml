@@ -24,8 +24,10 @@ return 0;
 
 internal sealed class SmokeConfig
 {
+    [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
+    [JsonPropertyName("enabled")]
     public bool Enabled { get; set; }
 }
 
