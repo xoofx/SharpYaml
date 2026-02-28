@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -17,11 +19,13 @@ internal sealed class GeneratedContainer
     public GeneratedPerson? Person { get; set; }
 }
 
+#pragma warning disable SYSLIB1224
 [JsonSerializable(typeof(GeneratedPerson))]
 [JsonSerializable(typeof(GeneratedContainer))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
 }
+#pragma warning restore SYSLIB1224
 
 [TestClass]
 public class YamlSerializerSourceGenerationTests

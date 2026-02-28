@@ -1,34 +1,20 @@
-# SharpYaml 3 API Reference (Draft)
+# SharpYaml 3 API Reference
 
 ## Overview
 
-SharpYaml 3 exposes a `System.Text.Json`-style API centered on:
+SharpYaml 3 exposes a `System.Text.Json`-style object mapping API:
 
 - `SharpYaml.YamlSerializer`
 - `SharpYaml.YamlSerializerOptions`
-- `SharpYaml.YamlTypeInfo` / `IYamlTypeInfoResolver`
+- `SharpYaml.YamlTypeInfo` / `SharpYaml.YamlTypeInfo<T>`
+- `SharpYaml.IYamlTypeInfoResolver`
+- `SharpYaml.Serialization.YamlSerializerContext`
 
-The API is text-first (`string`, `TextReader`, `ReadOnlySpan<char>`) and is designed for both reflection-based and metadata-based serialization.
-
-## Quick Start
-
-```csharp
-using SharpYaml;
-
-var options = new YamlSerializerOptions
-{
-    PropertyNamingPolicy = YamlNamingPolicy.CamelCase,
-    WriteIndented = true,
-    Schema = YamlSchemaKind.Core
-};
-
-var yaml = YamlSerializer.Serialize(new { FirstName = "Ada", Age = 37 }, options);
-var model = YamlSerializer.Deserialize<Person>(yaml, options);
-```
+Object mapping is intentionally distinct from the low-level syntax APIs (`SharpYaml.Syntax`) used for lossless text roundtrip and span tracking.
 
 ## YamlSerializer
 
-### Core overloads
+Core APIs:
 
 - `Serialize<T>(T value, YamlSerializerOptions? options = null)`
 - `Serialize(object? value, Type inputType, YamlSerializerOptions? options = null)`
@@ -41,42 +27,38 @@ var model = YamlSerializer.Deserialize<Person>(yaml, options);
 - `Deserialize<T>(ReadOnlySpan<char> yaml, YamlSerializerOptions? options = null)`
 - `Deserialize(ReadOnlySpan<char> yaml, Type returnType, YamlSerializerOptions? options = null)`
 
-### Metadata overloads
+Metadata APIs:
 
 - `Serialize<T>(T value, YamlTypeInfo<T> typeInfo)`
 - `Deserialize<T>(string yaml, YamlTypeInfo<T> typeInfo)`
 - `Deserialize<T>(ReadOnlySpan<char> yaml, YamlTypeInfo<T> typeInfo)`
 
-### Reflection switch
+Reflection switch:
 
-`YamlSerializer.IsReflectionEnabledByDefault` follows the AppContext switch:
+- `YamlSerializer.IsReflectionEnabledByDefault`
+- AppContext key: `"SharpYaml.YamlSerializer.IsReflectionEnabledByDefault"`
 
-```csharp
-AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", false);
-```
-
-When reflection is disabled and no `TypeInfoResolver` is provided, calls throw `InvalidOperationException`.
+When reflection is disabled and no resolver provides metadata, non-`YamlTypeInfo` overloads throw `InvalidOperationException`.
 
 ## YamlSerializerOptions
-
-`YamlSerializerOptions` currently provides:
 
 - Naming:
 - `PropertyNamingPolicy`
 - `DictionaryKeyPolicy`
 - `PropertyNameCaseInsensitive`
-- Value handling:
+- Ignore/write behavior:
 - `DefaultIgnoreCondition`
 - Formatting:
 - `WriteIndented`
 - `IndentSize`
 - Mapping order:
-- `MappingOrder` (`Declaration` by default, `Sorted` optional)
-- YAML behavior:
+- `MappingOrder` (`Declaration` default, `Sorted` optional)
+- YAML semantics:
 - `Schema`
 - `DuplicateKeyHandling`
 - `ReferenceHandling`
 - `ScalarStylePreferences`
+- `UnsafeAllowDeserializeFromTagTypeName`
 - Polymorphism:
 - `PolymorphismOptions`
 - Metadata:
@@ -84,63 +66,34 @@ When reflection is disabled and no `TypeInfoResolver` is provided, calls throw `
 
 ## Attributes
 
-YAML-specific attributes available in `SharpYaml.Serialization`:
+SharpYaml attributes (`SharpYaml.Serialization`):
 
 - `YamlPropertyNameAttribute`
 - `YamlPropertyOrderAttribute`
+- `YamlIgnoreAttribute`
 - `YamlIncludeAttribute`
 - `YamlConstructorAttribute`
 - `YamlPolymorphicAttribute`
 - `YamlDerivedTypeAttribute`
 
-Supported `System.Text.Json.Serialization` member attributes in reflection mode:
+`System.Text.Json.Serialization` attributes supported for object members:
 
 - `JsonPropertyNameAttribute`
 - `JsonPropertyOrderAttribute`
 - `JsonIgnoreAttribute` (`Always`, `WhenWritingNull`, `WhenWritingDefault`, `Never`)
 - `JsonIncludeAttribute`
 
-Member naming/order precedence:
+Member precedence:
 
-1. `YamlPropertyNameAttribute` / `YamlPropertyOrderAttribute`
-2. `JsonPropertyNameAttribute` / `JsonPropertyOrderAttribute`
-3. Legacy `YamlMemberAttribute` name/order (internal compatibility path)
-4. `YamlSerializerOptions.PropertyNamingPolicy`
-
-Ignore behavior:
-
-- `YamlIgnoreAttribute` always ignores.
-- `JsonIgnore(Condition = Always)` always ignores.
-- `JsonIgnore(Condition = WhenWritingNull|WhenWritingDefault)` applies on write only.
-
-## Metadata Model
-
-Metadata primitives:
-
-- `YamlTypeInfo`
-- `YamlTypeInfo<T>`
-- `IYamlTypeInfoResolver`
-- `SharpYaml.Serialization.YamlSerializerContext`
-
-`YamlSerializerContext` now includes:
-
-- A parameterless constructor that binds `Options.TypeInfoResolver` to the context.
-- `GetTypeInfo<T>()` convenience lookup.
+1. YAML attributes
+2. JSON attributes
+3. Options policies
 
 ## Source Generation
 
-SharpYaml includes an incremental source generator project: `src/SharpYaml.SourceGenerator`.
+SharpYaml provides an incremental source generator in `src/SharpYaml.SourceGenerator`.
 
-Add it as an analyzer reference:
-
-```xml
-<ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj"
-                  OutputItemType="Analyzer"
-                  ReferenceOutputAssembly="false"
-                  PrivateAssets="all" />
-```
-
-Declare a context with `JsonSerializable` roots:
+Define contexts with `JsonSerializable` roots:
 
 ```csharp
 using System.Text.Json.Serialization;
@@ -158,5 +111,14 @@ Use generated metadata:
 var context = new MyYamlContext();
 var typeInfo = context.GetTypeInfo<MyModel>();
 var yaml = YamlSerializer.Serialize(model, typeInfo);
-var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
+var model2 = YamlSerializer.Deserialize(yaml, typeInfo);
 ```
+
+## Removed Legacy Surface
+
+SharpYaml 3 is a breaking release. Legacy object-mapping APIs were removed from the public surface, including:
+
+- `SharpYaml.Serialization.Serializer`
+- `SharpYaml.Serialization.SerializerSettings`
+- `SharpYaml.Serialization.IYamlSerializable`
+- Legacy serialization attributes such as `YamlMemberAttribute`, `YamlTagAttribute`, `YamlStyleAttribute`, `YamlRemapAttribute`

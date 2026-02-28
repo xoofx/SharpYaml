@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -13,6 +15,13 @@ public class YamlSerializerApiTests
         public string FirstName { get; set; } = string.Empty;
 
         public int Age { get; set; }
+    }
+
+    private sealed class OrderingModel
+    {
+        public string Zeta { get; set; } = string.Empty;
+
+        public string Alpha { get; set; } = string.Empty;
     }
 
     private sealed class StringTypeInfo : YamlTypeInfo<string>
@@ -42,7 +51,7 @@ public class YamlSerializerApiTests
 
         public YamlTypeInfo TypeInfo { get; }
 
-        public YamlTypeInfo GetTypeInfo(Type type, YamlSerializerOptions options)
+        public YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options)
         {
             return type == typeof(string) ? TypeInfo : null;
         }
@@ -89,6 +98,41 @@ public class YamlSerializerApiTests
         Assert.IsNotNull(roundTrip);
         Assert.AreEqual("Ada", roundTrip.FirstName);
         Assert.AreEqual(37, roundTrip.Age);
+    }
+
+    [TestMethod]
+    public void MappingOrderDefaultsToDeclaration()
+    {
+        var yaml = YamlSerializer.Serialize(new OrderingModel
+        {
+            Zeta = "z",
+            Alpha = "a",
+        });
+
+        var zetaIndex = yaml.IndexOf("Zeta:", StringComparison.Ordinal);
+        var alphaIndex = yaml.IndexOf("Alpha:", StringComparison.Ordinal);
+        Assert.IsTrue(zetaIndex >= 0);
+        Assert.IsTrue(alphaIndex > zetaIndex);
+    }
+
+    [TestMethod]
+    public void MappingOrderCanBeSorted()
+    {
+        var yaml = YamlSerializer.Serialize(
+            new OrderingModel
+            {
+                Zeta = "z",
+                Alpha = "a",
+            },
+            new YamlSerializerOptions
+            {
+                MappingOrder = YamlMappingOrderPolicy.Sorted,
+            });
+
+        var zetaIndex = yaml.IndexOf("Zeta:", StringComparison.Ordinal);
+        var alphaIndex = yaml.IndexOf("Alpha:", StringComparison.Ordinal);
+        Assert.IsTrue(alphaIndex >= 0);
+        Assert.IsTrue(zetaIndex > alphaIndex);
     }
 
     [TestMethod]

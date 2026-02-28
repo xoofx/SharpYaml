@@ -15,7 +15,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ContextMustBePartial = new(
         id: "SHARPYAML001",
         title: "Yaml serializer context must be partial",
-        messageFormat: "Type '{0}' derives from SharpYaml.Serialization.YamlSerializerContext and must be declared partial to support source generation.",
+        messageFormat: "Type '{0}' derives from SharpYaml.Serialization.YamlSerializerContext and must be declared partial to support source generation",
         category: "SharpYaml.SourceGeneration",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
