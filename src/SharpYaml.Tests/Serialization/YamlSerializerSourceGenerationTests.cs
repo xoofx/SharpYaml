@@ -154,6 +154,14 @@ internal sealed class ConstantIntConverter : YamlConverter<int>
 [JsonSerializable(typeof(GeneratedTaggedZoo))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
+    public TestYamlSerializerContext()
+    {
+    }
+
+    public TestYamlSerializerContext(YamlSerializerOptions options)
+        : base(options)
+    {
+    }
 }
 
 [JsonSourceGenerationOptions(
@@ -165,6 +173,14 @@ internal partial class TestYamlSerializerContext : YamlSerializerContext
 [JsonSerializable(typeof(GeneratedWithDefaultOptions))]
 internal partial class TestYamlSerializerContextWithOptions : YamlSerializerContext
 {
+    public TestYamlSerializerContextWithOptions()
+    {
+    }
+
+    public TestYamlSerializerContextWithOptions(YamlSerializerOptions options)
+        : base(options)
+    {
+    }
 }
 #pragma warning restore SYSLIB1224
 
@@ -390,8 +406,14 @@ public class YamlSerializerSourceGenerationTests
     [TestMethod]
     public void GeneratedContextHonorsCustomConverters()
     {
-        var context = new TestYamlSerializerContext();
-        context.Options.Converters.Add(new ConstantIntConverter());
+        var context = new TestYamlSerializerContext(
+            new YamlSerializerOptions
+            {
+                Converters =
+                [
+                    new ConstantIntConverter(),
+                ],
+            });
 
         var primitivesTypeInfo = context.GetTypeInfo<GeneratedPrimitives>();
         var yaml = YamlSerializer.Serialize(new GeneratedPrimitives { Int32Value = 5 }, primitivesTypeInfo);
@@ -412,8 +434,11 @@ public class YamlSerializerSourceGenerationTests
     [TestMethod]
     public void GeneratedContextPreservesSharedReferences()
     {
-        var context = new TestYamlSerializerContext();
-        context.Options.ReferenceHandling = YamlReferenceHandling.Preserve;
+        var context = new TestYamlSerializerContext(
+            new YamlSerializerOptions
+            {
+                ReferenceHandling = YamlReferenceHandling.Preserve,
+            });
 
         var shared = new GeneratedReferenceNode { Name = "shared" };
         var container = new GeneratedReferenceContainer { First = shared, Second = shared };
@@ -434,8 +459,11 @@ public class YamlSerializerSourceGenerationTests
     [TestMethod]
     public void GeneratedContextPreservesCycles()
     {
-        var context = new TestYamlSerializerContext();
-        context.Options.ReferenceHandling = YamlReferenceHandling.Preserve;
+        var context = new TestYamlSerializerContext(
+            new YamlSerializerOptions
+            {
+                ReferenceHandling = YamlReferenceHandling.Preserve,
+            });
 
         var node = new GeneratedReferenceNode { Name = "self" };
         node.Next = node;
@@ -502,8 +530,11 @@ public class YamlSerializerSourceGenerationTests
     [TestMethod]
     public void GeneratedContextErrorsIncludeSourceNameAndLocation()
     {
-        var context = new TestYamlSerializerContext();
-        context.Options.SourceName = "generated.yaml";
+        var context = new TestYamlSerializerContext(
+            new YamlSerializerOptions
+            {
+                SourceName = "generated.yaml",
+            });
 
         var typeInfo = context.GetTypeInfo<GeneratedPerson>();
         var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("123", typeInfo));

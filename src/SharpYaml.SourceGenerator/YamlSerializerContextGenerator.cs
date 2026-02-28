@@ -309,9 +309,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("    private static global::SharpYaml.YamlSerializerOptions CreateDefaultOptions()");
         builder.AppendLine("    {");
-        builder.AppendLine("        var options = new global::SharpYaml.YamlSerializerOptions();");
+        builder.AppendLine("        return new global::SharpYaml.YamlSerializerOptions");
+        builder.AppendLine("        {");
         AppendOptionAssignments(builder, model.SourceGenerationOptions);
-        builder.AppendLine("        return options;");
+        builder.AppendLine("        };");
         builder.AppendLine("    }");
         builder.AppendLine();
 
@@ -3040,44 +3041,44 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     {
         if (options.WriteIndented.HasValue)
         {
-            builder.Append("        options.WriteIndented = ")
+            builder.Append("            WriteIndented = ")
                 .Append(options.WriteIndented.Value ? "true" : "false")
-                .AppendLine(";");
+                .AppendLine(",");
         }
 
         if (options.IndentSize.HasValue)
         {
-            builder.Append("        options.IndentSize = ")
+            builder.Append("            IndentSize = ")
                 .Append(options.IndentSize.Value)
-                .AppendLine(";");
+                .AppendLine(",");
         }
 
         if (options.PropertyNameCaseInsensitive.HasValue)
         {
-            builder.Append("        options.PropertyNameCaseInsensitive = ")
+            builder.Append("            PropertyNameCaseInsensitive = ")
                 .Append(options.PropertyNameCaseInsensitive.Value ? "true" : "false")
-                .AppendLine(";");
+                .AppendLine(",");
         }
 
         if (!string.IsNullOrEmpty(options.DefaultIgnoreCondition))
         {
-            builder.Append("        options.DefaultIgnoreCondition = global::SharpYaml.YamlIgnoreCondition.")
+            builder.Append("            DefaultIgnoreCondition = global::SharpYaml.YamlIgnoreCondition.")
                 .Append(options.DefaultIgnoreCondition)
-                .AppendLine(";");
+                .AppendLine(",");
         }
 
         if (!string.IsNullOrEmpty(options.PropertyNamingPolicy))
         {
-            builder.Append("        options.PropertyNamingPolicy = global::SharpYaml.YamlNamingPolicy.")
+            builder.Append("            PropertyNamingPolicy = global::SharpYaml.YamlNamingPolicy.")
                 .Append(options.PropertyNamingPolicy)
-                .AppendLine(";");
+                .AppendLine(",");
         }
 
         if (!string.IsNullOrEmpty(options.DictionaryKeyPolicy))
         {
-            builder.Append("        options.DictionaryKeyPolicy = global::SharpYaml.YamlNamingPolicy.")
+            builder.Append("            DictionaryKeyPolicy = global::SharpYaml.YamlNamingPolicy.")
                 .Append(options.DictionaryKeyPolicy)
-                .AppendLine(";");
+                .AppendLine(",");
         }
     }
 

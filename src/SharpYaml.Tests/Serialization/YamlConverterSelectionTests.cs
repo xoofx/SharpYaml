@@ -10,9 +10,14 @@ public sealed class YamlConverterSelectionTests
     [TestMethod]
     public void GetConverter_UsesFirstMatchingConverter()
     {
-        var options = new YamlSerializerOptions();
-        options.Converters.Add(new AlwaysInt32Converter("first"));
-        options.Converters.Add(new AlwaysInt32Converter("second"));
+        var options = new YamlSerializerOptions
+        {
+            Converters =
+            [
+                new AlwaysInt32Converter("first"),
+                new AlwaysInt32Converter("second"),
+            ],
+        };
 
         var converter = options.GetConverter(typeof(int));
 
@@ -23,8 +28,13 @@ public sealed class YamlConverterSelectionTests
     [TestMethod]
     public void GetConverter_ExpandsFactoryConverters()
     {
-        var options = new YamlSerializerOptions();
-        options.Converters.Add(new Int32FactoryConverter());
+        var options = new YamlSerializerOptions
+        {
+            Converters =
+            [
+                new Int32FactoryConverter(),
+            ],
+        };
 
         var converter = options.GetConverter(typeof(int));
 

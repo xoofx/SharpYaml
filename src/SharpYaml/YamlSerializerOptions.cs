@@ -14,20 +14,51 @@ public sealed class YamlSerializerOptions
     /// </summary>
     public static YamlSerializerOptions Default { get; } = new();
 
-    private readonly List<YamlConverter> _converters = new();
+    private YamlConverter[] _converters = [];
+    private int _indentSize = 2;
+    private YamlScalarStylePreferences _scalarStylePreferences = new();
+    private YamlPolymorphismOptions _polymorphismOptions = new();
 
     /// <summary>
-    /// Gets the list of custom converters.
+    /// Gets the custom converters.
     /// </summary>
     /// <remarks>
-    /// Converters added to this list take precedence over built-in converters.
+    /// Converters are evaluated in order and take precedence over built-in converters.
     /// </remarks>
-    public IList<YamlConverter> Converters => _converters;
+    /// <exception cref="ArgumentNullException">Value is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A converter entry is <see langword="null"/>.</exception>
+    public IReadOnlyList<YamlConverter> Converters
+    {
+        get => _converters;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            if (value.Count == 0)
+            {
+                _converters = [];
+                return;
+            }
+
+            var copy = new YamlConverter[value.Count];
+            for (var i = 0; i < value.Count; i++)
+            {
+                var converter = value[i];
+                if (converter is null)
+                {
+                    throw new ArgumentException("Converters cannot contain null entries.", nameof(value));
+                }
+
+                copy[i] = converter;
+            }
+
+            _converters = copy;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the policy used to convert CLR property names.
     /// </summary>
-    public YamlNamingPolicy? PropertyNamingPolicy { get; set; }
+    public YamlNamingPolicy? PropertyNamingPolicy { get; init; }
 
     /// <summary>
     /// Gets or sets an optional name for the YAML source.
@@ -36,27 +67,27 @@ public sealed class YamlSerializerOptions
     /// This value is used to annotate <see cref="YamlException"/> messages with a source name
     /// (for example, a file path) when reporting parse errors.
     /// </remarks>
-    public string? SourceName { get; set; }
+    public string? SourceName { get; init; }
 
     /// <summary>
     /// Gets or sets the policy used to convert dictionary keys during serialization.
     /// </summary>
-    public YamlNamingPolicy? DictionaryKeyPolicy { get; set; }
+    public YamlNamingPolicy? DictionaryKeyPolicy { get; init; }
 
     /// <summary>
     /// Gets or sets a value indicating whether property name matching is case-insensitive.
     /// </summary>
-    public bool PropertyNameCaseInsensitive { get; set; }
+    public bool PropertyNameCaseInsensitive { get; init; }
 
     /// <summary>
     /// Gets or sets the default ignore condition for null/default values.
     /// </summary>
-    public YamlIgnoreCondition DefaultIgnoreCondition { get; set; }
+    public YamlIgnoreCondition DefaultIgnoreCondition { get; init; }
 
     /// <summary>
     /// Gets or sets a value indicating whether output should be indented.
     /// </summary>
-    public bool WriteIndented { get; set; } = true;
+    public bool WriteIndented { get; init; } = true;
 
     /// <summary>
     /// Gets or sets the number of spaces to use when <see cref="WriteIndented"/> is enabled.
@@ -65,7 +96,7 @@ public sealed class YamlSerializerOptions
     public int IndentSize
     {
         get => _indentSize;
-        set
+        init
         {
             if (value < 1)
             {
@@ -79,17 +110,17 @@ public sealed class YamlSerializerOptions
     /// <summary>
     /// Gets or sets member ordering behavior for emitted mappings.
     /// </summary>
-    public YamlMappingOrderPolicy MappingOrder { get; set; } = YamlMappingOrderPolicy.Declaration;
+    public YamlMappingOrderPolicy MappingOrder { get; init; } = YamlMappingOrderPolicy.Declaration;
 
     /// <summary>
     /// Gets or sets the schema used for scalar resolution.
     /// </summary>
-    public YamlSchemaKind Schema { get; set; } = YamlSchemaKind.Core;
+    public YamlSchemaKind Schema { get; init; } = YamlSchemaKind.Core;
 
     /// <summary>
     /// Gets or sets behavior when duplicate mapping keys are encountered while reading.
     /// </summary>
-    public YamlDuplicateKeyHandling DuplicateKeyHandling { get; set; } = YamlDuplicateKeyHandling.Error;
+    public YamlDuplicateKeyHandling DuplicateKeyHandling { get; init; } = YamlDuplicateKeyHandling.Error;
 
     /// <summary>
     /// Gets or sets a value indicating whether unregistered runtime type names from YAML tags are allowed during deserialization.
@@ -97,27 +128,37 @@ public sealed class YamlSerializerOptions
     /// <remarks>
     /// Enabling this option allows tag-based type name activation and should only be used with trusted YAML input.
     /// </remarks>
-    public bool UnsafeAllowDeserializeFromTagTypeName { get; set; }
+    public bool UnsafeAllowDeserializeFromTagTypeName { get; init; }
 
     /// <summary>
     /// Gets scalar style preferences for serialization.
     /// </summary>
-    public YamlScalarStylePreferences ScalarStylePreferences { get; } = new();
+    /// <exception cref="ArgumentNullException">Value is <see langword="null"/>.</exception>
+    public YamlScalarStylePreferences ScalarStylePreferences
+    {
+        get => _scalarStylePreferences;
+        init => _scalarStylePreferences = value ?? throw new ArgumentNullException(nameof(value));
+    }
 
     /// <summary>
     /// Gets polymorphism options.
     /// </summary>
-    public YamlPolymorphismOptions PolymorphismOptions { get; } = new();
+    /// <exception cref="ArgumentNullException">Value is <see langword="null"/>.</exception>
+    public YamlPolymorphismOptions PolymorphismOptions
+    {
+        get => _polymorphismOptions;
+        init => _polymorphismOptions = value ?? throw new ArgumentNullException(nameof(value));
+    }
 
     /// <summary>
     /// Gets or sets object reference handling behavior.
     /// </summary>
-    public YamlReferenceHandling ReferenceHandling { get; set; }
+    public YamlReferenceHandling ReferenceHandling { get; init; }
 
     /// <summary>
     /// Gets or sets a metadata resolver used to retrieve <see cref="YamlTypeInfo"/> instances.
     /// </summary>
-    public IYamlTypeInfoResolver? TypeInfoResolver { get; set; }
+    public IYamlTypeInfoResolver? TypeInfoResolver { get; init; }
 
     /// <summary>
     /// Gets a converter that can handle <paramref name="typeToConvert"/>.
@@ -152,7 +193,7 @@ public sealed class YamlSerializerOptions
         ArgumentNullException.ThrowIfNull(typeToConvert);
 
         // Search user-provided converters first (same precedence rule as System.Text.Json).
-        for (var i = 0; i < _converters.Count; i++)
+        for (var i = 0; i < _converters.Length; i++)
         {
             var candidate = _converters[i];
             if (candidate is null)
@@ -188,5 +229,33 @@ public sealed class YamlSerializerOptions
         return false;
     }
 
-    private int _indentSize = 2;
+    internal YamlSerializerOptions WithTypeInfoResolverIfMissing(IYamlTypeInfoResolver resolver)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+
+        if (TypeInfoResolver is not null)
+        {
+            return this;
+        }
+
+        return new YamlSerializerOptions
+        {
+            Converters = Converters,
+            PropertyNamingPolicy = PropertyNamingPolicy,
+            SourceName = SourceName,
+            DictionaryKeyPolicy = DictionaryKeyPolicy,
+            PropertyNameCaseInsensitive = PropertyNameCaseInsensitive,
+            DefaultIgnoreCondition = DefaultIgnoreCondition,
+            WriteIndented = WriteIndented,
+            IndentSize = IndentSize,
+            MappingOrder = MappingOrder,
+            Schema = Schema,
+            DuplicateKeyHandling = DuplicateKeyHandling,
+            UnsafeAllowDeserializeFromTagTypeName = UnsafeAllowDeserializeFromTagTypeName,
+            ScalarStylePreferences = ScalarStylePreferences,
+            PolymorphismOptions = PolymorphismOptions,
+            ReferenceHandling = ReferenceHandling,
+            TypeInfoResolver = resolver,
+        };
+    }
 }

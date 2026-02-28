@@ -105,7 +105,7 @@ public class YamlPolymorphismTests
             yaml,
             new SharpYaml.YamlSerializerOptions
             {
-                PolymorphismOptions =
+                PolymorphismOptions = new SharpYaml.YamlPolymorphismOptions
                 {
                     UnknownDerivedTypeHandling = SharpYaml.YamlUnknownDerivedTypeHandling.FallBackToBase,
                 },
@@ -124,7 +124,7 @@ public class YamlPolymorphismTests
             yaml,
             new SharpYaml.YamlSerializerOptions
             {
-                PolymorphismOptions =
+                PolymorphismOptions = new SharpYaml.YamlPolymorphismOptions
                 {
                     DiscriminatorStyle = SharpYaml.YamlTypeDiscriminatorStyle.Both,
                 },
@@ -144,7 +144,7 @@ public class YamlPolymorphismTests
             typeof(Animal),
             new SharpYaml.YamlSerializerOptions
             {
-                PolymorphismOptions =
+                PolymorphismOptions = new SharpYaml.YamlPolymorphismOptions
                 {
                     DiscriminatorStyle = SharpYaml.YamlTypeDiscriminatorStyle.Tag,
                 },

@@ -23,8 +23,7 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
     protected YamlSerializerContext(YamlSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        Options = options;
-        options.TypeInfoResolver ??= this;
+        Options = options.WithTypeInfoResolverIfMissing(this);
     }
 
     /// <summary>
