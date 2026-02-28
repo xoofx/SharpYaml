@@ -93,6 +93,26 @@ YAML-specific attributes available in `SharpYaml.Serialization`:
 - `YamlPolymorphicAttribute`
 - `YamlDerivedTypeAttribute`
 
+Supported `System.Text.Json.Serialization` member attributes in reflection mode:
+
+- `JsonPropertyNameAttribute`
+- `JsonPropertyOrderAttribute`
+- `JsonIgnoreAttribute` (`Always`, `WhenWritingNull`, `WhenWritingDefault`, `Never`)
+- `JsonIncludeAttribute`
+
+Member naming/order precedence:
+
+1. `YamlPropertyNameAttribute` / `YamlPropertyOrderAttribute`
+2. `JsonPropertyNameAttribute` / `JsonPropertyOrderAttribute`
+3. Legacy `YamlMemberAttribute` name/order (internal compatibility path)
+4. `YamlSerializerOptions.PropertyNamingPolicy`
+
+Ignore behavior:
+
+- `YamlIgnoreAttribute` always ignores.
+- `JsonIgnore(Condition = Always)` always ignores.
+- `JsonIgnore(Condition = WhenWritingNull|WhenWritingDefault)` applies on write only.
+
 ## Metadata Model
 
 Metadata primitives:
@@ -102,5 +122,41 @@ Metadata primitives:
 - `IYamlTypeInfoResolver`
 - `SharpYaml.Serialization.YamlSerializerContext`
 
-These allow non-reflection metadata flows (source generation integration is added in later implementation steps).
+`YamlSerializerContext` now includes:
 
+- A parameterless constructor that binds `Options.TypeInfoResolver` to the context.
+- `GetTypeInfo<T>()` convenience lookup.
+
+## Source Generation
+
+SharpYaml includes an incremental source generator project: `src/SharpYaml.SourceGenerator`.
+
+Add it as an analyzer reference:
+
+```xml
+<ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj"
+                  OutputItemType="Analyzer"
+                  ReferenceOutputAssembly="false"
+                  PrivateAssets="all" />
+```
+
+Declare a context with `JsonSerializable` roots:
+
+```csharp
+using System.Text.Json.Serialization;
+using SharpYaml.Serialization;
+
+[JsonSerializable(typeof(MyModel))]
+internal partial class MyYamlContext : YamlSerializerContext
+{
+}
+```
+
+Use generated metadata:
+
+```csharp
+var context = new MyYamlContext();
+var typeInfo = context.GetTypeInfo<MyModel>();
+var yaml = YamlSerializer.Serialize(model, typeInfo);
+var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
+```

@@ -46,6 +46,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace SharpYaml.Serialization.Descriptors
 {
@@ -73,9 +74,13 @@ namespace SharpYaml.Serialization.Descriptors
             this.PropertyInfo = propertyInfo;
 
             getMethod = propertyInfo.GetGetMethod(true);
-            if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic) != null)
+            var includeNonPublicSetter =
+                propertyInfo.GetCustomAttribute<JsonIncludeAttribute>() is not null ||
+                propertyInfo.GetCustomAttribute<YamlIncludeAttribute>() is not null;
+
+            if (propertyInfo.CanWrite && propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic || includeNonPublicSetter) != null)
             {
-                setMethod = propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic);
+                setMethod = propertyInfo.GetSetMethod(respectPrivateSetters || !IsPublic || includeNonPublicSetter);
             }
         }
 

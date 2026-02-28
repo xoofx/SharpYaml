@@ -10,12 +10,21 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlSerializerContext"/> class.
     /// </summary>
+    protected YamlSerializerContext()
+        : this(new YamlSerializerOptions())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="YamlSerializerContext"/> class.
+    /// </summary>
     /// <param name="options">The options used by this context.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     protected YamlSerializerContext(YamlSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         Options = options;
+        options.TypeInfoResolver ??= this;
     }
 
     /// <summary>
@@ -23,7 +32,23 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
     /// </summary>
     public YamlSerializerOptions Options { get; }
 
+    /// <summary>
+    /// Gets typed metadata for a CLR type handled by this context.
+    /// </summary>
+    /// <typeparam name="T">The CLR type to resolve.</typeparam>
+    /// <returns>The resolved metadata.</returns>
+    /// <exception cref="InvalidOperationException">No metadata is available for <typeparamref name="T"/>.</exception>
+    public YamlTypeInfo<T> GetTypeInfo<T>()
+    {
+        var typeInfo = GetTypeInfo(typeof(T), Options) as YamlTypeInfo<T>;
+        if (typeInfo is null)
+        {
+            throw new InvalidOperationException($"No generated metadata is available for type '{typeof(T)}' on context '{GetType()}'.");
+        }
+
+        return typeInfo;
+    }
+
     /// <inheritdoc />
     public abstract YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options);
 }
-

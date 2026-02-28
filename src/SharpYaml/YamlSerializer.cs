@@ -51,7 +51,7 @@ public static class YamlSerializer
             return typeInfo.SerializeAsString(value);
         }
 
-        EnsureReflectionAvailable(effectiveOptions);
+        EnsureReflectionAvailable(effectiveOptions, inputType);
         return SerializeWithReflection(value, inputType, effectiveOptions);
     }
 
@@ -119,7 +119,7 @@ public static class YamlSerializer
             return typeInfo.DeserializeFromString(yaml);
         }
 
-        EnsureReflectionAvailable(effectiveOptions);
+        EnsureReflectionAvailable(effectiveOptions, returnType);
         return DeserializeWithReflection(yaml, returnType, effectiveOptions);
     }
 
@@ -231,20 +231,15 @@ public static class YamlSerializer
         return legacySerializer.Deserialize(yaml, returnType);
     }
 
-    private static void EnsureReflectionAvailable(YamlSerializerOptions options)
+    private static void EnsureReflectionAvailable(YamlSerializerOptions options, Type requestedType)
     {
         if (IsReflectionEnabledByDefault)
         {
             return;
         }
 
-        if (options.TypeInfoResolver is not null)
-        {
-            return;
-        }
-
         throw new InvalidOperationException(
-            $"Reflection serialization is disabled. Provide metadata via {nameof(YamlSerializerOptions)}.{nameof(YamlSerializerOptions.TypeInfoResolver)} or enable the '{ReflectionSwitchName}' AppContext switch.");
+            $"Reflection serialization is disabled and no metadata was found for '{requestedType}'. " +
+            $"Provide metadata via {nameof(YamlSerializerOptions)}.{nameof(YamlSerializerOptions.TypeInfoResolver)} or enable the '{ReflectionSwitchName}' AppContext switch.");
     }
 }
-

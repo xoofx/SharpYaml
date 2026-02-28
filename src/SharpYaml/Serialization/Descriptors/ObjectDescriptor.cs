@@ -51,6 +51,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace SharpYaml.Serialization.Descriptors
 {
@@ -273,7 +274,13 @@ namespace SharpYaml.Serialization.Descriptors
             var attributes = AttributeRegistry.GetAttributes(member.MemberInfo);
             YamlStyleAttribute? styleAttribute = null;
             YamlMemberAttribute? memberAttribute = null;
+            YamlPropertyNameAttribute? yamlPropertyNameAttribute = null;
+            YamlPropertyOrderAttribute? yamlPropertyOrderAttribute = null;
+            JsonPropertyNameAttribute? jsonPropertyNameAttribute = null;
+            JsonPropertyOrderAttribute? jsonPropertyOrderAttribute = null;
+            JsonIgnoreAttribute? jsonIgnoreAttribute = null;
             DefaultValueAttribute? defaultValueAttribute = null;
+            var hasIncludeAttribute = false;
             foreach (var attribute in attributes)
             {
                 // Member is not displayed if there is a YamlIgnore attribute on it
@@ -285,6 +292,36 @@ namespace SharpYaml.Serialization.Descriptors
                 if (attribute is YamlMemberAttribute yamlMemberAttribute)
                 {
                     memberAttribute = yamlMemberAttribute;
+                    continue;
+                }
+
+                if (attribute is YamlPropertyNameAttribute yamlPropertyName)
+                {
+                    yamlPropertyNameAttribute = yamlPropertyName;
+                    continue;
+                }
+
+                if (attribute is YamlPropertyOrderAttribute yamlPropertyOrder)
+                {
+                    yamlPropertyOrderAttribute = yamlPropertyOrder;
+                    continue;
+                }
+
+                if (attribute is JsonPropertyNameAttribute jsonPropertyName)
+                {
+                    jsonPropertyNameAttribute = jsonPropertyName;
+                    continue;
+                }
+
+                if (attribute is JsonPropertyOrderAttribute jsonPropertyOrder)
+                {
+                    jsonPropertyOrderAttribute = jsonPropertyOrder;
+                    continue;
+                }
+
+                if (attribute is JsonIgnoreAttribute jsonIgnore)
+                {
+                    jsonIgnoreAttribute = jsonIgnore;
                     continue;
                 }
 
@@ -311,6 +348,16 @@ namespace SharpYaml.Serialization.Descriptors
                         member.AlternativeNames.Add(yamlRemap.Name);
                     }
                 }
+
+                if (attribute is YamlIncludeAttribute or JsonIncludeAttribute)
+                {
+                    hasIncludeAttribute = true;
+                }
+            }
+
+            if (jsonIgnoreAttribute is not null && jsonIgnoreAttribute.Condition == JsonIgnoreCondition.Always)
+            {
+                return false;
             }
 
             // If the member has a set, this is a conventional assign method
@@ -327,7 +374,7 @@ namespace SharpYaml.Serialization.Descriptors
             // If it's a private member, check it has a YamlMemberAttribute on it
             if (!member.IsPublic)
             {
-                if (memberAttribute == null)
+                if (memberAttribute == null && !hasIncludeAttribute)
                     return false;
             }
 
@@ -353,6 +400,16 @@ namespace SharpYaml.Serialization.Descriptors
                 member.Order = memberAttribute.Order;
             }
 
+            if (jsonPropertyOrderAttribute is not null)
+            {
+                member.Order = jsonPropertyOrderAttribute.Order;
+            }
+
+            if (yamlPropertyOrderAttribute is not null)
+            {
+                member.Order = yamlPropertyOrderAttribute.Order;
+            }
+
             if (member.SerializeMemberMode == SerializeMemberMode.Binary)
             {
                 if (!memberType.IsArray)
@@ -376,19 +433,44 @@ namespace SharpYaml.Serialization.Descriptors
             if (shouldSerialize != null && shouldSerialize.ReturnType == typeof(bool) && member.ShouldSerialize == null)
                 member.ShouldSerialize = obj => (bool)shouldSerialize.Invoke(obj, EmptyObjectArray);
 
-            if (defaultValueAttribute != null && member.ShouldSerialize == null && !emitDefaultValues)
+            if (defaultValueAttribute != null && !emitDefaultValues)
             {
                 var defaultValue = defaultValueAttribute.Value;
                 var defaultType = defaultValue?.GetType();
                 if (defaultType.IsNumeric() && defaultType != memberType)
+                {
                     defaultValue = memberType.CastToNumericType(defaultValue);
-                member.ShouldSerialize = obj => !TypeExtensions.AreEqual(defaultValue, member.Get(obj));
+                }
+
+                member.ShouldSerialize = CombineShouldSerialize(member.ShouldSerialize, obj => !TypeExtensions.AreEqual(defaultValue, member.Get(obj!)));
+            }
+
+            if (jsonIgnoreAttribute is not null)
+            {
+                switch (jsonIgnoreAttribute.Condition)
+                {
+                    case JsonIgnoreCondition.WhenWritingNull:
+                        member.ShouldSerialize = CombineShouldSerialize(member.ShouldSerialize, obj => member.Get(obj!) is not null);
+                        break;
+                    case JsonIgnoreCondition.WhenWritingDefault:
+                        object? defaultJsonValue = memberType.GetTypeInfo().IsValueType ? Activator.CreateInstance(memberType) : null;
+                        member.ShouldSerialize = CombineShouldSerialize(member.ShouldSerialize, obj => !TypeExtensions.AreEqual(defaultJsonValue, member.Get(obj!)));
+                        break;
+                }
             }
 
             if (member.ShouldSerialize == null)
                 member.ShouldSerialize = ShouldSerializeDefault;
 
-            if (memberAttribute != null && !string.IsNullOrEmpty(memberAttribute.Name))
+            if (yamlPropertyNameAttribute is not null)
+            {
+                member.Name = yamlPropertyNameAttribute.Name;
+            }
+            else if (jsonPropertyNameAttribute is not null)
+            {
+                member.Name = jsonPropertyNameAttribute.Name;
+            }
+            else if (memberAttribute != null && !string.IsNullOrEmpty(memberAttribute.Name))
             {
                 member.Name = memberAttribute.Name;
             }
@@ -403,6 +485,16 @@ namespace SharpYaml.Serialization.Descriptors
         public override string ToString()
         {
             return Type.ToString();
+        }
+
+        private static Func<object?, bool> CombineShouldSerialize(Func<object?, bool>? left, Func<object?, bool> right)
+        {
+            if (left is null)
+            {
+                return right;
+            }
+
+            return obj => left(obj) && right(obj);
         }
     }
 }

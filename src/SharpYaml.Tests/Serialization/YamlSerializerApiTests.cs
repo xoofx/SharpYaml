@@ -1,5 +1,7 @@
 using System;
+using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization;
 
@@ -44,6 +46,37 @@ public class YamlSerializerApiTests
         {
             return type == typeof(string) ? TypeInfo : null;
         }
+    }
+
+    private sealed class JsonAnnotatedPerson
+    {
+        [JsonPropertyOrder(-10)]
+        public int Age { get; set; }
+
+        [JsonPropertyName("first_name")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? NickName { get; set; }
+
+        [JsonInclude]
+        public string Secret { get; private set; } = string.Empty;
+
+        public void SetSecret(string secret)
+        {
+            Secret = secret;
+        }
+    }
+
+    private sealed class YamlAndJsonNamedModel
+    {
+        [JsonPropertyName("json_name")]
+        [YamlPropertyName("yaml_name")]
+        [JsonPropertyOrder(100)]
+        [YamlPropertyOrder(-100)]
+        public string Name { get; set; } = string.Empty;
+
+        public int Rank { get; set; }
     }
 
     [TestMethod]
@@ -104,5 +137,56 @@ public class YamlSerializerApiTests
 
         Assert.AreEqual("value: hello", yaml);
         Assert.AreEqual("hello", value);
+    }
+
+    [TestMethod]
+    public void JsonAttributesAreRespectedByReflectionSerializer()
+    {
+        var person = new JsonAnnotatedPerson
+        {
+            Age = 37,
+            FirstName = "Ada",
+            NickName = null,
+        };
+        person.SetSecret("s3cr3t");
+
+        var yaml = YamlSerializer.Serialize(person);
+        var ageIndex = yaml.IndexOf("Age:", StringComparison.Ordinal);
+        var firstNameIndex = yaml.IndexOf("first_name:", StringComparison.Ordinal);
+
+        Assert.IsTrue(ageIndex >= 0);
+        Assert.IsTrue(firstNameIndex > ageIndex);
+        StringAssert.Contains(yaml, "first_name: Ada");
+        StringAssert.Contains(yaml, "Secret: s3cr3t");
+        Assert.IsFalse(yaml.Contains("NickName:", StringComparison.Ordinal));
+
+        var roundTrip = YamlSerializer.Deserialize<JsonAnnotatedPerson>(
+            "Age: 37\nfirst_name: Ada\nSecret: from-yaml");
+
+        Assert.IsNotNull(roundTrip);
+        Assert.AreEqual(37, roundTrip.Age);
+        Assert.AreEqual("Ada", roundTrip.FirstName);
+        Assert.AreEqual("from-yaml", roundTrip.Secret);
+    }
+
+    [TestMethod]
+    public void YamlSpecificAttributesOverrideJsonAttributes()
+    {
+        var yaml = YamlSerializer.Serialize(new YamlAndJsonNamedModel
+        {
+            Name = "value",
+            Rank = 7,
+        });
+        var yamlNameIndex = yaml.IndexOf("yaml_name:", StringComparison.Ordinal);
+        var rankIndex = yaml.IndexOf("Rank:", StringComparison.Ordinal);
+
+        Assert.IsTrue(yamlNameIndex >= 0);
+        Assert.IsTrue(rankIndex > yamlNameIndex);
+        Assert.IsFalse(yaml.Contains("json_name:", StringComparison.Ordinal));
+
+        var roundTrip = YamlSerializer.Deserialize<YamlAndJsonNamedModel>("yaml_name: value\nRank: 7");
+        Assert.IsNotNull(roundTrip);
+        Assert.AreEqual("value", roundTrip.Name);
+        Assert.AreEqual(7, roundTrip.Rank);
     }
 }
