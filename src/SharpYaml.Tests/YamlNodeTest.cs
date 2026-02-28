@@ -5,7 +5,6 @@ using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 using SharpYaml.Model;
-using SharpYaml.Serialization;
 using YamlStream = SharpYaml.Model.YamlStream;
 
 namespace SharpYaml.Tests
@@ -81,7 +80,7 @@ namespace SharpYaml.Tests
             var document = new Model.YamlDocument();
             stream.Add(document);
 
-            var sequence = (YamlSequence)Model.YamlNode.FromObject(new[] { "item 4", "item 5", "item 6" }, new SerializerSettings { EmitAlias = false }, typeof(string[]));
+            var sequence = (YamlSequence)Model.YamlNode.FromObject(new[] { "item 4", "item 5", "item 6" }, expectedType: typeof(string[]));
 
             sequence.SequenceStart = new SequenceStart(sequence.SequenceStart.Anchor, sequence.SequenceStart.Tag, true, YamlStyle.Flow);
 
@@ -198,15 +197,15 @@ namespace SharpYaml.Tests
             var fileStream = new StreamReader(file);
             var stream = YamlStream.Load(fileStream);
 
-            var settings = new SerializerSettings() { UnsafeAllowDeserializeFromTagTypeName = true };
-            var dict = stream[0].Contents.ToObject<object>(settings);
+            var options = new YamlSerializerOptions() { UnsafeAllowDeserializeFromTagTypeName = true };
+            var dict = stream[0].Contents.ToObject<object>(options);
 
             Assert.AreEqual(typeof(Dictionary<string, int>), dict.GetType());
             Assert.AreEqual("!System.Collections.Generic.Dictionary`2[System.String,System.Int32],mscorlib", stream[0].Contents.Tag);
 
             stream[0].Contents.Tag = "!System.Collections.Generic.Dictionary`2[System.String,System.Double],mscorlib";
 
-            var dict2 = stream[0].Contents.ToObject<object>(settings);
+            var dict2 = stream[0].Contents.ToObject<object>(options);
 
             Assert.AreEqual(typeof(Dictionary<string, double>), dict2.GetType());
         }

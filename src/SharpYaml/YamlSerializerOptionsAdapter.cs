@@ -46,6 +46,7 @@ internal static class YamlSerializerOptionsAdapter
             ResetAlias = options.ReferenceHandling == YamlReferenceHandling.Preserve,
             ComparerForKeySorting = options.MappingOrder == YamlMappingOrderPolicy.Sorted ? new DefaultKeyComparer() : null!,
             SortKeyForMapping = options.MappingOrder == YamlMappingOrderPolicy.Sorted,
+            UnsafeAllowDeserializeFromTagTypeName = options.UnsafeAllowDeserializeFromTagTypeName,
         };
 
         if (options.PropertyNamingPolicy is not null)

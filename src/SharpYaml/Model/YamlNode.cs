@@ -24,7 +24,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using SharpYaml.Events;
-using SharpYaml.Serialization;
 using DocumentStart = SharpYaml.Events.DocumentStart;
 using Scalar = SharpYaml.Events.Scalar;
 using StreamStart = SharpYaml.Events.StreamStart;
@@ -92,38 +91,30 @@ namespace SharpYaml.Model
             return sb.ToString().Trim();
         }
 
-        public T? ToObject<T>(SerializerSettings? settings = null)
+        public T? ToObject<T>(YamlSerializerOptions? options = null)
         {
-            return (T?)ToObject(typeof(T), settings);
+            return (T?)ToObject(typeof(T), options);
         }
 
-        public object? ToObject(Type type, SerializerSettings? settings = null)
+        public object? ToObject(Type type, YamlSerializerOptions? options = null)
         {
-            var s = new Serializer(settings);
-
-            var context = new SerializerContext(s, null) { Reader = new EventReader(new MemoryParser(EnumerateEvents())) };
-            return context.ReadYaml(null, type);
+            ArgumentNullException.ThrowIfNull(type);
+            return YamlSerializer.Deserialize(ToString(), type, options);
         }
 
-        class MemoryEmitter : IEmitter
+        public static YamlElement FromObject(object value, YamlSerializerOptions? options = null, Type? expectedType = null)
         {
-            public List<ParsingEvent> Events = new List<ParsingEvent>();
-
-            public void Emit(ParsingEvent evnt)
+            ArgumentNullException.ThrowIfNull(value);
+            var yaml = expectedType is null
+                ? YamlSerializer.Serialize(value, options)
+                : YamlSerializer.Serialize(value, expectedType, options);
+            var stream = YamlStream.Load(new StringReader(yaml));
+            if (stream.Count == 0 || stream[0].Contents is null)
             {
-                Events.Add(evnt);
+                throw new YamlException("Unable to materialize a YAML element from the serialized object graph.");
             }
-        }
 
-        public static YamlElement FromObject(object value, SerializerSettings? settings = null, Type? expectedType = null)
-        {
-            var s = new Serializer(settings);
-
-            var emitter = new MemoryEmitter();
-            var context = new SerializerContext(s, null) { Writer = new WriterEventEmitter(emitter) };
-            context.WriteYaml(value, expectedType);
-
-            return ReadElement(new EventReader(new MemoryParser(emitter.Events)));
+            return stream[0].Contents;
         }
 
         public abstract YamlNode DeepClone(YamlNodeTracker? tracker = null);

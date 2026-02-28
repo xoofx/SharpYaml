@@ -71,6 +71,14 @@ public sealed class YamlSerializerOptions
     public YamlDuplicateKeyHandling DuplicateKeyHandling { get; set; } = YamlDuplicateKeyHandling.Error;
 
     /// <summary>
+    /// Gets or sets a value indicating whether unregistered runtime type names from YAML tags are allowed during deserialization.
+    /// </summary>
+    /// <remarks>
+    /// Enabling this option allows tag-based type name activation and should only be used with trusted YAML input.
+    /// </remarks>
+    public bool UnsafeAllowDeserializeFromTagTypeName { get; set; }
+
+    /// <summary>
     /// Gets scalar style preferences for serialization.
     /// </summary>
     public YamlScalarStylePreferences ScalarStylePreferences { get; } = new();
@@ -92,4 +100,3 @@ public sealed class YamlSerializerOptions
 
     private int _indentSize = 2;
 }
-
