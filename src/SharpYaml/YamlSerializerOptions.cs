@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using SharpYaml.Serialization;
 
 namespace SharpYaml;
 
@@ -11,6 +13,16 @@ public sealed class YamlSerializerOptions
     /// Gets a default options instance.
     /// </summary>
     public static YamlSerializerOptions Default { get; } = new();
+
+    private readonly List<YamlConverter> _converters = new();
+
+    /// <summary>
+    /// Gets the list of custom converters.
+    /// </summary>
+    /// <remarks>
+    /// Converters added to this list take precedence over built-in converters.
+    /// </remarks>
+    public IList<YamlConverter> Converters => _converters;
 
     /// <summary>
     /// Gets or sets the policy used to convert CLR property names.
@@ -97,6 +109,51 @@ public sealed class YamlSerializerOptions
     /// Gets or sets a metadata resolver used to retrieve <see cref="YamlTypeInfo"/> instances.
     /// </summary>
     public IYamlTypeInfoResolver? TypeInfoResolver { get; set; }
+
+    /// <summary>
+    /// Gets a converter that can handle <paramref name="typeToConvert"/>.
+    /// </summary>
+    /// <param name="typeToConvert">The CLR type to resolve.</param>
+    /// <returns>The converter for <paramref name="typeToConvert"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="typeToConvert"/> is <see langword="null"/>.</exception>
+    /// <exception cref="NotSupportedException">No converter can handle <paramref name="typeToConvert"/>.</exception>
+    public YamlConverter GetConverter(Type typeToConvert)
+    {
+        ArgumentNullException.ThrowIfNull(typeToConvert);
+
+        // Search user-provided converters first (same precedence rule as System.Text.Json).
+        for (var i = 0; i < _converters.Count; i++)
+        {
+            var candidate = _converters[i];
+            if (candidate is null)
+            {
+                continue;
+            }
+
+            if (candidate is YamlConverterFactory factory)
+            {
+                if (!factory.CanConvert(typeToConvert))
+                {
+                    continue;
+                }
+
+                var created = factory.CreateConverter(typeToConvert, this);
+                if (created is null || !created.CanConvert(typeToConvert))
+                {
+                    throw new InvalidOperationException($"Converter factory '{factory.GetType()}' returned an invalid converter for '{typeToConvert}'.");
+                }
+
+                return created;
+            }
+
+            if (candidate.CanConvert(typeToConvert))
+            {
+                return candidate;
+            }
+        }
+
+        throw new NotSupportedException($"No YAML converter is registered for '{typeToConvert}'.");
+    }
 
     private int _indentSize = 2;
 }
