@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ namespace SharpYaml.Serialization
     /// Represents a sequence node in the YAML document.
     /// </summary>
     [DebuggerDisplay("Count = {children.Count}")]
-    public class YamlSequenceNode : YamlNode, IEnumerable<YamlNode>
+    internal class YamlSequenceNode : YamlNode, IEnumerable<YamlNode>
     {
         /// <summary>
         /// Gets the collection of child nodes.

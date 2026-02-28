@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ namespace SharpYaml.Serialization
     /// This implementation allows to retrieve default attributes for a member or 
     /// to attach an attribute to a specific type/member.
     /// </summary>
-    public class AttributeRegistry : IAttributeRegistry
+    internal class AttributeRegistry : IAttributeRegistry
     {
         private readonly object globalLock = new object();
         private readonly Dictionary<MemberInfoKey, List<Attribute>> cachedAttributes = new Dictionary<MemberInfoKey, List<Attribute>>();

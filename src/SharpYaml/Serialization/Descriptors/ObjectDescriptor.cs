@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,7 @@ namespace SharpYaml.Serialization.Descriptors
     /// <summary>
     /// Default implementation of a <see cref="ITypeDescriptor"/>.
     /// </summary>
-    public class ObjectDescriptor : ITypeDescriptor
+    internal class ObjectDescriptor : ITypeDescriptor
     {
         public static readonly Func<object?, bool> ShouldSerializeDefault = o => true;
 
@@ -102,11 +102,6 @@ namespace SharpYaml.Serialization.Descriptors
             this.Style = YamlStyle.Any;
             foreach (var attribute in Attributes)
             {
-                if (attribute is YamlStyleAttribute styleAttribute)
-                {
-                    Style = styleAttribute.Style;
-                    continue;
-                }
                 if (attribute is CompilerGeneratedAttribute)
                 {
                     this.IsCompilerGenerated = true;
@@ -272,8 +267,6 @@ namespace SharpYaml.Serialization.Descriptors
 
             // Process all attributes just once instead of getting them one by one
             var attributes = AttributeRegistry.GetAttributes(member.MemberInfo);
-            YamlStyleAttribute? styleAttribute = null;
-            YamlMemberAttribute? memberAttribute = null;
             YamlPropertyNameAttribute? yamlPropertyNameAttribute = null;
             YamlPropertyOrderAttribute? yamlPropertyOrderAttribute = null;
             JsonPropertyNameAttribute? jsonPropertyNameAttribute = null;
@@ -287,12 +280,6 @@ namespace SharpYaml.Serialization.Descriptors
                 if (attribute is YamlIgnoreAttribute)
                 {
                     return false;
-                }
-
-                if (attribute is YamlMemberAttribute yamlMemberAttribute)
-                {
-                    memberAttribute = yamlMemberAttribute;
-                    continue;
                 }
 
                 if (attribute is YamlPropertyNameAttribute yamlPropertyName)
@@ -331,24 +318,6 @@ namespace SharpYaml.Serialization.Descriptors
                     continue;
                 }
 
-                if (attribute is YamlStyleAttribute yamlStyleAttribute)
-                {
-                    styleAttribute = yamlStyleAttribute;
-                    continue;
-                }
-
-                if (attribute is YamlRemapAttribute yamlRemap)
-                {
-                    if (member.AlternativeNames == null)
-                    {
-                        member.AlternativeNames = new List<string>();
-                    }
-                    if (!string.IsNullOrEmpty(yamlRemap.Name))
-                    {
-                        member.AlternativeNames.Add(yamlRemap.Name);
-                    }
-                }
-
                 if (attribute is YamlIncludeAttribute or JsonIncludeAttribute)
                 {
                     hasIncludeAttribute = true;
@@ -371,34 +340,16 @@ namespace SharpYaml.Serialization.Descriptors
                 member.SerializeMemberMode = (memberType != typeof(string) && memberType.GetTypeInfo().IsClass) || memberType.GetTypeInfo().IsInterface || Type.IsAnonymous() ? SerializeMemberMode.Content : SerializeMemberMode.Never;
             }
 
-            // If it's a private member, check it has a YamlMemberAttribute on it
+            // Private members are excluded unless explicitly opted in.
             if (!member.IsPublic)
             {
-                if (memberAttribute == null && !hasIncludeAttribute)
+                if (!hasIncludeAttribute)
                     return false;
             }
 
-            // Gets the style
-            member.Style = styleAttribute != null ? styleAttribute.Style : YamlStyle.Any;
+            // Use default style and include mask for v3 attribute model.
+            member.Style = YamlStyle.Any;
             member.Mask = 1;
-
-            // Handle member attribute
-            if (memberAttribute != null)
-            {
-                member.Mask = memberAttribute.Mask;
-                if (!member.HasSet)
-                {
-                    if (memberAttribute.SerializeMethod == SerializeMemberMode.Assign ||
-                        (memberType.GetTypeInfo().IsValueType && member.SerializeMemberMode == SerializeMemberMode.Content))
-                        throw new ArgumentException($"{memberType.FullName} {member.OriginalName} is not writeable by {memberAttribute.SerializeMethod}.");
-                }
-
-                if (memberAttribute.SerializeMethod != SerializeMemberMode.Default)
-                {
-                    member.SerializeMemberMode = memberAttribute.SerializeMethod;
-                }
-                member.Order = memberAttribute.Order;
-            }
 
             if (jsonPropertyOrderAttribute is not null)
             {
@@ -469,10 +420,6 @@ namespace SharpYaml.Serialization.Descriptors
             else if (jsonPropertyNameAttribute is not null)
             {
                 member.Name = jsonPropertyNameAttribute.Name;
-            }
-            else if (memberAttribute != null && !string.IsNullOrEmpty(memberAttribute.Name))
-            {
-                member.Name = memberAttribute.Name;
             }
             else
             {

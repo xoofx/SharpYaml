@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2014 SharpYaml - Silicon Studio Corp.
+// Copyright (c) 2014 SharpYaml - Silicon Studio Corp.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@ using System.Collections.Generic;
 
 namespace SharpYaml.Serialization
 {
-    public interface IOrderedDictionary<TKey, TValue> : IDictionary<TKey, TValue>
+    internal interface IOrderedDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {
         void Insert(int index, TKey key, TValue value);
         void RemoveAt(int index);

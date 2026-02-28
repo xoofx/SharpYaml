@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// An <see cref="IObjectFactory"/> that can be chained with another object factory;
     /// </summary>
-    public class ChainedObjectFactory : IObjectFactory
+    internal class ChainedObjectFactory : IObjectFactory
     {
         private readonly IObjectFactory? nextFactory;
 

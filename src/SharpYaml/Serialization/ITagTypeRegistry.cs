@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -51,15 +51,13 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// Prodives tag discovery from a type and type discovery from a tag.
     /// </summary>
-    public interface ITagTypeRegistry : ITagTypeResolver
+    internal interface ITagTypeRegistry : ITagTypeResolver
     {
         /// <summary>
-        /// Registers an assembly when trying to resolve types. All types
-        /// having <see cref="YamlTagAttribute" /> will be registered
-        /// automatically.
+        /// Registers an assembly that can be used for type resolution and serializer factory discovery.
         /// </summary>
         /// <param name="assembly">The assembly.</param>
-        /// <param name="attributeRegistry">The attribute registry to use when quering for <see cref="YamlTagAttribute"/>.</param>
+        /// <param name="attributeRegistry">The attribute registry used by the resolver.</param>
         void RegisterAssembly(Assembly assembly, IAttributeRegistry attributeRegistry);
 
         /// <summary>

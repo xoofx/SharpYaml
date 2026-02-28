@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2013 SharpYaml - Alexandre Mutel
+// Copyright (c) 2013 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ namespace SharpYaml.Serialization.Serializers
     /// <summary>
     /// Base class for serializing an object that can be a Yaml !!map or !!seq.
     /// </summary>
-    public class ObjectSerializer : IYamlSerializable, IYamlSerializableFactory
+    internal class ObjectSerializer : IYamlSerializable, IYamlSerializableFactory
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectSerializer"/> class.

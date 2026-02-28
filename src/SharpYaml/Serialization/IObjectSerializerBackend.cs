@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ namespace SharpYaml.Serialization
     /// <remarks>
     /// TODO: Explain why this interface is used and how it can be extended for specific scenarios.
     /// </remarks>
-    public interface IObjectSerializerBackend
+    internal interface IObjectSerializerBackend
     {
         /// <summary>
         /// Gets the style that will be used to serialize the object provided by <see cref="ObjectContext.Instance"/>.

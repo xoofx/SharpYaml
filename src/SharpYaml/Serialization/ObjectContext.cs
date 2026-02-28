@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@ namespace SharpYaml.Serialization
     /// <para>When deserializing, this struct will contain the expected type to deserialize and if not null, the instance of an object
     /// that will recieve deserialization of its members (in case the instance cannot be created).</para>
     /// </remarks>
-    public struct ObjectContext
+    internal struct ObjectContext
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectContext"/> struct.

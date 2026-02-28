@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@ using SharpYaml.Events;
 
 namespace SharpYaml.Serialization.Serializers
 {
-    public abstract class ScalarSerializerBase : IYamlSerializable
+    internal abstract class ScalarSerializerBase : IYamlSerializable
     {
         public object? ReadYaml(ref ObjectContext objectContext)
         {

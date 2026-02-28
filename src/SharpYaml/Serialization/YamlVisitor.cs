@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// Abstract implementation of <see cref="IYamlVisitor"/> that knows how to walk a complete Yaml object model.
     /// </summary>
-    public abstract class YamlVisitor : IYamlVisitor
+    internal abstract class YamlVisitor : IYamlVisitor
     {
         /// <summary>
         /// Called when this object is visiting a <see cref="YamlStream"/>.

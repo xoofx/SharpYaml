@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// Comparer that is based on identity comparisons.
     /// </summary>
-    public sealed class YamlNodeIdentityEqualityComparer : IEqualityComparer<YamlNode>
+    internal sealed class YamlNodeIdentityEqualityComparer : IEqualityComparer<YamlNode>
     {
         #region IEqualityComparer<YamlNode> Members
 

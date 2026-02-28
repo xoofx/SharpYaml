@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@ namespace SharpYaml.Serialization.Descriptors
     /// </summary>
     /// <remarks><ul>
     ///   <li>For members of an object, this comparer will first try to use an explicit order defined by
-    /// using <see cref="YamlMemberAttribute.Order" /> otherwise It will use the name of the field/property.
+    /// the member descriptor order and otherwise it uses the member name.
     ///   </li>
     ///   <li>If both objects are string, use <see cref="string.CompareOrdinal(string,int,string,int,int)"/></li>
     ///   <li>
@@ -36,7 +36,7 @@ namespace SharpYaml.Serialization.Descriptors
     /// when comparing keys.
     ///   </li>
     ///   </ul></remarks>
-    public class DefaultKeyComparer : IComparer<object>
+    internal class DefaultKeyComparer : IComparer<object>
     {
         public virtual int Compare(object? x, object? y)
         {

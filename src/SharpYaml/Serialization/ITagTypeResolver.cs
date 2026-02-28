@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 
 namespace SharpYaml.Serialization
 {
     /// <summary>
     /// Provides tag discovery from a type and type discovery from a tag.
     /// </summary>
-    public interface ITagTypeResolver
+    internal interface ITagTypeResolver
     {
         /// <summary>
         /// Finds a type from a tag, null if not found.

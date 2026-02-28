@@ -1,9 +1,9 @@
-﻿namespace SharpYaml.Serialization.Logging
+namespace SharpYaml.Serialization.Logging
 {
     /// <summary>
     /// Severity log level.
     /// </summary>
-    public enum LogLevel
+    internal enum LogLevel
     {
         Error = 0,
         Warning = 1,

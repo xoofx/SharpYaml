@@ -110,29 +110,6 @@ namespace SharpYaml.Serialization
                 // Register all tags automatically.
                 foreach (var type in assembly.GetTypes())
                 {
-                    var attributes = attributeRegistry.GetAttributes(type.GetTypeInfo());
-                    foreach (var attribute in attributes)
-                    {
-                        string? name = null;
-                        bool isAlias = false;
-                        if (attribute is YamlTagAttribute tagAttribute)
-                        {
-                            name = tagAttribute.Tag;
-                        }
-                        else
-                        {
-                            if (attribute is YamlRemapAttribute yamlRemap)
-                            {
-                                name = yamlRemap.Name;
-                                isAlias = true;
-                            }
-                        }
-                        if (!string.IsNullOrEmpty(name))
-                        {
-                            RegisterTagMapping(name, type, isAlias);
-                        }
-                    }
-
                     // Automatically register YamlSerializableFactory
                     if (typeof(IYamlSerializableFactory).IsAssignableFrom(type) && type.GetConstructor(types) != null)
                     {

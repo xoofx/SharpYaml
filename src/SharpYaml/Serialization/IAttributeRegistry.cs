@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// A registry for all attributes.
     /// </summary>
-    public interface IAttributeRegistry
+    internal interface IAttributeRegistry
     {
         /// <summary>
         /// Gets or sets the attribute remapper. May be null
@@ -86,7 +86,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// Extension methods for attribute registry.
     /// </summary>
-    public static class AttributeRegistryExtensions
+    internal static class AttributeRegistryExtensions
     {
         /// <summary>
         /// Gets the attributes associated with the specified member.

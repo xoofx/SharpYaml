@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@ using SharpYaml.Events;
 
 namespace SharpYaml.Serialization
 {
-    public abstract class EventInfo
+    internal abstract class EventInfo
     {
         public object? SourceValue { get; }
         public Type SourceType { get; }
@@ -60,7 +60,7 @@ namespace SharpYaml.Serialization
         }
     }
 
-    public class AliasEventInfo : EventInfo
+    internal class AliasEventInfo : EventInfo
     {
         public AliasEventInfo(object sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
@@ -70,7 +70,7 @@ namespace SharpYaml.Serialization
         public string Alias { get; set; }
     }
 
-    public class ObjectEventInfo : EventInfo
+    internal class ObjectEventInfo : EventInfo
     {
         protected ObjectEventInfo(object? sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
@@ -81,7 +81,7 @@ namespace SharpYaml.Serialization
         public string? Tag { get; set; }
     }
 
-    public sealed class ScalarEventInfo : ObjectEventInfo
+    internal sealed class ScalarEventInfo : ObjectEventInfo
     {
         public ScalarEventInfo(object? sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
@@ -94,7 +94,7 @@ namespace SharpYaml.Serialization
         public bool IsQuotedImplicit { get; set; }
     }
 
-    public sealed class MappingStartEventInfo : ObjectEventInfo
+    internal sealed class MappingStartEventInfo : ObjectEventInfo
     {
         public MappingStartEventInfo(object sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
@@ -105,7 +105,7 @@ namespace SharpYaml.Serialization
         public YamlStyle Style { get; set; }
     }
 
-    public sealed class MappingEndEventInfo : EventInfo
+    internal sealed class MappingEndEventInfo : EventInfo
     {
         public MappingEndEventInfo(object sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
@@ -113,7 +113,7 @@ namespace SharpYaml.Serialization
         }
     }
 
-    public sealed class SequenceStartEventInfo : ObjectEventInfo
+    internal sealed class SequenceStartEventInfo : ObjectEventInfo
     {
         public SequenceStartEventInfo(object sourceValue, Type sourceType)
             : base(sourceValue, sourceType)
@@ -124,7 +124,7 @@ namespace SharpYaml.Serialization
         public YamlStyle Style { get; set; }
     }
 
-    public sealed class SequenceEndEventInfo : EventInfo
+    internal sealed class SequenceEndEventInfo : EventInfo
     {
         public SequenceEndEventInfo(object sourceValue, Type sourceType)
             : base(sourceValue, sourceType)

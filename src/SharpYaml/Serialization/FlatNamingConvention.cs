@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// A naming convention where all members are transformed from`CamelCase` to `camel_case`.
     /// </summary>
-    public class FlatNamingConvention : IMemberNamingConvention
+    internal class FlatNamingConvention : IMemberNamingConvention
     {
         // Code taken from dotliquid/RubyNamingConvention.cs
         private readonly Regex regex1 = new Regex(@"([A-Z]+)([A-Z][a-z])", RegexOptions.Compiled);

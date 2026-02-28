@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// The exception that is thrown when a duplicate anchor is detected.
     /// </summary>
-    public class DuplicateAnchorException : YamlException
+    internal class DuplicateAnchorException : YamlException
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="DuplicateAnchorException"/> class.

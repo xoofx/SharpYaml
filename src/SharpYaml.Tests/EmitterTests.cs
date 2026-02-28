@@ -51,7 +51,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
-using SharpYaml.Serialization;
+using SharpYaml.Model;
 
 namespace SharpYaml.Tests
 {
@@ -263,10 +263,9 @@ namespace SharpYaml.Tests
             Dump.WriteLine(yaml);
 
             // Todo: Why involve the rep. model when testing the Emitter? Can we match using a regex?
-            var stream = new YamlStream();
-            stream.Load(new StringReader(yaml));
-            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
-            var scalar = (YamlScalarNode)sequence.Children[0];
+            var stream = YamlStream.Load(new StringReader(yaml));
+            var sequence = (YamlSequence)stream[0].Contents!;
+            var scalar = (YamlValue)sequence[0];
 
             Assert.AreEqual("hello\nworld", scalar.Value);
         }
@@ -277,10 +276,9 @@ namespace SharpYaml.Tests
             var yaml = EmitScalar(new Scalar(null, null, ">+\n", ScalarStyle.Folded, true, false));
             Dump.WriteLine("${0}$", yaml);
 
-            var stream = new YamlStream();
-            stream.Load(new StringReader(yaml));
-            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
-            var scalar = (YamlScalarNode)sequence.Children[0];
+            var stream = YamlStream.Load(new StringReader(yaml));
+            var sequence = (YamlSequence)stream[0].Contents!;
+            var scalar = (YamlValue)sequence[0];
 
             Assert.AreEqual(">+\n", scalar.Value);
         }
@@ -298,11 +296,10 @@ namespace SharpYaml.Tests
                 );
             Dump.WriteLine(yaml);
 
-            var stream = new YamlStream();
-            stream.Load(new StringReader(yaml));
+            var stream = YamlStream.Load(new StringReader(yaml));
 
-            var mapping = (YamlMappingNode)stream.Documents[0].RootNode;
-            var value = (YamlScalarNode)mapping.Children.First().Value;
+            var mapping = (YamlMapping)stream[0].Contents!;
+            var value = (YamlValue)mapping.First().Value!;
 
             var output = value.Value;
             Dump.WriteLine(output);
@@ -338,10 +335,9 @@ namespace SharpYaml.Tests
             StringAssert.Contains(yaml, "scalar", "Should contain the second part");
             
             // Parse it back and verify the content is preserved
-            var stream = new YamlStream();
-            stream.Load(new StringReader(yaml));
-            var sequence = (YamlSequenceNode)stream.Documents[0].RootNode;
-            var scalar = (YamlScalarNode)sequence.Children[0];
+            var stream = YamlStream.Load(new StringReader(yaml));
+            var sequence = (YamlSequence)stream[0].Contents!;
+            var scalar = (YamlValue)sequence[0];
             
             Console.WriteLine($"Original: '{input}'");
             Console.WriteLine($"Round-trip result: '{scalar.Value}'");

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +49,7 @@ namespace SharpYaml.Serialization
     /// <para>Specify the way to store a property or field of some class or structure.</para>
     /// <para>See <see cref="Serializer"/> for detail.</para>
     /// </summary>
-    public enum SerializeMemberMode
+    internal enum SerializeMemberMode
     {
         /// <summary>
         /// Use the default mode depending on the type of the field/property.

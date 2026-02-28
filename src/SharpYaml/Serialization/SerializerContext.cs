@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// A context used while deserializing.
     /// </summary>
-    public class SerializerContext : ITagTypeResolver
+    internal class SerializerContext : ITagTypeResolver
     {
         private readonly ITagTypeRegistry tagTypeRegistry;
         private readonly ITypeDescriptorFactory typeDescriptorFactory;
@@ -139,7 +139,7 @@ namespace SharpYaml.Serialization
         public bool HasRemapOccurred { get; internal set; }
 
         /// <summary>
-        /// Gets or sets the member mask that will be used to filter <see cref="YamlMemberAttribute.Mask"/>.
+        /// Gets or sets the member mask used to filter members during legacy pipeline traversal.
         /// </summary>
         /// <value>
         /// The member mask.

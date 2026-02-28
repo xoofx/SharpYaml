@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,18 +45,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace SharpYaml.Serialization.Descriptors
 {
     /// <summary>
     /// Describes a descriptor for a primitive (bool, char, sbyte, byte, int, uint, long, ulong, float, double, decimal, string, DateTime).
     /// </summary>
-    public class PrimitiveDescriptor : ObjectDescriptor
+    internal class PrimitiveDescriptor : ObjectDescriptor
     {
         private static readonly List<IMemberDescriptor> EmptyMembers = new List<IMemberDescriptor>();
-
-        private readonly Dictionary<string, object>? enumRemap;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectDescriptor" /> class.
@@ -70,26 +67,6 @@ namespace SharpYaml.Serialization.Descriptors
         {
             if (!IsPrimitive(type))
                 throw new ArgumentException($"Type [{type}] is not a primitive");
-
-            // Handle remap for enum items
-            if (type.GetTypeInfo().IsEnum)
-            {
-                foreach (var member in type.GetFields(BindingFlags.Public | BindingFlags.Static))
-                {
-                    var attributes = attributeRegistry.GetAttributes(member);
-                    foreach (var attribute in attributes)
-                    {
-                        if (attribute is YamlRemapAttribute yamlRemap)
-                        {
-                            if (enumRemap == null)
-                            {
-                                enumRemap = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                            }
-                            enumRemap[yamlRemap.Name] = member.GetValue(null);
-                        }
-                    }
-                }
-            }
         }
 
         public override DescriptorCategory Category { get { return DescriptorCategory.Primitive; } }
@@ -119,12 +96,6 @@ namespace SharpYaml.Serialization.Descriptors
         public object ParseEnum(string enumAsText, out bool remapped)
         {
             remapped = false;
-            if (enumRemap != null && enumRemap.TryGetValue(enumAsText, out var value))
-            {
-                remapped = true;
-                return value;
-            }
-
             return Enum.Parse(Type, enumAsText, true);
         }
 

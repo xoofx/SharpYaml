@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -57,7 +57,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// Settings used to configure serialization and control how objects are encoded into YAML.
     /// </summary>
-    public sealed class SerializerSettings
+    internal sealed class SerializerSettings
     {
         internal readonly Dictionary<Type, IYamlSerializable> serializers = new Dictionary<Type, IYamlSerializable>();
         internal readonly AssemblyRegistry AssemblyRegistry;

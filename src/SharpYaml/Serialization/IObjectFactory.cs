@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ namespace SharpYaml.Serialization
     /// <remarks>
     /// This interface allows to provide a custom logic for creating instances during deserialization.
     /// </remarks>
-    public interface IObjectFactory
+    internal interface IObjectFactory
     {
         /// <summary>
         /// Creates an instance of the specified type. Returns null if instance cannot be created.

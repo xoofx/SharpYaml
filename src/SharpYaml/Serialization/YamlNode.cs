@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// Represents a single node in the YAML document.
     /// </summary>
-    public abstract class YamlNode
+    internal abstract class YamlNode
     {
         /// <summary>
         /// Gets or sets the anchor of the node.

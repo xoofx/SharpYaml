@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization.Descriptors
     /// <summary>
     /// Provides a descriptor for a <see cref="System.Collections.IDictionary"/>.
     /// </summary>
-    public class DictionaryDescriptor : ObjectDescriptor
+    internal class DictionaryDescriptor : ObjectDescriptor
     {
         private static readonly List<string> ListOfMembersToRemove = new List<string> { "Comparer", "Keys", "Values", "Capacity" };
         private readonly MethodInfo? getEnumeratorGeneric;

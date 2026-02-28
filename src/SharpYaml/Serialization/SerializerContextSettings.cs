@@ -1,12 +1,14 @@
-﻿using SharpYaml.Serialization.Logging;
+using SharpYaml.Serialization.Logging;
 
 namespace SharpYaml.Serialization
 {
     /// <summary>
     /// Some parameters that can be transmitted from caller
     /// </summary>
-    public class SerializerContextSettings
+    internal class SerializerContextSettings
     {
+        private const uint DefaultMemberMask = 1;
+
         public static readonly SerializerContextSettings Default = new SerializerContextSettings();
 
         /// <summary>
@@ -14,7 +16,7 @@ namespace SharpYaml.Serialization
         /// </summary>
         public SerializerContextSettings()
         {
-            MemberMask = YamlMemberAttribute.DefaultMask;
+            MemberMask = DefaultMemberMask;
         }
 
         /// <summary>
@@ -26,7 +28,7 @@ namespace SharpYaml.Serialization
         public ILogger? Logger { get; set; }
 
         /// <summary>
-        /// Gets or sets the member mask that will be used to filter <see cref="YamlMemberAttribute.Mask"/>.
+        /// Gets or sets the member mask used to filter members during legacy pipeline traversal.
         /// </summary>
         /// <value>
         /// The member mask.

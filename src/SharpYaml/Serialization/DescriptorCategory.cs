@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// A category used by <see cref="ITypeDescriptor"/>.
     /// </summary>
-    public enum DescriptorCategory
+    internal enum DescriptorCategory
     {
         /// <summary>
         /// A primitive.

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// The exception that is thrown when an alias references an anchor that does not exist.
     /// </summary>
-    public class AnchorNotFoundException : YamlException
+    internal class AnchorNotFoundException : YamlException
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AnchorNotFoundException" /> class.

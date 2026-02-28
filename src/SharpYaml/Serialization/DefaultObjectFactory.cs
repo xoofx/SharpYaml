@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// Creates objects using Activator.CreateInstance.
     /// </summary>
-    public sealed class DefaultObjectFactory : IObjectFactory
+    internal sealed class DefaultObjectFactory : IObjectFactory
     {
         private static readonly Type[] EmptyTypes = Array.Empty<Type>();
 

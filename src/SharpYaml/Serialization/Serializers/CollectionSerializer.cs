@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ namespace SharpYaml.Serialization.Serializers
     /// <summary>
     /// Class for serializing a <see cref="System.Collections.Generic.ICollection{T}"/> or <see cref="System.Collections.ICollection"/>
     /// </summary>
-    public class CollectionSerializer : ObjectSerializer
+    internal class CollectionSerializer : ObjectSerializer
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="CollectionSerializer"/> class.

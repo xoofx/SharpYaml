@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015 SharpYaml - Alexandre Mutel
+// Copyright (c) 2015 SharpYaml - Alexandre Mutel
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@ namespace SharpYaml.Serialization
     /// <summary>
     /// A naming convention where all members are outputed in PascalCase.
     /// </summary>
-    public class PascalNamingConvention : IMemberNamingConvention
+    internal class PascalNamingConvention : IMemberNamingConvention
     {
         private static readonly Char[] boundary = new[] { '_' };
 
