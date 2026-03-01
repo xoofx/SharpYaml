@@ -13,6 +13,18 @@ var yaml = YamlSerializer.Serialize(new { Name = "Ada" });
 var model = YamlSerializer.Deserialize<Person>(yaml);
 ```
 
+## Streams (UTF-8)
+
+SharpYaml also provides `Stream` overloads (UTF-8) to avoid `StreamReader`/`StreamWriter` boilerplate:
+
+```csharp
+using System.IO;
+using SharpYaml;
+
+using var stream = File.OpenRead("config.yml");
+var config = YamlSerializer.Deserialize<MyConfig>(stream);
+```
+
 ## Options
 
 `YamlSerializerOptions` is immutable and can be cached and reused.

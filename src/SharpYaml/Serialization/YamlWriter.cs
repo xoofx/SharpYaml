@@ -19,6 +19,8 @@ public sealed class YamlWriter : YamlReaderWriterBase
     private int _depth;
     private string? _pendingAnchor;
     private string? _pendingTag;
+    private bool _hasWrittenChar;
+    private char _lastWrittenChar;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlWriter"/> class.
@@ -49,6 +51,8 @@ public sealed class YamlWriter : YamlReaderWriterBase
     }
 
     internal YamlReferenceWriter? ReferenceWriter => _referenceWriter;
+
+    internal bool EndsWithNewLine => _hasWrittenChar && _lastWrittenChar == '\n';
 
     /// <summary>
     /// Attempts to preserve object references by writing an alias when <paramref name="value"/> was previously
@@ -860,10 +864,12 @@ public sealed class YamlWriter : YamlReaderWriterBase
         if (_stringBuilder is not null)
         {
             _stringBuilder.Append(value);
+            TrackLastChar(value);
             return;
         }
 
         _writer!.Write(value);
+        TrackLastChar(value);
     }
 
     private void Write(char value)
@@ -871,10 +877,12 @@ public sealed class YamlWriter : YamlReaderWriterBase
         if (_stringBuilder is not null)
         {
             _stringBuilder.Append(value);
+            TrackLastChar(value);
             return;
         }
 
         _writer!.Write(value);
+        TrackLastChar(value);
     }
 
     private void Write(ReadOnlySpan<char> value)
@@ -886,6 +894,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
 #else
             _stringBuilder.Append(value);
 #endif
+            TrackLastChar(value);
             return;
         }
 
@@ -894,6 +903,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
 #else
         _writer!.Write(value);
 #endif
+        TrackLastChar(value);
     }
 
     private void Write(StringBuilder value)
@@ -901,6 +911,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         if (_stringBuilder is not null)
         {
             _stringBuilder.Append(value);
+            TrackLastChar(value);
             return;
         }
 
@@ -909,6 +920,46 @@ public sealed class YamlWriter : YamlReaderWriterBase
 #else
         _writer!.Write(value);
 #endif
+        TrackLastChar(value);
+    }
+
+    private void TrackLastChar(string value)
+    {
+        if (value.Length == 0)
+        {
+            return;
+        }
+
+        _hasWrittenChar = true;
+        _lastWrittenChar = value[value.Length - 1];
+    }
+
+    private void TrackLastChar(char value)
+    {
+        _hasWrittenChar = true;
+        _lastWrittenChar = value;
+    }
+
+    private void TrackLastChar(ReadOnlySpan<char> value)
+    {
+        if (value.Length == 0)
+        {
+            return;
+        }
+
+        _hasWrittenChar = true;
+        _lastWrittenChar = value[value.Length - 1];
+    }
+
+    private void TrackLastChar(StringBuilder value)
+    {
+        if (value.Length == 0)
+        {
+            return;
+        }
+
+        _hasWrittenChar = true;
+        _lastWrittenChar = value[value.Length - 1];
     }
 
     private enum ContainerKind

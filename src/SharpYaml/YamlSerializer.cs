@@ -12,6 +12,7 @@ public static class YamlSerializer
 {
     private const string ReflectionSwitchName = SharpYaml.Serialization.YamlSerializerFeatureSwitches.ReflectionSwitchName;
     private static readonly bool ReflectionEnabledByDefault = SharpYaml.Serialization.YamlSerializerFeatureSwitches.IsReflectionEnabledByDefaultCalculated;
+    private static readonly Encoding DefaultStreamEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
     [ThreadStatic]
     private static StringBuilder? s_cachedStringBuilder;
 
@@ -96,7 +97,10 @@ public static class YamlSerializer
     public static void Serialize<T>(TextWriter writer, T value, YamlSerializerOptions? options = null)
     {
         ArgumentGuard.ThrowIfNull(writer);
-        writer.Write(Serialize((object?)value, typeof(T), options));
+
+        var effectiveOptions = options ?? YamlSerializerOptions.Default;
+        var typeInfo = ResolveTypeInfo(effectiveOptions, typeof(T));
+        SerializeCore(typeInfo, value, writer);
     }
 
     /// <summary>
@@ -111,7 +115,46 @@ public static class YamlSerializer
     public static void Serialize<T>(TextWriter writer, T value, YamlSerializerContext context)
     {
         ArgumentGuard.ThrowIfNull(writer);
-        writer.Write(Serialize((object?)value, typeof(T), context));
+        ArgumentGuard.ThrowIfNull(context);
+
+        var typeInfo = ResolveTypeInfo(context, typeof(T));
+        SerializeCore(typeInfo, value, writer);
+    }
+
+    /// <summary>
+    /// Serializes a value to a stream using UTF-8 encoding.
+    /// </summary>
+    /// <typeparam name="T">The CLR type to serialize.</typeparam>
+    /// <param name="utf8Stream">The destination stream.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> is <see langword="null"/>.</exception>
+    public static void Serialize<T>(Stream utf8Stream, T value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+
+        using var writer = new StreamWriter(utf8Stream, DefaultStreamEncoding, bufferSize: 1024, leaveOpen: true);
+        Serialize(writer, value, options);
+        writer.Flush();
+    }
+
+    /// <summary>
+    /// Serializes a value to a stream using UTF-8 encoding and generated metadata from a serializer context.
+    /// </summary>
+    /// <typeparam name="T">The CLR type to serialize.</typeparam>
+    /// <param name="utf8Stream">The destination stream.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> or <paramref name="context"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">No generated metadata is available for <typeparamref name="T"/> in <paramref name="context"/>.</exception>
+    public static void Serialize<T>(Stream utf8Stream, T value, YamlSerializerContext context)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+        ArgumentGuard.ThrowIfNull(context);
+
+        using var writer = new StreamWriter(utf8Stream, DefaultStreamEncoding, bufferSize: 1024, leaveOpen: true);
+        Serialize(writer, value, context);
+        writer.Flush();
     }
 
     /// <summary>
@@ -125,7 +168,11 @@ public static class YamlSerializer
     public static void Serialize(TextWriter writer, object? value, Type inputType, YamlSerializerOptions? options = null)
     {
         ArgumentGuard.ThrowIfNull(writer);
-        writer.Write(Serialize(value, inputType, options));
+        ArgumentGuard.ThrowIfNull(inputType);
+
+        var effectiveOptions = options ?? YamlSerializerOptions.Default;
+        var typeInfo = ResolveTypeInfo(effectiveOptions, inputType);
+        SerializeCore(typeInfo, value, writer);
     }
 
     /// <summary>
@@ -140,7 +187,46 @@ public static class YamlSerializer
     public static void Serialize(TextWriter writer, object? value, Type inputType, YamlSerializerContext context)
     {
         ArgumentGuard.ThrowIfNull(writer);
-        writer.Write(Serialize(value, inputType, context));
+        ArgumentGuard.ThrowIfNull(inputType);
+        ArgumentGuard.ThrowIfNull(context);
+
+        var typeInfo = ResolveTypeInfo(context, inputType);
+        SerializeCore(typeInfo, value, writer);
+    }
+
+    /// <summary>
+    /// Serializes a value to a stream using UTF-8 encoding and an explicit input type.
+    /// </summary>
+    /// <param name="utf8Stream">The destination stream.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="inputType">The declared input type.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> or <paramref name="inputType"/> is <see langword="null"/>.</exception>
+    public static void Serialize(Stream utf8Stream, object? value, Type inputType, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+
+        using var writer = new StreamWriter(utf8Stream, DefaultStreamEncoding, bufferSize: 1024, leaveOpen: true);
+        Serialize(writer, value, inputType, options);
+        writer.Flush();
+    }
+
+    /// <summary>
+    /// Serializes a value to a stream using UTF-8 encoding and generated metadata from a serializer context.
+    /// </summary>
+    /// <param name="utf8Stream">The destination stream.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="inputType">The declared input type.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/>, <paramref name="inputType"/>, or <paramref name="context"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">No generated metadata is available for <paramref name="inputType"/> in <paramref name="context"/>.</exception>
+    public static void Serialize(Stream utf8Stream, object? value, Type inputType, YamlSerializerContext context)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+
+        using var writer = new StreamWriter(utf8Stream, DefaultStreamEncoding, bufferSize: 1024, leaveOpen: true);
+        Serialize(writer, value, inputType, context);
+        writer.Flush();
     }
 
     /// <summary>
@@ -227,6 +313,22 @@ public static class YamlSerializer
     }
 
     /// <summary>
+    /// Deserializes YAML from a stream using UTF-8 encoding.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns>The deserialized value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> is <see langword="null"/>.</exception>
+    public static T? Deserialize<T>(Stream utf8Stream, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+
+        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        return Deserialize<T>(reader, options);
+    }
+
+    /// <summary>
     /// Deserializes YAML from a text reader using generated metadata from a serializer context.
     /// </summary>
     /// <typeparam name="T">The destination CLR type.</typeparam>
@@ -242,6 +344,24 @@ public static class YamlSerializer
 
         var typeInfo = context.GetTypeInfo<T>();
         return DeserializeCore(typeInfo, reader);
+    }
+
+    /// <summary>
+    /// Deserializes YAML from a stream using UTF-8 encoding and generated metadata from a serializer context.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <returns>The deserialized value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> or <paramref name="context"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">No generated metadata is available for <typeparamref name="T"/> in <paramref name="context"/>.</exception>
+    public static T? Deserialize<T>(Stream utf8Stream, YamlSerializerContext context)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+        ArgumentGuard.ThrowIfNull(context);
+
+        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        return Deserialize<T>(reader, context);
     }
 
     /// <summary>
@@ -263,6 +383,23 @@ public static class YamlSerializer
     }
 
     /// <summary>
+    /// Deserializes YAML from a stream using UTF-8 encoding.
+    /// </summary>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns>The deserialized value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> or <paramref name="returnType"/> is <see langword="null"/>.</exception>
+    public static object? Deserialize(Stream utf8Stream, Type returnType, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+        ArgumentGuard.ThrowIfNull(returnType);
+
+        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        return Deserialize(reader, returnType, options);
+    }
+
+    /// <summary>
     /// Deserializes YAML from a text reader using an explicit destination type and generated metadata from a serializer context.
     /// </summary>
     /// <param name="reader">The source reader.</param>
@@ -281,6 +418,24 @@ public static class YamlSerializer
         return DeserializeCore(typeInfo, reader);
     }
 
+    /// <summary>
+    /// Deserializes YAML from a stream using UTF-8 encoding and generated metadata from a serializer context.
+    /// </summary>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <returns>The deserialized value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/>, <paramref name="returnType"/>, or <paramref name="context"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">No generated metadata is available for <paramref name="returnType"/> in <paramref name="context"/>.</exception>
+    public static object? Deserialize(Stream utf8Stream, Type returnType, YamlSerializerContext context)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+        ArgumentGuard.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(context);
+
+        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        return Deserialize(reader, returnType, context);
+    }
     /// <summary>
     /// Deserializes YAML from a span of characters.
     /// </summary>
@@ -380,13 +535,26 @@ public static class YamlSerializer
         return DeserializeCore(typeInfo, yaml.ToString());
     }
 
+    private static void SerializeCore(YamlTypeInfo typeInfo, object? value, TextWriter writer)
+    {
+        ArgumentGuard.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(writer);
+
+        var yamlWriter = new YamlWriter(writer, typeInfo.Options);
+        typeInfo.Write(yamlWriter, value);
+        if (!yamlWriter.EndsWithNewLine)
+        {
+            writer.Write('\n');
+        }
+    }
+
     private static string SerializeCore(YamlTypeInfo typeInfo, object? value)
     {
         ArgumentGuard.ThrowIfNull(typeInfo);
         var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
         var writer = new YamlWriter(stringBuilder, typeInfo.Options);
         typeInfo.Write(writer, value);
-        if (stringBuilder.Length == 0 || stringBuilder[stringBuilder.Length - 1] != '\n')
+        if (!writer.EndsWithNewLine)
         {
             stringBuilder.Append('\n');
         }
@@ -400,7 +568,7 @@ public static class YamlSerializer
         var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
         var writer = new YamlWriter(stringBuilder, typeInfo.Options);
         typeInfo.Write(writer, value);
-        if (stringBuilder.Length == 0 || stringBuilder[stringBuilder.Length - 1] != '\n')
+        if (!writer.EndsWithNewLine)
         {
             stringBuilder.Append('\n');
         }

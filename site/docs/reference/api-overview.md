@@ -24,6 +24,10 @@ Core APIs:
 - `Serialize(object? value, Type inputType, YamlSerializerOptions? options = null)`
 - `Serialize<T>(T value, YamlSerializerContext context)`
 - `Serialize(object? value, Type inputType, YamlSerializerContext context)`
+- `Serialize<T>(Stream utf8Stream, T value, YamlSerializerOptions? options = null)`
+- `Serialize(Stream utf8Stream, object? value, Type inputType, YamlSerializerOptions? options = null)`
+- `Serialize<T>(Stream utf8Stream, T value, YamlSerializerContext context)`
+- `Serialize(Stream utf8Stream, object? value, Type inputType, YamlSerializerContext context)`
 - `Serialize<T>(TextWriter writer, T value, YamlSerializerOptions? options = null)`
 - `Serialize(TextWriter writer, object? value, Type inputType, YamlSerializerOptions? options = null)`
 - `Serialize<T>(TextWriter writer, T value, YamlSerializerContext context)`
@@ -32,6 +36,10 @@ Core APIs:
 - `Deserialize(string yaml, Type returnType, YamlSerializerOptions? options = null)`
 - `Deserialize<T>(string yaml, YamlSerializerContext context)`
 - `Deserialize(string yaml, Type returnType, YamlSerializerContext context)`
+- `Deserialize<T>(Stream utf8Stream, YamlSerializerOptions? options = null)`
+- `Deserialize(Stream utf8Stream, Type returnType, YamlSerializerOptions? options = null)`
+- `Deserialize<T>(Stream utf8Stream, YamlSerializerContext context)`
+- `Deserialize(Stream utf8Stream, Type returnType, YamlSerializerContext context)`
 - `Deserialize<T>(TextReader reader, YamlSerializerOptions? options = null)`
 - `Deserialize(TextReader reader, Type returnType, YamlSerializerOptions? options = null)`
 - `Deserialize<T>(TextReader reader, YamlSerializerContext context)`
