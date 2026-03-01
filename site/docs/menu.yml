@@ -1,0 +1,12 @@
+docs:
+  - {path: readme.md, title: Overview, self: true}
+  - {path: getting-started.md, title: Getting started}
+  - {path: yaml-basics.md, title: YAML basics}
+  - {path: compatibility.md, title: YAML 1.2 and schemas}
+  - {path: source-generation.md, title: Source generation and NativeAOT}
+  - {path: performance.md, title: Performance}
+  - {path: low-level/readme.md, title: Low-level APIs, folder: true}
+  - {path: model/readme.md, title: YAML model, folder: true}
+  - {path: serialization/readme.md, title: Serialization, folder: true}
+  - {path: reference/readme.md, title: Reference, folder: true}
+

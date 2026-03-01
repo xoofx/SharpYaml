@@ -1,3 +1,7 @@
+---
+title: API overview
+---
+
 # SharpYaml 3 API Reference
 
 ## Overview
@@ -83,6 +87,9 @@ SharpYaml attributes (`SharpYaml.Serialization`):
 - `YamlIgnoreAttribute`
 - `YamlIncludeAttribute`
 - `YamlConstructorAttribute`
+- `YamlRequiredAttribute`
+- `YamlExtensionDataAttribute`
+- `YamlConverterAttribute`
 - `YamlPolymorphicAttribute`
 - `YamlDerivedTypeAttribute`
 
@@ -92,6 +99,11 @@ SharpYaml attributes (`SharpYaml.Serialization`):
 - `JsonPropertyOrderAttribute`
 - `JsonIgnoreAttribute` (`Always`, `WhenWritingNull`, `WhenWritingDefault`, `Never`)
 - `JsonIncludeAttribute`
+- `JsonRequiredAttribute`
+- `JsonExtensionDataAttribute`
+- `JsonConstructorAttribute`
+- `JsonPolymorphicAttribute`
+- `JsonDerivedTypeAttribute`
 
 Member precedence:
 
@@ -119,7 +131,8 @@ Use generated metadata:
 
 ```csharp
 var context = new MyYamlContext();
-var typeInfo = context.GetTypeInfo<MyModel>();
+var options = new YamlSerializerOptions { TypeInfoResolver = context };
+var typeInfo = context.GetTypeInfo<MyModel>(options);
 var yaml = YamlSerializer.Serialize(model, typeInfo);
 var model2 = YamlSerializer.Deserialize(yaml, typeInfo);
 

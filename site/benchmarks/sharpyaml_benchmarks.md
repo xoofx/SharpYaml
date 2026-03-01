@@ -1,3 +1,7 @@
+---
+title: Benchmark suite
+---
+
 # SharpYaml Benchmark Suite
 
 The benchmark suite lives in `src/SharpYaml.Benchmarks/` and targets `net10.0`.

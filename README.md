@@ -71,10 +71,9 @@ internal partial class MyYamlContext : YamlSerializerContext { }
 Then consume generated metadata:
 
 ```csharp
-var context = new MyYamlContext();
-var typeInfo = context.GetTypeInfo<MyConfig>();
-var yaml = YamlSerializer.Serialize(config, typeInfo);
-var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
+var context = MyYamlContext.Default;
+var yaml = YamlSerializer.Serialize(config, context.MyConfig);
+var roundTrip = YamlSerializer.Deserialize(yaml, context.MyConfig);
 ```
 
 ### Reflection Control

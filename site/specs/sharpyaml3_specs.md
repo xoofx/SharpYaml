@@ -1,3 +1,7 @@
+---
+title: SharpYaml 3 specification
+---
+
 # SharpYaml 3 (SharpYaml3) Specification
 
 Last updated: 2026-02-28

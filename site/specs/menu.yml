@@ -1,0 +1,4 @@
+specs:
+  - {path: readme.md, title: Overview, self: true}
+  - {path: sharpyaml3_specs.md, title: SharpYaml 3 specification}
+

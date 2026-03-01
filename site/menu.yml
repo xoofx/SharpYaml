@@ -1,0 +1,12 @@
+home:
+  - {path: readme.md, title: "<i class='bi bi-house-door' aria-hidden='true'></i> Home", self: true}
+  - {path: docs/readme.md, title: "<i class='bi bi-book' aria-hidden='true'></i> Docs", folder: true}
+  - {path: migration/readme.md, title: "<i class='bi bi-arrow-left-right' aria-hidden='true'></i> Migration", folder: true}
+  - {path: benchmarks/readme.md, title: "<i class='bi bi-speedometer2' aria-hidden='true'></i> Benchmarks", folder: true}
+  - {path: api/readme.md, title: "<i class='bi bi-filetype-cs' aria-hidden='true'></i> API", folder: true}
+  - {path: specs/readme.md, title: "<i class='bi bi-journal-text' aria-hidden='true'></i> Specs", folder: true}
+
+home2:
+  - {url: "https://www.nuget.org/packages/SharpYaml/", title: '<i class="bi bi-box-seam"></i> NuGet', link_class: btn btn-outline-secondary }
+  - {url: "https://github.com/xoofx/SharpYaml/", title: '<i class="bi bi-github"></i> GitHub', link_class: btn btn-info}
+

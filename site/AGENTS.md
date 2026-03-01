@@ -1,0 +1,35 @@
+# SharpYaml Documentation Site — Agent Instructions
+
+This folder contains the [Lunet](https://lunet.io)-based documentation website for SharpYaml.
+
+Single source of truth for the overall project: read and follow `../AGENTS.md`.
+
+## Orientation
+
+- `config.scriban` - Site configuration (theme, metadata, .NET API generation)
+- `menu.yml` - Top-level navigation
+- `readme.md` - Landing/home page
+- `docs/` - End-user documentation
+- `migration/` - Migration guides (for example v2 to v3)
+- `benchmarks/` - Benchmark methodology and results
+- `specs/` - Versioned design/specification documents (historical reference)
+- `img/` - Site images (logo, social banner)
+
+## Build & Serve
+
+```sh
+# Prerequisite: install lunet as a .NET global tool (once)
+dotnet tool install -g lunet
+
+# From this directory (site/)
+lunet build          # production build -> .lunet/build/www/
+lunet serve          # dev server with live reload at http://localhost:4000
+```
+
+## Content Conventions
+
+- Pages use Markdown with YAML front matter (`title` required).
+- Navigation is defined in `menu.yml` files (one per section/folder).
+- Keep examples short, correct, and copy-pasteable.
+- When adding a new page, add a corresponding entry in the relevant `menu.yml`.
+

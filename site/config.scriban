@@ -1,0 +1,49 @@
+# SharpYaml documentation site.
+# Build from this folder with:
+#   lunet build
+#   lunet serve
+#
+# This site uses the shared template published as a Lunet extension.
+extend "lunet-io/templates"
+
+template_theme_default_mode = "light"
+
+# ---------------------------------------------------------------------------
+# SITE SECTION (project-specific values only)
+# ---------------------------------------------------------------------------
+
+# Canonical base URL used for `lunet build` (links, og:meta, sitemap...).
+site_project_baseurl = "https://xoofx.github.io"
+site_project_basepath = "/SharpYaml"
+site_project_name = "SharpYaml"
+site_project_description = "A high-performance YAML parser, emitter, and System.Text.Json-style serializer for .NET."
+site_project_logo_path = "/img/sharpyaml.svg"
+site_project_social_banner_path = "/img/github-banner.png"
+site_project_package_id = "SharpYaml"
+site_project_github_user = "xoofx"
+site_project_github_repo = "SharpYaml"
+site_project_owner_name = "Alexandre Mutel"
+site_project_owner_alias = "xoofx"
+site_project_owner_url = "https://xoofx.github.io"
+
+site_project_init
+
+# ---------------------------------------------------------------------------
+# API reference (.NET)
+# ---------------------------------------------------------------------------
+with api.dotnet
+    title = "SharpYaml .NET API Reference"
+    path = "/api"
+    menu_name = "api"
+    menu_title = "API Reference"
+    properties = {
+        TargetFramework: "net10.0"
+    }
+    projects = [
+        {
+            name: "SharpYaml",
+            path: "../src/SharpYaml/SharpYaml.csproj"
+        }
+    ]
+end
+

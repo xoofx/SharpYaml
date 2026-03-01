@@ -8,7 +8,7 @@ Paths/commands below are relative to this directory.
 
 - Library: `src/SharpYaml/`
 - Tests: `src/SharpYaml.Tests/` (MSTest)
-- Documentation should go under `site/` to keep in sync with behavior. Currently empty.
+- Documentation site: `site/` (Lunet). See `site/AGENTS.md`.
 
 ## Build & Test
 
@@ -17,6 +17,17 @@ Paths/commands below are relative to this directory.
 cd src
 dotnet build -c Release
 dotnet test -c Release
+```
+
+## Docs
+
+```sh
+# prerequisite (once)
+dotnet tool install -g lunet
+
+# build the documentation site
+cd site
+lunet build
 ```
 
 All tests must pass and docs must be updated before submitting.

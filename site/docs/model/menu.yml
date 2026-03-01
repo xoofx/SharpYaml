@@ -1,0 +1,5 @@
+model:
+  - {path: readme.md, title: Overview, self: true}
+  - {path: nodes.md, title: Nodes and values}
+  - {path: documents.md, title: Documents and streams}
+

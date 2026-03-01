@@ -61,6 +61,9 @@ dlldata.c
 # Benchmark Results
 BenchmarkDotNet.Artifacts/
 
+# Lunet documentation site build output
+.lunet/build/
+
 # .NET Core
 project.lock.json
 project.fragment.lock.json

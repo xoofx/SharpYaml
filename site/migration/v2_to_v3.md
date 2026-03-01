@@ -1,3 +1,7 @@
+---
+title: v2 to v3
+---
+
 # SharpYaml v2 to v3 Migration Guide
 
 SharpYaml 3 is a breaking-change release aligned with modern .NET serialization patterns.
@@ -91,7 +95,8 @@ Then consume typed metadata:
 
 ```csharp
 var context = new MyYamlContext();
-var typeInfo = context.GetTypeInfo<MyType>();
+var options = new YamlSerializerOptions { TypeInfoResolver = context };
+var typeInfo = context.GetTypeInfo<MyType>(options);
 var yaml = YamlSerializer.Serialize(value, typeInfo);
 var model = YamlSerializer.Deserialize(yaml, typeInfo);
 ```
