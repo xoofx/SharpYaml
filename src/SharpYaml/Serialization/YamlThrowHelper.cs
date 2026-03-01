@@ -116,6 +116,22 @@ public static class YamlThrowHelper
     public static YamlException ThrowInvalidEnumScalar(YamlReader reader, string text)
         => ThrowInvalidScalar(reader, $"Invalid enum scalar '{text}'.");
 
+    /// <summary>Throws an exception for invalid <see cref="DateTime"/> Scalar.</summary>
+    public static YamlException ThrowInvalidDateTimeScalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid DateTime scalar '{reader.ScalarValue}'.");
+
+    /// <summary>Throws an exception for invalid <see cref="DateTimeOffset"/> Scalar.</summary>
+    public static YamlException ThrowInvalidDateTimeOffsetScalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid DateTimeOffset scalar '{reader.ScalarValue}'.");
+
+    /// <summary>Throws an exception for invalid <see cref="Guid"/> Scalar.</summary>
+    public static YamlException ThrowInvalidGuidScalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid Guid scalar '{reader.ScalarValue}'.");
+
+    /// <summary>Throws an exception for invalid <see cref="TimeSpan"/> Scalar.</summary>
+    public static YamlException ThrowInvalidTimeSpanScalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid TimeSpan scalar '{reader.ScalarValue}'.");
+
     /// <summary>Throws an exception for alias Missing Value.</summary>
     public static YamlException ThrowAliasMissingValue(YamlReader reader)
         => new(reader.SourceName, reader.Start, reader.End, "Alias token did not provide an alias value.");

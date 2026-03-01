@@ -2526,6 +2526,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
+        if (TryEmitWriteScalar(builder, member.Type, valueExpression, indent))
+        {
+            return;
+        }
+
         if (TryGetArrayElementType(member.Type, out var arrayElementType))
         {
             builder.Append(indent).Append("if (").Append(valueExpression).AppendLine(" is null)");
@@ -2900,6 +2905,70 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
+        if (member.Type is INamedTypeSymbol systemType &&
+            string.Equals(systemType.ContainingNamespace?.ToDisplayString(), "System", StringComparison.Ordinal))
+        {
+            if (string.Equals(systemType.Name, "DateTime", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.DateTime.TryParse(reader.ScalarValue, global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDateTime))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateTimeScalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedDateTime")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "DateTimeOffset", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.DateTimeOffset.TryParse(reader.ScalarValue, global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDateTimeOffset))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateTimeOffsetScalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedDateTimeOffset")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Guid", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.Guid.TryParse(reader.ScalarValue, out var parsedGuid))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidGuidScalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedGuid")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "TimeSpan", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.TimeSpan.TryParse(reader.ScalarValue, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedTimeSpan))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidTimeSpanScalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedTimeSpan")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+        }
+
         if (member.Type is INamedTypeSymbol enumType && enumType.TypeKind == TypeKind.Enum)
         {
             var enumTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -3165,6 +3234,29 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return true;
         }
 
+        if (typeSymbol is INamedTypeSymbol systemType &&
+            string.Equals(systemType.ContainingNamespace?.ToDisplayString(), "System", StringComparison.Ordinal))
+        {
+            if (string.Equals(systemType.Name, "DateTime", StringComparison.Ordinal) ||
+                string.Equals(systemType.Name, "DateTimeOffset", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(".ToString(\"O\", global::System.Globalization.CultureInfo.InvariantCulture));");
+                return true;
+            }
+
+            if (string.Equals(systemType.Name, "Guid", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(".ToString(\"D\"));");
+                return true;
+            }
+
+            if (string.Equals(systemType.Name, "TimeSpan", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(".ToString(\"c\", global::System.Globalization.CultureInfo.InvariantCulture));");
+                return true;
+            }
+        }
+
         if (typeSymbol is INamedTypeSymbol named && named.TypeKind == TypeKind.Enum)
         {
             builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(".ToString());");
@@ -3331,6 +3423,50 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append(indent).AppendLine("if (textChar.Length != 1) { throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidCharScalar(reader, textChar); }");
             builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = textChar[0];");
             return;
+        }
+
+        if (typeSymbol is INamedTypeSymbol systemType &&
+            string.Equals(systemType.ContainingNamespace?.ToDisplayString(), "System", StringComparison.Ordinal))
+        {
+            if (string.Equals(systemType.Name, "DateTime", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.DateTime.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDateTime))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateTimeScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedDateTime;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "DateTimeOffset", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.DateTimeOffset.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDateTimeOffset))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateTimeOffsetScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedDateTimeOffset;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Guid", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.Guid.TryParse(").Append(textExpression).AppendLine(", out var parsedGuid))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidGuidScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedGuid;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "TimeSpan", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.TimeSpan.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, out var parsedTimeSpan))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidTimeSpanScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedTimeSpan;");
+                return;
+            }
         }
 
         if (typeSymbol is INamedTypeSymbol named && named.TypeKind == TypeKind.Enum)
@@ -3515,6 +3651,50 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
+        if (typeSymbol is INamedTypeSymbol systemType &&
+            string.Equals(systemType.ContainingNamespace?.ToDisplayString(), "System", StringComparison.Ordinal))
+        {
+            if (string.Equals(systemType.Name, "DateTime", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.DateTime.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDateTime))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateTimeScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedDateTime;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "DateTimeOffset", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.DateTimeOffset.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDateTimeOffset))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateTimeOffsetScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedDateTimeOffset;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Guid", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.Guid.TryParse(").Append(textExpression).AppendLine(", out var parsedGuid))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidGuidScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedGuid;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "TimeSpan", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.TimeSpan.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, out var parsedTimeSpan))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidTimeSpanScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedTimeSpan;");
+                return;
+            }
+        }
+
         if (typeSymbol is INamedTypeSymbol named && named.TypeKind == TypeKind.Enum)
         {
             var enumTypeName = named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -3657,6 +3837,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         if (type is INamedTypeSymbol named && named.TypeKind == TypeKind.Enum)
         {
             return true;
+        }
+
+        if (type is INamedTypeSymbol systemType &&
+            string.Equals(systemType.ContainingNamespace?.ToDisplayString(), "System", StringComparison.Ordinal))
+        {
+            // Common non-primitive scalars supported out of the box (mirrors STJ built-ins).
+            if (string.Equals(systemType.Name, "DateTime", StringComparison.Ordinal) ||
+                string.Equals(systemType.Name, "DateTimeOffset", StringComparison.Ordinal) ||
+                string.Equals(systemType.Name, "Guid", StringComparison.Ordinal) ||
+                string.Equals(systemType.Name, "TimeSpan", StringComparison.Ordinal))
+            {
+                return true;
+            }
         }
 
         return type.SpecialType is SpecialType.System_String

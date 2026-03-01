@@ -321,6 +321,26 @@ public abstract class YamlReaderWriterBase
                 return YamlCharConverter.Instance;
             }
 
+            if (typeToConvert == typeof(DateTime))
+            {
+                return YamlDateTimeConverter.Instance;
+            }
+
+            if (typeToConvert == typeof(DateTimeOffset))
+            {
+                return YamlDateTimeOffsetConverter.Instance;
+            }
+
+            if (typeToConvert == typeof(Guid))
+            {
+                return YamlGuidConverter.Instance;
+            }
+
+            if (typeToConvert == typeof(TimeSpan))
+            {
+                return YamlTimeSpanConverter.Instance;
+            }
+
             if (typeToConvert == typeof(nint))
             {
                 return YamlIntPtrConverter.Instance;

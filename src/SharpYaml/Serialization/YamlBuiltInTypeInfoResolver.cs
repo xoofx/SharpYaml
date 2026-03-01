@@ -98,6 +98,26 @@ internal static class YamlBuiltInTypeInfoResolver
             return YamlCharConverter.Instance;
         }
 
+        if (type == typeof(DateTime))
+        {
+            return YamlDateTimeConverter.Instance;
+        }
+
+        if (type == typeof(DateTimeOffset))
+        {
+            return YamlDateTimeOffsetConverter.Instance;
+        }
+
+        if (type == typeof(Guid))
+        {
+            return YamlGuidConverter.Instance;
+        }
+
+        if (type == typeof(TimeSpan))
+        {
+            return YamlTimeSpanConverter.Instance;
+        }
+
         if (type == typeof(object))
         {
             return YamlUntypedObjectConverter.Instance;
@@ -138,6 +158,10 @@ internal static class YamlBuiltInTypeInfoResolver
         if (type == typeof(double?)) return YamlNullableConverter<double>.Instance;
         if (type == typeof(decimal?)) return YamlNullableConverter<decimal>.Instance;
         if (type == typeof(char?)) return YamlNullableConverter<char>.Instance;
+        if (type == typeof(DateTime?)) return YamlNullableConverter<DateTime>.Instance;
+        if (type == typeof(DateTimeOffset?)) return YamlNullableConverter<DateTimeOffset>.Instance;
+        if (type == typeof(Guid?)) return YamlNullableConverter<Guid>.Instance;
+        if (type == typeof(TimeSpan?)) return YamlNullableConverter<TimeSpan>.Instance;
 
         return null;
     }

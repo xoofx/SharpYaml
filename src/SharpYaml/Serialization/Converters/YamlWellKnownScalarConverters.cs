@@ -1,0 +1,113 @@
+using System;
+using System.Globalization;
+
+namespace SharpYaml.Serialization.Converters;
+
+internal sealed class YamlDateTimeConverter : YamlConverter<DateTime>
+{
+    public static YamlDateTimeConverter Instance { get; } = new();
+
+    public override DateTime Read(YamlReader reader)
+    {
+        if (reader.TokenType != YamlTokenType.Scalar)
+        {
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
+        }
+
+        var text = reader.ScalarValue;
+        if (!DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var result))
+        {
+            throw YamlThrowHelper.ThrowInvalidDateTimeScalar(reader);
+        }
+
+        reader.Read();
+        return result;
+    }
+
+    public override void Write(YamlWriter writer, DateTime value)
+    {
+        writer.WriteScalar(value.ToString("O", CultureInfo.InvariantCulture));
+    }
+}
+
+internal sealed class YamlDateTimeOffsetConverter : YamlConverter<DateTimeOffset>
+{
+    public static YamlDateTimeOffsetConverter Instance { get; } = new();
+
+    public override DateTimeOffset Read(YamlReader reader)
+    {
+        if (reader.TokenType != YamlTokenType.Scalar)
+        {
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
+        }
+
+        var text = reader.ScalarValue;
+        if (!DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var result))
+        {
+            throw YamlThrowHelper.ThrowInvalidDateTimeOffsetScalar(reader);
+        }
+
+        reader.Read();
+        return result;
+    }
+
+    public override void Write(YamlWriter writer, DateTimeOffset value)
+    {
+        writer.WriteScalar(value.ToString("O", CultureInfo.InvariantCulture));
+    }
+}
+
+internal sealed class YamlGuidConverter : YamlConverter<Guid>
+{
+    public static YamlGuidConverter Instance { get; } = new();
+
+    public override Guid Read(YamlReader reader)
+    {
+        if (reader.TokenType != YamlTokenType.Scalar)
+        {
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
+        }
+
+        var text = reader.ScalarValue;
+        if (!Guid.TryParse(text, out var result))
+        {
+            throw YamlThrowHelper.ThrowInvalidGuidScalar(reader);
+        }
+
+        reader.Read();
+        return result;
+    }
+
+    public override void Write(YamlWriter writer, Guid value)
+    {
+        writer.WriteScalar(value.ToString("D"));
+    }
+}
+
+internal sealed class YamlTimeSpanConverter : YamlConverter<TimeSpan>
+{
+    public static YamlTimeSpanConverter Instance { get; } = new();
+
+    public override TimeSpan Read(YamlReader reader)
+    {
+        if (reader.TokenType != YamlTokenType.Scalar)
+        {
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
+        }
+
+        var text = reader.ScalarValue;
+        if (!TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out var result))
+        {
+            throw YamlThrowHelper.ThrowInvalidTimeSpanScalar(reader);
+        }
+
+        reader.Read();
+        return result;
+    }
+
+    public override void Write(YamlWriter writer, TimeSpan value)
+    {
+        writer.WriteScalar(value.ToString("c", CultureInfo.InvariantCulture));
+    }
+}
+

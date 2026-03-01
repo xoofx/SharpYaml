@@ -58,6 +58,14 @@ internal sealed class GeneratedPrimitives
     public GeneratedColor? NullableColor { get; set; }
 }
 
+internal sealed class GeneratedWellKnownScalars
+{
+    public DateTime WhenUtc { get; set; }
+    public DateTimeOffset WhenOffset { get; set; }
+    public Guid Id { get; set; }
+    public TimeSpan Duration { get; set; }
+}
+
 internal sealed class GeneratedCollections
 {
     public int[] Numbers { get; set; } = Array.Empty<int>();
@@ -254,6 +262,7 @@ internal sealed class GeneratedJsonCtorModel
 [JsonSerializable(typeof(GeneratedPerson))]
 [JsonSerializable(typeof(GeneratedContainer))]
 [JsonSerializable(typeof(GeneratedPrimitives))]
+[JsonSerializable(typeof(GeneratedWellKnownScalars))]
 [JsonSerializable(typeof(GeneratedColor))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(int))]
@@ -336,6 +345,30 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(person);
         Assert.AreEqual("Ada", person.FirstName);
         Assert.AreEqual(37, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_WellKnownScalarTypes_RoundTrip()
+    {
+        var payload = new GeneratedWellKnownScalars
+        {
+            WhenUtc = new DateTime(2026, 03, 01, 12, 34, 56, DateTimeKind.Utc),
+            WhenOffset = new DateTimeOffset(2026, 03, 01, 12, 34, 56, TimeSpan.FromHours(2)),
+            Id = Guid.Parse("6d0c86e2-1e37-4c33-9c2f-5304a33f2c5e"),
+            Duration = TimeSpan.FromMilliseconds(1234),
+        };
+
+        var context = TestYamlSerializerContext.Default;
+        var typeInfo = context.GetTypeInfo<GeneratedWellKnownScalars>();
+
+        var yaml = YamlSerializer.Serialize(payload, typeInfo);
+        var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
+
+        Assert.IsNotNull(roundTrip);
+        Assert.AreEqual(payload.WhenUtc, roundTrip.WhenUtc);
+        Assert.AreEqual(payload.WhenOffset, roundTrip.WhenOffset);
+        Assert.AreEqual(payload.Id, roundTrip.Id);
+        Assert.AreEqual(payload.Duration, roundTrip.Duration);
     }
 
     [TestMethod]

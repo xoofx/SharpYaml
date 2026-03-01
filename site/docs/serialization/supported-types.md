@@ -25,6 +25,9 @@ The built-in scalar converters support the following C# primitive types:
 - `decimal`
 - `char`
 - `string`
+- `DateTime`, `DateTimeOffset` (roundtrip/ISO-8601)
+- `Guid`
+- `TimeSpan`
 - enums (by name; numeric forms are accepted when possible)
 - nullable forms of the above (`T?`)
 
@@ -56,4 +59,3 @@ For custom types, SharpYaml uses an object converter that maps members to mappin
 - naming policies (`PropertyNamingPolicy`)
 - JSON/YAML attributes (for example `[JsonPropertyName]`, `[YamlPropertyName]`)
 - converters (`YamlConverter<T>` and `YamlConverterAttribute`)
-
