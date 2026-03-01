@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using SharpYaml.Model;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Serialization.Converters;
@@ -178,7 +180,24 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (!contract.TryGetMember(key, out var member))
             {
-                reader.Skip();
+                if (contract.ExtensionData is null)
+                {
+                    reader.Skip();
+                    continue;
+                }
+
+                try
+                {
+                    ReadExtensionData(reader, instance!, contract.ExtensionData, key);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
                 continue;
             }
 
@@ -295,6 +314,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             converter.Write(writer, memberValue);
         }
 
+        WriteExtensionData(writer, value, contract);
         writer.WriteEndMapping();
     }
 
@@ -395,6 +415,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             converter.Write(writer, memberValue);
         }
 
+        WriteExtensionData(writer, value, derivedContract);
         writer.WriteEndMapping();
     }
 
@@ -408,6 +429,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             Member[] membersSorted,
             Dictionary<string, Member> membersByName,
             Member[] requiredMembers,
+            ExtensionDataInfo? extensionData,
             PolymorphismModel? polymorphism)
         {
             CreateInstance = createInstance;
@@ -415,6 +437,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             MembersSorted = membersSorted;
             _membersByName = membersByName;
             RequiredMembers = requiredMembers;
+            ExtensionData = extensionData;
             Polymorphism = polymorphism;
         }
 
@@ -425,6 +448,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public Member[] MembersSorted { get; }
 
         public Member[] RequiredMembers { get; }
+
+        public ExtensionDataInfo? ExtensionData { get; }
 
         public PolymorphismModel? Polymorphism { get; }
 
@@ -459,12 +484,35 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             var members = new List<Member>();
             var requiredMembers = new List<Member>();
+            ExtensionDataInfo? extensionData = null;
 
             const BindingFlags allInstance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             foreach (var property in type.GetProperties(allInstance))
             {
                 if (property.GetIndexParameters().Length != 0)
                 {
+                    continue;
+                }
+
+                if (IsExtensionData(property))
+                {
+                    if (extensionData is not null)
+                    {
+                        throw new NotSupportedException($"Type '{type}' defines multiple extension data members.");
+                    }
+
+                    if (IsIgnored(property, out _))
+                    {
+                        throw new NotSupportedException($"Extension data member '{property.Name}' on '{type}' cannot be ignored.");
+                    }
+
+                    if (IsRequired(property))
+                    {
+                        throw new NotSupportedException($"Extension data member '{property.Name}' on '{type}' cannot be required.");
+                    }
+
+                    var extensionMember = new Member(property.Name, order: 0, declarationOrder: property.MetadataToken, property.PropertyType, property, ignoreCondition: null, isRequired: false);
+                    extensionData = ExtensionDataInfo.Create(type, extensionMember, property.PropertyType);
                     continue;
                 }
 
@@ -495,6 +543,28 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             foreach (var field in type.GetFields(allInstance))
             {
+                if (IsExtensionData(field))
+                {
+                    if (extensionData is not null)
+                    {
+                        throw new NotSupportedException($"Type '{type}' defines multiple extension data members.");
+                    }
+
+                    if (IsIgnored(field, out _))
+                    {
+                        throw new NotSupportedException($"Extension data member '{field.Name}' on '{type}' cannot be ignored.");
+                    }
+
+                    if (IsRequired(field))
+                    {
+                        throw new NotSupportedException($"Extension data member '{field.Name}' on '{type}' cannot be required.");
+                    }
+
+                    var extensionMember = new Member(field.Name, order: 0, declarationOrder: field.MetadataToken, field.FieldType, field, ignoreCondition: null, isRequired: false);
+                    extensionData = ExtensionDataInfo.Create(type, extensionMember, field.FieldType);
+                    continue;
+                }
+
                 var hasIncludeAttr = field.IsDefined(typeof(YamlIncludeAttribute), inherit: true) ||
                                      field.IsDefined(typeof(JsonIncludeAttribute), inherit: true);
                 if (!hasIncludeAttr)
@@ -552,10 +622,150 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredMembers[i].RequiredIndex = i;
             }
 
-            return new Contract(CreateInstance, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), polymorphism);
+            return new Contract(CreateInstance, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), extensionData, polymorphism);
         }
 
         public bool TryGetMember(string name, out Member member) => _membersByName.TryGetValue(name, out member!);
+    }
+
+    private enum ExtensionDataKind
+    {
+        Dictionary,
+        Mapping,
+    }
+
+    private sealed class ExtensionDataInfo
+    {
+        private ExtensionDataInfo(Member member, ExtensionDataKind kind, Type? dictionaryValueType, Func<object> createContainer)
+        {
+            Member = member;
+            Kind = kind;
+            DictionaryValueType = dictionaryValueType;
+            CreateContainer = createContainer;
+        }
+
+        public Member Member { get; }
+
+        public ExtensionDataKind Kind { get; }
+
+        public Type? DictionaryValueType { get; }
+
+        public Func<object> CreateContainer { get; }
+
+        public static ExtensionDataInfo Create(Type declaringType, Member member, Type memberType)
+        {
+            ArgumentNullException.ThrowIfNull(declaringType);
+            ArgumentNullException.ThrowIfNull(member);
+            ArgumentNullException.ThrowIfNull(memberType);
+
+            if (typeof(YamlMapping).IsAssignableFrom(memberType))
+            {
+                object CreateMapping()
+                {
+                    if (memberType == typeof(YamlMapping))
+                    {
+                        return new YamlMapping();
+                    }
+
+                    if (memberType.IsAbstract || memberType.IsInterface)
+                    {
+                        throw new NotSupportedException($"Extension data member '{member.Name}' on '{declaringType}' must be a concrete '{typeof(YamlMapping)}' type.");
+                    }
+
+                    return Activator.CreateInstance(memberType)
+                           ?? throw new NotSupportedException($"Extension data member '{member.Name}' on '{declaringType}' could not be instantiated.");
+                }
+
+                return new ExtensionDataInfo(member, ExtensionDataKind.Mapping, dictionaryValueType: null, CreateMapping);
+            }
+
+            if (!TryGetExtensionDataDictionaryValueType(memberType, out var valueType))
+            {
+                throw new NotSupportedException($"Extension data member '{member.Name}' on '{declaringType}' must be a '{typeof(YamlMapping)}' or implement 'IDictionary<string, object>' or 'IDictionary<string, YamlNode>'.");
+            }
+
+            Type createType;
+            if (valueType == typeof(object))
+            {
+                createType = typeof(Dictionary<string, object?>);
+            }
+            else if (typeof(YamlNode).IsAssignableFrom(valueType))
+            {
+                createType = typeof(Dictionary<,>).MakeGenericType(typeof(string), valueType);
+            }
+            else
+            {
+                throw new NotSupportedException($"Extension data dictionary member '{member.Name}' on '{declaringType}' must use 'object' or '{typeof(YamlNode)}' values.");
+            }
+
+            if (!memberType.IsAssignableFrom(createType))
+            {
+                throw new NotSupportedException($"Extension data dictionary member '{member.Name}' on '{declaringType}' must be assignable from '{createType}'.");
+            }
+
+            object CreateDictionary()
+            {
+                return Activator.CreateInstance(createType)
+                       ?? throw new NotSupportedException($"Extension data member '{member.Name}' on '{declaringType}' could not be instantiated.");
+            }
+
+            return new ExtensionDataInfo(member, ExtensionDataKind.Dictionary, valueType, CreateDictionary);
+        }
+
+        private static bool TryGetExtensionDataDictionaryValueType(Type type, out Type valueType)
+        {
+            valueType = null!;
+
+            if (TryGetDictionaryInterface(type, out var dictionaryInterface))
+            {
+                valueType = dictionaryInterface.GetGenericArguments()[1];
+                if (valueType == typeof(object))
+                {
+                    return true;
+                }
+
+                if (typeof(YamlNode).IsAssignableFrom(valueType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryGetDictionaryInterface(Type type, out Type dictionaryInterface)
+        {
+            dictionaryInterface = null!;
+
+            if (type.IsGenericType)
+            {
+                var definition = type.GetGenericTypeDefinition();
+                if (definition == typeof(IDictionary<,>) && type.GetGenericArguments()[0] == typeof(string))
+                {
+                    dictionaryInterface = type;
+                    return true;
+                }
+            }
+
+            var interfaces = type.GetInterfaces();
+            for (var i = 0; i < interfaces.Length; i++)
+            {
+                var candidate = interfaces[i];
+                if (!candidate.IsGenericType)
+                {
+                    continue;
+                }
+
+                var definition = candidate.GetGenericTypeDefinition();
+                if (definition == typeof(IDictionary<,>) && candidate.GetGenericArguments()[0] == typeof(string))
+                {
+                    dictionaryInterface = candidate;
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     private sealed class PolymorphismModel
@@ -794,6 +1004,210 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
     }
 
+    private static void ReadExtensionData(YamlReader reader, object instance, ExtensionDataInfo extensionData, string key)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentNullException.ThrowIfNull(extensionData);
+        ArgumentNullException.ThrowIfNull(key);
+
+        var member = extensionData.Member;
+        var container = member.GetValue(instance);
+        if (container is null)
+        {
+            container = extensionData.CreateContainer();
+            try
+            {
+                member.SetValue(instance, container);
+            }
+            catch (Exception exception)
+            {
+                throw new NotSupportedException($"Extension data member '{member.Name}' could not be assigned on '{instance.GetType()}'.", exception);
+            }
+        }
+
+        switch (extensionData.Kind)
+        {
+            case ExtensionDataKind.Dictionary:
+            {
+                if (container is not IDictionary dictionary)
+                {
+                    throw new NotSupportedException($"Extension data member '{member.Name}' on '{instance.GetType()}' must implement '{typeof(IDictionary)}'.");
+                }
+
+                var valueType = extensionData.DictionaryValueType ?? typeof(object);
+                object? value;
+                var converter = reader.GetConverter(valueType);
+                value = converter.Read(reader, valueType);
+
+                if (value is not null && valueType != typeof(object) && !valueType.IsInstanceOfType(value))
+                {
+                    throw new NotSupportedException($"Extension data value '{value.GetType()}' cannot be stored in '{valueType}'.");
+                }
+
+                dictionary[key] = value;
+                return;
+            }
+
+            case ExtensionDataKind.Mapping:
+            {
+                if (container is not YamlMapping mapping)
+                {
+                    throw new NotSupportedException($"Extension data member '{member.Name}' on '{instance.GetType()}' must be a '{typeof(YamlMapping)}'.");
+                }
+
+                var elementConverter = reader.GetConverter(typeof(YamlElement));
+                var element = (YamlElement?)elementConverter.Read(reader, typeof(YamlElement));
+
+                var list = (IList<KeyValuePair<YamlElement, YamlElement?>>)mapping;
+                for (var i = 0; i < list.Count; i++)
+                {
+                    if (list[i].Key is YamlValue keyValue && string.Equals(keyValue.Value, key, StringComparison.Ordinal))
+                    {
+                        list[i] = new KeyValuePair<YamlElement, YamlElement?>(list[i].Key, element);
+                        return;
+                    }
+                }
+
+                mapping.Add(new YamlValue(key), element);
+                return;
+            }
+
+            default:
+                throw new InvalidOperationException($"Unknown extension data kind '{extensionData.Kind}'.");
+        }
+    }
+
+    private static void WriteExtensionData(YamlWriter writer, object instance, Contract contract)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentNullException.ThrowIfNull(contract);
+
+        var extensionData = contract.ExtensionData;
+        if (extensionData is null)
+        {
+            return;
+        }
+
+        var member = extensionData.Member;
+        var container = member.GetValue(instance);
+        if (container is null)
+        {
+            return;
+        }
+
+        switch (extensionData.Kind)
+        {
+            case ExtensionDataKind.Dictionary:
+                WriteExtensionDictionary(writer, container, extensionData.DictionaryValueType ?? typeof(object));
+                return;
+
+            case ExtensionDataKind.Mapping:
+                if (container is not YamlMapping mapping)
+                {
+                    throw new YamlException(Mark.Empty, Mark.Empty, $"Extension data member '{member.Name}' on '{instance.GetType()}' must be a '{typeof(YamlMapping)}'.");
+                }
+
+                WriteExtensionMapping(writer, mapping);
+                return;
+
+            default:
+                throw new InvalidOperationException($"Unknown extension data kind '{extensionData.Kind}'.");
+        }
+    }
+
+    private static void WriteExtensionDictionary(YamlWriter writer, object container, Type valueType)
+    {
+        if (container is not IDictionary dictionary)
+        {
+            throw new YamlException(Mark.Empty, Mark.Empty, $"Extension data dictionary must implement '{typeof(IDictionary)}'.");
+        }
+
+        if (writer.Options.MappingOrder == YamlMappingOrderPolicy.Sorted)
+        {
+            var items = new List<KeyValuePair<string, object?>>(dictionary.Count);
+            foreach (DictionaryEntry entry in dictionary)
+            {
+                if (entry.Key is not string key)
+                {
+                    throw new YamlException(Mark.Empty, Mark.Empty, "Extension data dictionary keys must be strings.");
+                }
+
+                items.Add(new KeyValuePair<string, object?>(key, entry.Value));
+            }
+
+            items.Sort(static (x, y) => string.CompareOrdinal(x.Key, y.Key));
+            for (var i = 0; i < items.Count; i++)
+            {
+                WriteExtensionEntry(writer, items[i].Key, items[i].Value, valueType);
+            }
+
+            return;
+        }
+
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            if (entry.Key is not string key)
+            {
+                throw new YamlException(Mark.Empty, Mark.Empty, "Extension data dictionary keys must be strings.");
+            }
+
+            WriteExtensionEntry(writer, key, entry.Value, valueType);
+        }
+    }
+
+    private static void WriteExtensionMapping(YamlWriter writer, YamlMapping mapping)
+    {
+        var list = (IList<KeyValuePair<YamlElement, YamlElement?>>)mapping;
+        if (writer.Options.MappingOrder == YamlMappingOrderPolicy.Sorted)
+        {
+            var items = new List<KeyValuePair<string, YamlElement?>>(list.Count);
+            for (var i = 0; i < list.Count; i++)
+            {
+                var pair = list[i];
+                if (pair.Key is not YamlValue keyValue)
+                {
+                    throw new YamlException(Mark.Empty, Mark.Empty, "Only scalar mapping keys are supported for extension data.");
+                }
+
+                items.Add(new KeyValuePair<string, YamlElement?>(keyValue.Value, pair.Value));
+            }
+
+            items.Sort(static (x, y) => string.CompareOrdinal(x.Key, y.Key));
+            for (var i = 0; i < items.Count; i++)
+            {
+                WriteExtensionEntry(writer, items[i].Key, items[i].Value, typeof(YamlNode));
+            }
+
+            return;
+        }
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            var pair = list[i];
+            if (pair.Key is not YamlValue keyValue)
+            {
+                throw new YamlException(Mark.Empty, Mark.Empty, "Only scalar mapping keys are supported for extension data.");
+            }
+
+            WriteExtensionEntry(writer, keyValue.Value, pair.Value, typeof(YamlNode));
+        }
+    }
+
+    private static void WriteExtensionEntry(YamlWriter writer, string key, object? value, Type valueType)
+    {
+        writer.WritePropertyName(key);
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        var converter = writer.GetConverter(valueType);
+        converter.Write(writer, value);
+    }
+
     private static bool IsIgnored(MemberInfo member, out YamlIgnoreCondition? ignoreCondition)
     {
         ignoreCondition = null;
@@ -832,6 +1246,21 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         if (member.IsDefined(typeof(JsonRequiredAttribute), inherit: true))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsExtensionData(MemberInfo member)
+    {
+        if (member.IsDefined(typeof(YamlExtensionDataAttribute), inherit: true))
+        {
+            return true;
+        }
+
+        if (member.IsDefined(typeof(JsonExtensionDataAttribute), inherit: true))
         {
             return true;
         }

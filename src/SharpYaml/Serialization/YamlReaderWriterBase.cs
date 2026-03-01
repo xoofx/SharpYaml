@@ -278,6 +278,11 @@ public abstract class YamlReaderWriterBase
                 return YamlUntypedObjectConverter.Instance;
             }
 
+            if (typeof(SharpYaml.Model.YamlNode).IsAssignableFrom(typeToConvert))
+            {
+                return YamlModelNodeConverter.Instance;
+            }
+
             var underlyingNullable = Nullable.GetUnderlyingType(typeToConvert);
             if (underlyingNullable is not null)
             {

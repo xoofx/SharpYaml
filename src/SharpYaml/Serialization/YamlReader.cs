@@ -196,6 +196,27 @@ public sealed class YamlReader : YamlReaderWriterBase
     }
 
     /// <summary>
+    /// Buffers the current YAML node to a string.
+    /// </summary>
+    /// <param name="reader">The reader positioned at the start of the node.</param>
+    /// <returns>The buffered YAML for the node.</returns>
+    /// <remarks>
+    /// This method consumes the buffered node from <paramref name="reader"/> and advances it past the node.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
+    public static string BufferCurrentNodeToString(YamlReader reader)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        var yamlWriter = new YamlWriter(writer, reader.Options);
+
+        string? unused = null;
+        WriteBufferedNode(reader, yamlWriter, StringComparer.Ordinal, discriminatorPropertyName: string.Empty, isRootMapping: false, ref unused);
+        return writer.ToString();
+    }
+
+    /// <summary>
     /// Advances to the next token.
     /// </summary>
     public bool Read() => _state.Read();
