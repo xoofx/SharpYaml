@@ -102,6 +102,8 @@ You can override the default by setting the following MSBuild property in your a
 
 ## 🚀 Benchmarks
 
+In the included benchmarks, SharpYaml is typically **~2x to ~15x faster** than YamlDotNet and uses **~2x to ~9x less memory allocations**, depending on the scenario (POCO vs generic vs source-generated).
+
 ```
 BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.7840/25H2/2025Update/HudsonValley2)
 AMD Ryzen 9 7950X 4.50GHz, 1 CPU, 32 logical and 16 physical cores

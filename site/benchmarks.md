@@ -6,6 +6,8 @@ title: Benchmark suite
 
 The benchmark suite lives in `src/SharpYaml.Benchmarks/` and targets `net10.0`.
 
+In these benchmarks, SharpYaml is typically **~2x to ~15x faster** than YamlDotNet and uses **~2x to ~9x less memory allocations**, depending on the scenario.
+
 It compares SharpYaml with:
 
 - `YamlDotNet` `16.3.0` (dynamic serializer/deserializer).
