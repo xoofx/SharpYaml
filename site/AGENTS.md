@@ -11,7 +11,7 @@ Single source of truth for the overall project: read and follow `../AGENTS.md`.
 - `readme.md` - Landing/home page
 - `docs/` - End-user documentation
 - `migration.md` - Migration guide (v2 to v3)
-- `benchmarks/` - Benchmark methodology and results
+- `benchmarks.md` - Benchmark methodology and results
 - `specs/` - Versioned design/specification documents (historical reference)
 - `img/` - Site images (logo, social banner)
 

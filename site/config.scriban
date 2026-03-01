@@ -36,8 +36,12 @@ with api.dotnet
     path = "/api"
     menu_name = "api"
     menu_title = "API Reference"
+    # The SharpYaml package embeds its source generator via an analyzer project reference.
+    # For API docs, we only need to build SharpYaml itself; building project references
+    # can confuse Lunet's output selection when the generator is built multiple times.
     properties = {
-        TargetFramework: "net10.0"
+        TargetFramework: "net10.0",
+        BuildProjectReferences: "false"
     }
     projects = [
         {

@@ -1,4 +1,0 @@
-benchmarks:
-  - {path: readme.md, title: Overview, self: true}
-  - {path: sharpyaml_benchmarks.md, title: Benchmark suite}
-

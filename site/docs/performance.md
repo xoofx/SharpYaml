@@ -13,4 +13,4 @@ SharpYaml is built for configuration workloads: fast parsing/emitting and low al
 
 ## Benchmarks
 
-See [Benchmarks](../benchmarks/readme.md) for how to run the benchmark suite and how to interpret the results.
+See [Benchmarks](../benchmarks.md) for how to run the benchmark suite and how to interpret the results.
