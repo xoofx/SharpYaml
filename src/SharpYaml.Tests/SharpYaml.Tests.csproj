@@ -15,6 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SharpYaml\SharpYaml.csproj" />
+    <ProjectReference Include="..\SharpYaml.FeatureSwitchSmoke\SharpYaml.FeatureSwitchSmoke.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
 </Project>

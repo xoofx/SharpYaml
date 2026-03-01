@@ -63,7 +63,8 @@ SharpYaml can resolve serialization metadata in two ways:
 1. **Generated metadata** using `YamlSerializerContext` and `YamlTypeInfo<T>` (recommended for NativeAOT).
 2. **Reflection fallback** (enabled by default).
 
-If you disable reflection (see below), you must provide metadata via `YamlTypeInfo<T>` or `YamlSerializerOptions.TypeInfoResolver`.
+If you disable reflection (see below), POCO/object mapping requires metadata via `YamlTypeInfo<T>` or `YamlSerializerOptions.TypeInfoResolver`.
+Built-in primitives and untyped containers remain supported without reflection.
 
 ```csharp
 AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", false);

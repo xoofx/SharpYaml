@@ -73,6 +73,25 @@ AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", fa
 ```
 
 When reflection is disabled, you must provide metadata via `YamlTypeInfo<T>` or `YamlSerializerOptions.TypeInfoResolver`.
+This applies to .NET object mapping (POCOs, collections of POCOs, etc.).
+Built-in primitives and untyped containers remain supported without reflection.
+
+## NativeAOT defaults
+
+When publishing with NativeAOT (`PublishAot=true`), the SharpYaml NuGet package disables reflection-based serialization by default via a feature switch.
+
+You can override the default by setting this MSBuild property in your app project:
+
+```xml
+<PropertyGroup>
+  <SharpYamlIsReflectionEnabledByDefault>true</SharpYamlIsReflectionEnabledByDefault>
+</PropertyGroup>
+```
+
+Even when reflection-based object mapping is disabled, SharpYaml still supports serialization/deserialization for:
+
+- scalar primitives (`bool`, numeric types, `string`, `char`, `decimal`)
+- untyped containers: `object`, `Dictionary<string, object>`, `List<object>`, `object[]`
 
 ## Troubleshooting
 

@@ -10,8 +10,8 @@ namespace SharpYaml;
 /// </summary>
 public static class YamlSerializer
 {
-    private const string ReflectionSwitchName = "SharpYaml.YamlSerializer.IsReflectionEnabledByDefault";
-    private static readonly bool ReflectionEnabledByDefault = AppContext.TryGetSwitch(ReflectionSwitchName, out var enabledBySwitch) ? enabledBySwitch : true;
+    private const string ReflectionSwitchName = SharpYaml.Serialization.YamlSerializerFeatureSwitches.ReflectionSwitchName;
+    private static readonly bool ReflectionEnabledByDefault = SharpYaml.Serialization.YamlSerializerFeatureSwitches.IsReflectionEnabledByDefaultCalculated;
     [ThreadStatic]
     private static StringBuilder? s_cachedStringBuilder;
 
@@ -453,18 +453,6 @@ public static class YamlSerializer
         return result;
     }
 
-    private static void EnsureReflectionAvailable(YamlSerializerOptions options, Type requestedType)
-    {
-        if (IsReflectionEnabledByDefault)
-        {
-            return;
-        }
-
-        throw new InvalidOperationException(
-            $"Reflection serialization is disabled and no metadata was found for '{requestedType}'. " +
-            $"Provide metadata via {nameof(YamlSerializerOptions)}.{nameof(YamlSerializerOptions.TypeInfoResolver)} or enable the '{ReflectionSwitchName}' AppContext switch.");
-    }
-
     private static YamlTypeInfo ResolveTypeInfo(YamlSerializerContext context, Type requestedType)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -494,17 +482,25 @@ public static class YamlSerializer
             return typeInfo;
         }
 
-        if (!IsReflectionEnabledByDefault)
+        typeInfo = SharpYaml.Serialization.YamlBuiltInTypeInfoResolver.GetTypeInfo(requestedType, options);
+        if (typeInfo is not null)
         {
-            EnsureReflectionAvailable(options, requestedType);
+            return typeInfo;
         }
 
-        typeInfo = ReflectionYamlTypeInfoResolver.Default.GetTypeInfo(requestedType, options);
-        if (typeInfo is null)
+        if (IsReflectionEnabledByDefault)
         {
-            throw new InvalidOperationException($"No metadata is available for '{requestedType}'.");
+            typeInfo = ReflectionYamlTypeInfoResolver.Default.GetTypeInfo(requestedType, options);
+            if (typeInfo is null)
+            {
+                throw new InvalidOperationException($"No metadata is available for '{requestedType}'.");
+            }
+
+            return typeInfo;
         }
 
-        return typeInfo;
+        throw new InvalidOperationException(
+            $"Reflection serialization is disabled and no metadata was found for '{requestedType}'. " +
+            $"Provide metadata via {nameof(YamlSerializerOptions)}.{nameof(YamlSerializerOptions.TypeInfoResolver)} or enable the '{ReflectionSwitchName}' AppContext switch.");
     }
 }

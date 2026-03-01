@@ -75,7 +75,8 @@ Reflection fallback is available by default and can be disabled:
 AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", false);
 ```
 
-When disabled, configure metadata via `YamlSerializerOptions.TypeInfoResolver` (typically from a `YamlSerializerContext`).
+When disabled, POCO/object mapping requires metadata via `YamlSerializerOptions.TypeInfoResolver` (typically from a `YamlSerializerContext`).
+Built-in primitives and untyped containers remain supported without reflection.
 
 ## Source Generation
 

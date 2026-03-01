@@ -84,7 +84,16 @@ Reflection fallback can be disabled globally before first serializer use:
 AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", false);
 ```
 
-When reflection is disabled, configure `YamlSerializerOptions.TypeInfoResolver` (for example with a generated `YamlSerializerContext`).
+When reflection is disabled, POCO/object mapping requires metadata (use generated `YamlTypeInfo<T>`, the overloads that accept a `YamlSerializerContext`, or pass `MyYamlContext.Default.Options` to an `options`-based overload). Primitive scalars and untyped containers (`object`, `Dictionary<string, object>`, `List<object>`, `object[]`) still work without reflection.
+
+When publishing with NativeAOT (`PublishAot=true`), the SharpYaml NuGet package disables reflection-based serialization by default.
+You can override the default by setting the following MSBuild property in your app project:
+
+```xml
+<PropertyGroup>
+  <SharpYamlIsReflectionEnabledByDefault>true</SharpYamlIsReflectionEnabledByDefault>
+</PropertyGroup>
+```
 
 ## 🚀 Benchmarks
 

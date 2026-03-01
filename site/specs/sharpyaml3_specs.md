@@ -155,6 +155,7 @@ Key defaults:
 - Reflection fallback is **enabled by default** for familiarity.
   - Reflection paths must be marked `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]` as appropriate.
   - NativeAOT apps should provide generated metadata via `TypeInfoResolver` and disable reflection fallback via `YamlSerializer.IsReflectionEnabledByDefault`.
+  - Even when reflection is disabled, primitives and untyped containers (`object`, `Dictionary<string, object>`, `List<object>`, `object[]`) should remain supported out of the box.
 
 ### 4.3 Type metadata model (for both dynamic + generated)
 

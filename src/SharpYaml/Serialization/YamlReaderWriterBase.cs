@@ -334,6 +334,21 @@ public abstract class YamlReaderWriterBase
                 return YamlUntypedObjectConverter.Instance;
             }
 
+            if (typeToConvert == typeof(object[]))
+            {
+                return YamlObjectArrayConverter.Instance;
+            }
+
+            if (typeToConvert == typeof(List<object>))
+            {
+                return YamlListObjectConverter.Instance;
+            }
+
+            if (typeToConvert == typeof(Dictionary<string, object>))
+            {
+                return YamlDictionaryObjectConverter.Instance;
+            }
+
             if (typeof(SharpYaml.Model.YamlNode).IsAssignableFrom(typeToConvert))
             {
                 return YamlModelNodeConverter.Instance;
@@ -366,12 +381,22 @@ public abstract class YamlReaderWriterBase
 
                 if (definition == typeof(List<>))
                 {
+                    if (args[0] == typeof(object))
+                    {
+                        return YamlListObjectConverter.Instance;
+                    }
+
                     var converterType = typeof(YamlListConverter<>).MakeGenericType(args[0]);
                     return (YamlConverter)Activator.CreateInstance(converterType)!;
                 }
 
                 if (definition == typeof(Dictionary<,>) && args[0] == typeof(string))
                 {
+                    if (args[1] == typeof(object))
+                    {
+                        return YamlDictionaryObjectConverter.Instance;
+                    }
+
                     var converterType = typeof(YamlDictionaryConverter<>).MakeGenericType(args[1]);
                     return (YamlConverter)Activator.CreateInstance(converterType)!;
                 }

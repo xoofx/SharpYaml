@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Feature switches for trimming / NativeAOT.
+
+      SharpYaml follows the "feature switches" guidance from dotnet/runtime:
+      - values are provided to the runtime via runtimeconfig.json using RuntimeHostConfigurationOption
+      - values are also provided to the trimmer when Trim="true"
+    -->
+
+    <!--
+      By default, disable reflection-based serialization when publishing with NativeAOT.
+      Consumers can override by setting SharpYamlIsReflectionEnabledByDefault explicitly.
+    -->
+    <SharpYamlIsReflectionEnabledByDefault Condition="'$(SharpYamlIsReflectionEnabledByDefault)' == '' and ( '$(PublishAot)' == 'true' or '$(NativeAot)' == 'true' )">false</SharpYamlIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(SharpYamlIsReflectionEnabledByDefault)' != ''">
+    <RuntimeHostConfigurationOption Include="SharpYaml.YamlSerializer.IsReflectionEnabledByDefault"
+                                   Value="$(SharpYamlIsReflectionEnabledByDefault)"
+                                   Trim="true" />
+  </ItemGroup>
+</Project>
+

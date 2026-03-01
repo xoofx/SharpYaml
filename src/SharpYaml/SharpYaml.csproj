@@ -35,9 +35,11 @@
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)../../img/SharpYaml.png" Pack="true" PackagePath="/" />
     <None Include="$(MSBuildThisFileDirectory)../../README.md" Pack="true" PackagePath="/" Link="readme.md" />
+    <None Include="SharpYaml.targets" Pack="true" PackagePath="buildTransitive/SharpYaml.targets" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="ILLink.Substitutions.xml" LogicalName="ILLink.Substitutions.xml" />
     <PackageReference Include="MinVer">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

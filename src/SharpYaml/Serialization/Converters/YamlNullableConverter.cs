@@ -4,7 +4,7 @@ namespace SharpYaml.Serialization.Converters;
 
 internal sealed class YamlNullableConverter<T> : YamlConverter<T?> where T : struct
 {
-    private YamlConverter<T>? _inner;
+    public static YamlNullableConverter<T> Instance { get; } = new();
 
     public override T? Read(YamlReader reader)
     {
@@ -14,8 +14,7 @@ internal sealed class YamlNullableConverter<T> : YamlConverter<T?> where T : str
             return null;
         }
 
-        _inner ??= (YamlConverter<T>)reader.GetConverter(typeof(T));
-        return _inner.Read(reader);
+        return ((YamlConverter<T>)reader.GetConverter(typeof(T))).Read(reader);
     }
 
     public override void Write(YamlWriter writer, T? value)
@@ -26,7 +25,6 @@ internal sealed class YamlNullableConverter<T> : YamlConverter<T?> where T : str
             return;
         }
 
-        _inner ??= (YamlConverter<T>)writer.GetConverter(typeof(T));
-        _inner.Write(writer, value.GetValueOrDefault());
+        ((YamlConverter<T>)writer.GetConverter(typeof(T))).Write(writer, value.GetValueOrDefault());
     }
 }
