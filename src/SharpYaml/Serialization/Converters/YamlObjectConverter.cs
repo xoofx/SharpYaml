@@ -160,6 +160,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         var options = reader.Options;
         HashSet<Member>? seenMembers = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<Member>();
+        var mappingStart = reader.Start;
+        var requiredSeen = contract.RequiredMembers.Length == 0 ? null : new bool[contract.RequiredMembers.Length];
 
         reader.Read();
         while (reader.TokenType != YamlTokenType.EndMapping)
@@ -178,6 +180,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 reader.Skip();
                 continue;
+            }
+
+            if (requiredSeen is not null && member.RequiredIndex >= 0)
+            {
+                requiredSeen[member.RequiredIndex] = true;
             }
 
             var wasSeen = seenMembers is not null && !seenMembers.Add(member);
@@ -218,6 +225,24 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             catch (Exception exception)
             {
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+        }
+
+        if (requiredSeen is not null)
+        {
+            List<string>? missing = null;
+            for (var i = 0; i < requiredSeen.Length; i++)
+            {
+                if (!requiredSeen[i])
+                {
+                    missing ??= new List<string>();
+                    missing.Add(contract.RequiredMembers[i].Name);
+                }
+            }
+
+            if (missing is not null)
+            {
+                throw new YamlException(reader.SourceName, mappingStart, reader.End, $"Missing required mapping key(s) for '{typeof(T)}': {string.Join(", ", missing)}.");
             }
         }
 
@@ -382,12 +407,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             Member[] membersDeclaration,
             Member[] membersSorted,
             Dictionary<string, Member> membersByName,
+            Member[] requiredMembers,
             PolymorphismModel? polymorphism)
         {
             CreateInstance = createInstance;
             MembersDeclaration = membersDeclaration;
             MembersSorted = membersSorted;
             _membersByName = membersByName;
+            RequiredMembers = requiredMembers;
             Polymorphism = polymorphism;
         }
 
@@ -396,6 +423,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public Member[] MembersDeclaration { get; }
 
         public Member[] MembersSorted { get; }
+
+        public Member[] RequiredMembers { get; }
 
         public PolymorphismModel? Polymorphism { get; }
 
@@ -429,6 +458,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
 
             var members = new List<Member>();
+            var requiredMembers = new List<Member>();
 
             const BindingFlags allInstance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             foreach (var property in type.GetProperties(allInstance))
@@ -455,7 +485,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(property);
                 var token = property.MetadataToken;
 
-                members.Add(new Member(name, order, token, property.PropertyType, property, ignoreCondition));
+                var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property));
+                members.Add(member);
+                if (member.IsRequired)
+                {
+                    requiredMembers.Add(member);
+                }
             }
 
             foreach (var field in type.GetFields(allInstance))
@@ -476,7 +511,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(field);
                 var token = field.MetadataToken;
 
-                members.Add(new Member(name, order, token, field.FieldType, field, ignoreCondition));
+                var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field));
+                members.Add(member);
+                if (member.IsRequired)
+                {
+                    requiredMembers.Add(member);
+                }
             }
 
             members.Sort(static (x, y) =>
@@ -507,7 +547,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
 
             var polymorphism = PolymorphismModel.TryCreate(type, options);
-            return new Contract(CreateInstance, membersDeclaration, membersSorted, map, polymorphism);
+            for (var i = 0; i < requiredMembers.Count; i++)
+            {
+                requiredMembers[i].RequiredIndex = i;
+            }
+
+            return new Contract(CreateInstance, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), polymorphism);
         }
 
         public bool TryGetMember(string name, out Member member) => _membersByName.TryGetValue(name, out member!);
@@ -654,7 +699,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         private readonly PropertyInfo? _property;
         private readonly FieldInfo? _field;
 
-        public Member(string name, int order, int declarationOrder, Type memberType, PropertyInfo property, YamlIgnoreCondition? ignoreCondition)
+        public Member(string name, int order, int declarationOrder, Type memberType, PropertyInfo property, YamlIgnoreCondition? ignoreCondition, bool isRequired)
         {
             Name = name;
             Order = order;
@@ -663,9 +708,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             _property = property;
             _field = null;
             IgnoreCondition = ignoreCondition;
+            IsRequired = isRequired;
         }
 
-        public Member(string name, int order, int declarationOrder, Type memberType, FieldInfo field, YamlIgnoreCondition? ignoreCondition)
+        public Member(string name, int order, int declarationOrder, Type memberType, FieldInfo field, YamlIgnoreCondition? ignoreCondition, bool isRequired)
         {
             Name = name;
             Order = order;
@@ -674,6 +720,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             _property = null;
             _field = field;
             IgnoreCondition = ignoreCondition;
+            IsRequired = isRequired;
         }
 
         public string Name { get; }
@@ -687,6 +734,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public bool CanRead => _property?.GetMethod is not null || _field is not null;
 
         public YamlIgnoreCondition? IgnoreCondition { get; }
+
+        public bool IsRequired { get; }
+
+        public int RequiredIndex { get; set; } = -1;
 
         public YamlConverter? Converter { get; set; }
 
@@ -768,6 +819,21 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 JsonIgnoreCondition.WhenWritingDefault => YamlIgnoreCondition.WhenWritingDefault,
                 _ => null,
             };
+        }
+
+        return false;
+    }
+
+    private static bool IsRequired(MemberInfo member)
+    {
+        if (member.IsDefined(typeof(YamlRequiredAttribute), inherit: true))
+        {
+            return true;
+        }
+
+        if (member.IsDefined(typeof(JsonRequiredAttribute), inherit: true))
+        {
+            return true;
         }
 
         return false;
