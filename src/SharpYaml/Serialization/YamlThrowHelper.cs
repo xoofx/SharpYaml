@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SharpYaml.Serialization;
 
@@ -118,4 +119,54 @@ public static class YamlThrowHelper
     /// <summary>Throws an exception for alias Missing Value.</summary>
     public static YamlException ThrowAliasMissingValue(YamlReader reader)
         => new(reader.SourceName, reader.Start, reader.End, "Alias token did not provide an alias value.");
+
+    /// <summary>Throws an exception when required members are missing from an object mapping.</summary>
+    /// <param name="reader">The reader positioned at the end of the mapping.</param>
+    /// <param name="mappingStart">The start location of the mapping.</param>
+    /// <param name="declaringType">The target CLR type being deserialized.</param>
+    /// <param name="missingMemberNames">The YAML member names that were missing.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="declaringType"/>, or <paramref name="missingMemberNames"/> is <see langword="null"/>.</exception>
+    public static YamlException ThrowMissingRequiredMembers(YamlReader reader, Mark mappingStart, Type declaringType, IReadOnlyList<string> missingMemberNames)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(declaringType);
+        ArgumentNullException.ThrowIfNull(missingMemberNames);
+
+        var joined = missingMemberNames.Count == 0 ? string.Empty : string.Join(", ", missingMemberNames);
+        var message = missingMemberNames.Count == 0
+            ? $"Missing required members for '{declaringType}'."
+            : $"Missing required members for '{declaringType}': {joined}.";
+
+        return new YamlException(reader.SourceName, mappingStart, reader.End, message);
+    }
+
+    /// <summary>Throws an exception when a lifecycle callback fails during deserialization.</summary>
+    /// <param name="reader">The reader used for deserialization.</param>
+    /// <param name="declaringType">The CLR type being deserialized.</param>
+    /// <param name="callbackName">The callback name being invoked.</param>
+    /// <param name="exception">The callback exception.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="declaringType"/>, <paramref name="callbackName"/>, or <paramref name="exception"/> is <see langword="null"/>.</exception>
+    public static YamlException ThrowCallbackInvocationFailed(YamlReader reader, Type declaringType, string callbackName, Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(declaringType);
+        ArgumentNullException.ThrowIfNull(callbackName);
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return new YamlException(reader.SourceName, reader.Start, reader.End, $"An error occurred while invoking '{callbackName}' on '{declaringType}'.", exception);
+    }
+
+    /// <summary>Throws an exception when a lifecycle callback fails during serialization.</summary>
+    /// <param name="declaringType">The CLR type being serialized.</param>
+    /// <param name="callbackName">The callback name being invoked.</param>
+    /// <param name="exception">The callback exception.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="declaringType"/>, <paramref name="callbackName"/>, or <paramref name="exception"/> is <see langword="null"/>.</exception>
+    public static YamlException ThrowCallbackInvocationFailed(Type declaringType, string callbackName, Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(declaringType);
+        ArgumentNullException.ThrowIfNull(callbackName);
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return new YamlException(Mark.Empty, Mark.Empty, $"An error occurred while invoking '{callbackName}' on '{declaringType}'.", exception);
+    }
 }

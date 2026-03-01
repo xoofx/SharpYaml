@@ -29,6 +29,22 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor UnsupportedExtensionDataMember = new(
+        id: "SHARPYAML003",
+        title: "Unsupported extension data member",
+        messageFormat: "Type '{0}' contains extension data member '{1}' of unsupported type '{2}'. Extension data members must be 'IDictionary<string, object>', 'IDictionary<string, SharpYaml.Model.YamlNode>', or 'SharpYaml.Model.YamlMapping'.",
+        category: "SharpYaml.SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor MultipleExtensionDataMembers = new(
+        id: "SHARPYAML004",
+        title: "Multiple extension data members",
+        messageFormat: "Type '{0}' contains multiple extension data members. Only one member can be annotated with [YamlExtensionData] or [JsonExtensionData].",
+        category: "SharpYaml.SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private sealed class SourceGenerationOptionsModel
     {
         public bool? WriteIndented { get; set; }
@@ -179,8 +195,37 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 continue;
             }
 
+            var extensionDataMembers = GetExtensionDataMembers(named);
+            if (extensionDataMembers.Length > 1)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MultipleExtensionDataMembers,
+                    named.Locations.FirstOrDefault(),
+                    named.ToDisplayString()));
+            }
+
+            ISymbol? extensionDataMember = extensionDataMembers.Length == 1 ? extensionDataMembers[0] : null;
+            if (extensionDataMember is not null)
+            {
+                var extensionType = GetMemberType(extensionDataMember);
+                if (extensionType is null || !IsSupportedExtensionDataMemberType(extensionType))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        UnsupportedExtensionDataMember,
+                        extensionDataMember.Locations.FirstOrDefault(),
+                        named.ToDisplayString(),
+                        extensionDataMember.Name,
+                        extensionType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "<unknown>"));
+                }
+            }
+
             foreach (var member in GetSerializableMembers(named))
             {
+                if (extensionDataMember is not null && SymbolEqualityComparer.Default.Equals(member, extensionDataMember))
+                {
+                    continue;
+                }
+
                 var memberType = GetMemberType(member);
                 if (memberType is null)
                 {
@@ -419,12 +464,42 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static void EmitWriteValue(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName, Dictionary<ITypeSymbol, int> indexByType)
     {
+        var attributeConverterTypeName = GetYamlConverterAttributeTypeName((ISymbol)typeSymbol);
+
         builder.Append("    private static void WriteValue").Append(index)
             .Append("(global::SharpYaml.Serialization.YamlWriter writer, ").Append(typeName).AppendLine(" value)");
         builder.AppendLine("    {");
         builder.AppendLine("        var options = writer.Options;");
         builder.AppendLine("        var hasCustomConverters = options.Converters.Count != 0;");
         builder.AppendLine();
+
+        if (attributeConverterTypeName is not null)
+        {
+            if (typeSymbol.IsReferenceType)
+            {
+                builder.AppendLine("        if (value is null)");
+                builder.AppendLine("        {");
+                builder.AppendLine("            writer.WriteNullValue();");
+                builder.AppendLine("            return;");
+                builder.AppendLine("        }");
+            }
+
+            builder.Append("        global::SharpYaml.Serialization.YamlConverter attributeConverter = new ").Append(attributeConverterTypeName).AppendLine("();");
+            builder.AppendLine("        if (attributeConverter is global::SharpYaml.Serialization.YamlConverterFactory factory)");
+            builder.AppendLine("        {");
+            builder.Append("            var created = factory.CreateConverter(typeof(").Append(typeName).AppendLine("), options);");
+            builder.AppendLine("            if (created is null || !created.CanConvert(typeof(" + typeName + ")))");
+            builder.AppendLine("            {");
+            builder.AppendLine("                throw new global::System.InvalidOperationException(\"Converter factory returned an invalid converter.\");");
+            builder.AppendLine("            }");
+            builder.AppendLine("            created.Write(writer, value);");
+            builder.AppendLine("            return;");
+            builder.AppendLine("        }");
+            builder.AppendLine("        attributeConverter.Write(writer, value);");
+            builder.AppendLine("        return;");
+            builder.AppendLine("    }");
+            return;
+        }
 
         builder.Append("        if (hasCustomConverters && writer.TryGetCustomConverter(typeof(").Append(typeName).AppendLine("), out var rootCustomConverter) && rootCustomConverter is not null)");
         builder.AppendLine("        {");
@@ -595,6 +670,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         if (typeSymbol is INamedTypeSymbol named && (named.TypeKind == TypeKind.Class || named.TypeKind == TypeKind.Struct))
         {
+            var emitLifecycleCallbacks =
+                (named.TypeKind == TypeKind.Class && (!named.IsSealed || ImplementsAnyYamlLifecycleCallback(named))) ||
+                (named.TypeKind == TypeKind.Struct && ImplementsAnyYamlLifecycleCallback(named));
+
             if (named.TypeKind == TypeKind.Class)
             {
                 builder.AppendLine("        if (value is null)");
@@ -608,6 +687,42 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.AppendLine();
                 builder.AppendLine("        if (writer.TryWriteReference(value)) { return; }");
+            }
+
+            if (emitLifecycleCallbacks)
+            {
+                builder.AppendLine();
+                builder.AppendLine("        void InvokeOnSerializing()");
+                builder.AppendLine("        {");
+                builder.AppendLine("            if (value is global::SharpYaml.Serialization.IYamlOnSerializing onSerializing)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                try");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    onSerializing.OnSerializing();");
+                builder.AppendLine("                }");
+                builder.AppendLine("                catch (global::System.Exception exception)");
+                builder.AppendLine("                {");
+                builder.Append("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowCallbackInvocationFailed(typeof(").Append(typeName).AppendLine("), \"IYamlOnSerializing.OnSerializing\", exception);");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+                builder.AppendLine("        }");
+                builder.AppendLine();
+                builder.AppendLine("        void InvokeOnSerialized()");
+                builder.AppendLine("        {");
+                builder.AppendLine("            if (value is global::SharpYaml.Serialization.IYamlOnSerialized onSerialized)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                try");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    onSerialized.OnSerialized();");
+                builder.AppendLine("                }");
+                builder.AppendLine("                catch (global::System.Exception exception)");
+                builder.AppendLine("                {");
+                builder.Append("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowCallbackInvocationFailed(typeof(").Append(typeName).AppendLine("), \"IYamlOnSerialized.OnSerialized\", exception);");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+                builder.AppendLine("        }");
+                builder.AppendLine();
+                builder.AppendLine("        InvokeOnSerializing();");
             }
 
             if (named.TypeKind == TypeKind.Class && TryGetPolymorphismInfo(named, out var polymorphism) && polymorphism.DerivedTypes.Length != 0)
@@ -651,6 +766,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     builder.AppendLine("            }");
                     builder.Append("            WriteMembers").Append(derivedIndex).Append("(writer, ").Append(derivedLocal).AppendLine(", discriminatorPropertyName);");
                     builder.AppendLine("            writer.WriteEndMapping();");
+                    if (emitLifecycleCallbacks)
+                    {
+                        builder.AppendLine("            InvokeOnSerialized();");
+                    }
                     builder.AppendLine("            return;");
                     builder.AppendLine("        }");
                 }
@@ -665,15 +784,21 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
             builder.AppendLine("        writer.WriteStartMapping();");
 
+            var extensionData = TryCreateExtensionDataMemberModel(named);
             var members = GetSerializableMembers(named)
+                .Where(m => extensionData is null || !SymbolEqualityComparer.Default.Equals(m, extensionData.Symbol))
                 .Select(m => CreateMemberModel(m))
                 .ToImmutableArray();
             builder.Append("        WriteMembers").Append(index).AppendLine("(writer, value, discriminatorPropertyName: null);");
             builder.AppendLine("        writer.WriteEndMapping();");
+            if (emitLifecycleCallbacks)
+            {
+                builder.AppendLine("        InvokeOnSerialized();");
+            }
             builder.AppendLine("        return;");
             builder.AppendLine("    }");
             builder.AppendLine();
-            EmitWriteMembersMethod(builder, index, typeName, members, indexByType);
+            EmitWriteMembersMethod(builder, index, typeName, members, extensionData, indexByType);
             return;
         }
 
@@ -681,7 +806,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("    }");
     }
 
-    private static void EmitWriteMembersMethod(StringBuilder builder, int index, string typeName, ImmutableArray<MemberModel> members, Dictionary<ITypeSymbol, int> indexByType)
+    private static void EmitWriteMembersMethod(StringBuilder builder, int index, string typeName, ImmutableArray<MemberModel> members, ExtensionDataMemberModel? extensionData, Dictionary<ITypeSymbol, int> indexByType)
     {
         builder.Append("    private static void WriteMembers").Append(index)
             .Append("(global::SharpYaml.Serialization.YamlWriter writer, ").Append(typeName)
@@ -757,11 +882,151 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        }");
         }
 
+        if (extensionData is not null)
+        {
+            builder.AppendLine();
+            builder.Append("        var extensionData = value.").Append(extensionData.Symbol.Name).AppendLine(";");
+            builder.AppendLine("        if (extensionData is not null)");
+            builder.AppendLine("        {");
+
+            if (extensionData.Kind == ExtensionDataKind.Dictionary)
+            {
+                var valueTypeName = (extensionData.DictionaryValueType ?? throw new InvalidOperationException("Extension data dictionary value type is missing."))
+                    .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+                builder.AppendLine("            if (options.MappingOrder == global::SharpYaml.YamlMappingOrderPolicy.Sorted)");
+                builder.AppendLine("            {");
+                builder.Append("                var items = new global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, ").Append(valueTypeName).AppendLine(">>(extensionData.Count);");
+                builder.AppendLine("                foreach (var pair in extensionData)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    items.Add(pair);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                items.Sort(static (x, y) => global::System.String.CompareOrdinal(x.Key, y.Key));");
+                builder.AppendLine("                for (var i = 0; i < items.Count; i++)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    var key = items[i].Key;");
+                builder.AppendLine("                    if (discriminatorPropertyName is not null && global::System.String.Equals(key, discriminatorPropertyName, global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        continue;");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    writer.WritePropertyName(key);");
+                builder.AppendLine("                    var extensionValue = items[i].Value;");
+                builder.AppendLine("                    if (extensionValue is null)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        writer.WriteNullValue();");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    else");
+                builder.AppendLine("                    {");
+                builder.Append("                        var converter = writer.GetConverter(typeof(").Append(valueTypeName).AppendLine("));");
+                builder.AppendLine("                        converter.Write(writer, extensionValue);");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+                builder.AppendLine("            else");
+                builder.AppendLine("            {");
+                builder.AppendLine("                foreach (var pair in extensionData)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    var key = pair.Key;");
+                builder.AppendLine("                    if (discriminatorPropertyName is not null && global::System.String.Equals(key, discriminatorPropertyName, global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        continue;");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    writer.WritePropertyName(key);");
+                builder.AppendLine("                    var extensionValue = pair.Value;");
+                builder.AppendLine("                    if (extensionValue is null)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        writer.WriteNullValue();");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    else");
+                builder.AppendLine("                    {");
+                builder.Append("                        var converter = writer.GetConverter(typeof(").Append(valueTypeName).AppendLine("));");
+                builder.AppendLine("                        converter.Write(writer, extensionValue);");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+            }
+            else
+            {
+                builder.AppendLine("            if (extensionData is not global::SharpYaml.Model.YamlMapping mapping)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                throw new global::SharpYaml.YamlException(global::SharpYaml.Mark.Empty, global::SharpYaml.Mark.Empty, \"Extension data must be a SharpYaml.Model.YamlMapping.\");");
+                builder.AppendLine("            }");
+                builder.AppendLine("            var list = (global::System.Collections.Generic.IList<global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>>)mapping;");
+                builder.AppendLine("            if (options.MappingOrder == global::SharpYaml.YamlMappingOrderPolicy.Sorted)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                var items = new global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>>(list.Count);");
+                builder.AppendLine("                for (var i = 0; i < list.Count; i++)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    var pair = list[i];");
+                builder.AppendLine("                    if (pair.Key is not global::SharpYaml.Model.YamlValue keyValue)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        throw new global::SharpYaml.YamlException(global::SharpYaml.Mark.Empty, global::SharpYaml.Mark.Empty, \"Only scalar mapping keys are supported for extension data.\");");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    items.Add(new global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>(keyValue.Value, pair.Value));");
+                builder.AppendLine("                }");
+                builder.AppendLine("                items.Sort(static (x, y) => global::System.String.CompareOrdinal(x.Key, y.Key));");
+                builder.AppendLine("                for (var i = 0; i < items.Count; i++)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    var key = items[i].Key;");
+                builder.AppendLine("                    if (discriminatorPropertyName is not null && global::System.String.Equals(key, discriminatorPropertyName, global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        continue;");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    writer.WritePropertyName(key);");
+                builder.AppendLine("                    var extensionValue = items[i].Value;");
+                builder.AppendLine("                    if (extensionValue is null)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        writer.WriteNullValue();");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    else");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        var converter = writer.GetConverter(typeof(global::SharpYaml.Model.YamlNode));");
+                builder.AppendLine("                        converter.Write(writer, extensionValue);");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+                builder.AppendLine("            else");
+                builder.AppendLine("            {");
+                builder.AppendLine("                for (var i = 0; i < list.Count; i++)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    var pair = list[i];");
+                builder.AppendLine("                    if (pair.Key is not global::SharpYaml.Model.YamlValue keyValue)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        throw new global::SharpYaml.YamlException(global::SharpYaml.Mark.Empty, global::SharpYaml.Mark.Empty, \"Only scalar mapping keys are supported for extension data.\");");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    var key = keyValue.Value;");
+                builder.AppendLine("                    if (discriminatorPropertyName is not null && global::System.String.Equals(key, discriminatorPropertyName, global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        continue;");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    writer.WritePropertyName(key);");
+                builder.AppendLine("                    var extensionValue = pair.Value;");
+                builder.AppendLine("                    if (extensionValue is null)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        writer.WriteNullValue();");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    else");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        var converter = writer.GetConverter(typeof(global::SharpYaml.Model.YamlNode));");
+                builder.AppendLine("                        converter.Write(writer, extensionValue);");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+            }
+
+            builder.AppendLine("        }");
+        }
+
         builder.AppendLine("    }");
     }
 
-    private static void EmitReadObjectCoreMethod(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName, ImmutableArray<MemberModel> members, Dictionary<ITypeSymbol, int> indexByType)
+    private static void EmitReadObjectCoreMethod(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName, ImmutableArray<MemberModel> members, ExtensionDataMemberModel? extensionData, Dictionary<ITypeSymbol, int> indexByType)
     {
+        var emitLifecycleCallbacks =
+            typeSymbol is INamedTypeSymbol lifecycleType &&
+            ((lifecycleType.TypeKind == TypeKind.Class && (!lifecycleType.IsSealed || ImplementsAnyYamlLifecycleCallback(lifecycleType))) ||
+             (lifecycleType.TypeKind == TypeKind.Struct && ImplementsAnyYamlLifecycleCallback(lifecycleType)));
+
         builder.Append("    private static ").Append(typeName).Append(typeSymbol.IsReferenceType ? "?" : string.Empty).Append(" ReadObjectCore").Append(index)
             .AppendLine("(global::SharpYaml.Serialization.YamlReader reader)");
         builder.AppendLine("    {");
@@ -771,6 +1036,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedMapping(reader);");
         builder.AppendLine("        }");
+        builder.AppendLine("        var mappingStart = reader.Start;");
 
         if (typeSymbol is INamedTypeSymbol namedType && namedType.TypeKind == TypeKind.Class && namedType.IsAbstract)
         {
@@ -790,6 +1056,97 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        if (instanceAnchor is not null) { reader.RegisterAnchor(instanceAnchor, instance); }");
         }
 
+        if (emitLifecycleCallbacks)
+        {
+            builder.AppendLine("        if (instance is global::SharpYaml.Serialization.IYamlOnDeserializing onDeserializing)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            try");
+            builder.AppendLine("            {");
+            builder.AppendLine("                onDeserializing.OnDeserializing();");
+            builder.AppendLine("            }");
+            builder.AppendLine("            catch (global::System.Exception exception)");
+            builder.AppendLine("            {");
+            builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowCallbackInvocationFailed(reader, typeof(").Append(typeName).AppendLine("), \"IYamlOnDeserializing.OnDeserializing\", exception);");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine();
+        }
+
+        if (extensionData is not null)
+        {
+            if (extensionData.Kind == ExtensionDataKind.Dictionary)
+            {
+                var valueTypeName = (extensionData.DictionaryValueType ?? throw new InvalidOperationException("Extension data dictionary value type is missing."))
+                    .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                builder.AppendLine("        void ReadAndStoreExtensionData(string extensionKey)");
+                builder.AppendLine("        {");
+                builder.Append("            var container = instance.").Append(extensionData.Symbol.Name).AppendLine(";");
+                builder.AppendLine("            if (container is null)");
+                builder.AppendLine("            {");
+                builder.Append("                container = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
+                    .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
+                if (extensionData.CanAssign)
+                {
+                    builder.Append("                instance.").Append(extensionData.Symbol.Name).AppendLine(" = container;");
+                }
+                else
+                {
+                    builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, \"Extension data member '")
+                        .Append(extensionData.Symbol.Name).Append("' could not be assigned.\");").AppendLine();
+                }
+                builder.AppendLine("            }");
+                builder.Append("            var converter = reader.GetConverter(typeof(").Append(valueTypeName).AppendLine("));");
+                builder.Append("            var extensionValue = (").Append(valueTypeName).Append(")converter.Read(reader, typeof(").Append(valueTypeName).AppendLine("));");
+                builder.AppendLine("            container[extensionKey] = extensionValue;");
+                builder.AppendLine("        }");
+                builder.AppendLine();
+            }
+            else
+            {
+                builder.AppendLine("        void ReadAndStoreExtensionData(string extensionKey)");
+                builder.AppendLine("        {");
+                builder.Append("            var mapping = instance.").Append(extensionData.Symbol.Name).AppendLine(";");
+                builder.AppendLine("            if (mapping is null)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                mapping = new global::SharpYaml.Model.YamlMapping();");
+                if (extensionData.CanAssign)
+                {
+                    builder.Append("                instance.").Append(extensionData.Symbol.Name).AppendLine(" = mapping;");
+                }
+                else
+                {
+                    builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, \"Extension data member '")
+                        .Append(extensionData.Symbol.Name).Append("' could not be assigned.\");").AppendLine();
+                }
+                builder.AppendLine("            }");
+                builder.AppendLine("            var converter = reader.GetConverter(typeof(global::SharpYaml.Model.YamlElement));");
+                builder.AppendLine("            var extensionValue = (global::SharpYaml.Model.YamlElement?)converter.Read(reader, typeof(global::SharpYaml.Model.YamlElement));");
+                builder.AppendLine("            var list = (global::System.Collections.Generic.IList<global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>>)mapping;");
+                builder.AppendLine("            for (var i = 0; i < list.Count; i++)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                var pair = list[i];");
+                builder.AppendLine("                if (pair.Key is global::SharpYaml.Model.YamlValue keyValue && global::System.String.Equals(keyValue.Value, extensionKey, global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    list[i] = new global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>(pair.Key, extensionValue);");
+                builder.AppendLine("                    return;");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+                builder.AppendLine("            mapping.Add(new global::SharpYaml.Model.YamlValue(extensionKey), extensionValue);");
+                builder.AppendLine("        }");
+                builder.AppendLine();
+            }
+        }
+
+        var requiredMembers = members.Where(static m => m.IsRequired).ToArray();
+        for (var i = 0; i < requiredMembers.Length; i++)
+        {
+            builder.Append("        var __required").Append(index).Append("_").Append(requiredMembers[i].Symbol.Name).AppendLine(" = false;");
+        }
+        if (requiredMembers.Length != 0)
+        {
+            builder.AppendLine();
+        }
+
         builder.AppendLine("        reader.Read();");
         builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
         builder.AppendLine("        {");
@@ -801,23 +1158,91 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            reader.Read();");
 
         builder.AppendLine("            var matched = false;");
-        var writableMembers = members.Where(static m => IsWritableMember(m.Symbol)).ToImmutableArray();
-        foreach (var member in writableMembers)
+        var readCandidates = members.Where(static m => IsWritableMember(m.Symbol) || m.IsRequired).ToImmutableArray();
+        foreach (var member in readCandidates)
         {
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
             builder.AppendLine();
             builder.AppendLine("            {");
             builder.AppendLine("                matched = true;");
-            EmitReadMemberValueWithCustomConverter(builder, member, indexByType);
+            if (member.IsRequired)
+            {
+                builder.Append("                __required").Append(index).Append("_").Append(member.Symbol.Name).AppendLine(" = true;");
+            }
+
+            if (IsWritableMember(member.Symbol))
+            {
+                EmitReadMemberValueWithCustomConverter(builder, member, indexByType);
+            }
+            else
+            {
+                if (extensionData is not null)
+                {
+                    builder.AppendLine("                ReadAndStoreExtensionData(key);");
+                }
+                else
+                {
+                    builder.AppendLine("                reader.Skip();");
+                }
+            }
             builder.AppendLine("            }");
         }
 
         builder.AppendLine("            if (!matched)");
         builder.AppendLine("            {");
-        builder.AppendLine("                reader.Skip();");
+        if (extensionData is not null)
+        {
+            builder.AppendLine("                ReadAndStoreExtensionData(key);");
+        }
+        else
+        {
+            builder.AppendLine("                reader.Skip();");
+        }
         builder.AppendLine("            }");
         builder.AppendLine("        }");
+        if (requiredMembers.Length != 0)
+        {
+            builder.AppendLine();
+            builder.Append("        if (");
+            for (var i = 0; i < requiredMembers.Length; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(" || ");
+                }
+                builder.Append("!__required").Append(index).Append("_").Append(requiredMembers[i].Symbol.Name);
+            }
+            builder.AppendLine(")");
+            builder.AppendLine("        {");
+            builder.AppendLine("            var missing = new global::System.Collections.Generic.List<string>();");
+            for (var i = 0; i < requiredMembers.Length; i++)
+            {
+                builder.Append("            if (!__required").Append(index).Append("_").Append(requiredMembers[i].Symbol.Name).AppendLine(")");
+                builder.AppendLine("            {");
+                builder.Append("                missing.Add(").Append(requiredMembers[i].SerializedNameExpressionForRead).AppendLine(");");
+                builder.AppendLine("            }");
+            }
+            builder.Append("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowMissingRequiredMembers(reader, mappingStart, typeof(").Append(typeName).AppendLine("), missing);");
+            builder.AppendLine("        }");
+        }
+
+        if (emitLifecycleCallbacks)
+        {
+            builder.AppendLine();
+            builder.AppendLine("        if (instance is global::SharpYaml.Serialization.IYamlOnDeserialized onDeserialized)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            try");
+            builder.AppendLine("            {");
+            builder.AppendLine("                onDeserialized.OnDeserialized();");
+            builder.AppendLine("            }");
+            builder.AppendLine("            catch (global::System.Exception exception)");
+            builder.AppendLine("            {");
+            builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowCallbackInvocationFailed(reader, typeof(").Append(typeName).AppendLine("), \"IYamlOnDeserialized.OnDeserialized\", exception);");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine();
+        }
         builder.AppendLine("        reader.Read();");
         builder.AppendLine("        return instance;");
         builder.AppendLine("    }");
@@ -825,12 +1250,31 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static void EmitReadValue(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName, Dictionary<ITypeSymbol, int> indexByType)
     {
+        var attributeConverterTypeName = GetYamlConverterAttributeTypeName((ISymbol)typeSymbol);
+
         builder.Append("    private static ").Append(typeName).Append(typeSymbol.IsReferenceType ? "?" : string.Empty).Append(" ReadValue").Append(index)
             .AppendLine("(global::SharpYaml.Serialization.YamlReader reader)");
         builder.AppendLine("    {");
         builder.AppendLine("        var options = reader.Options;");
         builder.AppendLine("        var hasCustomConverters = options.Converters.Count != 0;");
         builder.AppendLine();
+
+        if (attributeConverterTypeName is not null)
+        {
+            builder.Append("        global::SharpYaml.Serialization.YamlConverter attributeConverter = new ").Append(attributeConverterTypeName).AppendLine("();");
+            builder.AppendLine("        if (attributeConverter is global::SharpYaml.Serialization.YamlConverterFactory factory)");
+            builder.AppendLine("        {");
+            builder.Append("            var created = factory.CreateConverter(typeof(").Append(typeName).AppendLine("), options);");
+            builder.AppendLine("            if (created is null || !created.CanConvert(typeof(" + typeName + ")))");
+            builder.AppendLine("            {");
+            builder.AppendLine("                throw new global::System.InvalidOperationException(\"Converter factory returned an invalid converter.\");");
+            builder.AppendLine("            }");
+            builder.Append("            return (").Append(typeName).AppendLine(")created.Read(reader, typeof(" + typeName + "))!;");
+            builder.AppendLine("        }");
+            builder.Append("        return (").Append(typeName).AppendLine(")attributeConverter.Read(reader, typeof(" + typeName + "))!;");
+            builder.AppendLine("    }");
+            return;
+        }
 
         builder.Append("        if (hasCustomConverters && reader.TryGetCustomConverter(typeof(").Append(typeName).AppendLine("), out var rootCustomConverter) && rootCustomConverter is not null)");
         builder.AppendLine("        {");
@@ -1274,7 +1718,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedMapping(reader);");
             builder.AppendLine("        }");
 
+            var extensionData = TryCreateExtensionDataMemberModel(named);
             var members = GetSerializableMembers(named)
+                .Where(m => extensionData is null || !SymbolEqualityComparer.Default.Equals(m, extensionData.Symbol))
                 .Select(m => CreateMemberModel(m))
                 .ToImmutableArray();
 
@@ -1355,14 +1801,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 }
                 builder.AppendLine("    }");
                 builder.AppendLine();
-                EmitReadObjectCoreMethod(builder, index, typeSymbol, typeName, members, indexByType);
+                EmitReadObjectCoreMethod(builder, index, typeSymbol, typeName, members, extensionData, indexByType);
                 return;
             }
 
             builder.Append("        return ReadObjectCore").Append(index).AppendLine("(reader);");
             builder.AppendLine("    }");
             builder.AppendLine();
-            EmitReadObjectCoreMethod(builder, index, typeSymbol, typeName, members, indexByType);
+            EmitReadObjectCoreMethod(builder, index, typeSymbol, typeName, members, extensionData, indexByType);
             return;
         }
 
@@ -1536,6 +1982,24 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     private static void EmitWriteMemberValueWithCustomConverter(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType, string valueExpression, string indent)
     {
         var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (member.AttributeConverterTypeName is not null)
+        {
+            builder.Append(indent).Append("{").AppendLine();
+            builder.Append(indent).Append("    var attributeConverter = (global::SharpYaml.Serialization.YamlConverter)new ")
+                .Append(member.AttributeConverterTypeName).AppendLine("();");
+            builder.Append(indent).AppendLine("    if (attributeConverter is global::SharpYaml.Serialization.YamlConverterFactory factory)");
+            builder.Append(indent).AppendLine("    {");
+            builder.Append(indent).Append("        attributeConverter = factory.CreateConverter(typeof(").Append(memberTypeName).AppendLine("), options);");
+            builder.Append(indent).AppendLine("        if (attributeConverter is null || !attributeConverter.CanConvert(typeof(" + memberTypeName + ")))");
+            builder.Append(indent).AppendLine("        {");
+            builder.Append(indent).AppendLine("            throw new global::System.InvalidOperationException(\"Attribute converter factory returned an invalid converter.\");");
+            builder.Append(indent).AppendLine("        }");
+            builder.Append(indent).AppendLine("    }");
+            builder.Append(indent).Append("    attributeConverter.Write(writer, ").Append(valueExpression).AppendLine(");");
+            builder.Append(indent).AppendLine("}");
+            return;
+        }
+
         builder.Append(indent).Append("if (hasCustomConverters && writer.TryGetCustomConverter(typeof(").Append(memberTypeName).AppendLine("), out var memberCustomConverter) && memberCustomConverter is not null)");
         builder.Append(indent).AppendLine("{");
         builder.Append(indent + "    ").Append("memberCustomConverter.Write(writer, ").Append(valueExpression).AppendLine(");");
@@ -1967,6 +2431,32 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     private static void EmitReadMemberValueWithCustomConverter(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType)
     {
         var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (member.AttributeConverterTypeName is not null)
+        {
+            builder.AppendLine("                {");
+            builder.Append("                    var attributeConverter = (global::SharpYaml.Serialization.YamlConverter)new ")
+                .Append(member.AttributeConverterTypeName).AppendLine("();");
+            builder.AppendLine("                    if (attributeConverter is global::SharpYaml.Serialization.YamlConverterFactory factory)");
+            builder.AppendLine("                    {");
+            builder.Append("                        attributeConverter = factory.CreateConverter(typeof(").Append(memberTypeName).AppendLine("), options);");
+            builder.AppendLine("                        if (attributeConverter is null || !attributeConverter.CanConvert(typeof(" + memberTypeName + ")))");
+            builder.AppendLine("                        {");
+            builder.AppendLine("                            throw new global::System.InvalidOperationException(\"Attribute converter factory returned an invalid converter.\");");
+            builder.AppendLine("                        }");
+            builder.AppendLine("                    }");
+            builder.Append("                    var untyped = attributeConverter.Read(reader, typeof(").Append(memberTypeName).AppendLine("));");
+            builder.AppendLine("                    if (untyped is null)");
+            builder.AppendLine("                    {");
+            builder.Append("                        ").Append(member.AssignExpression("default")).AppendLine(";");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                    else");
+            builder.AppendLine("                    {");
+            builder.Append("                        ").Append(member.AssignExpression($"({memberTypeName})untyped")).AppendLine(";");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                }");
+            return;
+        }
+
         builder.Append("                if (hasCustomConverters && reader.TryGetCustomConverter(typeof(").Append(memberTypeName).AppendLine("), out var memberCustomConverter) && memberCustomConverter is not null)");
         builder.AppendLine("                {");
         builder.Append("                    var untyped = memberCustomConverter.Read(reader, typeof(").Append(memberTypeName).AppendLine("));");
@@ -2555,6 +3045,23 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             or SpecialType.System_Char;
     }
 
+    private static bool ImplementsAnyYamlLifecycleCallback(INamedTypeSymbol type)
+    {
+        foreach (var iface in type.AllInterfaces)
+        {
+            var name = iface.ToDisplayString();
+            if (string.Equals(name, "SharpYaml.Serialization.IYamlOnDeserializing", StringComparison.Ordinal) ||
+                string.Equals(name, "SharpYaml.Serialization.IYamlOnDeserialized", StringComparison.Ordinal) ||
+                string.Equals(name, "SharpYaml.Serialization.IYamlOnSerializing", StringComparison.Ordinal) ||
+                string.Equals(name, "SharpYaml.Serialization.IYamlOnSerialized", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private sealed class MemberModel
     {
         public MemberModel(
@@ -2564,7 +3071,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             string serializedNameExpressionForWrite,
             string accessExpression,
             Func<string, string> assignExpression,
-            string ignoreConditionExpression)
+            string ignoreConditionExpression,
+            string? attributeConverterTypeName,
+            bool isRequired)
         {
             Symbol = symbol;
             Type = type;
@@ -2573,6 +3082,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             AccessExpression = accessExpression;
             AssignExpression = assignExpression;
             IgnoreConditionExpression = ignoreConditionExpression;
+            AttributeConverterTypeName = attributeConverterTypeName;
+            IsRequired = isRequired;
         }
 
         public ISymbol Symbol { get; }
@@ -2582,6 +3093,43 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string AccessExpression { get; }
         public Func<string, string> AssignExpression { get; }
         public string IgnoreConditionExpression { get; }
+        public string? AttributeConverterTypeName { get; }
+        public bool IsRequired { get; }
+    }
+
+    private enum ExtensionDataKind
+    {
+        Dictionary,
+        Mapping,
+    }
+
+    private sealed class ExtensionDataMemberModel
+    {
+        public ExtensionDataMemberModel(
+            ISymbol symbol,
+            ITypeSymbol type,
+            ExtensionDataKind kind,
+            ITypeSymbol? dictionaryValueType,
+            string accessExpression,
+            Func<string, string>? assignExpression,
+            bool canAssign)
+        {
+            Symbol = symbol;
+            Type = type;
+            Kind = kind;
+            DictionaryValueType = dictionaryValueType;
+            AccessExpression = accessExpression;
+            AssignExpression = assignExpression;
+            CanAssign = canAssign;
+        }
+
+        public ISymbol Symbol { get; }
+        public ITypeSymbol Type { get; }
+        public ExtensionDataKind Kind { get; }
+        public ITypeSymbol? DictionaryValueType { get; }
+        public string AccessExpression { get; }
+        public Func<string, string>? AssignExpression { get; }
+        public bool CanAssign { get; }
     }
 
     private static MemberModel CreateMemberModel(ISymbol member)
@@ -2593,7 +3141,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             ? rhs => "instance." + propAssign.Name + " = " + rhs
             : rhs => "instance." + member.Name + " = " + rhs;
         var ignoreConditionExpression = GetIgnoreConditionExpression(member);
-        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression);
+        var converterTypeName = GetYamlConverterAttributeTypeName(member);
+        var isRequired = HasAttribute(member, "SharpYaml.Serialization.YamlRequiredAttribute") || HasAttribute(member, "System.Text.Json.Serialization.JsonRequiredAttribute");
+        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, isRequired);
     }
 
     private static (string ForRead, string ForWrite) GetSerializedMemberNameExpressions(ISymbol member)
@@ -2670,6 +3220,37 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         return "options.DefaultIgnoreCondition";
+    }
+
+    private static string? GetYamlConverterAttributeTypeName(ISymbol member)
+    {
+        foreach (var attribute in member.GetAttributes())
+        {
+            if (attribute.AttributeClass is null)
+            {
+                continue;
+            }
+
+            if (!string.Equals(attribute.AttributeClass.ToDisplayString(), "SharpYaml.Serialization.YamlConverterAttribute", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (attribute.ConstructorArguments.Length != 1)
+            {
+                continue;
+            }
+
+            var argument = attribute.ConstructorArguments[0];
+            if (argument.Kind != TypedConstantKind.Type || argument.Value is not ITypeSymbol converterType)
+            {
+                continue;
+            }
+
+            return converterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        }
+
+        return null;
     }
 
     private static ImmutableArray<ISymbol> GetSerializableMembers(INamedTypeSymbol type)
@@ -2759,6 +3340,129 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         return members.ToImmutableArray();
+    }
+
+    private static ImmutableArray<ISymbol> GetExtensionDataMembers(INamedTypeSymbol type)
+    {
+        var matches = ImmutableArray.CreateBuilder<ISymbol>();
+
+        var hierarchy = new Stack<INamedTypeSymbol>();
+        for (INamedTypeSymbol? current = type; current is not null; current = current.BaseType)
+        {
+            if (current.SpecialType == SpecialType.System_Object)
+            {
+                break;
+            }
+
+            hierarchy.Push(current);
+        }
+
+        while (hierarchy.Count != 0)
+        {
+            var current = hierarchy.Pop();
+            foreach (var member in current.GetMembers())
+            {
+                if (member is not IPropertySymbol && member is not IFieldSymbol)
+                {
+                    continue;
+                }
+
+                if (HasAttribute(member, "SharpYaml.Serialization.YamlExtensionDataAttribute") ||
+                    HasAttribute(member, "System.Text.Json.Serialization.JsonExtensionDataAttribute"))
+                {
+                    matches.Add(member);
+                }
+            }
+        }
+
+        return matches.ToImmutable();
+    }
+
+    private static bool IsSupportedExtensionDataMemberType(ITypeSymbol type)
+    {
+        if (string.Equals(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), "global::SharpYaml.Model.YamlMapping", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (TryGetDictionaryValueType(type, out var valueType))
+        {
+            if (valueType.SpecialType == SpecialType.System_Object)
+            {
+                return true;
+            }
+
+            if (IsYamlNodeType(valueType))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsYamlNodeType(ITypeSymbol type)
+    {
+        for (var current = type; current is not null; current = (current as INamedTypeSymbol)?.BaseType)
+        {
+            if (string.Equals(current.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), "global::SharpYaml.Model.YamlNode", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static ExtensionDataMemberModel? TryCreateExtensionDataMemberModel(INamedTypeSymbol type)
+    {
+        var extensionDataMembers = GetExtensionDataMembers(type);
+        if (extensionDataMembers.Length != 1)
+        {
+            return null;
+        }
+
+        var symbol = extensionDataMembers[0];
+        var memberType = GetMemberType(symbol);
+        if (memberType is null || !IsSupportedExtensionDataMemberType(memberType))
+        {
+            return null;
+        }
+
+        ExtensionDataKind kind;
+        ITypeSymbol? dictionaryValueType = null;
+        if (string.Equals(memberType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), "global::SharpYaml.Model.YamlMapping", StringComparison.Ordinal))
+        {
+            kind = ExtensionDataKind.Mapping;
+        }
+        else
+        {
+            kind = ExtensionDataKind.Dictionary;
+            _ = TryGetDictionaryValueType(memberType, out dictionaryValueType);
+        }
+
+        var accessExpression = "instance." + symbol.Name;
+        Func<string, string>? assignExpression = null;
+        var canAssign = false;
+
+        if (symbol is IPropertySymbol property)
+        {
+            if (property.SetMethod is not null)
+            {
+                canAssign = true;
+                assignExpression = rhs => "instance." + property.Name + " = " + rhs;
+            }
+        }
+        else if (symbol is IFieldSymbol field)
+        {
+            canAssign = !field.IsConst && !field.IsReadOnly;
+            if (canAssign)
+            {
+                assignExpression = rhs => "instance." + field.Name + " = " + rhs;
+            }
+        }
+
+        return new ExtensionDataMemberModel(symbol, memberType, kind, dictionaryValueType, accessExpression, assignExpression, canAssign);
     }
 
     private static bool IsWritableMember(ISymbol member)

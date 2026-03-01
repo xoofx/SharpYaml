@@ -137,6 +137,91 @@ internal sealed class ConstantIntConverter : YamlConverter<int>
         => writer.WriteScalar("123");
 }
 
+internal sealed class GeneratedLifecycleCallbacks : IYamlOnDeserializing, IYamlOnDeserialized, IYamlOnSerializing, IYamlOnSerialized
+{
+    public int Value { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+    public int OnDeserializingCount { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+    public int OnDeserializedCount { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+    public int OnSerializingCount { get; private set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.Always)]
+    public int OnSerializedCount { get; private set; }
+
+    public void OnDeserializing() => OnDeserializingCount++;
+
+    public void OnDeserialized() => OnDeserializedCount++;
+
+    public void OnSerializing() => OnSerializingCount++;
+
+    public void OnSerialized() => OnSerializedCount++;
+}
+
+internal sealed class GeneratedRequiredPayload
+{
+    [YamlRequired]
+    public int RequiredValue { get; set; }
+}
+
+internal sealed class GeneratedExtensionDataDictionaryPayload
+{
+    public int Known { get; set; }
+
+    [YamlExtensionData]
+    public Dictionary<string, object?>? Extra { get; set; }
+}
+
+internal sealed class GeneratedExtensionDataMappingPayload
+{
+    [YamlExtensionData]
+    public SharpYaml.Model.YamlMapping? Extra { get; set; }
+}
+
+internal sealed class GeneratedMemberConverterPayload
+{
+    [YamlConverter(typeof(ConstantIntConverter))]
+    public int Value { get; set; }
+}
+
+[YamlConverter(typeof(GeneratedTypeConverter))]
+internal sealed class GeneratedTypeWithConverter
+{
+    public int Value { get; set; }
+}
+
+internal sealed class GeneratedTypeConverter : YamlConverter<GeneratedTypeWithConverter>
+{
+    public override GeneratedTypeWithConverter? Read(YamlReader reader)
+    {
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        {
+            reader.Read();
+            return null;
+        }
+
+        if (reader.TokenType != YamlTokenType.Scalar)
+        {
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
+        }
+
+        if (!YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed))
+        {
+            throw YamlThrowHelper.ThrowInvalidIntegerScalar(reader);
+        }
+
+        reader.Read();
+        return new GeneratedTypeWithConverter { Value = (int)parsed };
+    }
+
+    public override void Write(YamlWriter writer, GeneratedTypeWithConverter value)
+        => writer.WriteScalar(value.Value);
+}
+
 #pragma warning disable SYSLIB1224
 [JsonSerializable(typeof(GeneratedPerson))]
 [JsonSerializable(typeof(GeneratedContainer))]
@@ -155,6 +240,12 @@ internal sealed class ConstantIntConverter : YamlConverter<int>
 [JsonSerializable(typeof(GeneratedZoo))]
 [JsonSerializable(typeof(GeneratedTaggedAnimal))]
 [JsonSerializable(typeof(GeneratedTaggedZoo))]
+[JsonSerializable(typeof(GeneratedLifecycleCallbacks))]
+[JsonSerializable(typeof(GeneratedRequiredPayload))]
+[JsonSerializable(typeof(GeneratedExtensionDataDictionaryPayload))]
+[JsonSerializable(typeof(GeneratedExtensionDataMappingPayload))]
+[JsonSerializable(typeof(GeneratedMemberConverterPayload))]
+[JsonSerializable(typeof(GeneratedTypeWithConverter))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
     public TestYamlSerializerContext()
@@ -614,5 +705,120 @@ public class YamlSerializerSourceGenerationTests
         Assert.AreEqual("generated.yaml", exception.SourceName);
         StringAssert.Contains(exception.Message, "Lin:");
         StringAssert.Contains(exception.Message, "Col:");
+    }
+
+    [TestMethod]
+    public void GeneratedContextInvokesLifecycleCallbacks()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedLifecycleCallbacks>();
+
+        var value = new GeneratedLifecycleCallbacks { Value = 7 };
+        var yaml = YamlSerializer.Serialize(value, typeInfo);
+
+        Assert.AreEqual(1, value.OnSerializingCount);
+        Assert.AreEqual(1, value.OnSerializedCount);
+        StringAssert.Contains(yaml, "Value: 7");
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.AreEqual(1, roundtripped.OnDeserializingCount);
+        Assert.AreEqual(1, roundtripped.OnDeserializedCount);
+        Assert.AreEqual(7, roundtripped.Value);
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsYamlRequiredAttribute()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedRequiredPayload>();
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Other: 1", typeInfo));
+        StringAssert.Contains(exception.Message, "RequiredValue");
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsYamlExtensionDataDictionary()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedExtensionDataDictionaryPayload>();
+
+        var yaml = """
+Known: 2
+extra_int: 1
+extra_list:
+  - a
+  - b
+""";
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.AreEqual(2, roundtripped.Known);
+        Assert.IsNotNull(roundtripped.Extra);
+        Assert.IsTrue(roundtripped.Extra.ContainsKey("extra_int"));
+        Assert.IsTrue(roundtripped.Extra.ContainsKey("extra_list"));
+
+        var serialized = YamlSerializer.Serialize(
+            new GeneratedExtensionDataDictionaryPayload
+            {
+                Known = 3,
+                Extra = new Dictionary<string, object?> { ["x"] = 5 },
+            },
+            typeInfo);
+        StringAssert.Contains(serialized, "Known: 3");
+        StringAssert.Contains(serialized, "x: 5");
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsYamlExtensionDataMapping()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedExtensionDataMappingPayload>();
+
+        var roundtripped = YamlSerializer.Deserialize("a: 1", typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsNotNull(roundtripped.Extra);
+        Assert.AreEqual(1, roundtripped.Extra.Count);
+
+        var serialized = YamlSerializer.Serialize(
+            new GeneratedExtensionDataMappingPayload
+            {
+                Extra = new SharpYaml.Model.YamlMapping
+                {
+                    { new SharpYaml.Model.YamlValue("x"), new SharpYaml.Model.YamlValue("y") },
+                },
+            },
+            typeInfo);
+        StringAssert.Contains(serialized, "x:");
+        StringAssert.Contains(serialized, "y");
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsYamlConverterAttributeOnMember()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedMemberConverterPayload>();
+
+        var yaml = YamlSerializer.Serialize(new GeneratedMemberConverterPayload { Value = 5 }, typeInfo);
+        StringAssert.Contains(yaml, "Value: 123");
+
+        var roundtripped = YamlSerializer.Deserialize("Value: 999", typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.AreEqual(123, roundtripped.Value);
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsYamlConverterAttributeOnType()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedTypeWithConverter>();
+
+        var yaml = YamlSerializer.Serialize(new GeneratedTypeWithConverter { Value = 5 }, typeInfo);
+        Assert.IsFalse(yaml.Contains("Value:", StringComparison.Ordinal));
+        StringAssert.Contains(yaml, "5");
+
+        var roundtripped = YamlSerializer.Deserialize("42", typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.AreEqual(42, roundtripped.Value);
     }
 }
