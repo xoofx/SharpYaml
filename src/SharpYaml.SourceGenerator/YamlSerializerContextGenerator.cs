@@ -1050,6 +1050,31 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        var instanceAnchor = reader.Anchor;");
         }
 
+        if (typeSymbol is INamedTypeSymbol ctorType && ctorType.TypeKind == TypeKind.Class && !ctorType.IsAbstract)
+        {
+            if (!TrySelectDeserializationConstructor(ctorType, out var selectedConstructor, out var constructorError))
+            {
+                builder.Append("        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, ").Append(ToLiteral(constructorError ?? "The generated YAML serializer does not support this type.")).AppendLine(");");
+                builder.AppendLine("    }");
+                return;
+            }
+
+            if (selectedConstructor is not null &&
+                selectedConstructor.Parameters.Length != 0)
+            {
+                if (selectedConstructor.DeclaredAccessibility != Accessibility.Public)
+                {
+                    builder.Append("        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, ").Append(ToLiteral("The generated YAML serializer does not support non-public constructors.")).AppendLine(");");
+                    builder.AppendLine("    }");
+                    return;
+                }
+
+                EmitReadObjectCoreWithConstructor(builder, index, ctorType, typeName, selectedConstructor, members, extensionData, indexByType, emitLifecycleCallbacks);
+                builder.AppendLine("    }");
+                return;
+            }
+        }
+
         builder.Append("        var instance = new ").Append(typeName).AppendLine("();");
         if (typeSymbol.IsReferenceType)
         {
@@ -1246,6 +1271,441 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        reader.Read();");
         builder.AppendLine("        return instance;");
         builder.AppendLine("    }");
+    }
+
+    private static void EmitReadObjectCoreWithConstructor(
+        StringBuilder builder,
+        int index,
+        INamedTypeSymbol typeSymbol,
+        string typeName,
+        IMethodSymbol constructor,
+        ImmutableArray<MemberModel> members,
+        ExtensionDataMemberModel? extensionData,
+        Dictionary<ITypeSymbol, int> indexByType,
+        bool emitLifecycleCallbacks)
+    {
+        // Map constructor parameters to member YAML names when possible (STJ-like binding rules).
+        var parameters = constructor.Parameters;
+        var ctorBoundMembers = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+
+        var parameterYamlNameExpressions = new string[parameters.Length];
+        var parameterValueVarNames = new string[parameters.Length];
+        var parameterSeenVarNames = new string[parameters.Length];
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var parameter = parameters[i];
+            var parameterName = parameter.Name ?? throw new InvalidOperationException("Constructor parameter name was not available.");
+
+            MemberModel? matchedMember = null;
+            for (var m = 0; m < members.Length; m++)
+            {
+                if (string.Equals(members[m].Symbol.Name, parameterName, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchedMember = members[m];
+                    break;
+                }
+            }
+
+            if (matchedMember is not null)
+            {
+                ctorBoundMembers.Add(matchedMember.Symbol);
+                parameterYamlNameExpressions[i] = matchedMember.SerializedNameExpressionForRead;
+            }
+            else
+            {
+                parameterYamlNameExpressions[i] = $"reader.ConvertName({ToLiteral(parameterName)})";
+            }
+
+            parameterValueVarNames[i] = $"__ctor{index}_{parameterName}";
+            parameterSeenVarNames[i] = $"__ctor{index}_{parameterName}_seen";
+        }
+
+        var requiredMembers = members.Where(static m => m.IsRequired).ToArray();
+        var requiredVarBySymbol = new Dictionary<ISymbol, string>(SymbolEqualityComparer.Default);
+        for (var i = 0; i < requiredMembers.Length; i++)
+        {
+            requiredVarBySymbol[requiredMembers[i].Symbol] = $"__required{index}_{requiredMembers[i].Symbol.Name}";
+        }
+
+        // Buffer writable members that are not constructor-bound so we can assign them after we create the instance.
+        var bufferedMembers = members
+            .Where(m => IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol))
+            .ToArray();
+
+        var bufferedMemberValueVarNames = new Dictionary<ISymbol, string>(SymbolEqualityComparer.Default);
+        var bufferedMemberSeenVarNames = new Dictionary<ISymbol, string>(SymbolEqualityComparer.Default);
+
+        for (var i = 0; i < bufferedMembers.Length; i++)
+        {
+            var member = bufferedMembers[i];
+            bufferedMemberValueVarNames[member.Symbol] = $"__member{index}_{member.Symbol.Name}";
+            bufferedMemberSeenVarNames[member.Symbol] = $"__member{index}_{member.Symbol.Name}_seen";
+        }
+
+        // Parameters
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var parameterTypeName = parameters[i].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.Append("        var ").Append(parameterValueVarNames[i]).Append(" = default(").Append(parameterTypeName).AppendLine(");");
+            builder.Append("        var ").Append(parameterSeenVarNames[i]).AppendLine(" = false;");
+        }
+
+        // Buffered members
+        for (var i = 0; i < bufferedMembers.Length; i++)
+        {
+            var member = bufferedMembers[i];
+            var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.Append("        var ").Append(bufferedMemberValueVarNames[member.Symbol]).Append(" = default(").Append(memberTypeName).AppendLine(");");
+            builder.Append("        var ").Append(bufferedMemberSeenVarNames[member.Symbol]).AppendLine(" = false;");
+        }
+
+        // Required members
+        for (var i = 0; i < requiredMembers.Length; i++)
+        {
+            builder.Append("        var ").Append(requiredVarBySymbol[requiredMembers[i].Symbol]).AppendLine(" = false;");
+        }
+
+        if (extensionData is not null)
+        {
+            builder.AppendLine();
+
+            if (extensionData.Kind == ExtensionDataKind.Dictionary)
+            {
+                var valueTypeName = (extensionData.DictionaryValueType ?? throw new InvalidOperationException("Extension data dictionary value type is missing."))
+                    .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+                builder.Append("        global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, ").Append(valueTypeName).AppendLine(">>? extensionEntries = null;");
+                builder.AppendLine("        void BufferExtensionData(string extensionKey)");
+                builder.AppendLine("        {");
+                builder.AppendLine("            extensionEntries ??= new global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, " + valueTypeName + ">>();");
+                builder.Append("            var converter = reader.GetConverter(typeof(").Append(valueTypeName).AppendLine("));");
+                builder.Append("            var extensionValue = (").Append(valueTypeName).Append(")converter.Read(reader, typeof(").Append(valueTypeName).AppendLine("));");
+                builder.AppendLine("            extensionEntries.Add(new global::System.Collections.Generic.KeyValuePair<string, " + valueTypeName + ">(extensionKey, extensionValue));");
+                builder.AppendLine("        }");
+            }
+            else
+            {
+                builder.AppendLine("        global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>>? extensionEntries = null;");
+                builder.AppendLine("        void BufferExtensionData(string extensionKey)");
+                builder.AppendLine("        {");
+                builder.AppendLine("            extensionEntries ??= new global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>>();");
+                builder.AppendLine("            var converter = reader.GetConverter(typeof(global::SharpYaml.Model.YamlElement));");
+                builder.AppendLine("            var extensionValue = (global::SharpYaml.Model.YamlElement?)converter.Read(reader, typeof(global::SharpYaml.Model.YamlElement));");
+                builder.AppendLine("            extensionEntries.Add(new global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>(extensionKey, extensionValue));");
+                builder.AppendLine("        }");
+            }
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("        reader.Read();");
+        builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
+        builder.AppendLine("            }");
+        builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
+        builder.AppendLine("            reader.Read();");
+        builder.AppendLine();
+        builder.AppendLine("            var matched = false;");
+
+        // Constructor parameters first.
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var parameter = parameters[i];
+            var parameterName = parameter.Name ?? string.Empty;
+
+            builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(parameterYamlNameExpressions[i])
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("            {");
+            builder.AppendLine("                matched = true;");
+            if (requiredMembers.Length != 0)
+            {
+                // If the parameter binds to a required member, mark it as seen.
+                for (var m = 0; m < members.Length; m++)
+                {
+                    var member = members[m];
+                    if (!member.IsRequired)
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(member.Symbol.Name, parameterName, StringComparison.OrdinalIgnoreCase) &&
+                        requiredVarBySymbol.TryGetValue(member.Symbol, out var requiredVar))
+                    {
+                        builder.Append("                ").Append(requiredVar).AppendLine(" = true;");
+                    }
+                }
+            }
+
+            var tmpVar = $"__ctor{index}_tmp{i}";
+            EmitReadKnownType(builder, parameter.Type, indexByType, tmpVar, indent: "                ");
+            builder.Append("                ").Append(parameterValueVarNames[i]).Append(" = ").Append(tmpVar).AppendLine(";");
+            builder.Append("                ").Append(parameterSeenVarNames[i]).AppendLine(" = true;");
+            builder.AppendLine("            }");
+        }
+
+        // Buffered writable members next.
+        for (var i = 0; i < bufferedMembers.Length; i++)
+        {
+            var member = bufferedMembers[i];
+            var localValueVar = bufferedMemberValueVarNames[member.Symbol];
+            var localSeenVar = bufferedMemberSeenVarNames[member.Symbol];
+
+            var localModel = new MemberModel(
+                member.Symbol,
+                member.Type,
+                member.SerializedNameExpressionForRead,
+                member.SerializedNameExpressionForWrite,
+                member.AccessExpression,
+                rhs => localValueVar + " = " + rhs,
+                member.IgnoreConditionExpression,
+                member.AttributeConverterTypeName,
+                member.IsRequired);
+
+            builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("            {");
+            builder.AppendLine("                matched = true;");
+            if (member.IsRequired && requiredVarBySymbol.TryGetValue(member.Symbol, out var requiredVar))
+            {
+                builder.Append("                ").Append(requiredVar).AppendLine(" = true;");
+            }
+            EmitReadMemberValueWithCustomConverter(builder, localModel, indexByType);
+            builder.Append("                ").Append(localSeenVar).AppendLine(" = true;");
+            builder.AppendLine("            }");
+        }
+
+        // Required read-only members (non-writable and not constructor-bound).
+        for (var i = 0; i < requiredMembers.Length; i++)
+        {
+            var member = requiredMembers[i];
+            if (IsWritableMember(member.Symbol) || ctorBoundMembers.Contains(member.Symbol))
+            {
+                continue;
+            }
+
+            builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("            {");
+            builder.AppendLine("                matched = true;");
+            builder.Append("                ").Append(requiredVarBySymbol[member.Symbol]).AppendLine(" = true;");
+            if (extensionData is not null)
+            {
+                builder.AppendLine("                BufferExtensionData(key);");
+            }
+            else
+            {
+                builder.AppendLine("                reader.Skip();");
+            }
+            builder.AppendLine("            }");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("            if (!matched)");
+        builder.AppendLine("            {");
+        if (extensionData is not null)
+        {
+            builder.AppendLine("                BufferExtensionData(key);");
+        }
+        else
+        {
+            builder.AppendLine("                reader.Skip();");
+        }
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+
+        builder.AppendLine();
+
+        // Ensure all constructor parameters are satisfied.
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var parameter = parameters[i];
+            if (parameter.HasExplicitDefaultValue)
+            {
+                var defaultExpr = GetOptionalParameterDefaultValueExpression(parameter);
+                builder.Append("        if (!").Append(parameterSeenVarNames[i]).AppendLine(")");
+                builder.AppendLine("        {");
+                builder.Append("            ").Append(parameterValueVarNames[i]).Append(" = ").Append(defaultExpr).AppendLine(";");
+                builder.AppendLine("        }");
+            }
+            else
+            {
+                builder.Append("        if (!").Append(parameterSeenVarNames[i]).AppendLine(")");
+                builder.AppendLine("        {");
+                builder.Append("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowMissingRequiredConstructorParameter(reader, mappingStart, typeof(").Append(typeName).Append("), ").Append(ToLiteral(parameter.Name ?? string.Empty)).AppendLine(");");
+                builder.AppendLine("        }");
+            }
+        }
+
+        builder.AppendLine();
+        builder.Append("        var instance = new ").Append(typeName).Append('(');
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (i != 0)
+            {
+                builder.Append(", ");
+            }
+            builder.Append(parameterValueVarNames[i]);
+        }
+        builder.AppendLine(");");
+
+        builder.AppendLine("        if (instanceAnchor is not null) { reader.RegisterAnchor(instanceAnchor, instance); }");
+
+        if (emitLifecycleCallbacks)
+        {
+            builder.AppendLine();
+            builder.AppendLine("        if (instance is global::SharpYaml.Serialization.IYamlOnDeserializing onDeserializing)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            try");
+            builder.AppendLine("            {");
+            builder.AppendLine("                onDeserializing.OnDeserializing();");
+            builder.AppendLine("            }");
+            builder.AppendLine("            catch (global::System.Exception exception)");
+            builder.AppendLine("            {");
+            builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowCallbackInvocationFailed(reader, typeof(").Append(typeName).AppendLine("), \"IYamlOnDeserializing.OnDeserializing\", exception);");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+        }
+
+        // Apply buffered writable members.
+        for (var i = 0; i < bufferedMembers.Length; i++)
+        {
+            var member = bufferedMembers[i];
+            var localValueVar = bufferedMemberValueVarNames[member.Symbol];
+            var localSeenVar = bufferedMemberSeenVarNames[member.Symbol];
+            builder.AppendLine();
+            builder.Append("        if (").Append(localSeenVar).AppendLine(")");
+            builder.AppendLine("        {");
+            builder.Append("            ").Append(member.AssignExpression(localValueVar)).AppendLine(";");
+            builder.AppendLine("        }");
+        }
+
+        // Apply buffered extension entries.
+        if (extensionData is not null)
+        {
+            builder.AppendLine();
+            builder.AppendLine("        if (extensionEntries is not null)");
+            builder.AppendLine("        {");
+            if (extensionData.Kind == ExtensionDataKind.Dictionary)
+            {
+                var valueTypeName = (extensionData.DictionaryValueType ?? throw new InvalidOperationException("Extension data dictionary value type is missing."))
+                    .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+                builder.Append("            var container = instance.").Append(extensionData.Symbol.Name).AppendLine(";");
+                builder.AppendLine("            if (container is null)");
+                builder.AppendLine("            {");
+                builder.Append("                container = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
+                    .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
+                if (extensionData.CanAssign)
+                {
+                    builder.Append("                instance.").Append(extensionData.Symbol.Name).AppendLine(" = container;");
+                }
+                else
+                {
+                    builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, \"Extension data member '")
+                        .Append(extensionData.Symbol.Name).Append("' could not be assigned.\");").AppendLine();
+                }
+                builder.AppendLine("            }");
+                builder.AppendLine("            for (var i = 0; i < extensionEntries.Count; i++)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                var entry = extensionEntries[i];");
+                builder.AppendLine("                container[entry.Key] = entry.Value;");
+                builder.AppendLine("            }");
+            }
+            else
+            {
+                builder.Append("            var mapping = instance.").Append(extensionData.Symbol.Name).AppendLine(";");
+                builder.AppendLine("            if (mapping is null)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                mapping = new global::SharpYaml.Model.YamlMapping();");
+                if (extensionData.CanAssign)
+                {
+                    builder.Append("                instance.").Append(extensionData.Symbol.Name).AppendLine(" = mapping;");
+                }
+                else
+                {
+                    builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, \"Extension data member '")
+                        .Append(extensionData.Symbol.Name).Append("' could not be assigned.\");").AppendLine();
+                }
+                builder.AppendLine("            }");
+                builder.AppendLine("            var list = (global::System.Collections.Generic.IList<global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>>)mapping;");
+                builder.AppendLine("            for (var entryIndex = 0; entryIndex < extensionEntries.Count; entryIndex++)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                var entry = extensionEntries[entryIndex];");
+                builder.AppendLine("                var extensionKey = entry.Key;");
+                builder.AppendLine("                var extensionValue = entry.Value;");
+                builder.AppendLine("                var replaced = false;");
+                builder.AppendLine("                for (var i = 0; i < list.Count; i++)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    var pair = list[i];");
+                builder.AppendLine("                    if (pair.Key is global::SharpYaml.Model.YamlValue keyValue && global::System.String.Equals(keyValue.Value, extensionKey, global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        list[i] = new global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>(pair.Key, extensionValue);");
+                builder.AppendLine("                        replaced = true;");
+                builder.AppendLine("                        break;");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!replaced)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    mapping.Add(new global::SharpYaml.Model.YamlValue(extensionKey), extensionValue);");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+            }
+            builder.AppendLine("        }");
+        }
+
+        // Required member checks.
+        if (requiredMembers.Length != 0)
+        {
+            builder.AppendLine();
+            builder.Append("        if (");
+            for (var i = 0; i < requiredMembers.Length; i++)
+            {
+                if (i != 0)
+                {
+                    builder.Append(" || ");
+                }
+                builder.Append("!").Append(requiredVarBySymbol[requiredMembers[i].Symbol]);
+            }
+            builder.AppendLine(")");
+            builder.AppendLine("        {");
+            builder.AppendLine("            var missing = new global::System.Collections.Generic.List<string>();");
+            for (var i = 0; i < requiredMembers.Length; i++)
+            {
+                var requiredVar = requiredVarBySymbol[requiredMembers[i].Symbol];
+                builder.Append("            if (!").Append(requiredVar).AppendLine(")");
+                builder.AppendLine("            {");
+                builder.Append("                missing.Add(").Append(requiredMembers[i].SerializedNameExpressionForRead).AppendLine(");");
+                builder.AppendLine("            }");
+            }
+            builder.Append("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowMissingRequiredMembers(reader, mappingStart, typeof(").Append(typeName).AppendLine("), missing);");
+            builder.AppendLine("        }");
+        }
+
+        if (emitLifecycleCallbacks)
+        {
+            builder.AppendLine();
+            builder.AppendLine("        if (instance is global::SharpYaml.Serialization.IYamlOnDeserialized onDeserialized)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            try");
+            builder.AppendLine("            {");
+            builder.AppendLine("                onDeserialized.OnDeserialized();");
+            builder.AppendLine("            }");
+            builder.AppendLine("            catch (global::System.Exception exception)");
+            builder.AppendLine("            {");
+            builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowCallbackInvocationFailed(reader, typeof(").Append(typeName).AppendLine("), \"IYamlOnDeserialized.OnDeserialized\", exception);");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("        reader.Read();");
+        builder.AppendLine("        return instance;");
     }
 
     private static void EmitReadValue(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName, Dictionary<ITypeSymbol, int> indexByType)
@@ -3060,6 +3520,98 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         return false;
+    }
+
+    private static bool TrySelectDeserializationConstructor(INamedTypeSymbol type, out IMethodSymbol? selectedConstructor, out string? notSupportedMessage)
+    {
+        selectedConstructor = null;
+        notSupportedMessage = null;
+
+        IMethodSymbol? attributed = null;
+        foreach (var ctor in type.InstanceConstructors)
+        {
+            if (HasAttribute(ctor, "SharpYaml.Serialization.YamlConstructorAttribute") ||
+                HasAttribute(ctor, "System.Text.Json.Serialization.JsonConstructorAttribute"))
+            {
+                if (attributed is not null)
+                {
+                    notSupportedMessage = $"Type '{type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}' defines multiple constructors annotated with [YamlConstructor] or [JsonConstructor].";
+                    return false;
+                }
+
+                attributed = ctor;
+            }
+        }
+
+        if (attributed is not null)
+        {
+            selectedConstructor = attributed;
+            return true;
+        }
+
+        foreach (var ctor in type.InstanceConstructors)
+        {
+            if (ctor.DeclaredAccessibility == Accessibility.Public && ctor.Parameters.Length == 0)
+            {
+                selectedConstructor = ctor;
+                return true;
+            }
+        }
+
+        var publicCtors = type.InstanceConstructors.Where(static ctor => ctor.DeclaredAccessibility == Accessibility.Public).ToArray();
+        if (publicCtors.Length == 1)
+        {
+            selectedConstructor = publicCtors[0];
+            return true;
+        }
+
+        if (publicCtors.Length == 0)
+        {
+            notSupportedMessage = $"Type '{type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}' does not have a public constructor. Use [YamlConstructor] or [JsonConstructor] to opt into a non-public constructor.";
+            return false;
+        }
+
+        notSupportedMessage = $"Type '{type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}' defines multiple public constructors. Use [YamlConstructor] or [JsonConstructor] to select the constructor to use for deserialization.";
+        return false;
+    }
+
+    private static string GetOptionalParameterDefaultValueExpression(IParameterSymbol parameter)
+    {
+        if (!parameter.HasExplicitDefaultValue)
+        {
+            throw new InvalidOperationException("Parameter does not define an explicit default value.");
+        }
+
+        var value = parameter.ExplicitDefaultValue;
+        if (value is null)
+        {
+            return "default";
+        }
+
+        if (value is string str)
+        {
+            return ToLiteral(str);
+        }
+
+        if (value is bool boolean)
+        {
+            return boolean ? "true" : "false";
+        }
+
+        if (value is char ch)
+        {
+            return "'" + (ch == '\'' ? "\\'" : ch.ToString()) + "'";
+        }
+
+        if (parameter.Type is INamedTypeSymbol enumType && enumType.TypeKind == TypeKind.Enum)
+        {
+            var enumTypeName = enumType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var numeric = Convert.ToInt64(value);
+            return $"({enumTypeName}){numeric}";
+        }
+
+        // Numeric primitives and other literals.
+        return Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "default";
     }
 
     private sealed class MemberModel

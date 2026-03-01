@@ -169,4 +169,19 @@ public static class YamlThrowHelper
 
         return new YamlException(Mark.Empty, Mark.Empty, $"An error occurred while invoking '{callbackName}' on '{declaringType}'.", exception);
     }
+
+    /// <summary>Throws an exception when a required constructor parameter is missing during deserialization.</summary>
+    /// <param name="reader">The reader positioned at the end of the mapping.</param>
+    /// <param name="mappingStart">The start location of the mapping.</param>
+    /// <param name="declaringType">The target CLR type being deserialized.</param>
+    /// <param name="parameterName">The constructor parameter name.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="declaringType"/>, or <paramref name="parameterName"/> is <see langword="null"/>.</exception>
+    public static YamlException ThrowMissingRequiredConstructorParameter(YamlReader reader, Mark mappingStart, Type declaringType, string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(declaringType);
+        ArgumentNullException.ThrowIfNull(parameterName);
+
+        return new YamlException(reader.SourceName, mappingStart, reader.End, $"Missing required constructor parameter '{parameterName}' for '{declaringType}'.");
+    }
 }

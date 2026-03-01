@@ -222,6 +222,34 @@ internal sealed class GeneratedTypeConverter : YamlConverter<GeneratedTypeWithCo
         => writer.WriteScalar(value.Value);
 }
 
+internal sealed class GeneratedYamlCtorModel
+{
+    [YamlConstructor]
+    public GeneratedYamlCtorModel(string name, int age, bool ignored = false)
+    {
+        Name = name;
+        Age = age;
+    }
+
+    public string Name { get; }
+
+    public int Age { get; }
+}
+
+internal sealed class GeneratedJsonCtorModel
+{
+    [JsonConstructor]
+    public GeneratedJsonCtorModel(string name, int age)
+    {
+        Name = name;
+        Age = age;
+    }
+
+    public string Name { get; }
+
+    public int Age { get; }
+}
+
 #pragma warning disable SYSLIB1224
 [JsonSerializable(typeof(GeneratedPerson))]
 [JsonSerializable(typeof(GeneratedContainer))]
@@ -246,6 +274,8 @@ internal sealed class GeneratedTypeConverter : YamlConverter<GeneratedTypeWithCo
 [JsonSerializable(typeof(GeneratedExtensionDataMappingPayload))]
 [JsonSerializable(typeof(GeneratedMemberConverterPayload))]
 [JsonSerializable(typeof(GeneratedTypeWithConverter))]
+[JsonSerializable(typeof(GeneratedYamlCtorModel))]
+[JsonSerializable(typeof(GeneratedJsonCtorModel))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
     public TestYamlSerializerContext()
@@ -820,5 +850,41 @@ extra_list:
         var roundtripped = YamlSerializer.Deserialize("42", typeInfo);
         Assert.IsNotNull(roundtripped);
         Assert.AreEqual(42, roundtripped.Value);
+    }
+
+    [TestMethod]
+    public void GeneratedContextUsesYamlConstructor()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedYamlCtorModel>();
+
+        var value = YamlSerializer.Deserialize("Name: Bob\nAge: 42\n", typeInfo);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Bob", value.Name);
+        Assert.AreEqual(42, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextUsesJsonConstructor()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedJsonCtorModel>();
+
+        var value = YamlSerializer.Deserialize("Name: Bob\nAge: 42\n", typeInfo);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Bob", value.Name);
+        Assert.AreEqual(42, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextThrowsWhenConstructorParameterMissing()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedYamlCtorModel>();
+
+        var ex = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Name: Bob\n", typeInfo));
+        StringAssert.Contains(ex.Message, "age");
     }
 }
