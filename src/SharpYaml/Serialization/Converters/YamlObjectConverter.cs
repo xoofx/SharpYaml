@@ -726,6 +726,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public PolymorphismModel? Polymorphism { get; }
 
+#if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "Trimming",
             "IL2070",
@@ -734,9 +735,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             "Trimming",
             "IL2067",
             Justification = "Contract discovery and instance creation use reflection and are only exercised by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+#endif
         public static Contract Create(Type type, YamlReaderWriterBase readerWriter)
         {
-            ArgumentNullException.ThrowIfNull(readerWriter);
+            ArgumentGuard.ThrowIfNull(readerWriter);
             var options = readerWriter.Options;
 
             var members = new List<Member>();
@@ -969,6 +971,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public Func<object> CreateContainer { get; }
 
+#if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "AOT",
             "IL3050",
@@ -977,11 +980,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             "Trimming",
             "IL2067",
             Justification = "Extension-data container instantiation uses reflection and is only exercised by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+#endif
         public static ExtensionDataInfo Create(Type declaringType, Member member, Type memberType)
         {
-            ArgumentNullException.ThrowIfNull(declaringType);
-            ArgumentNullException.ThrowIfNull(member);
-            ArgumentNullException.ThrowIfNull(memberType);
+            ArgumentGuard.ThrowIfNull(declaringType);
+            ArgumentGuard.ThrowIfNull(member);
+            ArgumentGuard.ThrowIfNull(memberType);
 
             if (typeof(YamlMapping).IsAssignableFrom(memberType))
             {
@@ -1058,10 +1062,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return false;
         }
 
+#if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "Trimming",
             "IL2070",
             Justification = "Extension-data dictionary detection uses reflection and is only exercised by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+#endif
         private static bool TryGetDictionaryInterface(Type type, out Type dictionaryInterface)
         {
             dictionaryInterface = null!;
@@ -1106,9 +1112,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public ConstructorModel(ConstructorInfo constructor, IReadOnlyList<Member> members, YamlReaderWriterBase readerWriter)
         {
-            ArgumentNullException.ThrowIfNull(constructor);
-            ArgumentNullException.ThrowIfNull(members);
-            ArgumentNullException.ThrowIfNull(readerWriter);
+            ArgumentGuard.ThrowIfNull(constructor);
+            ArgumentGuard.ThrowIfNull(members);
+            ArgumentGuard.ThrowIfNull(readerWriter);
 
             _constructor = constructor;
             _parameters = constructor.GetParameters();
@@ -1118,7 +1124,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             for (var i = 0; i < members.Count; i++)
             {
                 var member = members[i];
-                clrNameToSerialized.TryAdd(member.ClrName, member.Name);
+                if (!clrNameToSerialized.ContainsKey(member.ClrName))
+                {
+                    clrNameToSerialized.Add(member.ClrName, member.Name);
+                }
             }
 
             _parameterIndexByYamlName = new Dictionary<string, int>(readerWriter.PropertyNameComparer);
@@ -1285,8 +1294,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     _ => Convert.ToString(attribute.TypeDiscriminator, CultureInfo.InvariantCulture) ?? string.Empty,
                 };
 
-                discriminatorToType.TryAdd(discriminator, attribute.DerivedType);
-                typeToDerived.TryAdd(attribute.DerivedType, new DerivedTypeInfo(discriminator, tag: null));
+                if (!discriminatorToType.ContainsKey(discriminator))
+                {
+                    discriminatorToType.Add(discriminator, attribute.DerivedType);
+                }
+
+                if (!typeToDerived.ContainsKey(attribute.DerivedType))
+                {
+                    typeToDerived.Add(attribute.DerivedType, new DerivedTypeInfo(discriminator, tag: null));
+                }
             }
 
             return new PolymorphismModel(discriminatorPropertyName, style, unknownHandling, discriminatorToType, tagToType, typeToDerived);
@@ -1382,10 +1398,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             _field!.SetValue(instance, value);
         }
 
+#if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "Trimming",
             "IL2072",
             Justification = "Default-value comparison uses reflection and is only exercised by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+#endif
         public bool ShouldIgnoreOnWrite(object? value, YamlSerializerOptions options)
         {
             var ignoreCondition = IgnoreCondition ?? options.DefaultIgnoreCondition;
@@ -1458,10 +1476,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     private static void ReadExtensionData(YamlReader reader, object instance, ExtensionDataInfo extensionData, string key)
     {
-        ArgumentNullException.ThrowIfNull(reader);
-        ArgumentNullException.ThrowIfNull(instance);
-        ArgumentNullException.ThrowIfNull(extensionData);
-        ArgumentNullException.ThrowIfNull(key);
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(instance);
+        ArgumentGuard.ThrowIfNull(extensionData);
+        ArgumentGuard.ThrowIfNull(key);
 
         var value = ReadExtensionDataValue(reader, extensionData);
         AddExtensionDataValue(instance, extensionData, key, value);
@@ -1491,9 +1509,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     private static void AddExtensionDataValue(object instance, ExtensionDataInfo extensionData, string key, object? value)
     {
-        ArgumentNullException.ThrowIfNull(instance);
-        ArgumentNullException.ThrowIfNull(extensionData);
-        ArgumentNullException.ThrowIfNull(key);
+        ArgumentGuard.ThrowIfNull(instance);
+        ArgumentGuard.ThrowIfNull(extensionData);
+        ArgumentGuard.ThrowIfNull(key);
 
         var member = extensionData.Member;
         var container = member.GetValue(instance);
@@ -1563,9 +1581,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     private static void WriteExtensionData(YamlWriter writer, object instance, Contract contract)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(instance);
-        ArgumentNullException.ThrowIfNull(contract);
+        ArgumentGuard.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(instance);
+        ArgumentGuard.ThrowIfNull(contract);
 
         var extensionData = contract.ExtensionData;
         if (extensionData is null)
@@ -1753,9 +1771,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     private static YamlConverter? CreateConverterFromAttribute(MemberInfo member, Type memberType, YamlSerializerOptions options)
     {
-        ArgumentNullException.ThrowIfNull(member);
-        ArgumentNullException.ThrowIfNull(memberType);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentGuard.ThrowIfNull(member);
+        ArgumentGuard.ThrowIfNull(memberType);
+        ArgumentGuard.ThrowIfNull(options);
 
         var attribute = member.GetCustomAttribute<YamlConverterAttribute>(inherit: true);
         if (attribute is null)
@@ -1794,13 +1812,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         return converter;
     }
 
+#if !NETSTANDARD2_0
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2070",
         Justification = "Constructor selection uses reflection and is only exercised by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+#endif
     private static ConstructorInfo? SelectDeserializationConstructor(Type type)
     {
-        ArgumentNullException.ThrowIfNull(type);
+        ArgumentGuard.ThrowIfNull(type);
 
         if (type.IsAbstract || type.IsInterface || type.IsValueType)
         {

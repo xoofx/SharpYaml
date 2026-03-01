@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json;
@@ -35,7 +35,7 @@ public sealed record YamlSerializerOptions
         get => _convertersReadOnly;
         init
         {
-            ArgumentNullException.ThrowIfNull(value);
+            ArgumentGuard.ThrowIfNull(value);
             if (value.Count == 0)
             {
                 _converters = s_emptyConverters;

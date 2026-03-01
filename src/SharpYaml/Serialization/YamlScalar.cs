@@ -99,7 +99,7 @@ public static class YamlScalar
 
         // Remove underscores (allocate to avoid stack-spans escaping analysis).
         ReadOnlySpan<char> cleaned = value;
-        if (value.Contains('_'))
+        if (ContainsChar(value, '_'))
         {
             var buffer = new char[value.Length];
             var written = 0;
@@ -140,7 +140,11 @@ public static class YamlScalar
             }
         }
 
+#if NETSTANDARD2_0
+        return ulong.TryParse(cleaned.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out result);
+#else
         return ulong.TryParse(cleaned, NumberStyles.None, CultureInfo.InvariantCulture, out result);
+#endif
     }
 
     /// <summary>
@@ -164,7 +168,7 @@ public static class YamlScalar
             return false;
         }
 
-        if (value.Contains('_'))
+        if (ContainsChar(value, '_'))
         {
             var buffer = new char[value.Length];
             var written = 0;
@@ -178,10 +182,14 @@ public static class YamlScalar
             }
 
             var underscoreRemoved = new string(buffer, 0, written);
-            return decimal.TryParse(underscoreRemoved.AsSpan(), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+            return decimal.TryParse(underscoreRemoved, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
         }
 
+#if NETSTANDARD2_0
+        return decimal.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+#else
         return decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+#endif
     }
 
     /// <summary>
@@ -199,7 +207,7 @@ public static class YamlScalar
         // Remove underscores (allocate to avoid stack-spans escaping analysis).
         ReadOnlySpan<char> cleaned = value;
         string? underscoreRemoved = null;
-        if (value.Contains('_'))
+        if (ContainsChar(value, '_'))
         {
             var buffer = new char[value.Length];
             var written = 0;
@@ -271,7 +279,11 @@ public static class YamlScalar
             }
         }
 
+#if NETSTANDARD2_0
+        if (!ulong.TryParse(cleaned.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out magnitude))
+#else
         if (!ulong.TryParse(cleaned, NumberStyles.None, CultureInfo.InvariantCulture, out magnitude))
+#endif
         {
             result = default;
             return false;
@@ -305,7 +317,7 @@ public static class YamlScalar
             return true;
         }
 
-        if (value.Contains('_'))
+        if (ContainsChar(value, '_'))
         {
             var buffer = new char[value.Length];
             var written = 0;
@@ -319,10 +331,14 @@ public static class YamlScalar
             }
 
             var underscoreRemovedDouble = new string(buffer, 0, written);
-            return double.TryParse(underscoreRemovedDouble.AsSpan(), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+            return double.TryParse(underscoreRemovedDouble, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
         }
 
+#if NETSTANDARD2_0
+        return double.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+#else
         return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+#endif
     }
 
     private static ReadOnlySpan<char> Trim(ReadOnlySpan<char> value)
@@ -338,6 +354,19 @@ public static class YamlScalar
         }
 
         return value;
+    }
+
+    private static bool ContainsChar(ReadOnlySpan<char> value, char c)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            if (value[i] == c)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryApplySignedMagnitude(ulong magnitude, int sign, out long result)

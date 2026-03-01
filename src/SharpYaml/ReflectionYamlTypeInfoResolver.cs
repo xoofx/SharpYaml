@@ -16,13 +16,13 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
 
         public override void Write(YamlWriter writer, object? value)
         {
-            ArgumentNullException.ThrowIfNull(writer);
+            ArgumentGuard.ThrowIfNull(writer);
             writer.GetConverter(Type).Write(writer, value);
         }
 
         public override object? ReadAsObject(YamlReader reader)
         {
-            ArgumentNullException.ThrowIfNull(reader);
+            ArgumentGuard.ThrowIfNull(reader);
             return reader.GetConverter(Type).Read(reader, Type);
         }
     }
@@ -35,8 +35,8 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
     /// <inheritdoc />
     public YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options)
     {
-        ArgumentNullException.ThrowIfNull(type);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentGuard.ThrowIfNull(type);
+        ArgumentGuard.ThrowIfNull(options);
         return new ReflectionYamlTypeInfo(type, options);
     }
 }

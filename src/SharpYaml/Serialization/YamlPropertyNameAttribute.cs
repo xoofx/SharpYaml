@@ -16,7 +16,7 @@ public sealed class YamlPropertyNameAttribute : YamlAttribute
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
     public YamlPropertyNameAttribute(string name)
     {
-        ArgumentNullException.ThrowIfNull(name);
+        ArgumentGuard.ThrowIfNull(name);
         if (name.Length == 0)
         {
             throw new ArgumentException("Property name cannot be empty.", nameof(name));

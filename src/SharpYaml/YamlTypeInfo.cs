@@ -18,8 +18,8 @@ public abstract class YamlTypeInfo
     /// </exception>
     protected YamlTypeInfo(Type type, YamlSerializerOptions options)
     {
-        ArgumentNullException.ThrowIfNull(type);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentGuard.ThrowIfNull(type);
+        ArgumentGuard.ThrowIfNull(options);
 
         Type = type;
         Options = options;
@@ -83,14 +83,14 @@ public abstract class YamlTypeInfo<T> : YamlTypeInfo
     /// <inheritdoc />
     public override void Write(YamlWriter writer, object? value)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
         Write(writer, (T)value!);
     }
 
     /// <inheritdoc />
     public override object? ReadAsObject(YamlReader reader)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(reader);
         return Read(reader);
     }
 }

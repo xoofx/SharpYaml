@@ -107,14 +107,14 @@ namespace SharpYaml.Model
         /// <summary>Converts this YAML node to an object.</summary>
         public object? ToObject(Type type, YamlSerializerOptions? options = null)
         {
-            ArgumentNullException.ThrowIfNull(type);
+            ArgumentGuard.ThrowIfNull(type);
             return YamlSerializer.Deserialize(ToString(), type, options);
         }
 
         /// <summary>Creates a YAML element from an object.</summary>
         public static YamlElement FromObject(object value, YamlSerializerOptions? options = null, Type? expectedType = null)
         {
-            ArgumentNullException.ThrowIfNull(value);
+            ArgumentGuard.ThrowIfNull(value);
             var yaml = expectedType is null
                 ? YamlSerializer.Serialize(value, options)
                 : YamlSerializer.Serialize(value, expectedType, options);

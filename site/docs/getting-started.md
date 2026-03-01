@@ -8,7 +8,7 @@ title: Getting started
 dotnet add package SharpYaml
 ```
 
-SharpYaml targets `net10.0`.
+SharpYaml targets `net10.0` and `netstandard2.0`.
 
 ## Serialize and deserialize
 

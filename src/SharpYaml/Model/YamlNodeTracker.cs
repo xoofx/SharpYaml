@@ -918,10 +918,12 @@ namespace SharpYaml.Model
             }
         }
 
+#if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "Trimming",
             "IL2075",
             Justification = "YamlNodeTracker is a legacy dynamic notification helper. It uses reflection-based invocation and is not used by the NativeAOT-friendly serialization path.")]
+#endif
         void InvokeSubscribers(Path? path, TrackerEventArgs eventArgs)
         {
             Dictionary<WeakReference, string> dict;

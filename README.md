@@ -17,9 +17,12 @@ SharpYaml is a high-performance .NET YAML parser, emitter, and object serializer
 - **Low-level access**: full scanner, parser, emitter, and syntax tree APIs for advanced YAML processing
 - **NativeAOT and trimming oriented** (`IsAotCompatible`, `IsTrimmable`)
 
-## 📐 Requirements (.NET 10 / C# 14)
+## 📐 Requirements
 
-SharpYaml targets `net10.0` and requires the .NET 10 SDK (C# 14).
+SharpYaml targets `net10.0` and `netstandard2.0`.
+
+- Consuming the NuGet package works on any runtime that supports `netstandard2.0` (including .NET Framework) or `net10.0`.
+- Building SharpYaml from source requires the .NET 10 SDK (C# 14).
 
 ## 📦 Install
 

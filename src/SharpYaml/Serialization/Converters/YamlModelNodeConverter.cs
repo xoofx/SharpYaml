@@ -15,14 +15,14 @@ internal sealed class YamlModelNodeConverter : YamlConverter
 
     public override bool CanConvert(Type typeToConvert)
     {
-        ArgumentNullException.ThrowIfNull(typeToConvert);
+        ArgumentGuard.ThrowIfNull(typeToConvert);
         return typeof(YamlNode).IsAssignableFrom(typeToConvert);
     }
 
     public override object? Read(YamlReader reader, Type typeToConvert)
     {
-        ArgumentNullException.ThrowIfNull(reader);
-        ArgumentNullException.ThrowIfNull(typeToConvert);
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(typeToConvert);
 
         var sourceName = reader.SourceName;
         var start = reader.Start;
@@ -46,7 +46,7 @@ internal sealed class YamlModelNodeConverter : YamlConverter
 
     public override void Write(YamlWriter writer, object? value)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
 
         if (value is null)
         {

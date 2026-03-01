@@ -32,7 +32,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
     public static YamlReader Create(string yaml, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(yaml);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var referenceReader = effectiveOptions.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
@@ -47,7 +47,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
     public static YamlReader Create(TextReader reader, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(reader);
         var parser = SharpYaml.Parser.CreateParser(reader);
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var referenceReader = effectiveOptions.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
@@ -66,14 +66,14 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
     public YamlReader CreateReader(string yaml)
     {
-        ArgumentNullException.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(yaml);
         return Create(yaml, _state.ReferenceReader, _state.SourceName, Options);
     }
 
     internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName, YamlSerializerOptions options)
     {
-        ArgumentNullException.ThrowIfNull(yaml);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(options);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
         return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName), options);
     }
@@ -159,8 +159,8 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <param name="value">The anchored value instance.</param>
     public void RegisterAnchor(string anchor, object value)
     {
-        ArgumentNullException.ThrowIfNull(anchor);
-        ArgumentNullException.ThrowIfNull(value);
+        ArgumentGuard.ThrowIfNull(anchor);
+        ArgumentGuard.ThrowIfNull(value);
 
         _state.ReferenceReader?.Register(anchor, value);
     }
@@ -182,8 +182,8 @@ public sealed class YamlReader : YamlReaderWriterBase
         string discriminatorPropertyName,
         out string? discriminatorValue)
     {
-        ArgumentNullException.ThrowIfNull(reader);
-        ArgumentNullException.ThrowIfNull(discriminatorPropertyName);
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(discriminatorPropertyName);
 
         var comparer = reader.Options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         discriminatorValue = null;
@@ -206,7 +206,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
     public static string BufferCurrentNodeToString(YamlReader reader)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(reader);
 
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
         var yamlWriter = new YamlWriter(writer, reader.Options);

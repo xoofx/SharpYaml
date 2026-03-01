@@ -20,7 +20,7 @@ og_type: website
     </div>
     <div class="mt-4 text-start mx-auto" style="max-width: 48rem;">
       <pre class="language-shell-session"><code>dotnet add package SharpYaml</code></pre>
-      <p class="text-center text-secondary mt-2" style="font-size: 0.85rem;">Available on <a href="https://www.nuget.org/packages/SharpYaml/" class="text-secondary">NuGet</a> — net10.0</p>
+      <p class="text-center text-secondary mt-2" style="font-size: 0.85rem;">Available on <a href="https://www.nuget.org/packages/SharpYaml/" class="text-secondary">NuGet</a> — net10.0, netstandard2.0</p>
     </div>
   </div>
 </section>
@@ -88,4 +88,3 @@ Next: read the [Getting started](docs/getting-started.md) guide.
     </div>
   </div>
 </section>
-

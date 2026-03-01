@@ -42,7 +42,7 @@ namespace SharpYaml.Model
         /// <summary>Initializes a new instance of this type.</summary>
         public YamlValue(object value, IYamlSchema? schema = null)
         {
-            ArgumentNullException.ThrowIfNull(value);
+            ArgumentGuard.ThrowIfNull(value);
 
             var valueString = ConvertValue(value);
             if (schema == null)

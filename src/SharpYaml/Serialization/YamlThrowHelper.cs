@@ -128,9 +128,9 @@ public static class YamlThrowHelper
     /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="declaringType"/>, or <paramref name="missingMemberNames"/> is <see langword="null"/>.</exception>
     public static YamlException ThrowMissingRequiredMembers(YamlReader reader, Mark mappingStart, Type declaringType, IReadOnlyList<string> missingMemberNames)
     {
-        ArgumentNullException.ThrowIfNull(reader);
-        ArgumentNullException.ThrowIfNull(declaringType);
-        ArgumentNullException.ThrowIfNull(missingMemberNames);
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(missingMemberNames);
 
         var joined = missingMemberNames.Count == 0 ? string.Empty : string.Join(", ", missingMemberNames);
         var message = missingMemberNames.Count == 0
@@ -148,10 +148,10 @@ public static class YamlThrowHelper
     /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="declaringType"/>, <paramref name="callbackName"/>, or <paramref name="exception"/> is <see langword="null"/>.</exception>
     public static YamlException ThrowCallbackInvocationFailed(YamlReader reader, Type declaringType, string callbackName, Exception exception)
     {
-        ArgumentNullException.ThrowIfNull(reader);
-        ArgumentNullException.ThrowIfNull(declaringType);
-        ArgumentNullException.ThrowIfNull(callbackName);
-        ArgumentNullException.ThrowIfNull(exception);
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(callbackName);
+        ArgumentGuard.ThrowIfNull(exception);
 
         return new YamlException(reader.SourceName, reader.Start, reader.End, $"An error occurred while invoking '{callbackName}' on '{declaringType}'.", exception);
     }
@@ -163,9 +163,9 @@ public static class YamlThrowHelper
     /// <exception cref="ArgumentNullException"><paramref name="declaringType"/>, <paramref name="callbackName"/>, or <paramref name="exception"/> is <see langword="null"/>.</exception>
     public static YamlException ThrowCallbackInvocationFailed(Type declaringType, string callbackName, Exception exception)
     {
-        ArgumentNullException.ThrowIfNull(declaringType);
-        ArgumentNullException.ThrowIfNull(callbackName);
-        ArgumentNullException.ThrowIfNull(exception);
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(callbackName);
+        ArgumentGuard.ThrowIfNull(exception);
 
         return new YamlException(Mark.Empty, Mark.Empty, $"An error occurred while invoking '{callbackName}' on '{declaringType}'.", exception);
     }
@@ -178,9 +178,9 @@ public static class YamlThrowHelper
     /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="declaringType"/>, or <paramref name="parameterName"/> is <see langword="null"/>.</exception>
     public static YamlException ThrowMissingRequiredConstructorParameter(YamlReader reader, Mark mappingStart, Type declaringType, string parameterName)
     {
-        ArgumentNullException.ThrowIfNull(reader);
-        ArgumentNullException.ThrowIfNull(declaringType);
-        ArgumentNullException.ThrowIfNull(parameterName);
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(parameterName);
 
         return new YamlException(reader.SourceName, mappingStart, reader.End, $"Missing required constructor parameter '{parameterName}' for '{declaringType}'.");
     }

@@ -51,7 +51,7 @@ public sealed class YamlSyntaxTree
     /// <exception cref="YamlException">The YAML content is invalid.</exception>
     public static YamlSyntaxTree Parse(string yaml, YamlSyntaxOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(yaml);
         options ??= new YamlSyntaxOptions();
 
         ValidateYaml(yaml);
@@ -96,7 +96,7 @@ public sealed class YamlSyntaxTree
     /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
     public void WriteTo(TextWriter writer)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
         writer.Write(Text);
     }
 
@@ -144,14 +144,21 @@ public sealed class YamlSyntaxTree
             var token = scanner.Current;
             var start = token.Start;
             var end = token.End;
-            var safeStart = Math.Clamp(start.Index, 0, yaml.Length);
-            var safeEnd = Math.Clamp(end.Index, safeStart, yaml.Length);
+            var safeStart = Clamp(start.Index, 0, yaml.Length);
+            var safeEnd = Clamp(end.Index, safeStart, yaml.Length);
             var text = safeEnd > safeStart ? yaml.Substring(safeStart, safeEnd - safeStart) : string.Empty;
             target.Add(new YamlSyntaxToken(
                 MapTokenKind(token),
                 new YamlSourceSpan(start, end),
                 text));
         }
+    }
+
+    private static int Clamp(int value, int min, int max)
+    {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
     }
 
     private static void AddTriviaTokens(string yaml, ICollection<YamlSyntaxToken> target)

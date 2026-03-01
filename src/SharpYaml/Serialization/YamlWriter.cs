@@ -29,7 +29,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     public YamlWriter(TextWriter writer, YamlSerializerOptions? options = null)
         : base(options ?? YamlSerializerOptions.Default)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
         _writer = writer;
         _referenceWriter = Options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
     }
@@ -43,7 +43,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     public YamlWriter(StringBuilder stringBuilder, YamlSerializerOptions? options = null)
         : base(options ?? YamlSerializerOptions.Default)
     {
-        ArgumentNullException.ThrowIfNull(stringBuilder);
+        ArgumentGuard.ThrowIfNull(stringBuilder);
         _stringBuilder = stringBuilder;
         _referenceWriter = Options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
     }
@@ -90,7 +90,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="tag">The YAML tag, such as <c>!dog</c>.</param>
     public void WriteTag(string tag)
     {
-        ArgumentNullException.ThrowIfNull(tag);
+        ArgumentGuard.ThrowIfNull(tag);
         if (tag.Length == 0)
         {
             throw new ArgumentException("Tag cannot be empty.", nameof(tag));
@@ -104,7 +104,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// </summary>
     public void WriteAnchor(string anchor)
     {
-        ArgumentNullException.ThrowIfNull(anchor);
+        ArgumentGuard.ThrowIfNull(anchor);
         if (anchor.Length == 0)
         {
             throw new ArgumentException("Anchor cannot be empty.", nameof(anchor));
@@ -118,7 +118,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// </summary>
     public void WriteAlias(string alias)
     {
-        ArgumentNullException.ThrowIfNull(alias);
+        ArgumentGuard.ThrowIfNull(alias);
         if (alias.Length == 0)
         {
             throw new ArgumentException("Alias cannot be empty.", nameof(alias));
@@ -181,7 +181,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <exception cref="InvalidOperationException">The writer is not positioned within a mapping key.</exception>
     public void WritePropertyName(string name)
     {
-        ArgumentNullException.ThrowIfNull(name);
+        ArgumentGuard.ThrowIfNull(name);
         if (_depth == 0 || _frames[_depth - 1].Kind != ContainerKind.Mapping)
         {
             throw new InvalidOperationException("Property names can only be written inside a mapping.");
@@ -254,7 +254,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(byte value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -263,7 +263,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(sbyte value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -272,7 +272,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(short value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -281,7 +281,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(ushort value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -290,7 +290,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(int value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -299,7 +299,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(uint value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -308,7 +308,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(long value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -317,7 +317,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(ulong value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -326,7 +326,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(decimal value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WriteFormattableScalar(value, format: default, plainSafe: true);
     }
 
     /// <summary>
@@ -335,7 +335,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(nint value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainScalar(((long)value).ToString(CultureInfo.InvariantCulture));
     }
 
     /// <summary>
@@ -344,7 +344,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(nuint value)
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainScalar(((ulong)value).ToString(CultureInfo.InvariantCulture));
     }
 
     /// <summary>
@@ -382,7 +382,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        WriteSpanFormattableScalar(value, format: "R", plainSafe: true);
+        WriteFormattableScalar(value, format: "R", plainSafe: true);
     }
 
     /// <summary>
@@ -409,7 +409,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        WriteSpanFormattableScalar(value, format: "R", plainSafe: true);
+        WriteFormattableScalar(value, format: "R", plainSafe: true);
     }
 
     /// <summary>
@@ -418,9 +418,9 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <typeparam name="T">The value type to write.</typeparam>
     /// <param name="value">The value to write.</param>
     public void WriteScalar<T>(T value)
-        where T : ISpanFormattable
+        where T : IFormattable
     {
-        WriteSpanFormattableScalar(value, format: default, plainSafe: false);
+        WriteFormattableScalar(value, format: default, plainSafe: false);
     }
 
     /// <summary>
@@ -686,22 +686,49 @@ public sealed class YamlWriter : YamlReaderWriterBase
         Write('\n');
     }
 
-    private void WriteSpanFormattableScalar<T>(T value, ReadOnlySpan<char> format, bool plainSafe)
-        where T : ISpanFormattable
+    private void WriteFormattableScalar<T>(T value, ReadOnlySpan<char> format, bool plainSafe)
+        where T : IFormattable
     {
-        Span<char> buffer = stackalloc char[64];
-        if (!value.TryFormat(buffer, out var written, format, CultureInfo.InvariantCulture))
+#if !NETSTANDARD2_0
+        if (value is ISpanFormattable spanFormattable)
+        {
+            Span<char> buffer = stackalloc char[64];
+            if (!spanFormattable.TryFormat(buffer, out var written, format, CultureInfo.InvariantCulture))
+            {
+                throw new InvalidOperationException($"Unable to format scalar value of type '{typeof(T)}'.");
+            }
+
+            if (plainSafe)
+            {
+                WritePlainScalar(buffer[..written]);
+                return;
+            }
+
+            WriteScalar(buffer[..written]);
+            return;
+        }
+#endif
+
+        var formatString = format.Length == 0
+            ? null
+#if NETSTANDARD2_0
+            : format.ToString();
+#else
+            : new string(format);
+#endif
+        var text = value.ToString(formatString, CultureInfo.InvariantCulture);
+        if (text is null)
         {
             throw new InvalidOperationException($"Unable to format scalar value of type '{typeof(T)}'.");
         }
 
         if (plainSafe)
         {
-            WritePlainScalar(buffer[..written]);
+            WritePlainScalar(text);
             return;
         }
 
-        WriteScalar(buffer[..written]);
+        WriteScalar(text);
     }
 
     private void WriteScalarCore(string value, bool isKey)
@@ -854,11 +881,19 @@ public sealed class YamlWriter : YamlReaderWriterBase
     {
         if (_stringBuilder is not null)
         {
+#if NETSTANDARD2_0
+            _stringBuilder.Append(value.ToString());
+#else
             _stringBuilder.Append(value);
+#endif
             return;
         }
 
+#if NETSTANDARD2_0
+        _writer!.Write(value.ToString());
+#else
         _writer!.Write(value);
+#endif
     }
 
     private void Write(StringBuilder value)
@@ -869,7 +904,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
+#if NETSTANDARD2_0
+        _writer!.Write(value.ToString());
+#else
         _writer!.Write(value);
+#endif
     }
 
     private enum ContainerKind

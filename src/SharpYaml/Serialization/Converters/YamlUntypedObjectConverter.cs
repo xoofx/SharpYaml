@@ -136,10 +136,12 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
         converter.Write(writer, value);
     }
 
+#if !NETSTANDARD2_0
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2057",
         Justification = "This opt-in feature enables tag-based activation by runtime type name and is not compatible with trimming. It is guarded by UnsafeAllowDeserializeFromTagTypeName.")]
+#endif
     private object? TryReadUnsafeTaggedValue(YamlReader reader)
     {
         var tag = reader.Tag;
@@ -152,7 +154,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
         var type = Type.GetType(typeName, throwOnError: false);
         if (type is null && typeName.Contains(",mscorlib", StringComparison.Ordinal))
         {
-            type = Type.GetType(typeName.Replace(",mscorlib", ",System.Private.CoreLib", StringComparison.Ordinal), throwOnError: false);
+            type = Type.GetType(typeName.Replace(",mscorlib", ",System.Private.CoreLib"), throwOnError: false);
         }
 
         if (type is null)

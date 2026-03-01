@@ -9,8 +9,8 @@ internal static class YamlBuiltInTypeInfoResolver
 {
     public static YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options)
     {
-        ArgumentNullException.ThrowIfNull(type);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentGuard.ThrowIfNull(type);
+        ArgumentGuard.ThrowIfNull(options);
 
         var converter = GetConverter(type);
         return converter is null ? null : new BuiltInYamlTypeInfo(type, options, converter);
@@ -154,13 +154,13 @@ internal static class YamlBuiltInTypeInfoResolver
 
         public override void Write(YamlWriter writer, object? value)
         {
-            ArgumentNullException.ThrowIfNull(writer);
+            ArgumentGuard.ThrowIfNull(writer);
             _converter.Write(writer, value);
         }
 
         public override object? ReadAsObject(YamlReader reader)
         {
-            ArgumentNullException.ThrowIfNull(reader);
+            ArgumentGuard.ThrowIfNull(reader);
             return _converter.Read(reader, Type);
         }
     }

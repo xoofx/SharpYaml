@@ -28,7 +28,7 @@ public abstract class YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     protected YamlReaderWriterBase(YamlSerializerOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentGuard.ThrowIfNull(options);
         Options = options;
         _propertyNameComparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     }
@@ -48,7 +48,7 @@ public abstract class YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
     public string ConvertName(string name)
     {
-        ArgumentNullException.ThrowIfNull(name);
+        ArgumentGuard.ThrowIfNull(name);
         var policy = Options.PropertyNamingPolicy;
         if (policy is null || name.Length == 0)
         {
@@ -74,7 +74,7 @@ public abstract class YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
     public string ConvertDictionaryKey(string key)
     {
-        ArgumentNullException.ThrowIfNull(key);
+        ArgumentGuard.ThrowIfNull(key);
         var policy = Options.DictionaryKeyPolicy;
         if (policy is null || key.Length == 0)
         {
@@ -101,7 +101,7 @@ public abstract class YamlReaderWriterBase
     /// <exception cref="NotSupportedException">No converter can handle <paramref name="typeToConvert"/>.</exception>
     public YamlConverter GetConverter(Type typeToConvert)
     {
-        ArgumentNullException.ThrowIfNull(typeToConvert);
+        ArgumentGuard.ThrowIfNull(typeToConvert);
 
         _converterCache ??= new Dictionary<Type, YamlConverter>();
         if (_converterCache.TryGetValue(typeToConvert, out var cached))
@@ -183,7 +183,7 @@ public abstract class YamlReaderWriterBase
     /// </exception>
     public bool TryGetCustomConverter(Type typeToConvert, out YamlConverter? converter)
     {
-        ArgumentNullException.ThrowIfNull(typeToConvert);
+        ArgumentGuard.ThrowIfNull(typeToConvert);
 
         if (Options.Converters.Count == 0)
         {
@@ -239,6 +239,7 @@ public abstract class YamlReaderWriterBase
 
     private static class YamlBuiltInConverters
     {
+#if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "AOT",
             "IL3050",
@@ -247,6 +248,7 @@ public abstract class YamlReaderWriterBase
             "Trimming",
             "IL2071",
             Justification = "This code path is only used by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+#endif
         public static YamlConverter? CreateConverter(Type typeToConvert)
         {
             if (typeToConvert == typeof(string))

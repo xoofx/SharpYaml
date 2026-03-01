@@ -14,15 +14,21 @@ public sealed class YamlConverterAttribute : YamlAttribute
     /// </summary>
     /// <param name="converterType">The converter type.</param>
     /// <exception cref="ArgumentNullException"><paramref name="converterType"/> is <see langword="null"/>.</exception>
+#if NETSTANDARD2_0
+    public YamlConverterAttribute(Type converterType)
+#else
     public YamlConverterAttribute([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type converterType)
+#endif
     {
-        ArgumentNullException.ThrowIfNull(converterType);
+        ArgumentGuard.ThrowIfNull(converterType);
         ConverterType = converterType;
     }
 
     /// <summary>
     /// Gets the converter type.
     /// </summary>
+#if !NETSTANDARD2_0
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+#endif
     public Type ConverterType { get; }
 }

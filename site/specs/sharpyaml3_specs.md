@@ -38,7 +38,7 @@ These are explicitly out-of-scope for v3.0 unless later promoted:
 
 ### 3.2 Target frameworks
 
-- Runtime library: **`net10.0` only**.
+- Runtime library: `net10.0`, `netstandard2.0`.
 - Tests: **`net10.0` only**.
 - Source generator (analyzers): `netstandard2.0` (preferred) or the minimum required by the chosen Roslyn package versions.
 
@@ -605,7 +605,7 @@ This is the recommended execution order. Each step should be a self-contained PR
 
 1. **Repo + build modernization**
    - Update `src/global.json` to .NET 10 SDK.
-   - Update `SharpYaml.csproj` to `net10.0`, `Nullable=enable`, latest LangVersion.
+   - Update `SharpYaml.csproj` to `net10.0;netstandard2.0`, `Nullable=enable`, latest LangVersion.
    - Update `SharpYaml.Tests.csproj` to `net10.0` only.
    - Remove `Polyfills/` where no longer needed.
 

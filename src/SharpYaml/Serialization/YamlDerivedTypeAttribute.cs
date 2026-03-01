@@ -16,8 +16,8 @@ public sealed class YamlDerivedTypeAttribute : YamlAttribute
     /// <exception cref="ArgumentNullException"><paramref name="derivedType"/> or <paramref name="discriminator"/> is <see langword="null"/>.</exception>
     public YamlDerivedTypeAttribute(Type derivedType, string discriminator)
     {
-        ArgumentNullException.ThrowIfNull(derivedType);
-        ArgumentNullException.ThrowIfNull(discriminator);
+        ArgumentGuard.ThrowIfNull(derivedType);
+        ArgumentGuard.ThrowIfNull(discriminator);
 
         DerivedType = derivedType;
         Discriminator = discriminator;

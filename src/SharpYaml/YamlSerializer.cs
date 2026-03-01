@@ -43,7 +43,7 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <typeparamref name="T"/> in <paramref name="context"/>.</exception>
     public static string Serialize<T>(T value, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentGuard.ThrowIfNull(context);
         return Serialize(value, typeof(T), context);
     }
 
@@ -60,7 +60,7 @@ public static class YamlSerializer
     /// </exception>
     public static string Serialize(object? value, Type inputType, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(inputType);
+        ArgumentGuard.ThrowIfNull(inputType);
 
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var typeInfo = ResolveTypeInfo(effectiveOptions, inputType);
@@ -78,8 +78,8 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <paramref name="inputType"/> in <paramref name="context"/>.</exception>
     public static string Serialize(object? value, Type inputType, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(inputType);
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentGuard.ThrowIfNull(inputType);
+        ArgumentGuard.ThrowIfNull(context);
 
         var typeInfo = ResolveTypeInfo(context, inputType);
         return SerializeCore(typeInfo, value);
@@ -95,7 +95,7 @@ public static class YamlSerializer
     /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
     public static void Serialize<T>(TextWriter writer, T value, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
         writer.Write(Serialize((object?)value, typeof(T), options));
     }
 
@@ -110,7 +110,7 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <typeparamref name="T"/> in <paramref name="context"/>.</exception>
     public static void Serialize<T>(TextWriter writer, T value, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
         writer.Write(Serialize((object?)value, typeof(T), context));
     }
 
@@ -124,7 +124,7 @@ public static class YamlSerializer
     /// <exception cref="ArgumentNullException"><paramref name="writer"/> or <paramref name="inputType"/> is <see langword="null"/>.</exception>
     public static void Serialize(TextWriter writer, object? value, Type inputType, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
         writer.Write(Serialize(value, inputType, options));
     }
 
@@ -139,7 +139,7 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <paramref name="inputType"/> in <paramref name="context"/>.</exception>
     public static void Serialize(TextWriter writer, object? value, Type inputType, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(writer);
         writer.Write(Serialize(value, inputType, context));
     }
 
@@ -183,8 +183,8 @@ public static class YamlSerializer
     /// </exception>
     public static object? Deserialize(string yaml, Type returnType, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(yaml);
-        ArgumentNullException.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(returnType);
 
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var typeInfo = ResolveTypeInfo(effectiveOptions, returnType);
@@ -202,9 +202,9 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <paramref name="returnType"/> in <paramref name="context"/>.</exception>
     public static object? Deserialize(string yaml, Type returnType, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(yaml);
-        ArgumentNullException.ThrowIfNull(returnType);
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(context);
 
         var typeInfo = ResolveTypeInfo(context, returnType);
         return DeserializeCore(typeInfo, yaml);
@@ -220,7 +220,7 @@ public static class YamlSerializer
     /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
     public static T? Deserialize<T>(TextReader reader, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(reader);
         return Deserialize<T>(reader.ReadToEnd(), options);
     }
 
@@ -235,7 +235,7 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <typeparamref name="T"/> in <paramref name="context"/>.</exception>
     public static T? Deserialize<T>(TextReader reader, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(reader);
         return Deserialize<T>(reader.ReadToEnd(), context);
     }
 
@@ -249,7 +249,7 @@ public static class YamlSerializer
     /// <exception cref="ArgumentNullException"><paramref name="reader"/> or <paramref name="returnType"/> is <see langword="null"/>.</exception>
     public static object? Deserialize(TextReader reader, Type returnType, YamlSerializerOptions? options = null)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(reader);
         return Deserialize(reader.ReadToEnd(), returnType, options);
     }
 
@@ -264,7 +264,7 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <paramref name="returnType"/> in <paramref name="context"/>.</exception>
     public static object? Deserialize(TextReader reader, Type returnType, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(reader);
         return Deserialize(reader.ReadToEnd(), returnType, context);
     }
 
@@ -291,7 +291,7 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <typeparamref name="T"/> in <paramref name="context"/>.</exception>
     public static T? Deserialize<T>(ReadOnlySpan<char> yaml, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentGuard.ThrowIfNull(context);
         return Deserialize<T>(yaml.ToString(), context);
     }
 
@@ -319,8 +319,8 @@ public static class YamlSerializer
     /// <exception cref="InvalidOperationException">No generated metadata is available for <paramref name="returnType"/> in <paramref name="context"/>.</exception>
     public static object? Deserialize(ReadOnlySpan<char> yaml, Type returnType, YamlSerializerContext context)
     {
-        ArgumentNullException.ThrowIfNull(returnType);
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentGuard.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(context);
         return Deserialize(yaml.ToString(), returnType, context);
     }
 
@@ -334,7 +334,7 @@ public static class YamlSerializer
     /// <exception cref="ArgumentNullException"><paramref name="typeInfo"/> is <see langword="null"/>.</exception>
     public static string Serialize<T>(T value, YamlTypeInfo<T> typeInfo)
     {
-        ArgumentNullException.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(typeInfo);
         return SerializeCore(typeInfo, value);
     }
 
@@ -348,8 +348,8 @@ public static class YamlSerializer
     /// <exception cref="ArgumentNullException"><paramref name="yaml"/> or <paramref name="typeInfo"/> is <see langword="null"/>.</exception>
     public static T? Deserialize<T>(string yaml, YamlTypeInfo<T> typeInfo)
     {
-        ArgumentNullException.ThrowIfNull(yaml);
-        ArgumentNullException.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(typeInfo);
         return DeserializeCore(typeInfo, yaml);
     }
 
@@ -363,13 +363,13 @@ public static class YamlSerializer
     /// <exception cref="ArgumentNullException"><paramref name="typeInfo"/> is <see langword="null"/>.</exception>
     public static T? Deserialize<T>(ReadOnlySpan<char> yaml, YamlTypeInfo<T> typeInfo)
     {
-        ArgumentNullException.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(typeInfo);
         return DeserializeCore(typeInfo, yaml.ToString());
     }
 
     private static string SerializeCore(YamlTypeInfo typeInfo, object? value)
     {
-        ArgumentNullException.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(typeInfo);
         var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
         var writer = new YamlWriter(stringBuilder, typeInfo.Options);
         typeInfo.Write(writer, value);
@@ -383,7 +383,7 @@ public static class YamlSerializer
 
     private static string SerializeCore<T>(YamlTypeInfo<T> typeInfo, T value)
     {
-        ArgumentNullException.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(typeInfo);
         var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
         var writer = new YamlWriter(stringBuilder, typeInfo.Options);
         typeInfo.Write(writer, value);
@@ -397,8 +397,8 @@ public static class YamlSerializer
 
     private static object? DeserializeCore(YamlTypeInfo typeInfo, string yaml)
     {
-        ArgumentNullException.ThrowIfNull(typeInfo);
-        ArgumentNullException.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(yaml);
 
         var reader = YamlReader.Create(yaml, typeInfo.Options);
         if (!reader.Read())
@@ -411,8 +411,8 @@ public static class YamlSerializer
 
     private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, string yaml)
     {
-        ArgumentNullException.ThrowIfNull(typeInfo);
-        ArgumentNullException.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(yaml);
 
         var reader = YamlReader.Create(yaml, typeInfo.Options);
         if (!reader.Read())
@@ -455,8 +455,8 @@ public static class YamlSerializer
 
     private static YamlTypeInfo ResolveTypeInfo(YamlSerializerContext context, Type requestedType)
     {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(requestedType);
+        ArgumentGuard.ThrowIfNull(context);
+        ArgumentGuard.ThrowIfNull(requestedType);
 
         var typeInfo = context.GetTypeInfo(requestedType, context.Options);
         if (typeInfo is not null)
