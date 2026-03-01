@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json;
@@ -9,7 +9,7 @@ namespace SharpYaml;
 /// <summary>
 /// Configures the behavior of <see cref="YamlSerializer"/> operations.
 /// </summary>
-public sealed record class YamlSerializerOptions
+public sealed record YamlSerializerOptions
 {
     private static readonly YamlConverter[] s_emptyConverters = [];
     private static readonly ReadOnlyCollection<YamlConverter> s_emptyConvertersReadOnly = Array.AsReadOnly(s_emptyConverters);
@@ -20,10 +20,7 @@ public sealed record class YamlSerializerOptions
     public static YamlSerializerOptions Default { get; } = new();
 
     private YamlConverter[] _converters = s_emptyConverters;
-    private ReadOnlyCollection<YamlConverter> _convertersReadOnly = s_emptyConvertersReadOnly;
-    private int _indentSize = 2;
-    private YamlScalarStylePreferences _scalarStylePreferences = new();
-    private YamlPolymorphismOptions _polymorphismOptions = new();
+    private readonly ReadOnlyCollection<YamlConverter> _convertersReadOnly = s_emptyConvertersReadOnly;
 
     /// <summary>
     /// Gets the custom converters.
@@ -103,7 +100,7 @@ public sealed record class YamlSerializerOptions
     /// <exception cref="ArgumentOutOfRangeException">Value is less than 1.</exception>
     public int IndentSize
     {
-        get => _indentSize;
+        get;
         init
         {
             if (value < 1)
@@ -111,9 +108,9 @@ public sealed record class YamlSerializerOptions
                 throw new ArgumentOutOfRangeException(nameof(value), value, "Indent size must be at least 1.");
             }
 
-            _indentSize = value;
+            field = value;
         }
-    }
+    } = 2;
 
     /// <summary>
     /// Gets or sets member ordering behavior for emitted mappings.
@@ -144,9 +141,9 @@ public sealed record class YamlSerializerOptions
     /// <exception cref="ArgumentNullException">Value is <see langword="null"/>.</exception>
     public YamlScalarStylePreferences ScalarStylePreferences
     {
-        get => _scalarStylePreferences;
-        init => _scalarStylePreferences = value ?? throw new ArgumentNullException(nameof(value));
-    }
+        get;
+        init => field = value ?? throw new ArgumentNullException(nameof(value));
+    } = new();
 
     /// <summary>
     /// Gets polymorphism options.
@@ -154,9 +151,9 @@ public sealed record class YamlSerializerOptions
     /// <exception cref="ArgumentNullException">Value is <see langword="null"/>.</exception>
     public YamlPolymorphismOptions PolymorphismOptions
     {
-        get => _polymorphismOptions;
-        init => _polymorphismOptions = value ?? throw new ArgumentNullException(nameof(value));
-    }
+        get;
+        init => field = value ?? throw new ArgumentNullException(nameof(value));
+    } = new();
 
     /// <summary>
     /// Gets or sets object reference handling behavior.
