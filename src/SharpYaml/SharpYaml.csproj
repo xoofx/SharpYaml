@@ -20,7 +20,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <Authors>Alexandre Mutel</Authors>
     <PackageTags>yaml;parser;yml;serialization;deserialization</PackageTags>
-    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>SharpYaml.png</PackageIcon>
     <PackageProjectUrl>https://github.com/xoofx/SharpYaml</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -41,7 +41,7 @@
 
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)../../img/SharpYaml.png" Pack="true" PackagePath="/" />
-    <None Include="$(MSBuildThisFileDirectory)../../README.md" Pack="true" PackagePath="/" Link="readme.md" />
+    <None Include="$(MSBuildThisFileDirectory)../../README.md" Pack="true" PackagePath="/" />
     <None Include="SharpYaml.targets" Pack="true" PackagePath="buildTransitive/SharpYaml.targets" />
     <!-- Ship the source generator with the main package (no separate generator NuGet package). -->
     <None Include="$(SharpYamlSourceGenAssembly)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
