@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using SharpYaml.Serialization;
 
 namespace SharpYaml.Serialization.Converters;
 
@@ -77,14 +78,47 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             writer.WriteAnchor(anchor);
         }
 
+        if (value is IYamlOnSerializing onSerializing)
+        {
+            try
+            {
+                onSerializing.OnSerializing();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(Mark.Empty, Mark.Empty, $"An error occurred while invoking '{nameof(IYamlOnSerializing)}.{nameof(IYamlOnSerializing.OnSerializing)}' on '{value.GetType()}'.", exception);
+            }
+        }
+
         var runtimeType = value.GetType();
         if (contract.Polymorphism is not null && runtimeType != typeof(T))
         {
             WritePolymorphic(writer, value, runtimeType, contract);
-            return;
+        }
+        else
+        {
+            WriteObjectCore(writer, value, contract);
         }
 
-        WriteObjectCore(writer, value, contract);
+        if (value is IYamlOnSerialized onSerialized)
+        {
+            try
+            {
+                onSerialized.OnSerialized();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(Mark.Empty, Mark.Empty, $"An error occurred while invoking '{nameof(IYamlOnSerialized)}.{nameof(IYamlOnSerialized.OnSerialized)}' on '{value.GetType()}'.", exception);
+            }
+        }
     }
 
     private T? ReadObjectCore(YamlReader reader, Contract contract)
@@ -106,6 +140,22 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         if (reader.ReferenceReader is not null && reader.Anchor is not null)
         {
             reader.ReferenceReader.Register(reader.Anchor, instance!);
+        }
+
+        if (instance is IYamlOnDeserializing onDeserializing)
+        {
+            try
+            {
+                onDeserializing.OnDeserializing();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, reader.Start, reader.End, $"An error occurred while invoking '{nameof(IYamlOnDeserializing)}.{nameof(IYamlOnDeserializing.OnDeserializing)}' on '{typeof(T)}'.", exception);
+            }
         }
 
         var options = reader.Options;
@@ -172,6 +222,23 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         reader.Read();
+
+        if (instance is IYamlOnDeserialized onDeserialized)
+        {
+            try
+            {
+                onDeserialized.OnDeserialized();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, reader.Start, reader.End, $"An error occurred while invoking '{nameof(IYamlOnDeserialized)}.{nameof(IYamlOnDeserialized.OnDeserialized)}' on '{typeof(T)}'.", exception);
+            }
+        }
+
         return instance;
     }
 
