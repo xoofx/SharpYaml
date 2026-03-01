@@ -1419,6 +1419,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         var requiredMembers = members.Where(static m => m.IsRequired).ToArray();
+        var readCandidates = members.Where(static m => IsWritableMember(m.Symbol) || m.IsRequired).ToImmutableArray();
         for (var i = 0; i < requiredMembers.Length; i++)
         {
             builder.Append("        var __required").Append(index).Append("_").Append(requiredMembers[i].Symbol.Name).AppendLine(" = false;");
@@ -1427,6 +1428,122 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         {
             builder.AppendLine();
         }
+
+        builder.AppendLine("        var mergeEnabled = options.Schema is global::SharpYaml.YamlSchemaKind.Core or global::SharpYaml.YamlSchemaKind.Extended;");
+        builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
+        builder.AppendLine("            ? new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal)");
+        builder.AppendLine("            : null;");
+        builder.AppendLine();
+        builder.AppendLine("        void ReadAndApplyMerge()");
+        builder.AppendLine("        {");
+        builder.AppendLine("            if (!mergeEnabled)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                reader.Skip();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+        builder.AppendLine("            {");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                ApplyMergeMapping();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+        builder.AppendLine("                    {");
+        builder.AppendLine("                        throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge sequence entries must be mappings.\");");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    ApplyMergeMapping();");
+        builder.AppendLine("                }");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Alias)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge alias values are not supported in source-generated deserialization.\");");
+        builder.AppendLine("            }");
+        builder.AppendLine("            throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge key value must be a mapping or a sequence of mappings.\");");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        void ApplyMergeMapping()");
+        builder.AppendLine("        {");
+        builder.AppendLine("            if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedMapping(reader);");
+        builder.AppendLine("            }");
+        builder.AppendLine("            reader.Read();");
+        builder.AppendLine("            while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
+        builder.AppendLine("                }");
+        builder.AppendLine("                var mergeKey = reader.ScalarValue ?? string.Empty;");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                if (mergeEnabled && global::System.String.Equals(mergeKey, \"<<\", global::System.StringComparison.Ordinal))");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    ReadAndApplyMerge();");
+        builder.AppendLine("                    continue;");
+        builder.AppendLine("                }");
+        builder.AppendLine("                if (explicitKeys is not null && explicitKeys.Contains(mergeKey))");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    reader.Skip();");
+        builder.AppendLine("                    continue;");
+        builder.AppendLine("                }");
+        builder.AppendLine("                var matched = false;");
+        foreach (var member in readCandidates)
+        {
+            builder.Append("                if (!matched && global::System.String.Equals(mergeKey, ").Append(member.SerializedNameExpressionForRead)
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("                {");
+            builder.AppendLine("                    matched = true;");
+            if (member.IsRequired)
+            {
+                builder.Append("                    __required").Append(index).Append("_").Append(member.Symbol.Name).AppendLine(" = true;");
+            }
+
+            if (IsWritableMember(member.Symbol))
+            {
+                EmitReadMemberValueWithCustomConverter(builder, member, indexByType);
+            }
+            else
+            {
+                if (extensionData is not null)
+                {
+                    builder.AppendLine("                    ReadAndStoreExtensionData(mergeKey);");
+                }
+                else
+                {
+                    builder.AppendLine("                    reader.Skip();");
+                }
+            }
+
+            builder.AppendLine("                }");
+        }
+
+        builder.AppendLine("                if (!matched)");
+        builder.AppendLine("                {");
+        if (extensionData is not null)
+        {
+            builder.AppendLine("                    ReadAndStoreExtensionData(mergeKey);");
+        }
+        else
+        {
+            builder.AppendLine("                    reader.Skip();");
+        }
+        builder.AppendLine("                }");
+        builder.AppendLine("            }");
+        builder.AppendLine("            reader.Read();");
+        builder.AppendLine("        }");
+        builder.AppendLine();
 
         builder.AppendLine("        reader.Read();");
         builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
@@ -1437,9 +1554,16 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            }");
         builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
         builder.AppendLine("            reader.Read();");
+        builder.AppendLine();
+        builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
+        builder.AppendLine("            {");
+        builder.AppendLine("                ReadAndApplyMerge();");
+        builder.AppendLine("                continue;");
+        builder.AppendLine("            }");
+        builder.AppendLine();
+        builder.AppendLine("            explicitKeys?.Add(key);");
 
         builder.AppendLine("            var matched = false;");
-        var readCandidates = members.Where(static m => IsWritableMember(m.Symbol) || m.IsRequired).ToImmutableArray();
         foreach (var member in readCandidates)
         {
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
@@ -1655,6 +1779,187 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.AppendLine();
+        builder.AppendLine("        var mergeEnabled = options.Schema is global::SharpYaml.YamlSchemaKind.Core or global::SharpYaml.YamlSchemaKind.Extended;");
+        builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
+        builder.AppendLine("            ? new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal)");
+        builder.AppendLine("            : null;");
+        builder.AppendLine();
+        builder.AppendLine("        void ReadAndApplyMerge()");
+        builder.AppendLine("        {");
+        builder.AppendLine("            if (!mergeEnabled)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                reader.Skip();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+        builder.AppendLine("            {");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                ApplyMergeMapping();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+        builder.AppendLine("                    {");
+        builder.AppendLine("                        throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge sequence entries must be mappings.\");");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    ApplyMergeMapping();");
+        builder.AppendLine("                }");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Alias)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge alias values are not supported in source-generated deserialization.\");");
+        builder.AppendLine("            }");
+        builder.AppendLine("            throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge key value must be a mapping or a sequence of mappings.\");");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        void ApplyMergeMapping()");
+        builder.AppendLine("        {");
+        builder.AppendLine("            if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedMapping(reader);");
+        builder.AppendLine("            }");
+        builder.AppendLine("            reader.Read();");
+        builder.AppendLine("            while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
+        builder.AppendLine("            {");
+        builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
+        builder.AppendLine("                }");
+        builder.AppendLine("                var mergeKey = reader.ScalarValue ?? string.Empty;");
+        builder.AppendLine("                reader.Read();");
+        builder.AppendLine("                if (mergeEnabled && global::System.String.Equals(mergeKey, \"<<\", global::System.StringComparison.Ordinal))");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    ReadAndApplyMerge();");
+        builder.AppendLine("                    continue;");
+        builder.AppendLine("                }");
+        builder.AppendLine("                if (explicitKeys is not null && explicitKeys.Contains(mergeKey))");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    reader.Skip();");
+        builder.AppendLine("                    continue;");
+        builder.AppendLine("                }");
+        builder.AppendLine();
+        builder.AppendLine("                var matched = false;");
+
+        // Constructor parameters first.
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var parameter = parameters[i];
+            var parameterName = parameter.Name ?? string.Empty;
+
+            builder.Append("                if (!matched && global::System.String.Equals(mergeKey, ").Append(parameterYamlNameExpressions[i])
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("                {");
+            builder.AppendLine("                    matched = true;");
+            if (requiredMembers.Length != 0)
+            {
+                for (var m = 0; m < members.Length; m++)
+                {
+                    var member = members[m];
+                    if (!member.IsRequired)
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(member.Symbol.Name, parameterName, StringComparison.OrdinalIgnoreCase) &&
+                        requiredVarBySymbol.TryGetValue(member.Symbol, out var requiredVar))
+                    {
+                        builder.Append("                    ").Append(requiredVar).AppendLine(" = true;");
+                    }
+                }
+            }
+
+            var tmpVar = $"__merge_ctor{index}_tmp{i}";
+            EmitReadKnownType(builder, parameter.Type, indexByType, tmpVar, indent: "                    ");
+            builder.Append("                    ").Append(parameterValueVarNames[i]).Append(" = ").Append(tmpVar).AppendLine(";");
+            builder.Append("                    ").Append(parameterSeenVarNames[i]).AppendLine(" = true;");
+            builder.AppendLine("                }");
+        }
+
+        // Buffered writable members next.
+        for (var i = 0; i < bufferedMembers.Length; i++)
+        {
+            var member = bufferedMembers[i];
+            var localValueVar = bufferedMemberValueVarNames[member.Symbol];
+            var localSeenVar = bufferedMemberSeenVarNames[member.Symbol];
+
+            var localModel = new MemberModel(
+                member.Symbol,
+                member.Type,
+                member.SerializedNameExpressionForRead,
+                member.SerializedNameExpressionForWrite,
+                member.AccessExpression,
+                rhs => localValueVar + " = " + rhs,
+                member.IgnoreConditionExpression,
+                member.AttributeConverterTypeName,
+                member.IsRequired);
+
+            builder.Append("                if (!matched && global::System.String.Equals(mergeKey, ").Append(member.SerializedNameExpressionForRead)
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("                {");
+            builder.AppendLine("                    matched = true;");
+            if (member.IsRequired && requiredVarBySymbol.TryGetValue(member.Symbol, out var requiredVar))
+            {
+                builder.Append("                    ").Append(requiredVar).AppendLine(" = true;");
+            }
+            EmitReadMemberValueWithCustomConverter(builder, localModel, indexByType);
+            builder.Append("                    ").Append(localSeenVar).AppendLine(" = true;");
+            builder.AppendLine("                }");
+        }
+
+        // Required read-only members (non-writable and not constructor-bound).
+        for (var i = 0; i < requiredMembers.Length; i++)
+        {
+            var member = requiredMembers[i];
+            if (IsWritableMember(member.Symbol) || ctorBoundMembers.Contains(member.Symbol))
+            {
+                continue;
+            }
+
+            builder.Append("                if (!matched && global::System.String.Equals(mergeKey, ").Append(member.SerializedNameExpressionForRead)
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("                {");
+            builder.AppendLine("                    matched = true;");
+            builder.Append("                    ").Append(requiredVarBySymbol[member.Symbol]).AppendLine(" = true;");
+            if (extensionData is not null)
+            {
+                builder.AppendLine("                    BufferExtensionData(mergeKey);");
+            }
+            else
+            {
+                builder.AppendLine("                    reader.Skip();");
+            }
+            builder.AppendLine("                }");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("                if (!matched)");
+        builder.AppendLine("                {");
+        if (extensionData is not null)
+        {
+            builder.AppendLine("                    BufferExtensionData(mergeKey);");
+        }
+        else
+        {
+            builder.AppendLine("                    reader.Skip();");
+        }
+        builder.AppendLine("                }");
+        builder.AppendLine("            }");
+        builder.AppendLine("            reader.Read();");
+        builder.AppendLine("        }");
+        builder.AppendLine();
         builder.AppendLine("        reader.Read();");
         builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
         builder.AppendLine("        {");
@@ -1664,6 +1969,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            }");
         builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
         builder.AppendLine("            reader.Read();");
+        builder.AppendLine();
+        builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
+        builder.AppendLine("            {");
+        builder.AppendLine("                ReadAndApplyMerge();");
+        builder.AppendLine("                continue;");
+        builder.AppendLine("            }");
+        builder.AppendLine();
+        builder.AppendLine("            explicitKeys?.Add(key);");
         builder.AppendLine();
         builder.AppendLine("            var matched = false;");
 
@@ -2194,6 +2507,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.Append("        var dictionary = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
                     .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
+                builder.AppendLine("        var mergeEnabled = options.Schema is global::SharpYaml.YamlSchemaKind.Core or global::SharpYaml.YamlSchemaKind.Extended;");
+                builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
+                builder.AppendLine("            ? new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal)");
+                builder.AppendLine("            : null;");
+                builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? seenKeys = mergeEnabled");
+                builder.AppendLine("            ? new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal)");
+                builder.AppendLine("            : null;");
             }
             else
             {
@@ -2203,10 +2523,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        if (rootAnchor is not null) { reader.RegisterAnchor(rootAnchor, dictionary); }");
             builder.AppendLine("        while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndMapping)");
             builder.AppendLine("        {");
-            builder.AppendLine("            if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
-            builder.AppendLine("            {");
-            builder.AppendLine("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
-            builder.AppendLine("            }");
+                builder.AppendLine("            if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
+                builder.AppendLine("            }");
 
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
@@ -2221,24 +2541,103 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
             builder.AppendLine("            reader.Read();");
 
+            if (dictionaryKeyType.SpecialType == SpecialType.System_String)
+            {
+                builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
+                builder.AppendLine("            {");
+                builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    reader.Read();");
+                builder.AppendLine("                }");
+                builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartMapping || reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Alias)");
+                builder.AppendLine("                {");
+                builder.Append("                    var merged = ReadValue").Append(index).AppendLine("(reader);");
+                builder.AppendLine("                    if (merged is not null)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        foreach (var pair in merged)");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            if (explicitKeys is not null && explicitKeys.Contains(pair.Key))");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                continue;");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                            dictionary[pair.Key] = pair.Value;");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    reader.Read();");
+                builder.AppendLine("                    while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+                builder.AppendLine("                    {");
+                builder.AppendLine("                        if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping && reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Alias)");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge sequence entries must be mappings.\");");
+                builder.AppendLine("                        }");
+                builder.Append("                        var merged = ReadValue").Append(index).AppendLine("(reader);");
+                builder.AppendLine("                        if (merged is not null)");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            foreach (var pair in merged)");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                if (explicitKeys is not null && explicitKeys.Contains(pair.Key))");
+                builder.AppendLine("                                {");
+                builder.AppendLine("                                    continue;");
+                builder.AppendLine("                                }");
+                builder.AppendLine("                                dictionary[pair.Key] = pair.Value;");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                    reader.Read();");
+                builder.AppendLine("                }");
+                builder.AppendLine("                else");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge key value must be a mapping or a sequence of mappings.\");");
+                builder.AppendLine("                }");
+                builder.AppendLine("                continue;");
+                builder.AppendLine("            }");
+                builder.AppendLine("            explicitKeys?.Add(key);");
+            }
+
             EmitReadKnownType(builder, dictionaryValueType, indexByType, "value", indent: "            ");
-            builder.AppendLine("            if (dictionary.ContainsKey(key))");
-            builder.AppendLine("            {");
-            builder.AppendLine("                switch (options.DuplicateKeyHandling)");
-            builder.AppendLine("                {");
-            builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
-            builder.AppendLine("                        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowDuplicateMappingKey(reader, key.ToString() ?? string.Empty);");
-            builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
-            builder.AppendLine("                        break;");
-            builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
-            builder.AppendLine("                        dictionary[key] = value;");
-            builder.AppendLine("                        break;");
-            builder.AppendLine("                }");
-            builder.AppendLine("            }");
-            builder.AppendLine("            else");
-            builder.AppendLine("            {");
-            builder.AppendLine("                dictionary[key] = value;");
-            builder.AppendLine("            }");
+            if (dictionaryKeyType.SpecialType == SpecialType.System_String)
+            {
+                builder.AppendLine("            if (seenKeys is not null && !seenKeys.Add(key))");
+                builder.AppendLine("            {");
+                builder.AppendLine("                switch (options.DuplicateKeyHandling)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
+                builder.AppendLine("                        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);");
+                builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
+                builder.AppendLine("                        break;");
+                builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
+                builder.AppendLine("                        dictionary[key] = value;");
+                builder.AppendLine("                        break;");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+                builder.AppendLine("            else");
+                builder.AppendLine("            {");
+                builder.AppendLine("                dictionary[key] = value;");
+                builder.AppendLine("            }");
+            }
+            else
+            {
+                builder.AppendLine("            if (dictionary.ContainsKey(key))");
+                builder.AppendLine("            {");
+                builder.AppendLine("                switch (options.DuplicateKeyHandling)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
+                builder.AppendLine("                        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowDuplicateMappingKey(reader, key.ToString() ?? string.Empty);");
+                builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
+                builder.AppendLine("                        break;");
+                builder.AppendLine("                    case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
+                builder.AppendLine("                        dictionary[key] = value;");
+                builder.AppendLine("                        break;");
+                builder.AppendLine("                }");
+                builder.AppendLine("            }");
+                builder.AppendLine("            else");
+                builder.AppendLine("            {");
+                builder.AppendLine("                dictionary[key] = value;");
+                builder.AppendLine("            }");
+            }
             builder.AppendLine("        }");
             builder.AppendLine("        reader.Read();");
             builder.AppendLine("        return dictionary;");
@@ -3464,6 +3863,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.Append("                    var dictionary = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
                     .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
+                builder.AppendLine("                    var dictionaryMergeEnabled = options.Schema is global::SharpYaml.YamlSchemaKind.Core or global::SharpYaml.YamlSchemaKind.Extended;");
+                builder.AppendLine("                    global::System.Collections.Generic.HashSet<string>? dictionaryExplicitKeys = dictionaryMergeEnabled");
+                builder.AppendLine("                        ? new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal)");
+                builder.AppendLine("                        : null;");
+                builder.AppendLine("                    global::System.Collections.Generic.HashSet<string>? dictionarySeenKeys = dictionaryMergeEnabled");
+                builder.AppendLine("                        ? new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal)");
+                builder.AppendLine("                        : null;");
+                builder.AppendLine("                    global::SharpYaml.Serialization.YamlConverter? dictionaryMergeConverter = null;");
             }
             else
             {
@@ -3491,24 +3898,105 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
             builder.AppendLine("                        reader.Read();");
 
+            if (dictionaryKeyType.SpecialType == SpecialType.System_String)
+            {
+                builder.AppendLine("                        if (dictionaryMergeEnabled && global::System.String.Equals(entryKey, \"<<\", global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                reader.Read();");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                            else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartMapping || reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Alias)");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                dictionaryMergeConverter ??= reader.GetConverter(typeof(global::System.Collections.Generic.Dictionary<string, " + valueTypeName + ">));");
+                builder.AppendLine("                                var merged = (global::System.Collections.Generic.Dictionary<string, " + valueTypeName + ">?)dictionaryMergeConverter.Read(reader, typeof(global::System.Collections.Generic.Dictionary<string, " + valueTypeName + ">));");
+                builder.AppendLine("                                if (merged is not null)");
+                builder.AppendLine("                                {");
+                builder.AppendLine("                                    foreach (var pair in merged)");
+                builder.AppendLine("                                    {");
+                builder.AppendLine("                                        if (dictionaryExplicitKeys is not null && dictionaryExplicitKeys.Contains(pair.Key))");
+                builder.AppendLine("                                        {");
+                builder.AppendLine("                                            continue;");
+                builder.AppendLine("                                        }");
+                builder.AppendLine("                                        dictionary[pair.Key] = pair.Value;");
+                builder.AppendLine("                                    }");
+                builder.AppendLine("                                }");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                            else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                reader.Read();");
+                builder.AppendLine("                                while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+                builder.AppendLine("                                {");
+                builder.AppendLine("                                    if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping && reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Alias)");
+                builder.AppendLine("                                    {");
+                builder.AppendLine("                                        throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge sequence entries must be mappings.\");");
+                builder.AppendLine("                                    }");
+                builder.AppendLine("                                    dictionaryMergeConverter ??= reader.GetConverter(typeof(global::System.Collections.Generic.Dictionary<string, " + valueTypeName + ">));");
+                builder.AppendLine("                                    var merged = (global::System.Collections.Generic.Dictionary<string, " + valueTypeName + ">?)dictionaryMergeConverter.Read(reader, typeof(global::System.Collections.Generic.Dictionary<string, " + valueTypeName + ">));");
+                builder.AppendLine("                                    if (merged is not null)");
+                builder.AppendLine("                                    {");
+                builder.AppendLine("                                        foreach (var pair in merged)");
+                builder.AppendLine("                                        {");
+                builder.AppendLine("                                            if (dictionaryExplicitKeys is not null && dictionaryExplicitKeys.Contains(pair.Key))");
+                builder.AppendLine("                                            {");
+                builder.AppendLine("                                                continue;");
+                builder.AppendLine("                                            }");
+                builder.AppendLine("                                            dictionary[pair.Key] = pair.Value;");
+                builder.AppendLine("                                        }");
+                builder.AppendLine("                                    }");
+                builder.AppendLine("                                }");
+                builder.AppendLine("                                reader.Read();");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                            else");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Merge key value must be a mapping or a sequence of mappings.\");");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                            continue;");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                        dictionaryExplicitKeys?.Add(entryKey);");
+            }
+
             EmitReadKnownType(builder, dictionaryValueType, indexByType, "value", indent: "                        ");
-            builder.AppendLine("                        if (dictionary.ContainsKey(entryKey))");
-            builder.AppendLine("                        {");
-            builder.AppendLine("                            switch (options.DuplicateKeyHandling)");
-            builder.AppendLine("                            {");
-            builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
-            builder.AppendLine("                                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowDuplicateMappingKey(reader, entryKey.ToString() ?? string.Empty);");
-            builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
-            builder.AppendLine("                                    break;");
-            builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
-            builder.AppendLine("                                    dictionary[entryKey] = value;");
-            builder.AppendLine("                                    break;");
-            builder.AppendLine("                            }");
-            builder.AppendLine("                        }");
-            builder.AppendLine("                        else");
-            builder.AppendLine("                        {");
-            builder.AppendLine("                            dictionary[entryKey] = value;");
-            builder.AppendLine("                        }");
+            if (dictionaryKeyType.SpecialType == SpecialType.System_String)
+            {
+                builder.AppendLine("                        if (dictionarySeenKeys is not null && !dictionarySeenKeys.Add(entryKey))");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            switch (options.DuplicateKeyHandling)");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
+                builder.AppendLine("                                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowDuplicateMappingKey(reader, entryKey);");
+                builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
+                builder.AppendLine("                                    break;");
+                builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
+                builder.AppendLine("                                    dictionary[entryKey] = value;");
+                builder.AppendLine("                                    break;");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                        else");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            dictionary[entryKey] = value;");
+                builder.AppendLine("                        }");
+            }
+            else
+            {
+                builder.AppendLine("                        if (dictionary.ContainsKey(entryKey))");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            switch (options.DuplicateKeyHandling)");
+                builder.AppendLine("                            {");
+                builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.Error:");
+                builder.AppendLine("                                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowDuplicateMappingKey(reader, entryKey.ToString() ?? string.Empty);");
+                builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.FirstWins:");
+                builder.AppendLine("                                    break;");
+                builder.AppendLine("                                case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
+                builder.AppendLine("                                    dictionary[entryKey] = value;");
+                builder.AppendLine("                                    break;");
+                builder.AppendLine("                            }");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                        else");
+                builder.AppendLine("                        {");
+                builder.AppendLine("                            dictionary[entryKey] = value;");
+                builder.AppendLine("                        }");
+            }
             builder.AppendLine("                    }");
             builder.AppendLine("                    reader.Read();");
             builder.Append("                    ").Append(member.AssignExpression("dictionary")).AppendLine(";");

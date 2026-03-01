@@ -363,6 +363,78 @@ internal partial class TestYamlSerializerContextWithConverters : YamlSerializerC
 public class YamlSerializerSourceGenerationTests
 {
     [TestMethod]
+    public void GeneratedContext_MergeKey_AppliesToDictionaryStringKey()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<:
+              a: 1
+              b: 2
+            b: 3
+            """;
+
+        var dictionary = YamlSerializer.Deserialize(yaml, context.DictionaryStringInt32);
+
+        Assert.IsNotNull(dictionary);
+        Assert.AreEqual(1, dictionary["a"]);
+        Assert.AreEqual(3, dictionary["b"]);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_AppliesToObject()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<:
+              first_name: Ada
+              Age: 37
+            Age: 38
+            """;
+
+        var person = YamlSerializer.Deserialize(yaml, context.GeneratedPerson);
+
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(38, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_AppliesToParameterizedConstructor()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<:
+              Name: Ada
+              Age: 37
+            Age: 38
+            """;
+
+        var model = YamlSerializer.Deserialize(yaml, context.GeneratedYamlCtorModel);
+
+        Assert.IsNotNull(model);
+        Assert.AreEqual("Ada", model.Name);
+        Assert.AreEqual(38, model.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_ExplicitKeyBeforeMergeWins()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            Age: 38
+            <<:
+              Name: Ada
+              Age: 37
+            """;
+
+        var model = YamlSerializer.Deserialize(yaml, context.GeneratedYamlCtorModel);
+
+        Assert.IsNotNull(model);
+        Assert.AreEqual("Ada", model.Name);
+        Assert.AreEqual(38, model.Age);
+    }
+
+    [TestMethod]
     public void GeneratedContextProvidesTypedMetadata()
     {
         var context = new TestYamlSerializerContext();
