@@ -30,4 +30,7 @@ dotnet run -c Release --project SharpYaml.Benchmarks -- --filter "*SourceGenerat
 
 ## Output
 
-BenchmarkDotNet is configured with `ConfigOptions.JoinSummary` so all benchmarks are reported in a single combined summary table at the end of the run.
+BenchmarkDotNet is configured with:
+
+- `ConfigOptions.JoinSummary` so all benchmarks are reported in a single combined summary table at the end of the run.
+- `BenchmarkLogicalGroupRule.ByCategory` so ratio/baseline comparisons are scoped to each benchmark scenario (e.g. POCO serialize vs POCO deserialize).

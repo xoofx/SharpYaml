@@ -26,12 +26,14 @@ public class SourceGeneratedBenchmarks
     }
 
     [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Serialize_SourceGenerated")]
     public string SharpYaml_SourceGenerated_Serialize()
     {
         return SharpYaml.YamlSerializer.Serialize(_document, _sharpYamlTypeInfo);
     }
 
     [Benchmark]
+    [BenchmarkCategory("Serialize_SourceGenerated")]
     public string YamlDotNet_StaticGenerator_Serialize()
     {
         return _yamlDotNetStaticSerializer.Serialize(_document);

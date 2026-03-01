@@ -19,24 +19,28 @@ public class GenericSerializationBenchmarks
     }
 
     [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Serialize_GenericDictionary")]
     public string SharpYaml_Serialize_GenericDictionary()
     {
         return SharpYaml.YamlSerializer.Serialize(_genericDocument);
     }
 
     [Benchmark]
+    [BenchmarkCategory("Serialize_GenericDictionary")]
     public string YamlDotNet_Serialize_GenericDictionary()
     {
         return _yamlDotNetSerializer.Serialize(_genericDocument);
     }
 
-    [Benchmark]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Serialize_StringList")]
     public string SharpYaml_Serialize_StringList()
     {
         return SharpYaml.YamlSerializer.Serialize(_stringList);
     }
 
     [Benchmark]
+    [BenchmarkCategory("Serialize_StringList")]
     public string YamlDotNet_Serialize_StringList()
     {
         return _yamlDotNetSerializer.Serialize(_stringList);

@@ -21,24 +21,28 @@ public class PocoBenchmarks
     }
 
     [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Serialize_Poco")]
     public string SharpYaml_Serialize_Poco()
     {
         return SharpYaml.YamlSerializer.Serialize(_document);
     }
 
     [Benchmark]
+    [BenchmarkCategory("Serialize_Poco")]
     public string YamlDotNet_Serialize_Poco()
     {
         return _yamlDotNetSerializer.Serialize(_document);
     }
 
-    [Benchmark]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Deserialize_Poco")]
     public BenchmarkDocument SharpYaml_Deserialize_Poco()
     {
         return SharpYaml.YamlSerializer.Deserialize<BenchmarkDocument>(_documentYaml)!;
     }
 
     [Benchmark]
+    [BenchmarkCategory("Deserialize_Poco")]
     public BenchmarkDocument YamlDotNet_Deserialize_Poco()
     {
         return _yamlDotNetDeserializer.Deserialize<BenchmarkDocument>(_documentYaml)!;
