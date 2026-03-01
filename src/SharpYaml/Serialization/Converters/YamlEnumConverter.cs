@@ -4,11 +4,11 @@ namespace SharpYaml.Serialization.Converters;
 
 internal sealed class YamlEnumConverter<TEnum> : YamlConverter<TEnum> where TEnum : struct, Enum
 {
-    public override TEnum Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override TEnum Read(YamlReader reader)
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
         var text = reader.ScalarValue ?? string.Empty;
@@ -24,10 +24,10 @@ internal sealed class YamlEnumConverter<TEnum> : YamlConverter<TEnum> where TEnu
             return (TEnum)Enum.ToObject(typeof(TEnum), numeric);
         }
 
-        throw YamlThrowHelper.ThrowInvalidEnumScalar(ref reader, text);
+        throw YamlThrowHelper.ThrowInvalidEnumScalar(reader, text);
     }
 
-    public override void Write(YamlWriter writer, TEnum value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, TEnum value)
     {
         writer.WriteScalar(value.ToString());
     }

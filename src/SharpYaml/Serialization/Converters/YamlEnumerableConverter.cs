@@ -5,15 +5,9 @@ namespace SharpYaml.Serialization.Converters;
 
 internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumerable<TElement>?>
 {
-    private readonly IYamlConverterResolver _resolver;
     private YamlConverter? _elementConverter;
 
-    public YamlEnumerableConverter(IYamlConverterResolver resolver)
-    {
-        _resolver = resolver;
-    }
-
-    public override IEnumerable<TElement>? Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override IEnumerable<TElement>? Read(YamlReader reader)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
         {
@@ -33,10 +27,10 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
 
         if (reader.TokenType != YamlTokenType.StartSequence)
         {
-            throw YamlThrowHelper.ThrowExpectedSequence(ref reader);
+            throw YamlThrowHelper.ThrowExpectedSequence(reader);
         }
 
-        _elementConverter ??= _resolver.GetConverter(typeof(TElement));
+        _elementConverter ??= reader.GetConverter(typeof(TElement));
         var anchor = reader.Anchor;
         reader.Read();
 
@@ -48,7 +42,7 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(ref reader, typeof(TElement), options);
+            var value = _elementConverter.Read(reader, typeof(TElement));
             list.Add((TElement)value!);
         }
 
@@ -56,7 +50,7 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
         return list;
     }
 
-    public override void Write(YamlWriter writer, IEnumerable<TElement>? value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, IEnumerable<TElement>? value)
     {
         if (value is null)
         {
@@ -64,7 +58,7 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
             return;
         }
 
-        _elementConverter ??= _resolver.GetConverter(typeof(TElement));
+        _elementConverter ??= writer.GetConverter(typeof(TElement));
 
         if (writer.ReferenceWriter is not null)
         {
@@ -81,7 +75,7 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
         writer.WriteStartSequence();
         foreach (var item in value)
         {
-            _elementConverter.Write(writer, item, options);
+            _elementConverter.Write(writer, item);
         }
         writer.WriteEndSequence();
     }

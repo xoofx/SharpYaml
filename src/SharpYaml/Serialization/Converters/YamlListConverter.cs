@@ -5,15 +5,9 @@ namespace SharpYaml.Serialization.Converters;
 
 internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>?>
 {
-    private readonly IYamlConverterResolver _resolver;
     private YamlConverter? _elementConverter;
 
-    public YamlListConverter(IYamlConverterResolver resolver)
-    {
-        _resolver = resolver;
-    }
-
-    public override List<TElement>? Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override List<TElement>? Read(YamlReader reader)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
         {
@@ -33,10 +27,10 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
 
         if (reader.TokenType != YamlTokenType.StartSequence)
         {
-            throw YamlThrowHelper.ThrowExpectedSequence(ref reader);
+            throw YamlThrowHelper.ThrowExpectedSequence(reader);
         }
 
-        _elementConverter ??= _resolver.GetConverter(typeof(TElement));
+        _elementConverter ??= reader.GetConverter(typeof(TElement));
         var anchor = reader.Anchor;
         reader.Read();
 
@@ -48,7 +42,7 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(ref reader, typeof(TElement), options);
+            var value = _elementConverter.Read(reader, typeof(TElement));
             list.Add((TElement)value!);
         }
 
@@ -56,7 +50,7 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
         return list;
     }
 
-    public override void Write(YamlWriter writer, List<TElement>? value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, List<TElement>? value)
     {
         if (value is null)
         {
@@ -64,7 +58,7 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
             return;
         }
 
-        _elementConverter ??= _resolver.GetConverter(typeof(TElement));
+        _elementConverter ??= writer.GetConverter(typeof(TElement));
 
         if (writer.ReferenceWriter is not null)
         {
@@ -81,7 +75,7 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
         writer.WriteStartSequence();
         for (var i = 0; i < value.Count; i++)
         {
-            _elementConverter.Write(writer, value[i], options);
+            _elementConverter.Write(writer, value[i]);
         }
         writer.WriteEndSequence();
     }

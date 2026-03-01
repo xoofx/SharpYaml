@@ -13,11 +13,11 @@ public abstract class YamlConverterFactory : YamlConverter
     public abstract YamlConverter CreateConverter(Type typeToConvert, YamlSerializerOptions options);
 
     /// <inheritdoc />
-    public sealed override object? Read(ref YamlReader reader, Type typeToConvert, YamlSerializerOptions options)
+    public sealed override object? Read(YamlReader reader, Type typeToConvert)
         => throw new InvalidOperationException("YamlConverterFactory instances must be expanded by the converter resolution pipeline.");
 
     /// <inheritdoc />
-    public sealed override void Write(YamlWriter writer, object? value, YamlSerializerOptions options)
+    public sealed override void Write(YamlWriter writer, object? value)
         => throw new InvalidOperationException("YamlConverterFactory instances must be expanded by the converter resolution pipeline.");
 }
 

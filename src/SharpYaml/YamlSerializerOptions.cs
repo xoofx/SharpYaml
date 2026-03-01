@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Text.Json;
 using SharpYaml.Serialization;
 
 namespace SharpYaml;
@@ -7,14 +9,18 @@ namespace SharpYaml;
 /// <summary>
 /// Configures the behavior of <see cref="YamlSerializer"/> operations.
 /// </summary>
-public sealed class YamlSerializerOptions
+public sealed record class YamlSerializerOptions
 {
+    private static readonly YamlConverter[] s_emptyConverters = [];
+    private static readonly ReadOnlyCollection<YamlConverter> s_emptyConvertersReadOnly = Array.AsReadOnly(s_emptyConverters);
+
     /// <summary>
     /// Gets a default options instance.
     /// </summary>
     public static YamlSerializerOptions Default { get; } = new();
 
-    private YamlConverter[] _converters = [];
+    private YamlConverter[] _converters = s_emptyConverters;
+    private ReadOnlyCollection<YamlConverter> _convertersReadOnly = s_emptyConvertersReadOnly;
     private int _indentSize = 2;
     private YamlScalarStylePreferences _scalarStylePreferences = new();
     private YamlPolymorphismOptions _polymorphismOptions = new();
@@ -29,13 +35,14 @@ public sealed class YamlSerializerOptions
     /// <exception cref="ArgumentException">A converter entry is <see langword="null"/>.</exception>
     public IReadOnlyList<YamlConverter> Converters
     {
-        get => _converters;
+        get => _convertersReadOnly;
         init
         {
             ArgumentNullException.ThrowIfNull(value);
             if (value.Count == 0)
             {
-                _converters = [];
+                _converters = s_emptyConverters;
+                _convertersReadOnly = s_emptyConvertersReadOnly;
                 return;
             }
 
@@ -52,13 +59,14 @@ public sealed class YamlSerializerOptions
             }
 
             _converters = copy;
+            _convertersReadOnly = Array.AsReadOnly(copy);
         }
     }
 
     /// <summary>
     /// Gets or sets the policy used to convert CLR property names.
     /// </summary>
-    public YamlNamingPolicy? PropertyNamingPolicy { get; init; }
+    public JsonNamingPolicy? PropertyNamingPolicy { get; init; }
 
     /// <summary>
     /// Gets or sets an optional name for the YAML source.
@@ -72,7 +80,7 @@ public sealed class YamlSerializerOptions
     /// <summary>
     /// Gets or sets the policy used to convert dictionary keys during serialization.
     /// </summary>
-    public YamlNamingPolicy? DictionaryKeyPolicy { get; init; }
+    public JsonNamingPolicy? DictionaryKeyPolicy { get; init; }
 
     /// <summary>
     /// Gets or sets a value indicating whether property name matching is case-insensitive.
@@ -160,75 +168,6 @@ public sealed class YamlSerializerOptions
     /// </summary>
     public IYamlTypeInfoResolver? TypeInfoResolver { get; init; }
 
-    /// <summary>
-    /// Gets a converter that can handle <paramref name="typeToConvert"/>.
-    /// </summary>
-    /// <param name="typeToConvert">The CLR type to resolve.</param>
-    /// <returns>The converter for <paramref name="typeToConvert"/>.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="typeToConvert"/> is <see langword="null"/>.</exception>
-    /// <exception cref="NotSupportedException">No converter can handle <paramref name="typeToConvert"/>.</exception>
-    public YamlConverter GetConverter(Type typeToConvert)
-    {
-        ArgumentNullException.ThrowIfNull(typeToConvert);
-        if (TryGetCustomConverter(typeToConvert, out var converter) && converter is not null)
-        {
-            return converter;
-        }
-
-        throw new NotSupportedException($"No YAML converter is registered for '{typeToConvert}'.");
-    }
-
-    /// <summary>
-    /// Attempts to resolve a custom converter for <paramref name="typeToConvert"/> from <see cref="Converters"/>.
-    /// </summary>
-    /// <param name="typeToConvert">The CLR type to resolve.</param>
-    /// <param name="converter">When successful, receives the converter instance.</param>
-    /// <returns><see langword="true"/> when a custom converter was resolved; otherwise <see langword="false"/>.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="typeToConvert"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException">
-    /// A converter factory returned <see langword="null"/> or returned a converter that does not handle <paramref name="typeToConvert"/>.
-    /// </exception>
-    public bool TryGetCustomConverter(Type typeToConvert, out YamlConverter? converter)
-    {
-        ArgumentNullException.ThrowIfNull(typeToConvert);
-
-        // Search user-provided converters first (same precedence rule as System.Text.Json).
-        for (var i = 0; i < _converters.Length; i++)
-        {
-            var candidate = _converters[i];
-            if (candidate is null)
-            {
-                continue;
-            }
-
-            if (candidate is YamlConverterFactory factory)
-            {
-                if (!factory.CanConvert(typeToConvert))
-                {
-                    continue;
-                }
-
-                var created = factory.CreateConverter(typeToConvert, this);
-                if (created is null || !created.CanConvert(typeToConvert))
-                {
-                    throw new InvalidOperationException($"Converter factory '{factory.GetType()}' returned an invalid converter for '{typeToConvert}'.");
-                }
-
-                converter = created;
-                return true;
-            }
-
-            if (candidate.CanConvert(typeToConvert))
-            {
-                converter = candidate;
-                return true;
-            }
-        }
-
-        converter = null;
-        return false;
-    }
-
     internal YamlSerializerOptions WithTypeInfoResolverIfMissing(IYamlTypeInfoResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
@@ -238,24 +177,6 @@ public sealed class YamlSerializerOptions
             return this;
         }
 
-        return new YamlSerializerOptions
-        {
-            Converters = Converters,
-            PropertyNamingPolicy = PropertyNamingPolicy,
-            SourceName = SourceName,
-            DictionaryKeyPolicy = DictionaryKeyPolicy,
-            PropertyNameCaseInsensitive = PropertyNameCaseInsensitive,
-            DefaultIgnoreCondition = DefaultIgnoreCondition,
-            WriteIndented = WriteIndented,
-            IndentSize = IndentSize,
-            MappingOrder = MappingOrder,
-            Schema = Schema,
-            DuplicateKeyHandling = DuplicateKeyHandling,
-            UnsafeAllowDeserializeFromTagTypeName = UnsafeAllowDeserializeFromTagTypeName,
-            ScalarStylePreferences = ScalarStylePreferences,
-            PolymorphismOptions = PolymorphismOptions,
-            ReferenceHandling = ReferenceHandling,
-            TypeInfoResolver = resolver,
-        };
+        return this with { TypeInfoResolver = resolver };
     }
 }

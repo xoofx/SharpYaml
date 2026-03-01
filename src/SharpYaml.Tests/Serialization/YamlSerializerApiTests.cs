@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -38,11 +39,11 @@ public class YamlSerializerApiTests
             writer.WriteEndMapping();
         }
 
-        public override string Read(ref YamlReader reader)
+        public override string Read(YamlReader reader)
         {
             if (reader.TokenType != YamlTokenType.StartMapping)
             {
-                throw YamlThrowHelper.ThrowExpectedMapping(ref reader);
+                throw YamlThrowHelper.ThrowExpectedMapping(reader);
             }
 
             reader.Read();
@@ -51,7 +52,7 @@ public class YamlSerializerApiTests
             {
                 if (reader.TokenType != YamlTokenType.Scalar)
                 {
-                    throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
+                    throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
                 }
 
                 var key = reader.ScalarValue ?? string.Empty;
@@ -60,7 +61,7 @@ public class YamlSerializerApiTests
                 {
                     if (reader.TokenType != YamlTokenType.Scalar)
                     {
-                        throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
+                        throw YamlThrowHelper.ThrowExpectedScalar(reader);
                     }
 
                     value = reader.ScalarValue ?? string.Empty;
@@ -172,7 +173,7 @@ public class YamlSerializerApiTests
     [TestMethod]
     public void SerializeWithCamelCasePolicy()
     {
-        var options = new YamlSerializerOptions { PropertyNamingPolicy = YamlNamingPolicy.CamelCase };
+        var options = new YamlSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         var yaml = YamlSerializer.Serialize(new Person { FirstName = "Ada", Age = 37 }, options);
 
         StringAssert.Contains(yaml, "firstName");

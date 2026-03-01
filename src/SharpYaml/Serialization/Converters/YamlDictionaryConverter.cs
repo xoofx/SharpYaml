@@ -5,15 +5,9 @@ namespace SharpYaml.Serialization.Converters;
 
 internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary<string, TValue>?>
 {
-    private readonly IYamlConverterResolver _resolver;
     private YamlConverter? _valueConverter;
 
-    public YamlDictionaryConverter(IYamlConverterResolver resolver)
-    {
-        _resolver = resolver;
-    }
-
-    public override Dictionary<string, TValue>? Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override Dictionary<string, TValue>? Read(YamlReader reader)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
         {
@@ -33,13 +27,14 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
 
         if (reader.TokenType != YamlTokenType.StartMapping)
         {
-            throw YamlThrowHelper.ThrowExpectedMapping(ref reader);
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
         }
 
-        _valueConverter ??= _resolver.GetConverter(typeof(TValue));
+        _valueConverter ??= reader.GetConverter(typeof(TValue));
         var anchor = reader.Anchor;
         reader.Read();
 
+        var options = reader.Options;
         var dictionary = new Dictionary<string, TValue>(options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         if (reader.ReferenceReader is not null && anchor is not null)
         {
@@ -50,19 +45,19 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
         {
             if (reader.TokenType != YamlTokenType.Scalar)
             {
-                throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
             }
 
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
 
-            var value = _valueConverter.Read(ref reader, typeof(TValue), options);
+            var value = _valueConverter.Read(reader, typeof(TValue));
             if (dictionary.ContainsKey(key))
             {
                 switch (options.DuplicateKeyHandling)
                 {
                     case YamlDuplicateKeyHandling.Error:
-                        throw YamlThrowHelper.ThrowDuplicateMappingKey(ref reader, key);
+                        throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
                     case YamlDuplicateKeyHandling.FirstWins:
                         break;
                     case YamlDuplicateKeyHandling.LastWins:
@@ -80,7 +75,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
         return dictionary;
     }
 
-    public override void Write(YamlWriter writer, Dictionary<string, TValue>? value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, Dictionary<string, TValue>? value)
     {
         if (value is null)
         {
@@ -88,7 +83,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
             return;
         }
 
-        _valueConverter ??= _resolver.GetConverter(typeof(TValue));
+        _valueConverter ??= writer.GetConverter(typeof(TValue));
 
         if (writer.ReferenceWriter is not null)
         {
@@ -105,9 +100,9 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
         writer.WriteStartMapping();
         foreach (var pair in value)
         {
-            var key = options.DictionaryKeyPolicy?.ConvertName(pair.Key) ?? pair.Key;
+            var key = writer.ConvertDictionaryKey(pair.Key);
             writer.WritePropertyName(key);
-            _valueConverter.Write(writer, pair.Value, options);
+            _valueConverter.Write(writer, pair.Value);
         }
         writer.WriteEndMapping();
     }

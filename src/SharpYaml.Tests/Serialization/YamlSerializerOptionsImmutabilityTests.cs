@@ -11,13 +11,13 @@ public sealed class YamlSerializerOptionsImmutabilityTests
 {
     private sealed class NoopInt32Converter : YamlConverter<int>
     {
-        public override int Read(ref YamlReader reader, SharpYaml.YamlSerializerOptions options)
+        public override int Read(YamlReader reader)
         {
             reader.Skip();
             return 0;
         }
 
-        public override void Write(YamlWriter writer, int value, SharpYaml.YamlSerializerOptions options)
+        public override void Write(YamlWriter writer, int value)
         {
             writer.WriteScalar(value);
         }
@@ -69,4 +69,3 @@ public sealed class YamlSerializerOptionsImmutabilityTests
         public override SharpYaml.YamlTypeInfo? GetTypeInfo(System.Type type, SharpYaml.YamlSerializerOptions options) => null;
     }
 }
-

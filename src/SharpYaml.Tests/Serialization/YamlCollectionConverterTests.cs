@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SharpYaml.Tests.Serialization;
@@ -42,7 +43,7 @@ public sealed class YamlCollectionConverterTests
     [TestMethod]
     public void DictionaryKeyPolicy_AppliesToSerializedKeys()
     {
-        var options = new YamlSerializerOptions { DictionaryKeyPolicy = YamlNamingPolicy.CamelCase };
+        var options = new YamlSerializerOptions { DictionaryKeyPolicy = JsonNamingPolicy.CamelCase };
         var yaml = YamlSerializer.Serialize(
             new Dictionary<string, int>
             {
@@ -70,4 +71,3 @@ public sealed class YamlCollectionConverterTests
         StringAssert.Contains(yaml, "outer:\n    inner: 1\n");
     }
 }
-

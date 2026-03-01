@@ -15,12 +15,12 @@ public abstract class YamlConverter
     /// <summary>
     /// Reads a value from YAML.
     /// </summary>
-    public abstract object? Read(ref YamlReader reader, Type typeToConvert, YamlSerializerOptions options);
+    public abstract object? Read(YamlReader reader, Type typeToConvert);
 
     /// <summary>
     /// Writes a value to YAML.
     /// </summary>
-    public abstract void Write(YamlWriter writer, object? value, YamlSerializerOptions options);
+    public abstract void Write(YamlWriter writer, object? value);
 }
 
 /// <summary>
@@ -33,25 +33,25 @@ public abstract class YamlConverter<T> : YamlConverter
     public sealed override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(T);
 
     /// <inheritdoc />
-    public sealed override object? Read(ref YamlReader reader, Type typeToConvert, YamlSerializerOptions options)
+    public sealed override object? Read(YamlReader reader, Type typeToConvert)
     {
-        return Read(ref reader, options);
+        return Read(reader);
     }
 
     /// <inheritdoc />
-    public sealed override void Write(YamlWriter writer, object? value, YamlSerializerOptions options)
+    public sealed override void Write(YamlWriter writer, object? value)
     {
-        Write(writer, (T)value!, options);
+        Write(writer, (T)value!);
     }
 
     /// <summary>
     /// Reads a value from YAML.
     /// </summary>
-    public abstract T? Read(ref YamlReader reader, YamlSerializerOptions options);
+    public abstract T? Read(YamlReader reader);
 
     /// <summary>
     /// Writes a value to YAML.
     /// </summary>
-    public abstract void Write(YamlWriter writer, T value, YamlSerializerOptions options);
+    public abstract void Write(YamlWriter writer, T value);
 }
 

@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
+using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
@@ -12,9 +14,9 @@ public sealed class YamlOptionsValidationTests
 {
     private sealed class StringOnlyConverter : YamlConverter<string>
     {
-        public override string Read(ref YamlReader reader, YamlSerializerOptions options) => throw new NotSupportedException();
+        public override string Read(YamlReader reader) => throw new NotSupportedException();
 
-        public override void Write(YamlWriter writer, string value, YamlSerializerOptions options) => throw new NotSupportedException();
+        public override void Write(YamlWriter writer, string value) => throw new NotSupportedException();
     }
 
     private sealed class BadFactoryReturnsNull : YamlConverterFactory
@@ -51,22 +53,22 @@ public sealed class YamlOptionsValidationTests
         {
             Converters = new YamlConverter[] { new BadFactoryReturnsNull() },
         };
-        Assert.Throws<InvalidOperationException>(() => options1.GetConverter(typeof(int)));
+        Assert.Throws<InvalidOperationException>(() => new YamlWriter(new StringBuilder(), options1).GetConverter(typeof(int)));
 
         var options2 = new YamlSerializerOptions
         {
             Converters = new YamlConverter[] { new BadFactoryWrongConverter() },
         };
-        Assert.Throws<InvalidOperationException>(() => options2.GetConverter(typeof(int)));
+        Assert.Throws<InvalidOperationException>(() => new YamlWriter(new StringBuilder(), options2).GetConverter(typeof(int)));
     }
 
     [TestMethod]
     public void NamingPolicy_CamelCase_ConvertsOnlyWhenLeadingUppercase()
     {
-        Assert.AreEqual(string.Empty, YamlNamingPolicy.CamelCase.ConvertName(string.Empty));
-        Assert.AreEqual("already", YamlNamingPolicy.CamelCase.ConvertName("already"));
-        Assert.AreEqual("hello", YamlNamingPolicy.CamelCase.ConvertName("Hello"));
-        Assert.AreEqual("uRLValue", YamlNamingPolicy.CamelCase.ConvertName("URLValue"));
+        Assert.AreEqual(string.Empty, JsonNamingPolicy.CamelCase.ConvertName(string.Empty));
+        Assert.AreEqual("already", JsonNamingPolicy.CamelCase.ConvertName("already"));
+        Assert.AreEqual("hello", JsonNamingPolicy.CamelCase.ConvertName("Hello"));
+        Assert.AreEqual("urlValue", JsonNamingPolicy.CamelCase.ConvertName("URLValue"));
     }
 
     [TestMethod]

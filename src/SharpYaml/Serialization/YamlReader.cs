@@ -14,11 +14,12 @@ namespace SharpYaml.Serialization;
 /// This API is intentionally similar in spirit to <c>System.Text.Json</c>'s reader,
 /// but it models YAML constructs (mappings, sequences, scalars).
 /// </remarks>
-public ref struct YamlReader
+public sealed class YamlReader : YamlReaderWriterBase
 {
     private readonly YamlReaderState _state;
 
-    internal YamlReader(YamlReaderState state)
+    internal YamlReader(YamlReaderState state, YamlSerializerOptions options)
+        : base(options)
     {
         _state = state;
     }
@@ -35,7 +36,7 @@ public ref struct YamlReader
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var referenceReader = effectiveOptions.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName));
+        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName), effectiveOptions);
     }
 
     /// <summary>
@@ -50,7 +51,7 @@ public ref struct YamlReader
         var parser = SharpYaml.Parser.CreateParser(reader);
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var referenceReader = effectiveOptions.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceReader() : null;
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName));
+        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName), effectiveOptions);
     }
 
     /// <summary>
@@ -66,14 +67,15 @@ public ref struct YamlReader
     public YamlReader CreateReader(string yaml)
     {
         ArgumentNullException.ThrowIfNull(yaml);
-        return Create(yaml, _state.ReferenceReader, _state.SourceName);
+        return Create(yaml, _state.ReferenceReader, _state.SourceName, Options);
     }
 
-    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName)
+    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName, YamlSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(yaml);
+        ArgumentNullException.ThrowIfNull(options);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml));
-        return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName));
+        return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName), options);
     }
 
     /// <summary>
@@ -167,7 +169,6 @@ public ref struct YamlReader
     /// Buffers the current YAML node to a string while optionally extracting a discriminator value from the root mapping.
     /// </summary>
     /// <param name="reader">The reader positioned at the start of the node.</param>
-    /// <param name="options">Options that control formatting and case-insensitive key matching.</param>
     /// <param name="discriminatorPropertyName">The mapping key name to treat as a discriminator.</param>
     /// <param name="discriminatorValue">Receives the discriminator scalar value when present on the root mapping.</param>
     /// <returns>The buffered YAML for the node.</returns>
@@ -175,23 +176,22 @@ public ref struct YamlReader
     /// This method consumes the buffered node from <paramref name="reader"/> and advances it past the node.
     /// It is primarily used by polymorphic deserialization implementations.
     /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> or <paramref name="discriminatorPropertyName"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> or <paramref name="discriminatorPropertyName"/> is <see langword="null"/>.</exception>
     public static string BufferCurrentNodeToStringAndFindDiscriminator(
-        ref YamlReader reader,
-        YamlSerializerOptions options,
+        YamlReader reader,
         string discriminatorPropertyName,
         out string? discriminatorValue)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(reader);
         ArgumentNullException.ThrowIfNull(discriminatorPropertyName);
 
-        var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var comparer = reader.Options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         discriminatorValue = null;
 
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
-        var yamlWriter = new YamlWriter(writer, options);
+        var yamlWriter = new YamlWriter(writer, reader.Options);
 
-        WriteBufferedNode(ref reader, yamlWriter, comparer, discriminatorPropertyName, isRootMapping: true, ref discriminatorValue);
+        WriteBufferedNode(reader, yamlWriter, comparer, discriminatorPropertyName, isRootMapping: true, ref discriminatorValue);
         return writer.ToString();
     }
 
@@ -220,7 +220,7 @@ public ref struct YamlReader
     }
 
     private static void WriteBufferedNode(
-        ref YamlReader reader,
+        YamlReader reader,
         YamlWriter writer,
         StringComparer keyComparer,
         string discriminatorPropertyName,
@@ -264,7 +264,7 @@ public ref struct YamlReader
                 reader.Read();
                 while (reader.TokenType != YamlTokenType.EndSequence)
                 {
-                    WriteBufferedNode(ref reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
+                    WriteBufferedNode(reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
                 }
                 writer.WriteEndSequence();
                 reader.Read();
@@ -287,7 +287,7 @@ public ref struct YamlReader
                 {
                     if (reader.TokenType != YamlTokenType.Scalar)
                     {
-                        throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
+                        throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
                     }
 
                     var key = reader.ScalarValue ?? string.Empty;
@@ -298,20 +298,20 @@ public ref struct YamlReader
                     {
                         if (reader.TokenType != YamlTokenType.Scalar)
                         {
-                            throw YamlThrowHelper.ThrowExpectedDiscriminatorScalar(ref reader, discriminatorPropertyName);
+                            throw YamlThrowHelper.ThrowExpectedDiscriminatorScalar(reader, discriminatorPropertyName);
                         }
 
                         discriminatorValue = reader.ScalarValue ?? string.Empty;
                     }
 
-                    WriteBufferedNode(ref reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
+                    WriteBufferedNode(reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
                 }
                 writer.WriteEndMapping();
                 reader.Read();
                 return;
 
             default:
-                throw YamlThrowHelper.ThrowUnexpectedToken(ref reader);
+                throw YamlThrowHelper.ThrowUnexpectedToken(reader);
         }
     }
 

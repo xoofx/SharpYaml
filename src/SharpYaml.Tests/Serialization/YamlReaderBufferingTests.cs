@@ -21,14 +21,14 @@ public sealed class YamlReaderBufferingTests
         Assert.IsTrue(reader.Read());
         Assert.AreEqual(YamlTokenType.StartMapping, reader.TokenType);
 
-        var buffered = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(ref reader, options, "$type", out var discriminator);
+        var buffered = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(reader, "$type", out var discriminator);
         Assert.AreEqual("dog", discriminator);
         StringAssert.Contains(buffered, "$type: dog");
         StringAssert.Contains(buffered, "Name: Rex");
 
         // Reader should be positioned at the next sequence item (second mapping).
         Assert.AreEqual(YamlTokenType.StartMapping, reader.TokenType);
-        var buffered2 = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(ref reader, options, "$type", out var discriminator2);
+        var buffered2 = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(reader, "$type", out var discriminator2);
         Assert.AreEqual("cat", discriminator2);
         StringAssert.Contains(buffered2, "$type: cat");
         StringAssert.Contains(buffered2, "Name: Mittens");
@@ -48,8 +48,7 @@ public sealed class YamlReaderBufferingTests
         Assert.IsTrue(reader.Read());
         Assert.AreEqual(YamlTokenType.StartMapping, reader.TokenType);
 
-        _ = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(ref reader, options, "$type", out var discriminator);
+        _ = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(reader, "$type", out var discriminator);
         Assert.AreEqual("dog", discriminator);
     }
 }
-

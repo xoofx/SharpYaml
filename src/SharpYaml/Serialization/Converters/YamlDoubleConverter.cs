@@ -6,24 +6,24 @@ internal sealed class YamlDoubleConverter : YamlConverter<double>
 {
     public static YamlDoubleConverter Instance { get; } = new();
 
-    public override double Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override double Read(YamlReader reader)
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
         var value = reader.ScalarValue.AsSpan();
         if (!YamlScalar.TryParseDouble(value, out var result))
         {
-            throw YamlThrowHelper.ThrowInvalidFloatScalar(ref reader);
+            throw YamlThrowHelper.ThrowInvalidFloatScalar(reader);
         }
 
         reader.Read();
         return result;
     }
 
-    public override void Write(YamlWriter writer, double value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, double value)
     {
         if (double.IsPositiveInfinity(value))
         {

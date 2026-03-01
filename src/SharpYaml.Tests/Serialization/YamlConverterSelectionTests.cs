@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
@@ -19,7 +20,8 @@ public sealed class YamlConverterSelectionTests
             ],
         };
 
-        var converter = options.GetConverter(typeof(int));
+        var writer = new YamlWriter(new StringBuilder(), options);
+        var converter = writer.GetConverter(typeof(int));
 
         Assert.IsInstanceOfType<AlwaysInt32Converter>(converter);
         Assert.AreEqual("first", ((AlwaysInt32Converter)converter).Id);
@@ -36,19 +38,21 @@ public sealed class YamlConverterSelectionTests
             ],
         };
 
-        var converter = options.GetConverter(typeof(int));
+        var writer = new YamlWriter(new StringBuilder(), options);
+        var converter = writer.GetConverter(typeof(int));
 
         Assert.IsInstanceOfType<AlwaysInt32Converter>(converter);
         Assert.AreEqual("factory", ((AlwaysInt32Converter)converter).Id);
     }
 
     [TestMethod]
-    public void GetConverter_ThrowsWhenNoConverterFound()
+    public void TryGetCustomConverter_ReturnsFalseWhenNoConverterFound()
     {
         var options = new YamlSerializerOptions();
 
-        var ex = Assert.Throws<NotSupportedException>(() => options.GetConverter(typeof(int)));
-        StringAssert.Contains(ex.Message, "No YAML converter is registered");
+        var writer = new YamlWriter(new StringBuilder(), options);
+        Assert.IsFalse(writer.TryGetCustomConverter(typeof(int), out var converter));
+        Assert.IsNull(converter);
     }
 
     private sealed class AlwaysInt32Converter : YamlConverter<int>
@@ -57,9 +61,9 @@ public sealed class YamlConverterSelectionTests
 
         public string Id { get; }
 
-        public override int Read(ref YamlReader reader, YamlSerializerOptions options) => 42;
+        public override int Read(YamlReader reader) => 42;
 
-        public override void Write(YamlWriter writer, int value, YamlSerializerOptions options)
+        public override void Write(YamlWriter writer, int value)
         {
         }
     }

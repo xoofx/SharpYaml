@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -126,13 +127,13 @@ internal sealed class GeneratedTaggedZoo
 
 internal sealed class ConstantIntConverter : YamlConverter<int>
 {
-    public override int Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override int Read(YamlReader reader)
     {
         reader.Skip();
         return 123;
     }
 
-    public override void Write(YamlWriter writer, int value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, int value)
         => writer.WriteScalar("123");
 }
 
@@ -311,8 +312,8 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsFalse(options.WriteIndented);
         Assert.IsTrue(options.PropertyNameCaseInsensitive);
         Assert.AreEqual(YamlIgnoreCondition.WhenWritingNull, options.DefaultIgnoreCondition);
-        Assert.AreSame(YamlNamingPolicy.CamelCase, options.PropertyNamingPolicy);
-        Assert.AreSame(YamlNamingPolicy.CamelCase, options.DictionaryKeyPolicy);
+        Assert.AreSame(JsonNamingPolicy.CamelCase, options.PropertyNamingPolicy);
+        Assert.AreSame(JsonNamingPolicy.CamelCase, options.DictionaryKeyPolicy);
         Assert.AreSame(context, options.TypeInfoResolver);
 
         var yaml = YamlSerializer.Serialize(

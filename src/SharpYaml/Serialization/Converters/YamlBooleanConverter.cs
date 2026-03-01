@@ -6,24 +6,24 @@ internal sealed class YamlBooleanConverter : YamlConverter<bool>
 {
     public static YamlBooleanConverter Instance { get; } = new();
 
-    public override bool Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override bool Read(YamlReader reader)
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
         var value = reader.ScalarValue.AsSpan();
         if (!YamlScalar.TryParseBool(value, out var result))
         {
-            throw YamlThrowHelper.ThrowInvalidBooleanScalar(ref reader);
+            throw YamlThrowHelper.ThrowInvalidBooleanScalar(reader);
         }
 
         reader.Read();
         return result;
     }
 
-    public override void Write(YamlWriter writer, bool value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, bool value)
     {
         writer.WriteScalar(value ? "true" : "false");
     }

@@ -406,7 +406,7 @@ public static class YamlSerializer
             return null;
         }
 
-        return typeInfo.ReadAsObject(ref reader);
+        return typeInfo.ReadAsObject(reader);
     }
 
     private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, string yaml)
@@ -420,7 +420,7 @@ public static class YamlSerializer
             return default;
         }
 
-        return typeInfo.Read(ref reader);
+        return typeInfo.Read(reader);
     }
 
     private static StringBuilder AcquireStringBuilder(int minimumCapacity)

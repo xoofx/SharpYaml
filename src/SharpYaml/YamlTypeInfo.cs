@@ -48,7 +48,7 @@ public abstract class YamlTypeInfo
     /// </summary>
     /// <param name="reader">The reader positioned on the value token.</param>
     /// <returns>The deserialized value.</returns>
-    public abstract object? ReadAsObject(ref YamlReader reader);
+    public abstract object? ReadAsObject(YamlReader reader);
 }
 
 /// <summary>
@@ -78,7 +78,7 @@ public abstract class YamlTypeInfo<T> : YamlTypeInfo
     /// </summary>
     /// <param name="reader">The reader positioned on the value token.</param>
     /// <returns>The deserialized value.</returns>
-    public abstract T? Read(ref YamlReader reader);
+    public abstract T? Read(YamlReader reader);
 
     /// <inheritdoc />
     public override void Write(YamlWriter writer, object? value)
@@ -88,9 +88,10 @@ public abstract class YamlTypeInfo<T> : YamlTypeInfo
     }
 
     /// <inheritdoc />
-    public override object? ReadAsObject(ref YamlReader reader)
+    public override object? ReadAsObject(YamlReader reader)
     {
-        return Read(ref reader);
+        ArgumentNullException.ThrowIfNull(reader);
+        return Read(reader);
     }
 }
 

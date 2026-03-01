@@ -6,24 +6,24 @@ internal sealed class YamlSingleConverter : YamlConverter<float>
 {
     public static YamlSingleConverter Instance { get; } = new();
 
-    public override float Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override float Read(YamlReader reader)
     {
         if (reader.TokenType != YamlTokenType.Scalar)
         {
-            throw YamlThrowHelper.ThrowExpectedScalar(ref reader);
+            throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
         var value = reader.ScalarValue.AsSpan();
         if (!YamlScalar.TryParseDouble(value, out var parsed))
         {
-            throw YamlThrowHelper.ThrowInvalidFloatScalar(ref reader);
+            throw YamlThrowHelper.ThrowInvalidFloatScalar(reader);
         }
 
         reader.Read();
         return (float)parsed;
     }
 
-    public override void Write(YamlWriter writer, float value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, float value)
     {
         if (float.IsPositiveInfinity(value))
         {

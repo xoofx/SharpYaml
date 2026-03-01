@@ -9,15 +9,9 @@ namespace SharpYaml.Serialization.Converters;
 
 internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 {
-    private readonly IYamlConverterResolver _resolver;
     private Contract? _contract;
 
-    public YamlObjectConverter(IYamlConverterResolver resolver)
-    {
-        _resolver = resolver;
-    }
-
-    public override T? Read(ref YamlReader reader, YamlSerializerOptions options)
+    public override T? Read(YamlReader reader)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
         {
@@ -37,13 +31,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         if (reader.TokenType != YamlTokenType.StartMapping)
         {
-            throw YamlThrowHelper.ThrowExpectedMapping(ref reader);
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
         }
 
         Contract contract;
         try
         {
-            contract = _contract ??= Contract.Create(typeof(T), options);
+            contract = _contract ??= Contract.Create(typeof(T), reader);
         }
         catch (YamlException)
         {
@@ -55,13 +49,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
         if (contract.Polymorphism is not null)
         {
-            return ReadPolymorphic(ref reader, options, contract);
+            return ReadPolymorphic(reader, contract);
         }
 
-        return ReadObjectCore(ref reader, options, contract);
+        return ReadObjectCore(reader, contract);
     }
 
-    public override void Write(YamlWriter writer, T? value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, T? value)
     {
         if (value is null)
         {
@@ -69,7 +63,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return;
         }
 
-        var contract = _contract ??= Contract.Create(typeof(T), options);
+        var contract = _contract ??= Contract.Create(typeof(T), writer);
 
         if (writer.ReferenceWriter is not null && value is not string && !typeof(T).IsValueType)
         {
@@ -86,14 +80,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         var runtimeType = value.GetType();
         if (contract.Polymorphism is not null && runtimeType != typeof(T))
         {
-            WritePolymorphic(writer, value, runtimeType, options, contract);
+            WritePolymorphic(writer, value, runtimeType, contract);
             return;
         }
 
-        WriteObjectCore(writer, value, options, contract);
+        WriteObjectCore(writer, value, contract);
     }
 
-    private T? ReadObjectCore(ref YamlReader reader, YamlSerializerOptions options, Contract contract)
+    private T? ReadObjectCore(YamlReader reader, Contract contract)
     {
         T instance;
         try
@@ -114,6 +108,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             reader.ReferenceReader.Register(reader.Anchor, instance!);
         }
 
+        var options = reader.Options;
         HashSet<Member>? seenMembers = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<Member>();
 
         reader.Read();
@@ -121,7 +116,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         {
             if (reader.TokenType != YamlTokenType.Scalar)
             {
-                throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
             }
 
             var keyStart = reader.Start;
@@ -147,11 +142,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
-            var converter = member.Converter ??= _resolver.GetConverter(member.MemberType);
+            var converter = member.Converter ??= reader.GetConverter(member.MemberType);
             object? value;
             try
             {
-                value = converter.Read(ref reader, member.MemberType, options);
+                value = converter.Read(reader, member.MemberType);
             }
             catch (YamlException)
             {
@@ -180,10 +175,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         return instance;
     }
 
-    private void WriteObjectCore(YamlWriter writer, object value, YamlSerializerOptions options, Contract contract)
+    private void WriteObjectCore(YamlWriter writer, object value, Contract contract)
     {
         writer.WriteStartMapping();
 
+        var options = writer.Options;
         var members = options.MappingOrder == YamlMappingOrderPolicy.Sorted
             ? contract.MembersSorted
             : contract.MembersDeclaration;
@@ -203,19 +199,19 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
 
             writer.WritePropertyName(member.Name);
-            var converter = member.Converter ??= _resolver.GetConverter(member.MemberType);
-            converter.Write(writer, memberValue, options);
+            var converter = member.Converter ??= writer.GetConverter(member.MemberType);
+            converter.Write(writer, memberValue);
         }
 
         writer.WriteEndMapping();
     }
 
-    private T? ReadPolymorphic(ref YamlReader reader, YamlSerializerOptions options, Contract contract)
+    private T? ReadPolymorphic(YamlReader reader, Contract contract)
     {
         var polymorphism = contract.Polymorphism!;
         var rootTag = reader.Tag;
 
-        var buffered = BufferCurrentMappingToString(ref reader, options, polymorphism, out var discriminatorValue);
+        var buffered = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(reader, polymorphism.DiscriminatorPropertyName, out var discriminatorValue);
 
         Type? targetType = null;
         if (polymorphism.AcceptsPropertyDiscriminator && discriminatorValue is not null)
@@ -226,7 +222,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
             else if (polymorphism.UnknownDerivedTypeHandling == YamlUnknownDerivedTypeHandling.Fail)
             {
-                throw YamlThrowHelper.ThrowUnknownTypeDiscriminator(ref reader, discriminatorValue, typeof(T));
+                throw YamlThrowHelper.ThrowUnknownTypeDiscriminator(reader, discriminatorValue, typeof(T));
             }
         }
 
@@ -240,7 +236,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         targetType ??= typeof(T);
 
-        var bufferedReader = YamlReader.Create(buffered, reader.ReferenceReader, reader.SourceName);
+        var bufferedReader = reader.CreateReader(buffered);
         if (!bufferedReader.Read())
         {
             return default;
@@ -248,15 +244,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         if (targetType == typeof(T))
         {
-            return ReadObjectCore(ref bufferedReader, options, contract);
+            return ReadObjectCore(bufferedReader, contract);
         }
 
-        var converter = _resolver.GetConverter(targetType);
-        var value = converter.Read(ref bufferedReader, targetType, options);
+        var converter = bufferedReader.GetConverter(targetType);
+        var value = converter.Read(bufferedReader, targetType);
         return (T?)value;
     }
 
-    private void WritePolymorphic(YamlWriter writer, object value, Type runtimeType, YamlSerializerOptions options, Contract contract)
+    private void WritePolymorphic(YamlWriter writer, object value, Type runtimeType, Contract contract)
     {
         var polymorphism = contract.Polymorphism!;
         if (!polymorphism.TryGetDerivedTypeInfo(runtimeType, out var derivedInfo))
@@ -277,7 +273,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             writer.WriteScalar(derivedInfo.Discriminator);
         }
 
-        var derivedContract = Contract.Create(runtimeType, options);
+        var options = writer.Options;
+        var derivedContract = Contract.Create(runtimeType, writer);
         var members = options.MappingOrder == YamlMappingOrderPolicy.Sorted
             ? derivedContract.MembersSorted
             : derivedContract.MembersDeclaration;
@@ -302,125 +299,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
 
             writer.WritePropertyName(member.Name);
-            var converter = member.Converter ??= _resolver.GetConverter(member.MemberType);
-            converter.Write(writer, memberValue, options);
+            var converter = member.Converter ??= writer.GetConverter(member.MemberType);
+            converter.Write(writer, memberValue);
         }
 
         writer.WriteEndMapping();
-    }
-
-    private static string BufferCurrentMappingToString(ref YamlReader reader, YamlSerializerOptions options, PolymorphismModel polymorphism, out string? discriminatorValue)
-    {
-        var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        discriminatorValue = null;
-
-        using var writer = new StringWriter(CultureInfo.InvariantCulture);
-        var yamlWriter = new YamlWriter(writer, options);
-
-        WriteBufferedNode(ref reader, yamlWriter, comparer, polymorphism.DiscriminatorPropertyName, isRootMapping: true, ref discriminatorValue);
-        return writer.ToString();
-    }
-
-    private static void WriteBufferedNode(
-        ref YamlReader reader,
-        YamlWriter writer,
-        StringComparer keyComparer,
-        string discriminatorPropertyName,
-        bool isRootMapping,
-        ref string? discriminatorValue)
-    {
-        switch (reader.TokenType)
-        {
-            case YamlTokenType.Scalar:
-                if (reader.Anchor is not null)
-                {
-                    writer.WriteAnchor(reader.Anchor);
-                }
-
-                if (reader.Tag is not null)
-                {
-                    writer.WriteTag(reader.Tag);
-                }
-
-                writer.WriteScalar(reader.ScalarValue);
-                reader.Read();
-                return;
-
-            case YamlTokenType.Alias:
-                var alias = reader.Alias;
-                if (alias is null)
-                {
-                    throw YamlThrowHelper.ThrowAliasMissingValue(ref reader);
-                }
-
-                writer.WriteAlias(alias);
-                reader.Read();
-                return;
-
-            case YamlTokenType.StartSequence:
-                if (reader.Anchor is not null)
-                {
-                    writer.WriteAnchor(reader.Anchor);
-                }
-
-                if (reader.Tag is not null)
-                {
-                    writer.WriteTag(reader.Tag);
-                }
-
-                writer.WriteStartSequence();
-                reader.Read();
-                while (reader.TokenType != YamlTokenType.EndSequence)
-                {
-                    WriteBufferedNode(ref reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
-                }
-                writer.WriteEndSequence();
-                reader.Read();
-                return;
-
-            case YamlTokenType.StartMapping:
-                if (reader.Anchor is not null)
-                {
-                    writer.WriteAnchor(reader.Anchor);
-                }
-
-                if (reader.Tag is not null)
-                {
-                    writer.WriteTag(reader.Tag);
-                }
-
-                writer.WriteStartMapping();
-                reader.Read();
-                while (reader.TokenType != YamlTokenType.EndMapping)
-                {
-                    if (reader.TokenType != YamlTokenType.Scalar)
-                    {
-                        throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
-                    }
-
-                    var key = reader.ScalarValue ?? string.Empty;
-                    writer.WritePropertyName(key);
-                    reader.Read();
-
-                    if (isRootMapping && discriminatorValue is null && keyComparer.Equals(key, discriminatorPropertyName))
-                    {
-                        if (reader.TokenType != YamlTokenType.Scalar)
-                        {
-                            throw YamlThrowHelper.ThrowExpectedDiscriminatorScalar(ref reader, discriminatorPropertyName);
-                        }
-
-                        discriminatorValue = reader.ScalarValue ?? string.Empty;
-                    }
-
-                    WriteBufferedNode(ref reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
-                }
-                writer.WriteEndMapping();
-                reader.Read();
-                return;
-
-            default:
-                throw YamlThrowHelper.ThrowUnexpectedToken(ref reader);
-        }
     }
 
     private sealed class Contract
@@ -449,8 +332,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public PolymorphismModel? Polymorphism { get; }
 
-        public static Contract Create(Type type, YamlSerializerOptions options)
+        public static Contract Create(Type type, YamlReaderWriterBase readerWriter)
         {
+            ArgumentNullException.ThrowIfNull(readerWriter);
+            var options = readerWriter.Options;
+
             object CreateInstance()
             {
                 if (type.IsAbstract || type.IsInterface)
@@ -498,7 +384,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     continue;
                 }
 
-                var name = GetMemberName(property, options);
+                var name = GetMemberName(property, readerWriter);
                 var order = GetMemberOrder(property);
                 var token = property.MetadataToken;
 
@@ -519,7 +405,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     continue;
                 }
 
-                var name = GetMemberName(field, options);
+                var name = GetMemberName(field, readerWriter);
                 var order = GetMemberOrder(field);
                 var token = field.MetadataToken;
 
@@ -546,8 +432,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 return nameCompare != 0 ? nameCompare : x.DeclarationOrder.CompareTo(y.DeclarationOrder);
             });
 
-            var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            var map = new Dictionary<string, Member>(comparer);
+            var map = new Dictionary<string, Member>(readerWriter.PropertyNameComparer);
             for (var i = 0; i < membersDeclaration.Length; i++)
             {
                 var member = membersDeclaration[i];
@@ -821,7 +706,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         return false;
     }
 
-    private static string GetMemberName(MemberInfo member, YamlSerializerOptions options)
+    private static string GetMemberName(MemberInfo member, YamlReaderWriterBase readerWriter)
     {
         var yamlName = member.GetCustomAttribute<YamlPropertyNameAttribute>(inherit: true);
         if (yamlName is not null)
@@ -836,7 +721,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         var name = member.Name;
-        return options.PropertyNamingPolicy?.ConvertName(name) ?? name;
+        return readerWriter.ConvertName(name);
     }
 
     private static int GetMemberOrder(MemberInfo member)

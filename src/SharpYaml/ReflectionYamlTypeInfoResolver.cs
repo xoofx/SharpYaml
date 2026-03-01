@@ -1,7 +1,5 @@
 using System;
-using System.Runtime.CompilerServices;
 using SharpYaml.Serialization;
-using SharpYaml.Serialization.Converters;
 
 namespace SharpYaml;
 
@@ -12,26 +10,22 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
 {
     private sealed class ReflectionYamlTypeInfo : YamlTypeInfo
     {
-        private readonly YamlConverter _converter;
-
-        public ReflectionYamlTypeInfo(Type type, YamlSerializerOptions options, YamlConverter converter) : base(type, options)
+        public ReflectionYamlTypeInfo(Type type, YamlSerializerOptions options) : base(type, options)
         {
-            _converter = converter;
         }
 
         public override void Write(YamlWriter writer, object? value)
         {
             ArgumentNullException.ThrowIfNull(writer);
-            _converter.Write(writer, value, Options);
+            writer.GetConverter(Type).Write(writer, value);
         }
 
-        public override object? ReadAsObject(ref YamlReader reader)
+        public override object? ReadAsObject(YamlReader reader)
         {
-            return _converter.Read(ref reader, Type, Options);
+            ArgumentNullException.ThrowIfNull(reader);
+            return reader.GetConverter(Type).Read(reader, Type);
         }
     }
-
-    private readonly ConditionalWeakTable<YamlSerializerOptions, YamlBuiltInConverterResolver> _converterResolvers = new();
 
     /// <summary>
     /// Gets a shared default reflection resolver instance.
@@ -43,8 +37,6 @@ public sealed class ReflectionYamlTypeInfoResolver : IYamlTypeInfoResolver
     {
         ArgumentNullException.ThrowIfNull(type);
         ArgumentNullException.ThrowIfNull(options);
-        var resolver = _converterResolvers.GetValue(options, static o => new YamlBuiltInConverterResolver(o));
-        var converter = resolver.GetConverter(type);
-        return new ReflectionYamlTypeInfo(type, options, converter);
+        return new ReflectionYamlTypeInfo(type, options);
     }
 }

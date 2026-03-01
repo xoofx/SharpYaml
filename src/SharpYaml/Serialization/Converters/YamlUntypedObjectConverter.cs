@@ -5,25 +5,21 @@ namespace SharpYaml.Serialization.Converters;
 
 internal sealed class YamlUntypedObjectConverter : YamlConverter
 {
-    private readonly IYamlConverterResolver _resolver;
-
-    public YamlUntypedObjectConverter(IYamlConverterResolver resolver)
-    {
-        _resolver = resolver;
-    }
+    public static YamlUntypedObjectConverter Instance { get; } = new();
 
     public override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(object);
 
-    public override object? Read(ref YamlReader reader, Type typeToConvert, YamlSerializerOptions options)
+    public override object? Read(YamlReader reader, Type typeToConvert)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
         {
             return rootAliasValue;
         }
 
+        var options = reader.Options;
         if (options.UnsafeAllowDeserializeFromTagTypeName && reader.Tag is not null)
         {
-            var activated = TryReadUnsafeTaggedValue(ref reader, options);
+            var activated = TryReadUnsafeTaggedValue(reader);
             if (activated is not null)
             {
                 return activated;
@@ -73,7 +69,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
 
                 while (reader.TokenType != YamlTokenType.EndSequence)
                 {
-                    list.Add(Read(ref reader, typeof(object), options));
+                    list.Add(Read(reader, typeof(object)));
                 }
                 reader.Read();
                 return list;
@@ -91,19 +87,19 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 {
                     if (reader.TokenType != YamlTokenType.Scalar)
                     {
-                        throw YamlThrowHelper.ThrowExpectedScalarKey(ref reader);
+                        throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
                     }
 
                     var key = reader.ScalarValue ?? string.Empty;
                     reader.Read();
-                    var value = Read(ref reader, typeof(object), options);
+                    var value = Read(reader, typeof(object));
 
                     if (dict.ContainsKey(key))
                     {
                         switch (options.DuplicateKeyHandling)
                         {
                             case YamlDuplicateKeyHandling.Error:
-                                throw YamlThrowHelper.ThrowDuplicateMappingKey(ref reader, key);
+                                throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
                             case YamlDuplicateKeyHandling.FirstWins:
                                 break;
                             case YamlDuplicateKeyHandling.LastWins:
@@ -123,11 +119,11 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into object unless ReferenceHandling is Preserve.");
 
             default:
-                throw YamlThrowHelper.ThrowUnexpectedToken(ref reader);
+                throw YamlThrowHelper.ThrowUnexpectedToken(reader);
         }
     }
 
-    public override void Write(YamlWriter writer, object? value, YamlSerializerOptions options)
+    public override void Write(YamlWriter writer, object? value)
     {
         if (value is null)
         {
@@ -135,11 +131,11 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
             return;
         }
 
-        var converter = _resolver.GetConverter(value.GetType());
-        converter.Write(writer, value, options);
+        var converter = writer.GetConverter(value.GetType());
+        converter.Write(writer, value);
     }
 
-    private object? TryReadUnsafeTaggedValue(ref YamlReader reader, YamlSerializerOptions options)
+    private object? TryReadUnsafeTaggedValue(YamlReader reader)
     {
         var tag = reader.Tag;
         if (string.IsNullOrWhiteSpace(tag) || tag[0] != '!')
@@ -159,7 +155,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
             return null;
         }
 
-        var converter = _resolver.GetConverter(type);
-        return converter.Read(ref reader, type, options);
+        var converter = reader.GetConverter(type);
+        return converter.Read(reader, type);
     }
 }

@@ -9,11 +9,10 @@ namespace SharpYaml.Serialization;
 /// <summary>
 /// Writes YAML tokens for use by <see cref="YamlConverter"/> implementations.
 /// </summary>
-public sealed class YamlWriter
+public sealed class YamlWriter : YamlReaderWriterBase
 {
     private readonly TextWriter? _writer;
     private readonly StringBuilder? _stringBuilder;
-    private readonly YamlSerializerOptions _options;
     private readonly YamlReferenceWriter? _referenceWriter;
     private readonly StringBuilder _indentBuilder = new();
     private ContainerFrame[] _frames = new ContainerFrame[8];
@@ -28,11 +27,11 @@ public sealed class YamlWriter
     /// <param name="options">The serializer options used for formatting.</param>
     /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
     public YamlWriter(TextWriter writer, YamlSerializerOptions? options = null)
+        : base(options ?? YamlSerializerOptions.Default)
     {
         ArgumentNullException.ThrowIfNull(writer);
         _writer = writer;
-        _options = options ?? YamlSerializerOptions.Default;
-        _referenceWriter = _options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
+        _referenceWriter = Options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
     }
 
     /// <summary>
@@ -42,11 +41,11 @@ public sealed class YamlWriter
     /// <param name="options">The serializer options used for formatting.</param>
     /// <exception cref="ArgumentNullException"><paramref name="stringBuilder"/> is <see langword="null"/>.</exception>
     public YamlWriter(StringBuilder stringBuilder, YamlSerializerOptions? options = null)
+        : base(options ?? YamlSerializerOptions.Default)
     {
         ArgumentNullException.ThrowIfNull(stringBuilder);
         _stringBuilder = stringBuilder;
-        _options = options ?? YamlSerializerOptions.Default;
-        _referenceWriter = _options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
+        _referenceWriter = Options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
     }
 
     internal YamlReferenceWriter? ReferenceWriter => _referenceWriter;
@@ -661,7 +660,7 @@ public sealed class YamlWriter
 
     private void WriteIndent()
     {
-        if (!_options.WriteIndented)
+        if (!Options.WriteIndented)
         {
             return;
         }
@@ -672,7 +671,7 @@ public sealed class YamlWriter
             return;
         }
 
-        var spaces = _options.IndentSize * indentLevel;
+        var spaces = Options.IndentSize * indentLevel;
         if (_indentBuilder.Length != spaces)
         {
             _indentBuilder.Clear();
