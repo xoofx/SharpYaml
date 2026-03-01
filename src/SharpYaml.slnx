@@ -7,7 +7,6 @@
   <Folder Name="/Solution Items/">
     <File Path="../.github/workflows/ci.yml" />
     <File Path="../.gitignore" />
-    <File Path="../changelog.md" />
     <File Path="../LICENSE.txt" />
     <File Path="../README.md" />
     <File Path=".editorconfig" />
