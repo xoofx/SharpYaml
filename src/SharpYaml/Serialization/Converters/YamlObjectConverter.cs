@@ -125,6 +125,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     private T? ReadObjectCore(YamlReader reader, Contract contract)
     {
+        if (contract.Constructor is not null)
+        {
+            return ReadObjectCoreWithConstructor(reader, contract);
+        }
+
         T instance;
         try
         {
@@ -206,6 +211,20 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredSeen[member.RequiredIndex] = true;
             }
 
+            if (!member.CanWrite)
+            {
+                if (contract.ExtensionData is not null)
+                {
+                    ReadExtensionData(reader, instance!, contract.ExtensionData, key);
+                }
+                else
+                {
+                    reader.Skip();
+                }
+
+                continue;
+            }
+
             var wasSeen = seenMembers is not null && !seenMembers.Add(member);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
             {
@@ -244,6 +263,255 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             catch (Exception exception)
             {
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+        }
+
+        if (requiredSeen is not null)
+        {
+            List<string>? missing = null;
+            for (var i = 0; i < requiredSeen.Length; i++)
+            {
+                if (!requiredSeen[i])
+                {
+                    missing ??= new List<string>();
+                    missing.Add(contract.RequiredMembers[i].Name);
+                }
+            }
+
+            if (missing is not null)
+            {
+                throw new YamlException(reader.SourceName, mappingStart, reader.End, $"Missing required mapping key(s) for '{typeof(T)}': {string.Join(", ", missing)}.");
+            }
+        }
+
+        reader.Read();
+
+        if (instance is IYamlOnDeserialized onDeserialized)
+        {
+            try
+            {
+                onDeserialized.OnDeserialized();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, reader.Start, reader.End, $"An error occurred while invoking '{nameof(IYamlOnDeserialized)}.{nameof(IYamlOnDeserialized.OnDeserialized)}' on '{typeof(T)}'.", exception);
+            }
+        }
+
+        return instance;
+    }
+
+    private T? ReadObjectCoreWithConstructor(YamlReader reader, Contract contract)
+    {
+        var constructor = contract.Constructor ?? throw new InvalidOperationException("Constructor model was not available.");
+
+        var mappingStart = reader.Start;
+        var mappingAnchor = reader.Anchor;
+        var options = reader.Options;
+
+        HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins
+            ? null
+            : new HashSet<string>(reader.PropertyNameComparer);
+
+        var requiredSeen = contract.RequiredMembers.Length == 0 ? null : new bool[contract.RequiredMembers.Length];
+
+        var args = new object?[constructor.ParameterCount];
+        var paramSeen = new bool[constructor.ParameterCount];
+
+        var memberValues = new Dictionary<Member, BufferedMemberAssignment>();
+        List<BufferedExtensionEntry>? extensionEntries = contract.ExtensionData is null ? null : new List<BufferedExtensionEntry>();
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
+            var key = reader.ScalarValue ?? string.Empty;
+            reader.Read();
+
+            var wasSeen = seenKeys is not null && !seenKeys.Add(key);
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, $"Duplicate mapping key '{key}'.");
+            }
+
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+            {
+                reader.Skip();
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var requiredCandidate))
+            {
+                if (requiredSeen is not null && requiredCandidate.RequiredIndex >= 0)
+                {
+                    requiredSeen[requiredCandidate.RequiredIndex] = true;
+                }
+            }
+
+            if (constructor.TryGetParameterIndex(key, out var parameterIndex))
+            {
+                var parameterType = constructor.GetParameterType(parameterIndex);
+                var converter = reader.GetConverter(parameterType);
+                object? value;
+                try
+                {
+                    value = converter.Read(reader, parameterType);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                args[parameterIndex] = value;
+                paramSeen[parameterIndex] = true;
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var member))
+            {
+                if (!member.CanWrite)
+                {
+                    if (contract.ExtensionData is not null)
+                    {
+                        var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                        extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
+                    }
+                    else
+                    {
+                        reader.Skip();
+                    }
+
+                    continue;
+                }
+
+                var converter = member.Converter ??= reader.GetConverter(member.MemberType);
+                object? value;
+                try
+                {
+                    value = converter.Read(reader, member.MemberType);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                memberValues[member] = new BufferedMemberAssignment(member, value, keyStart, keyEnd);
+                continue;
+            }
+
+            if (contract.ExtensionData is not null)
+            {
+                var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
+                continue;
+            }
+
+            reader.Skip();
+        }
+
+        // Ensure all constructor parameters are satisfied before constructing the instance.
+        for (var i = 0; i < constructor.ParameterCount; i++)
+        {
+            if (paramSeen[i])
+            {
+                continue;
+            }
+
+            if (constructor.TryGetDefaultValue(i, out var defaultValue))
+            {
+                args[i] = defaultValue;
+                continue;
+            }
+
+            throw new YamlException(reader.SourceName, mappingStart, reader.End, $"Missing required constructor parameter '{constructor.GetParameterName(i)}' for '{typeof(T)}'.");
+        }
+
+        T instance;
+        try
+        {
+            instance = (T)constructor.CreateInstance(args);
+        }
+        catch (YamlException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new YamlException(reader.SourceName, mappingStart, reader.End, exception.Message, exception);
+        }
+
+        if (reader.ReferenceReader is not null && mappingAnchor is not null)
+        {
+            reader.ReferenceReader.Register(mappingAnchor, instance!);
+        }
+
+        if (instance is IYamlOnDeserializing onDeserializing)
+        {
+            try
+            {
+                onDeserializing.OnDeserializing();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, mappingStart, reader.End, $"An error occurred while invoking '{nameof(IYamlOnDeserializing)}.{nameof(IYamlOnDeserializing.OnDeserializing)}' on '{typeof(T)}'.", exception);
+            }
+        }
+
+        foreach (var assignment in memberValues.Values)
+        {
+            try
+            {
+                assignment.Member.SetValue(instance!, assignment.Value);
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, assignment.KeyStart, assignment.KeyEnd, exception.Message, exception);
+            }
+        }
+
+        if (extensionEntries is not null && extensionEntries.Count != 0)
+        {
+            for (var i = 0; i < extensionEntries.Count; i++)
+            {
+                var entry = extensionEntries[i];
+                try
+                {
+                    AddExtensionDataValue(instance!, contract.ExtensionData!, entry.Key, entry.Value);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, entry.KeyStart, entry.KeyEnd, exception.Message, exception);
+                }
             }
         }
 
@@ -425,6 +693,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public Contract(
             Func<object> createInstance,
+            ConstructorModel? constructorModel,
             Member[] membersDeclaration,
             Member[] membersSorted,
             Dictionary<string, Member> membersByName,
@@ -433,6 +702,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             PolymorphismModel? polymorphism)
         {
             CreateInstance = createInstance;
+            Constructor = constructorModel;
             MembersDeclaration = membersDeclaration;
             MembersSorted = membersSorted;
             _membersByName = membersByName;
@@ -442,6 +712,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         public Func<object> CreateInstance { get; }
+
+        public ConstructorModel? Constructor { get; }
 
         public Member[] MembersDeclaration { get; }
 
@@ -458,30 +730,6 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             ArgumentNullException.ThrowIfNull(readerWriter);
             var options = readerWriter.Options;
 
-            object CreateInstance()
-            {
-                if (type.IsAbstract || type.IsInterface)
-                {
-                    throw new NotSupportedException($"Type '{type}' cannot be instantiated.");
-                }
-
-                object? instance;
-                try
-                {
-                    instance = Activator.CreateInstance(type);
-                }
-                catch (MissingMethodException exception)
-                {
-                    throw new NotSupportedException($"Type '{type}' does not have a public parameterless constructor.", exception);
-                }
-                if (instance is null)
-                {
-                    throw new NotSupportedException($"Type '{type}' does not have a public parameterless constructor.");
-                }
-
-                return instance;
-            }
-
             var members = new List<Member>();
             var requiredMembers = new List<Member>();
             ExtensionDataInfo? extensionData = null;
@@ -493,6 +741,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 {
                     continue;
                 }
+
+                var hasIncludeAttr = property.IsDefined(typeof(YamlIncludeAttribute), inherit: true) ||
+                                     property.IsDefined(typeof(JsonIncludeAttribute), inherit: true);
+                var canRead = property.GetMethod is not null && (property.GetMethod.IsPublic || hasIncludeAttr);
+                var canWrite = property.SetMethod is not null && (property.SetMethod.IsPublic || hasIncludeAttr);
 
                 if (IsExtensionData(property))
                 {
@@ -511,15 +764,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                         throw new NotSupportedException($"Extension data member '{property.Name}' on '{type}' cannot be required.");
                     }
 
-                    var extensionMember = new Member(property.Name, order: 0, declarationOrder: property.MetadataToken, property.PropertyType, property, ignoreCondition: null, isRequired: false);
+                    if (!canRead)
+                    {
+                        throw new NotSupportedException($"Extension data member '{property.Name}' on '{type}' must be readable.");
+                    }
+
+                    var extensionMember = new Member(property.Name, order: 0, declarationOrder: property.MetadataToken, property.PropertyType, property, ignoreCondition: null, isRequired: false, canWrite);
                     extensionData = ExtensionDataInfo.Create(type, extensionMember, property.PropertyType);
                     continue;
                 }
 
-                var include = property.GetMethod is { IsPublic: true } && property.SetMethod is { IsPublic: true };
-                var hasIncludeAttr = property.IsDefined(typeof(YamlIncludeAttribute), inherit: true) ||
-                                     property.IsDefined(typeof(JsonIncludeAttribute), inherit: true);
-                if (!include && !hasIncludeAttr)
+                if (!canRead)
                 {
                     continue;
                 }
@@ -533,7 +788,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(property);
                 var token = property.MetadataToken;
 
-                var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property));
+                var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property), canWrite);
                 member.Converter = CreateConverterFromAttribute(property, property.PropertyType, options);
                 members.Add(member);
                 if (member.IsRequired)
@@ -561,7 +816,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                         throw new NotSupportedException($"Extension data member '{field.Name}' on '{type}' cannot be required.");
                     }
 
-                    var extensionMember = new Member(field.Name, order: 0, declarationOrder: field.MetadataToken, field.FieldType, field, ignoreCondition: null, isRequired: false);
+                    var extensionMember = new Member(field.Name, order: 0, declarationOrder: field.MetadataToken, field.FieldType, field, ignoreCondition: null, isRequired: false, canWrite: !field.IsInitOnly);
                     extensionData = ExtensionDataInfo.Create(type, extensionMember, field.FieldType);
                     continue;
                 }
@@ -582,12 +837,63 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(field);
                 var token = field.MetadataToken;
 
-                var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field));
+                var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field), canWrite: !field.IsInitOnly);
                 member.Converter = CreateConverterFromAttribute(field, field.FieldType, options);
                 members.Add(member);
                 if (member.IsRequired)
                 {
                     requiredMembers.Add(member);
+                }
+            }
+
+            var selectedConstructor = SelectDeserializationConstructor(type);
+            ConstructorModel? constructorModel = null;
+
+            Func<object> createInstance = () =>
+            {
+                if (type.IsAbstract || type.IsInterface)
+                {
+                    throw new NotSupportedException($"Type '{type}' cannot be instantiated.");
+                }
+
+                object? instance;
+                try
+                {
+                    instance = Activator.CreateInstance(type);
+                }
+                catch (MissingMethodException exception)
+                {
+                    throw new NotSupportedException($"Type '{type}' does not have a public parameterless constructor.", exception);
+                }
+
+                if (instance is null)
+                {
+                    throw new NotSupportedException($"Type '{type}' does not have a public parameterless constructor.");
+                }
+
+                return instance;
+            };
+
+            if (selectedConstructor is not null)
+            {
+                var parameters = selectedConstructor.GetParameters();
+                if (parameters.Length == 0)
+                {
+                    createInstance = () =>
+                    {
+                        if (type.IsAbstract || type.IsInterface)
+                        {
+                            throw new NotSupportedException($"Type '{type}' cannot be instantiated.");
+                        }
+
+                        return selectedConstructor.Invoke(null)
+                               ?? throw new NotSupportedException($"Type '{type}' could not be instantiated.");
+                    };
+                }
+                else
+                {
+                    constructorModel = new ConstructorModel(selectedConstructor, members, readerWriter);
+                    createInstance = () => throw new NotSupportedException($"Type '{type}' must be deserialized using a parameterized constructor.");
                 }
             }
 
@@ -624,7 +930,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredMembers[i].RequiredIndex = i;
             }
 
-            return new Contract(CreateInstance, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), extensionData, polymorphism);
+            return new Contract(createInstance, constructorModel, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), extensionData, polymorphism);
         }
 
         public bool TryGetMember(string name, out Member member) => _membersByName.TryGetValue(name, out member!);
@@ -770,6 +1076,79 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
     }
 
+    private sealed class ConstructorModel
+    {
+        private readonly ConstructorInfo _constructor;
+        private readonly ParameterInfo[] _parameters;
+        private readonly Type[] _parameterTypes;
+        private readonly Dictionary<string, int> _parameterIndexByYamlName;
+
+        public ConstructorModel(ConstructorInfo constructor, IReadOnlyList<Member> members, YamlReaderWriterBase readerWriter)
+        {
+            ArgumentNullException.ThrowIfNull(constructor);
+            ArgumentNullException.ThrowIfNull(members);
+            ArgumentNullException.ThrowIfNull(readerWriter);
+
+            _constructor = constructor;
+            _parameters = constructor.GetParameters();
+            _parameterTypes = new Type[_parameters.Length];
+
+            var clrNameToSerialized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < members.Count; i++)
+            {
+                var member = members[i];
+                clrNameToSerialized.TryAdd(member.ClrName, member.Name);
+            }
+
+            _parameterIndexByYamlName = new Dictionary<string, int>(readerWriter.PropertyNameComparer);
+            for (var i = 0; i < _parameters.Length; i++)
+            {
+                var parameter = _parameters[i];
+                var parameterName = parameter.Name ?? throw new NotSupportedException($"Constructor '{constructor}' defines a parameter without a name.");
+
+                var yamlName = clrNameToSerialized.TryGetValue(parameterName, out var memberName)
+                    ? memberName
+                    : readerWriter.ConvertName(parameterName);
+
+                if (_parameterIndexByYamlName.ContainsKey(yamlName))
+                {
+                    throw new NotSupportedException($"Constructor '{constructor}' defines multiple parameters that bind to mapping key '{yamlName}'.");
+                }
+
+                _parameterIndexByYamlName.Add(yamlName, i);
+                _parameterTypes[i] = parameter.ParameterType;
+            }
+        }
+
+        public int ParameterCount => _parameters.Length;
+
+        public bool TryGetParameterIndex(string yamlKey, out int index)
+            => _parameterIndexByYamlName.TryGetValue(yamlKey, out index);
+
+        public Type GetParameterType(int index) => _parameterTypes[index];
+
+        public string GetParameterName(int index) => _parameters[index].Name ?? string.Empty;
+
+        public bool TryGetDefaultValue(int index, out object? value)
+        {
+            var parameter = _parameters[index];
+            if (parameter.HasDefaultValue)
+            {
+                value = parameter.DefaultValue;
+                return true;
+            }
+
+            value = null;
+            return false;
+        }
+
+        public object CreateInstance(object?[] args)
+        {
+            return _constructor.Invoke(args)
+                   ?? throw new NotSupportedException($"Constructor '{_constructor}' returned null.");
+        }
+    }
+
     private sealed class PolymorphismModel
     {
         private readonly Dictionary<string, Type> _discriminatorToType;
@@ -911,8 +1290,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         private readonly PropertyInfo? _property;
         private readonly FieldInfo? _field;
 
-        public Member(string name, int order, int declarationOrder, Type memberType, PropertyInfo property, YamlIgnoreCondition? ignoreCondition, bool isRequired)
+        public Member(string name, int order, int declarationOrder, Type memberType, PropertyInfo property, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite)
         {
+            ClrName = property.Name;
             Name = name;
             Order = order;
             DeclarationOrder = declarationOrder;
@@ -921,10 +1301,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             _field = null;
             IgnoreCondition = ignoreCondition;
             IsRequired = isRequired;
+            CanWrite = canWrite;
         }
 
-        public Member(string name, int order, int declarationOrder, Type memberType, FieldInfo field, YamlIgnoreCondition? ignoreCondition, bool isRequired)
+        public Member(string name, int order, int declarationOrder, Type memberType, FieldInfo field, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite)
         {
+            ClrName = field.Name;
             Name = name;
             Order = order;
             DeclarationOrder = declarationOrder;
@@ -933,7 +1315,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             _field = field;
             IgnoreCondition = ignoreCondition;
             IsRequired = isRequired;
+            CanWrite = canWrite;
         }
+
+        public string ClrName { get; }
 
         public string Name { get; }
 
@@ -944,6 +1329,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public Type MemberType { get; }
 
         public bool CanRead => _property?.GetMethod is not null || _field is not null;
+
+        public bool CanWrite { get; }
 
         public YamlIgnoreCondition? IgnoreCondition { get; }
 
@@ -1006,9 +1393,79 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
     }
 
+    private readonly struct BufferedMemberAssignment
+    {
+        public BufferedMemberAssignment(Member member, object? value, Mark keyStart, Mark keyEnd)
+        {
+            Member = member;
+            Value = value;
+            KeyStart = keyStart;
+            KeyEnd = keyEnd;
+        }
+
+        public Member Member { get; }
+
+        public object? Value { get; }
+
+        public Mark KeyStart { get; }
+
+        public Mark KeyEnd { get; }
+    }
+
+    private readonly struct BufferedExtensionEntry
+    {
+        public BufferedExtensionEntry(string key, object? value, Mark keyStart, Mark keyEnd)
+        {
+            Key = key;
+            Value = value;
+            KeyStart = keyStart;
+            KeyEnd = keyEnd;
+        }
+
+        public string Key { get; }
+
+        public object? Value { get; }
+
+        public Mark KeyStart { get; }
+
+        public Mark KeyEnd { get; }
+    }
+
     private static void ReadExtensionData(YamlReader reader, object instance, ExtensionDataInfo extensionData, string key)
     {
         ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentNullException.ThrowIfNull(extensionData);
+        ArgumentNullException.ThrowIfNull(key);
+
+        var value = ReadExtensionDataValue(reader, extensionData);
+        AddExtensionDataValue(instance, extensionData, key, value);
+    }
+
+    private static object? ReadExtensionDataValue(YamlReader reader, ExtensionDataInfo extensionData)
+    {
+        switch (extensionData.Kind)
+        {
+            case ExtensionDataKind.Dictionary:
+            {
+                var valueType = extensionData.DictionaryValueType ?? typeof(object);
+                var converter = reader.GetConverter(valueType);
+                return converter.Read(reader, valueType);
+            }
+
+            case ExtensionDataKind.Mapping:
+            {
+                var elementConverter = reader.GetConverter(typeof(YamlElement));
+                return elementConverter.Read(reader, typeof(YamlElement));
+            }
+
+            default:
+                throw new InvalidOperationException($"Unknown extension data kind '{extensionData.Kind}'.");
+        }
+    }
+
+    private static void AddExtensionDataValue(object instance, ExtensionDataInfo extensionData, string key, object? value)
+    {
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(extensionData);
         ArgumentNullException.ThrowIfNull(key);
@@ -1038,10 +1495,6 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 }
 
                 var valueType = extensionData.DictionaryValueType ?? typeof(object);
-                object? value;
-                var converter = reader.GetConverter(valueType);
-                value = converter.Read(reader, valueType);
-
                 if (value is not null && valueType != typeof(object) && !valueType.IsInstanceOfType(value))
                 {
                     throw new NotSupportedException($"Extension data value '{value.GetType()}' cannot be stored in '{valueType}'.");
@@ -1058,9 +1511,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     throw new NotSupportedException($"Extension data member '{member.Name}' on '{instance.GetType()}' must be a '{typeof(YamlMapping)}'.");
                 }
 
-                var elementConverter = reader.GetConverter(typeof(YamlElement));
-                var element = (YamlElement?)elementConverter.Read(reader, typeof(YamlElement));
+                if (value is not null && value is not YamlElement)
+                {
+                    throw new NotSupportedException($"Extension data mapping value must be a '{typeof(YamlElement)}'.");
+                }
 
+                var element = (YamlElement?)value;
                 var list = (IList<KeyValuePair<YamlElement, YamlElement?>>)mapping;
                 for (var i = 0; i < list.Count; i++)
                 {
@@ -1311,6 +1767,57 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         return converter;
+    }
+
+    private static ConstructorInfo? SelectDeserializationConstructor(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        if (type.IsAbstract || type.IsInterface || type.IsValueType)
+        {
+            return null;
+        }
+
+        var constructors = type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        ConstructorInfo? attributed = null;
+        for (var i = 0; i < constructors.Length; i++)
+        {
+            var ctor = constructors[i];
+            if (ctor.IsDefined(typeof(YamlConstructorAttribute), inherit: false) ||
+                ctor.IsDefined(typeof(JsonConstructorAttribute), inherit: false))
+            {
+                if (attributed is not null)
+                {
+                    throw new NotSupportedException($"Type '{type}' defines multiple constructors annotated with '{typeof(YamlConstructorAttribute)}' or '{typeof(JsonConstructorAttribute)}'.");
+                }
+
+                attributed = ctor;
+            }
+        }
+
+        if (attributed is not null)
+        {
+            return attributed;
+        }
+
+        // Prefer the default public parameterless constructor when available.
+        if (type.GetConstructor(Type.EmptyTypes) is not null)
+        {
+            return null;
+        }
+
+        var publicConstructors = type.GetConstructors(BindingFlags.Instance | BindingFlags.Public);
+        if (publicConstructors.Length == 1)
+        {
+            return publicConstructors[0];
+        }
+
+        if (publicConstructors.Length == 0)
+        {
+            throw new NotSupportedException($"Type '{type}' does not have a public constructor. Use '{typeof(YamlConstructorAttribute)}' or '{typeof(JsonConstructorAttribute)}' to opt into a non-public constructor.");
+        }
+
+        throw new NotSupportedException($"Type '{type}' defines multiple public constructors. Use '{typeof(YamlConstructorAttribute)}' or '{typeof(JsonConstructorAttribute)}' to select the constructor to use for deserialization.");
     }
 
     private static string GetMemberName(MemberInfo member, YamlReaderWriterBase readerWriter)

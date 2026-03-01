@@ -66,6 +66,17 @@ public sealed class YamlObjectConverterContractTests
         public int Value { get; }
     }
 
+    private sealed class MultiplePublicCtors
+    {
+        public MultiplePublicCtors(int value) => Value = value;
+
+        public MultiplePublicCtors(string name) => Name = name;
+
+        public int Value { get; }
+
+        public string? Name { get; }
+    }
+
     [TestMethod]
     public void IncludedField_IsSerializedAndDeserialized()
     {
@@ -131,8 +142,12 @@ public sealed class YamlObjectConverterContractTests
         Assert.AreEqual("model.yaml", ex1.SourceName);
         StringAssert.Contains(ex1.Message, "cannot be instantiated");
 
-        var ex2 = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<NoDefaultCtor>("Value: 1\n", options));
+        var value = YamlSerializer.Deserialize<NoDefaultCtor>("Value: 1\n", options);
+        Assert.IsNotNull(value);
+        Assert.AreEqual(1, value.Value);
+
+        var ex2 = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<MultiplePublicCtors>("Value: 1\n", options));
         Assert.AreEqual("model.yaml", ex2.SourceName);
-        StringAssert.Contains(ex2.Message, "public parameterless constructor");
+        StringAssert.Contains(ex2.Message, "multiple public constructors");
     }
 }
