@@ -27,3 +27,7 @@ Optional: run only source-generated benchmarks:
 ```bash
 dotnet run -c Release --project SharpYaml.Benchmarks -- --filter "*SourceGenerated*"
 ```
+
+## Output
+
+BenchmarkDotNet is configured with `ConfigOptions.JoinSummary` so all benchmarks are reported in a single combined summary table at the end of the run.
