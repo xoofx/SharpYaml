@@ -801,7 +801,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            reader.Read();");
 
         builder.AppendLine("            var matched = false;");
-        foreach (var member in members)
+        var writableMembers = members.Where(static m => IsWritableMember(m.Symbol)).ToImmutableArray();
+        foreach (var member in writableMembers)
         {
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
@@ -2673,6 +2674,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static ImmutableArray<ISymbol> GetSerializableMembers(INamedTypeSymbol type)
     {
+        // Arrays/lists/dictionaries are handled by dedicated generated code paths, not as object graphs.
+        if (TryGetArrayElementType(type, out _) || TryGetListElementType(type, out _) || TryGetDictionaryValueType(type, out _))
+        {
+            return ImmutableArray<ISymbol>.Empty;
+        }
+
         // Include base members for parity with reflection/STJ behavior, but prefer the most-derived
         // member when a derived type hides/overrides a base member with the same CLR name.
         var members = new List<ISymbol>();
@@ -2701,10 +2708,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                         continue;
                     }
 
-                    var include = property.GetMethod is { DeclaredAccessibility: Accessibility.Public } &&
-                                  property.SetMethod is { DeclaredAccessibility: Accessibility.Public };
-
-                    if (!include && !HasAttribute(property, "SharpYaml.Serialization.YamlIncludeAttribute") && !HasAttribute(property, "System.Text.Json.Serialization.JsonIncludeAttribute"))
+                    var hasIncludeAttr = HasAttribute(property, "SharpYaml.Serialization.YamlIncludeAttribute") || HasAttribute(property, "System.Text.Json.Serialization.JsonIncludeAttribute");
+                    var canRead = property.GetMethod is { DeclaredAccessibility: Accessibility.Public } || hasIncludeAttr;
+                    if (!canRead)
                     {
                         continue;
                     }
@@ -2753,6 +2759,32 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         return members.ToImmutableArray();
+    }
+
+    private static bool IsWritableMember(ISymbol member)
+    {
+        if (member is IPropertySymbol property)
+        {
+            if (property.SetMethod is null)
+            {
+                return false;
+            }
+
+            var hasIncludeAttr = HasAttribute(property, "SharpYaml.Serialization.YamlIncludeAttribute") || HasAttribute(property, "System.Text.Json.Serialization.JsonIncludeAttribute");
+            return property.SetMethod.DeclaredAccessibility == Accessibility.Public || hasIncludeAttr;
+        }
+
+        if (member is IFieldSymbol field)
+        {
+            if (field.IsConst || field.IsReadOnly)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private static ITypeSymbol? GetMemberType(ISymbol member)
