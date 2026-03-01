@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -86,6 +87,21 @@ internal sealed class GeneratedCollections
     public List<GeneratedPerson> People { get; set; } = new();
 
     public Dictionary<string, GeneratedPerson> PeopleByName { get; set; } = new();
+}
+
+internal sealed class GeneratedMoreCollections
+{
+    public IReadOnlyList<int>? ReadOnlyNumbers { get; set; }
+
+    public ISet<string>? Tags { get; set; }
+
+    public Dictionary<int, string> IntKeyMap { get; set; } = new();
+
+    public IReadOnlyDictionary<GeneratedColor, int>? EnumKeyMap { get; set; }
+
+    public ImmutableArray<int> ImmutableNumbers { get; set; }
+
+    public ImmutableList<string>? ImmutableNames { get; set; }
 }
 
 internal sealed class GeneratedReferenceNode
@@ -278,8 +294,17 @@ internal sealed class GeneratedJsonCtorModel
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(int?))]
 [JsonSerializable(typeof(GeneratedCollections))]
+[JsonSerializable(typeof(GeneratedMoreCollections))]
 [JsonSerializable(typeof(List<int>))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
+[JsonSerializable(typeof(Dictionary<int, int>))]
+[JsonSerializable(typeof(Dictionary<int, string>))]
+[JsonSerializable(typeof(IReadOnlyList<int>))]
+[JsonSerializable(typeof(ISet<string>))]
+[JsonSerializable(typeof(HashSet<int>))]
+[JsonSerializable(typeof(IReadOnlyDictionary<GeneratedColor, int>))]
+[JsonSerializable(typeof(ImmutableArray<int>))]
+[JsonSerializable(typeof(ImmutableList<string>))]
 [JsonSerializable(typeof(int[]))]
 [JsonSerializable(typeof(GeneratedReferenceNode))]
 [JsonSerializable(typeof(GeneratedReferenceContainer))]
@@ -696,6 +721,91 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(dict);
         Assert.AreEqual(1, dict["a"]);
         Assert.AreEqual(2, dict["b"]);
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsAdditionalRootCollections()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var readOnlyListTypeInfo = context.GetTypeInfo<IReadOnlyList<int>>();
+        var yamlReadOnly = YamlSerializer.Serialize((IReadOnlyList<int>)new List<int> { 1, 2 }, readOnlyListTypeInfo);
+        var roundReadOnly = YamlSerializer.Deserialize(yamlReadOnly, readOnlyListTypeInfo);
+        Assert.IsNotNull(roundReadOnly);
+        Assert.AreEqual(2, roundReadOnly.Count);
+        Assert.AreEqual(1, roundReadOnly[0]);
+
+        var setTypeInfo = context.GetTypeInfo<HashSet<int>>();
+        var yamlSet = YamlSerializer.Serialize(new HashSet<int> { 1, 2, 1 }, setTypeInfo);
+        var roundSet = YamlSerializer.Deserialize(yamlSet, setTypeInfo);
+        Assert.IsNotNull(roundSet);
+        Assert.AreEqual(2, roundSet.Count);
+
+        var dictTypeInfo = context.GetTypeInfo<Dictionary<int, int>>();
+        var yamlDict = YamlSerializer.Serialize(new Dictionary<int, int> { [1] = 2 }, dictTypeInfo);
+        StringAssert.Contains(yamlDict, "1:");
+        var roundDict = YamlSerializer.Deserialize(yamlDict, dictTypeInfo);
+        Assert.IsNotNull(roundDict);
+        Assert.AreEqual(2, roundDict[1]);
+
+        var enumDictTypeInfo = context.GetTypeInfo<IReadOnlyDictionary<GeneratedColor, int>>();
+        var yamlEnumDict = YamlSerializer.Serialize((IReadOnlyDictionary<GeneratedColor, int>)new Dictionary<GeneratedColor, int> { [GeneratedColor.Red] = 1 }, enumDictTypeInfo);
+        StringAssert.Contains(yamlEnumDict, "Red:");
+        var roundEnumDict = YamlSerializer.Deserialize(yamlEnumDict, enumDictTypeInfo);
+        Assert.IsNotNull(roundEnumDict);
+        Assert.AreEqual(1, roundEnumDict[GeneratedColor.Red]);
+
+        var immutableArrayTypeInfo = context.GetTypeInfo<ImmutableArray<int>>();
+        var yamlImmutable = YamlSerializer.Serialize(ImmutableArray.Create(3, 4), immutableArrayTypeInfo);
+        var roundImmutable = YamlSerializer.Deserialize(yamlImmutable, immutableArrayTypeInfo);
+        Assert.AreEqual(2, roundImmutable.Length);
+        Assert.AreEqual(3, roundImmutable[0]);
+        Assert.AreEqual(4, roundImmutable[1]);
+    }
+
+    [TestMethod]
+    public void GeneratedContextRoundTripsAdditionalCollectionMembers()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GetTypeInfo<GeneratedMoreCollections>();
+
+        var value = new GeneratedMoreCollections
+        {
+            ReadOnlyNumbers = new List<int> { 1, 2 },
+            Tags = new HashSet<string> { "a", "b", "a" },
+            IntKeyMap = new Dictionary<int, string> { [1] = "one", [2] = "two" },
+            EnumKeyMap = new Dictionary<GeneratedColor, int> { [GeneratedColor.Green] = 2 },
+            ImmutableNumbers = ImmutableArray.Create(10, 20),
+            ImmutableNames = ImmutableList.Create("Ada", "Bob"),
+        };
+
+        var yaml = YamlSerializer.Serialize(value, typeInfo);
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+
+        Assert.IsNotNull(roundtripped);
+        Assert.IsNotNull(roundtripped.ReadOnlyNumbers);
+        Assert.AreEqual(2, roundtripped.ReadOnlyNumbers.Count);
+        Assert.AreEqual(2, roundtripped.ReadOnlyNumbers[1]);
+
+        Assert.IsNotNull(roundtripped.Tags);
+        Assert.AreEqual(2, roundtripped.Tags.Count);
+        Assert.IsTrue(roundtripped.Tags.Contains("a"));
+
+        Assert.AreEqual("one", roundtripped.IntKeyMap[1]);
+        Assert.IsNotNull(roundtripped.EnumKeyMap);
+        Assert.AreEqual(2, roundtripped.EnumKeyMap[GeneratedColor.Green]);
+
+        Assert.AreEqual(2, roundtripped.ImmutableNumbers.Length);
+        Assert.AreEqual(10, roundtripped.ImmutableNumbers[0]);
+
+        Assert.IsNotNull(roundtripped.ImmutableNames);
+        Assert.AreEqual(2, roundtripped.ImmutableNames.Count);
+        Assert.AreEqual("Ada", roundtripped.ImmutableNames[0]);
+
+        StringAssert.Contains(yaml, "IntKeyMap:");
+        StringAssert.Contains(yaml, "1:");
+        StringAssert.Contains(yaml, "EnumKeyMap:");
+        StringAssert.Contains(yaml, "Green:");
     }
 
     [TestMethod]
