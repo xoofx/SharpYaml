@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SharpYaml</title>
+  <desc id="desc">A sharp hash symbol above the word YAML on a warm gradient plate.</desc>
+  <defs>
+    <!-- Theme: tweak these CSS variables to recolor the logo -->
+    <style>
+      :root {
+        --sy-bg-0: #1A1220;
+        --sy-bg-1: #201018;
+        --sy-ink: #FFF5E6;
+        --sy-ink-opacity: 0.94;
+        --sy-accent-0: #FF6B2B;
+        --sy-accent-1: #E8443A;
+        --sy-accent-2: #D42872;
+        --sy-accentb-0: #FFAD70;
+        --sy-accentb-1: #FF7A6A;
+        --sy-accentb-2: #FF68A8;
+        --sy-teal-0: #2DD4A8;
+        --sy-teal-1: #0EA5A0;
+        --sy-shine-0-opacity: 0.20;
+        --sy-shine-1-opacity: 0.06;
+        --sy-outline: #FFFFFF;
+        --sy-outline-opacity: 0.14;
+        --sy-plate-stroke-opacity: 0.55;
+        --sy-plate-ring-opacity: 0.60;
+        --sy-shadow: #000000;
+        --sy-shadow-opacity: 0.40;
+        --sy-yaml-opacity: 0.80;
+      }
+    </style>
+
+    <!-- Background plate gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="var(--sy-bg-0)"/>
+      <stop offset="1" stop-color="var(--sy-bg-1)"/>
+    </linearGradient>
+
+    <!-- Soft top-left shine overlay -->
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(190 110) rotate(54) scale(350 270)">
+      <stop offset="0" stop-color="var(--sy-outline)" stop-opacity="var(--sy-shine-0-opacity)"/>
+      <stop offset="0.55" stop-color="var(--sy-outline)" stop-opacity="var(--sy-shine-1-opacity)"/>
+      <stop offset="1" stop-color="var(--sy-outline)" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Warm accent gradient (orange → red → pink) -->
+    <linearGradient id="accent" x1="140" y1="80" x2="380" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="var(--sy-accent-0)"/>
+      <stop offset="0.50" stop-color="var(--sy-accent-1)"/>
+      <stop offset="1" stop-color="var(--sy-accent-2)"/>
+    </linearGradient>
+
+    <!-- Brighter accent for the outer ring -->
+    <linearGradient id="accentBright" x1="130" y1="60" x2="400" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="var(--sy-accentb-0)"/>
+      <stop offset="0.50" stop-color="var(--sy-accentb-1)"/>
+      <stop offset="1" stop-color="var(--sy-accentb-2)"/>
+    </linearGradient>
+
+    <!-- Teal gradient for "YAML" text (complementary to warm accents) -->
+    <linearGradient id="teal" x1="130" y1="370" x2="390" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="var(--sy-teal-0)"/>
+      <stop offset="1" stop-color="var(--sy-teal-1)"/>
+    </linearGradient>
+
+    <!-- Drop shadow for the foreground glyph group -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="var(--sy-shadow)" flood-opacity="var(--sy-shadow-opacity)"/>
+    </filter>
+  </defs>
+
+  <!-- Background plate -->
+  <rect x="0" y="0" width="512" height="512" rx="128" fill="url(#bg)"/>
+  <rect x="0" y="0" width="512" height="512" rx="128" fill="url(#shine)"/>
+
+  <!-- Plate strokes -->
+  <rect x="7" y="7" width="498" height="498" rx="121" fill="none" stroke="url(#accent)" stroke-opacity="var(--sy-plate-stroke-opacity)" stroke-width="14"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="none" stroke="url(#accentBright)" stroke-opacity="var(--sy-plate-ring-opacity)" stroke-width="4"/>
+
+  <!-- Foreground glyphs -->
+  <g filter="url(#shadow)">
+
+    <!--
+      ── # (Hash / Sharp) symbol ──
+      Two vertical bars and two horizontal bars forming a bold "#"
+      Centered horizontally, occupying the upper portion of the icon.
+    -->
+    <g stroke="url(#accent)" stroke-width="30" stroke-linecap="round" fill="none">
+      <!-- Left vertical bar (tilted slightly right) -->
+      <line x1="200" y1="80" x2="186" y2="310"/>
+      <!-- Right vertical bar (tilted slightly right) -->
+      <line x1="326" y1="80" x2="312" y2="310"/>
+      <!-- Top horizontal bar -->
+      <line x1="140" y1="156" x2="370" y2="156"/>
+      <!-- Bottom horizontal bar -->
+      <line x1="132" y1="238" x2="362" y2="238"/>
+    </g>
+
+    <!-- Subtle white outline on the hash to lift it -->
+    <g stroke="var(--sy-outline)" stroke-opacity="var(--sy-outline-opacity)" stroke-width="6" stroke-linecap="round" fill="none">
+      <line x1="200" y1="80" x2="186" y2="310"/>
+      <line x1="326" y1="80" x2="312" y2="310"/>
+      <line x1="140" y1="156" x2="370" y2="156"/>
+      <line x1="132" y1="238" x2="362" y2="238"/>
+    </g>
+
+    <!--
+      ── YAML text ──
+      Hand-drawn geometric letterforms for maximum crispness at small sizes.
+      Positioned below the hash, in teal to contrast the warm accent.
+    -->
+    <g fill="url(#teal)" fill-opacity="var(--sy-yaml-opacity)">
+
+      <!-- Y: two diagonal strokes meeting at a stem -->
+      <polygon points="100,358 118,358 136,388 154,358 172,358 144,404 144,434 128,434 128,404"/>
+
+      <!-- A: triangle with cutout -->
+      <path fill-rule="evenodd" d="
+        M202,434 L180,434 L218,358 L234,358 L272,434 L250,434 L237,408 L215,408 Z
+        M221,394 L231,394 L226,382 Z
+      "/>
+
+      <!-- M: two peaks -->
+      <polygon points="284,434 284,358 304,358 320,388 336,358 356,358 356,434 340,434 340,390 324,418 316,418 300,390 300,434"/>
+
+      <!-- L: vertical + base -->
+      <polygon points="372,358 388,358 388,420 420,420 420,434 372,434"/>
+    </g>
+
+  </g>
+</svg>
