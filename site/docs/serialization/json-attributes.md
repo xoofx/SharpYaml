@@ -8,22 +8,22 @@ SharpYaml supports a subset of `System.Text.Json.Serialization` attributes to ma
 
 Member-level attributes:
 
-| Attribute | Supported | Notes |
+| Attribute | Reflection | Source generated | Notes |
 | --- | --- | --- |
-| `JsonPropertyNameAttribute` | Yes | Overrides the serialized name. |
-| `JsonIgnoreAttribute` | Yes | Supports `Always`, `Never`, `WhenWritingNull`, `WhenWritingDefault`. |
-| `JsonIncludeAttribute` | Yes | Enables non-public members in supported scenarios. |
-| `JsonPropertyOrderAttribute` | Yes | Controls member ordering within mappings. |
-| `JsonRequiredAttribute` | Yes | Missing required members throw `YamlException`. |
-| `JsonExtensionDataAttribute` | Yes | Supports dictionary- and mapping-based extension data. |
+| `JsonPropertyNameAttribute` | Yes | Yes | Overrides the serialized name. |
+| `JsonIgnoreAttribute` | Yes | Yes | Supports `Always`, `Never`, `WhenWritingNull`, `WhenWritingDefault`. |
+| `JsonIncludeAttribute` | Yes | Yes | Enables non-public members in supported scenarios. |
+| `JsonPropertyOrderAttribute` | Yes | Yes | Controls member ordering within mappings. |
+| `JsonRequiredAttribute` | Yes | Yes | Missing required members throw `YamlException`. |
+| `JsonExtensionDataAttribute` | Yes | Yes | Supports dictionary- and mapping-based extension data. |
 
 Type-level attributes:
 
-| Attribute | Supported | Notes |
+| Attribute | Reflection | Source generated | Notes |
 | --- | --- | --- |
-| `JsonConstructorAttribute` | Yes | Selects which constructor to use for deserialization. |
-| `JsonPolymorphicAttribute` | Yes | Supported via property discriminators (JSON-like). |
-| `JsonDerivedTypeAttribute` | Yes | Registers derived types and discriminators. |
+| `JsonConstructorAttribute` | Yes | Yes | Selects which constructor to use for deserialization. |
+| `JsonPolymorphicAttribute` | Yes | Yes | Supported via discriminator properties (JSON-like). |
+| `JsonDerivedTypeAttribute` | Yes | Yes | Registers derived types and discriminators. |
 
 ## Unsupported JSON attributes
 
@@ -65,4 +65,3 @@ public sealed class Endpoint
     public Endpoint(string url) => Url = url;
 }
 ```
-

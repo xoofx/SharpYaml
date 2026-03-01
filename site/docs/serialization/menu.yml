@@ -1,10 +1,10 @@
 serialization:
   - {path: readme.md, title: Overview, self: true}
   - {path: overview.md, title: YamlSerializer and options}
+  - {path: supported-types.md, title: Supported types}
   - {path: json-attributes.md, title: JSON attribute interop}
   - {path: yaml-attributes.md, title: SharpYaml attributes}
   - {path: converters.md, title: Converters}
   - {path: polymorphism.md, title: Polymorphism}
   - {path: extension-data.md, title: Extension data}
   - {path: error-handling.md, title: Errors and diagnostics}
-

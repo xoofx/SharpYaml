@@ -36,6 +36,26 @@ var options = new YamlSerializerOptions
 };
 ```
 
+### Option reference
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `PropertyNamingPolicy` | `null` | Optional renaming for CLR member names. |
+| `DictionaryKeyPolicy` | `null` | Optional renaming for dictionary keys during serialization. |
+| `PropertyNameCaseInsensitive` | `false` | Case-insensitive property matching when reading. |
+| `DefaultIgnoreCondition` | `Never` | Skips `null`/default values when writing. |
+| `WriteIndented` | `true` | Enables indentation. |
+| `IndentSize` | `2` | Spaces per indent level when `WriteIndented` is enabled. |
+| `MappingOrder` | `Declaration` | Preserves declaration order by default (diff-friendly in code review). |
+| `Schema` | `Core` | Controls scalar resolution rules (YAML 1.2). |
+| `DuplicateKeyHandling` | `Error` | Controls behavior when duplicate keys are encountered. |
+| `ReferenceHandling` | `None` | Enables anchor/alias preservation when needed. |
+| `ScalarStylePreferences` | new | Controls scalar emission styles. |
+| `PolymorphismOptions` | new | Controls polymorphism behaviors. |
+| `UnsafeAllowDeserializeFromTagTypeName` | `false` | Allows tag-based activation by runtime type name (use only with trusted input). |
+| `TypeInfoResolver` | `null` | Provides metadata (generated or custom) for reflection-free serialization. |
+| `SourceName` | `null` | Used for error messages (file/path) when throwing `YamlException`. |
+
 ## Reflection vs metadata
 
 SharpYaml can resolve serialization metadata in two ways:
@@ -72,4 +92,3 @@ var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), options);
 var options = new YamlSerializerOptions { TypeInfoResolver = MyYamlContext.Default };
 var typeInfo = MyYamlContext.Default.GetTypeInfo<MyConfig>(options);
 ```
-

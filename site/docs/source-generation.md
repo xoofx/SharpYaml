@@ -27,6 +27,8 @@ internal partial class MyYamlContext : YamlSerializerContext
 }
 ```
 
+The context type must be `partial` so the generator can add metadata properties.
+
 ## Use generated metadata
 
 Use the generated `YamlTypeInfo<T>` properties (recommended):
@@ -57,3 +59,8 @@ AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", fa
 
 When reflection is disabled, you must provide metadata via `YamlTypeInfo<T>` or `YamlSerializerOptions.TypeInfoResolver`.
 
+## Troubleshooting
+
+- If generated properties are missing, ensure the project references the `SharpYaml` NuGet package (the generator is shipped in-package under `analyzers/dotnet/cs`).
+- Ensure the context class is `partial`.
+- Ensure roots are declared via `[JsonSerializable(typeof(...))]`.

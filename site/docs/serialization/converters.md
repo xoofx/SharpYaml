@@ -50,3 +50,9 @@ public sealed class MyIntConverter : YamlConverter<int>
 }
 ```
 
+## Reader and writer basics
+
+- `YamlReader` is positioned on a token; converters must consume the current value and advance the reader.
+- `YamlWriter` writes YAML in a streaming manner; converters should write a complete value (scalar/sequence/mapping).
+
+For most custom scenarios, prefer writing scalars (`writer.WriteScalar(...)`) unless you need to emit complex YAML structures.
