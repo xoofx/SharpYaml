@@ -85,6 +85,6 @@ var model = YamlSerializer.Deserialize<Person>(yaml);
 
 Next: read the [Getting started](docs/getting-started.md) guide.
 
-    </div>
+</div>
   </div>
 </section>
