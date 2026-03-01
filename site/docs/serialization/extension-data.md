@@ -23,6 +23,9 @@ public sealed class Config
 }
 ```
 
+If the extension data property is <see langword="null"/>, SharpYaml will create a new dictionary instance when unknown keys are encountered.
+If no unknown keys are encountered, the property is left as <see langword="null"/>.
+
 ## Mapping-based extension data
 
 If you need a YAML-native representation (for example to preserve YAML shapes), use `SharpYaml.Model.YamlMapping`:
@@ -37,4 +40,3 @@ public sealed class Config
     public YamlMapping? Extra { get; set; }
 }
 ```
-

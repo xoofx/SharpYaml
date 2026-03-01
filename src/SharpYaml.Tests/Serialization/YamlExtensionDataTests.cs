@@ -36,6 +36,36 @@ public sealed class YamlExtensionDataTests
     }
 
     [TestMethod]
+    public void Deserialize_CreatesNullableExtensionDataDictionaryOnDemand()
+    {
+        var value = YamlSerializer.Deserialize<NullableDictionaryExtensionDataModel>("Known: 1\nExtraA: 2\nExtraB: null\n")!;
+
+        Assert.AreEqual(1, value.Known);
+        Assert.IsNotNull(value.Extra);
+        Assert.AreEqual(2L, value.Extra["ExtraA"]);
+        Assert.IsNull(value.Extra["ExtraB"]);
+    }
+
+    [TestMethod]
+    public void Deserialize_LeavesNullableExtensionDataDictionaryNullWhenNoExtraKeys()
+    {
+        var value = YamlSerializer.Deserialize<NullableDictionaryExtensionDataModel>("Known: 1\n")!;
+
+        Assert.AreEqual(1, value.Known);
+        Assert.IsNull(value.Extra);
+    }
+
+    [TestMethod]
+    public void Serialize_DoesNotEmitNullableExtensionDataDictionaryWhenNull()
+    {
+        var value = new NullableDictionaryExtensionDataModel { Known = 1, Extra = null };
+        var yaml = YamlSerializer.Serialize(value);
+
+        StringAssert.Contains(yaml, "Known: 1");
+        Assert.IsFalse(yaml.Contains("Extra:", System.StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void Deserialize_JsonExtensionDataAttribute_IsRecognized()
     {
         var value = YamlSerializer.Deserialize<JsonDictionaryExtensionDataModel>("A: 1\nB: 2\n")!;
@@ -90,6 +120,14 @@ public sealed class YamlExtensionDataTests
 
         [YamlExtensionData]
         public Dictionary<string, object?> Extra { get; set; } = new();
+    }
+
+    private sealed class NullableDictionaryExtensionDataModel
+    {
+        public int Known { get; set; }
+
+        [YamlExtensionData]
+        public Dictionary<string, object?>? Extra { get; set; }
     }
 
     private sealed class JsonDictionaryExtensionDataModel
