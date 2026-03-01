@@ -117,6 +117,23 @@ namespace SharpYaml.Tests
             CollectionAssert.AreEqual(new List<int>() { 0, 1, 2, 3, 4, 99, 5, 6, 7, 8, 9 }, OrderOfElementsIn(queue).ToList());
         }
 
+        [TestMethod]
+        public void ShouldCorrectlyInsertAfterDequeuingManyItems()
+        {
+            var queue = CreateQueue();
+
+            WithTheRange(0, 100).Perform(queue.Enqueue);
+            PerformTimes(70, queue.Dequeue); // triggers internal compaction in optimized implementation
+            queue.Insert(5, 999);
+
+            var expected = new List<int>();
+            expected.AddRange(Enumerable.Range(70, 5));
+            expected.Add(999);
+            expected.AddRange(Enumerable.Range(75, 25));
+
+            CollectionAssert.AreEqual(expected, OrderOfElementsIn(queue).ToList());
+        }
+
         private static InsertionQueue<int> CreateQueue()
         {
             return new InsertionQueue<int>();
