@@ -12,7 +12,7 @@
 
   <PropertyGroup>
     <PackageId>SharpYaml</PackageId>
-    <Description>A YAML portable .NET library providing parsing and serialization of object graphs, compatible with CoreCLR.</Description>
+    <Description>A high-performance .NET YAML library providing parsing and serialization of object graphs, NativeAOT ready.</Description>
     <Copyright>Alexandre Mutel</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <Authors>Alexandre Mutel</Authors>
