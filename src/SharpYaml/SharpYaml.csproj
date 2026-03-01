@@ -30,6 +30,10 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <SharpYamlSourceGenAssembly>$(MSBuildThisFileDirectory)..\SharpYaml.SourceGenerator\bin\$(Configuration)\netstandard2.0\SharpYaml.SourceGenerator.dll</SharpYamlSourceGenAssembly>
+  </PropertyGroup>
+
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <AssemblyOriginatorKeyFile>SharpYaml.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
@@ -39,6 +43,9 @@
     <None Include="$(MSBuildThisFileDirectory)../../img/SharpYaml.png" Pack="true" PackagePath="/" />
     <None Include="$(MSBuildThisFileDirectory)../../README.md" Pack="true" PackagePath="/" Link="readme.md" />
     <None Include="SharpYaml.targets" Pack="true" PackagePath="buildTransitive/SharpYaml.targets" />
+    <!-- Ship the source generator with the main package (no separate generator NuGet package). -->
+    <None Include="$(SharpYamlSourceGenAssembly)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="$(SharpYamlSourceGenAssembly).pdb" Condition="Exists('$(SharpYamlSourceGenAssembly).pdb')" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -59,9 +66,6 @@
     <ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"
-                      PrivateAssets="all"
-                      Pack="true"
-                      PackagePath="analyzers/dotnet/cs"
-                      Visible="false" />
+                      PrivateAssets="all" />
   </ItemGroup>
 </Project>
