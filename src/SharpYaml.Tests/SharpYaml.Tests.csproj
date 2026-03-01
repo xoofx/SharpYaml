@@ -6,6 +6,11 @@
     <Nullable>annotations</Nullable>
     <NoWarn>$(NoWarn);SYSLIB1224</NoWarn>
   </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <AssemblyOriginatorKeyFile>..\SharpYaml\SharpYaml.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
   <ItemGroup>
     <None Remove="files\**\*.yaml" />
     <EmbeddedResource Include="files\**\*.yaml" />

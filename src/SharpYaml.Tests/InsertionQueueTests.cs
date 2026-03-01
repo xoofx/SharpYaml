@@ -50,7 +50,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SharpYaml.Tests
 {
-        [TestClass]
+    [TestClass]
     public class InsertionQueueTests
     {
         [TestMethod]

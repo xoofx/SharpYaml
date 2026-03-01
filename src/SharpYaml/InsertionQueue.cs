@@ -51,7 +51,7 @@ namespace SharpYaml
     /// <summary>
     /// Generic queue on which items may be inserted
     /// </summary>
-    public class InsertionQueue<T>
+    internal sealed class InsertionQueue<T>
     {
         private readonly List<T> _items = new();
         private int _headIndex;
