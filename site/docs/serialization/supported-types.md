@@ -53,7 +53,13 @@ Common collection shapes are supported:
 
 - arrays (`T[]`)
 - `List<T>`
-- `Dictionary<TKey, TValue>` (keys are typically scalars)
+- `HashSet<T>` / `ISet<T>`
+- `IEnumerable<T>` / `IReadOnlyList<T>` / `IReadOnlyCollection<T>` / `IList<T>` / `ICollection<T>`
+- immutable collections: `ImmutableArray<T>`, `ImmutableList<T>`, `ImmutableHashSet<T>`
+- dictionaries with string keys: `Dictionary<string, TValue>`, `IDictionary<string, TValue>`, `IReadOnlyDictionary<string, TValue>`
+- dictionaries with scalar keys: `Dictionary<TKey, TValue>`, `IDictionary<TKey, TValue>`, `IReadOnlyDictionary<TKey, TValue>` (for example `int`, `Guid`, enums)
+
+For non-string dictionary keys, SharpYaml currently supports **scalar** mapping keys only (complex mapping keys are not supported).
 
 ## Custom types
 

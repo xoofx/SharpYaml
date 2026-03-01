@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -451,6 +452,78 @@ public abstract class YamlReaderWriterBase
                     }
 
                     var converterType = typeof(YamlDictionaryConverter<>).MakeGenericType(args[1]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(Dictionary<,>))
+                {
+                    var converterType = typeof(YamlDictionaryConverter<,>).MakeGenericType(args[0], args[1]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(IDictionary<,>))
+                {
+                    var converterType = typeof(YamlIDictionaryConverter<,>).MakeGenericType(args[0], args[1]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(IReadOnlyDictionary<,>))
+                {
+                    var converterType = typeof(YamlIReadOnlyDictionaryConverter<,>).MakeGenericType(args[0], args[1]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(HashSet<>))
+                {
+                    var converterType = typeof(YamlHashSetConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(ISet<>))
+                {
+                    var converterType = typeof(YamlISetConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(IList<>))
+                {
+                    var converterType = typeof(YamlIListConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(ICollection<>))
+                {
+                    var converterType = typeof(YamlICollectionConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(IReadOnlyList<>))
+                {
+                    var converterType = typeof(YamlIReadOnlyListConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(IReadOnlyCollection<>))
+                {
+                    var converterType = typeof(YamlIReadOnlyCollectionConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(ImmutableArray<>))
+                {
+                    var converterType = typeof(YamlImmutableArrayConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(ImmutableList<>))
+                {
+                    var converterType = typeof(YamlImmutableListConverter<>).MakeGenericType(args[0]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(ImmutableHashSet<>))
+                {
+                    var converterType = typeof(YamlImmutableHashSetConverter<>).MakeGenericType(args[0]);
                     return (YamlConverter)Activator.CreateInstance(converterType)!;
                 }
 
