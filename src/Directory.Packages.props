@@ -10,6 +10,7 @@
     <PackageVersion Include="MinVer" Version="7.0.0" />
     <PackageVersion Include="MSTest" Version="4.1.0" />
     <PackageVersion Include="PolySharp" Version="1.15.0" />
+    <PackageVersion Include="System.Buffers" Version="4.6.1" />
     <PackageVersion Include="System.Text.Json" Version="10.0.3" />
     <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.3.0" />
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />

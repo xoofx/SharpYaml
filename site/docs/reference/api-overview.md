@@ -24,6 +24,10 @@ Core APIs:
 - `Serialize(object? value, Type inputType, YamlSerializerOptions? options = null)`
 - `Serialize<T>(T value, YamlSerializerContext context)`
 - `Serialize(object? value, Type inputType, YamlSerializerContext context)`
+- `Serialize<T>(IBufferWriter<char> destination, T value, YamlSerializerOptions? options = null)`
+- `Serialize(IBufferWriter<char> destination, object? value, Type inputType, YamlSerializerOptions? options = null)`
+- `Serialize<T>(IBufferWriter<char> destination, T value, YamlSerializerContext context)`
+- `Serialize(IBufferWriter<char> destination, object? value, Type inputType, YamlSerializerContext context)`
 - `Serialize<T>(Stream utf8Stream, T value, YamlSerializerOptions? options = null)`
 - `Serialize(Stream utf8Stream, object? value, Type inputType, YamlSerializerOptions? options = null)`
 - `Serialize<T>(Stream utf8Stream, T value, YamlSerializerContext context)`

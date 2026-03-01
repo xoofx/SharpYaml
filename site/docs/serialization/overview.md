@@ -25,6 +25,20 @@ using var stream = File.OpenRead("config.yml");
 var config = YamlSerializer.Deserialize<MyConfig>(stream);
 ```
 
+## Buffer writers (zero-copy)
+
+If you want to avoid `string` allocations when emitting YAML, you can write directly to an `IBufferWriter<char>`:
+
+```csharp
+using System.Buffers;
+using SharpYaml;
+
+var buffer = new ArrayBufferWriter<char>();
+YamlSerializer.Serialize(buffer, new { Name = "Ada" });
+
+var yaml = new string(buffer.WrittenSpan);
+```
+
 ## Options
 
 `YamlSerializerOptions` is immutable and can be cached and reused.

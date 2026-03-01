@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Text;
 using SharpYaml.Serialization;
@@ -845,6 +846,74 @@ public static class YamlSerializer
     {
         ArgumentGuard.ThrowIfNull(typeInfo);
         return DeserializeCore(typeInfo, yaml.ToString());
+    }
+
+    /// <summary>
+    /// Serializes a value to an <see cref="IBufferWriter{T}"/> destination.
+    /// </summary>
+    /// <typeparam name="T">The CLR type to serialize.</typeparam>
+    /// <param name="destination">The destination buffer writer.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="destination"/> is <see langword="null"/>.</exception>
+    public static void Serialize<T>(IBufferWriter<char> destination, T value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(destination);
+
+        var writer = new BufferWriterTextWriter(destination);
+        Serialize(writer, value, options);
+    }
+
+    /// <summary>
+    /// Serializes a value to an <see cref="IBufferWriter{T}"/> destination using generated metadata from a serializer context.
+    /// </summary>
+    /// <typeparam name="T">The CLR type to serialize.</typeparam>
+    /// <param name="destination">The destination buffer writer.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="destination"/> or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static void Serialize<T>(IBufferWriter<char> destination, T value, YamlSerializerContext context)
+    {
+        ArgumentGuard.ThrowIfNull(destination);
+        ArgumentGuard.ThrowIfNull(context);
+
+        var writer = new BufferWriterTextWriter(destination);
+        Serialize(writer, value, context);
+    }
+
+    /// <summary>
+    /// Serializes a value to an <see cref="IBufferWriter{T}"/> destination using an explicit input type.
+    /// </summary>
+    /// <param name="destination">The destination buffer writer.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="inputType">The declared input type.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="destination"/> or <paramref name="inputType"/> is <see langword="null"/>.</exception>
+    public static void Serialize(IBufferWriter<char> destination, object? value, Type inputType, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(destination);
+        ArgumentGuard.ThrowIfNull(inputType);
+
+        var writer = new BufferWriterTextWriter(destination);
+        Serialize(writer, value, inputType, options);
+    }
+
+    /// <summary>
+    /// Serializes a value to an <see cref="IBufferWriter{T}"/> destination using an explicit input type and generated metadata from a serializer context.
+    /// </summary>
+    /// <param name="destination">The destination buffer writer.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="inputType">The declared input type.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="destination"/>, <paramref name="inputType"/>, or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static void Serialize(IBufferWriter<char> destination, object? value, Type inputType, YamlSerializerContext context)
+    {
+        ArgumentGuard.ThrowIfNull(destination);
+        ArgumentGuard.ThrowIfNull(inputType);
+        ArgumentGuard.ThrowIfNull(context);
+
+        var writer = new BufferWriterTextWriter(destination);
+        Serialize(writer, value, inputType, context);
     }
 
     private static void SerializeCore(YamlTypeInfo typeInfo, object? value, TextWriter writer)
