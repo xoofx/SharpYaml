@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.IO;
 using System.Text;
@@ -1053,7 +1053,7 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(context);
         ArgumentGuard.ThrowIfNull(requestedType);
 
-        var typeInfo = context.GetTypeInfo(requestedType, context.GeneratedOptions);
+        var typeInfo = context.GetTypeInfo(requestedType, context.Options);
         if (typeInfo is not null)
         {
             return typeInfo;
@@ -1064,7 +1064,7 @@ public static class YamlSerializer
 
     private static YamlTypeInfo ResolveTypeInfo(YamlSerializerOptions options, Type requestedType)
     {
-        if (options.TypeInfoResolver is YamlSerializerContext context && !ReferenceEquals(options, context.GeneratedOptions))
+        if (options.TypeInfoResolver is YamlSerializerContext context && !ReferenceEquals(options, context.Options))
         {
             throw new InvalidOperationException(
                 $"The provided {nameof(YamlSerializerOptions)} instance does not match the options associated with the source-generated context '{context.GetType()}'. " +

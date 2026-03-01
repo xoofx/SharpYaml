@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace SharpYaml.Serialization;
 
@@ -29,7 +29,7 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
 
         if (options.TypeInfoResolver is null)
         {
-            GeneratedOptions = options with { TypeInfoResolver = this };
+            Options = options with { TypeInfoResolver = this };
             return;
         }
 
@@ -41,7 +41,7 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
                 nameof(options));
         }
 
-        GeneratedOptions = options;
+        Options = options;
     }
 
     /// <summary>
@@ -50,7 +50,7 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
     /// <remarks>
     /// This is the options instance used by generated metadata properties on the context.
     /// </remarks>
-    protected internal YamlSerializerOptions GeneratedOptions { get; }
+    public YamlSerializerOptions Options { get; }
 
     /// <inheritdoc />
     public abstract YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options);
