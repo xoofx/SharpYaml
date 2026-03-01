@@ -325,7 +325,7 @@ namespace SharpYaml
                         throw new SemanticErrorException(currentVersion.Start, currentVersion.End, "Found duplicate %YAML directive.");
                     }
 
-                    if (currentVersion.Version.Major != Constants.MajorVersion || currentVersion.Version.Minor != Constants.MinorVersion)
+                    if (!Constants.IsSupportedYamlVersion(currentVersion.Version))
                     {
                         throw new SemanticErrorException(currentVersion.Start, currentVersion.End, "Found incompatible YAML document.");
                     }

@@ -726,7 +726,7 @@ namespace SharpYaml
 
                     isImplicit = false;
                     WriteIndicator("%YAML", true, false, false);
-                    WriteIndicator(FormattableString.Invariant($"{Constants.MajorVersion}.{Constants.MinorVersion}"), true, false, false);
+                    WriteIndicator(FormattableString.Invariant($"{documentStart.Version.Version.Major}.{documentStart.Version.Version.Minor}"), true, false, false);
                     WriteIndent();
                 }
 
@@ -878,7 +878,7 @@ namespace SharpYaml
         /// </summary>
         private static void AnalyzeVersionDirective(VersionDirective versionDirective)
         {
-            if (versionDirective.Version.Major != Constants.MajorVersion || versionDirective.Version.Minor != Constants.MinorVersion)
+            if (!Constants.IsSupportedYamlVersion(versionDirective.Version))
             {
                 throw new YamlException("Incompatible %YAML directive");
             }

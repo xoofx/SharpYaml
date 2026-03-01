@@ -49,7 +49,7 @@ using SharpYaml.Tokens;
 namespace SharpYaml
 {
     /// <summary>
-    /// Defines constants thar relate to the YAML specification.
+    /// Defines constants that relate to the YAML specification.
     /// </summary>
     internal static class Constants
     {
@@ -60,7 +60,12 @@ namespace SharpYaml
         };
 
         public const int MajorVersion = 1;
-        public const int MinorVersion = 1;
+        public const int MinorVersion = 2;
+
+        public static bool IsSupportedYamlVersion(Version version)
+        {
+            return version.Major == 1 && (version.Minor == 1 || version.Minor == 2);
+        }
 
         public const char HandleCharacter = '!';
         public const string DefaultHandle = "!";
