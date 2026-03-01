@@ -1555,19 +1555,6 @@ namespace SharpYaml
                 style = ScalarStyle.DoubleQuoted;
             }
 
-            // TODO: What is this code supposed to mean?
-            //if (noTag && !scalar.IsQuotedImplicit && style != ScalarStyle.Plain)
-            //{
-            //	tagData.handle = "!";
-            //}
-
-            // Final fallback: if no style is allowed, always use double quoted
-            if (!scalarData.isFlowPlainAllowed && !scalarData.isBlockPlainAllowed &&
-                !scalarData.isSingleQuotedAllowed && !scalarData.isBlockAllowed)
-            {
-                style = ScalarStyle.DoubleQuoted;
-            }
-
             scalarData.style = style;
         }
 
