@@ -39,16 +39,63 @@ namespace SharpYaml.Model
         /// <summary>Reads the next YAML element from the event stream.</summary>
         protected static YamlElement? ReadElement(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
+            return ReadElement(eventReader, tracker, anchors: null);
+        }
+
+        internal static YamlElement? ReadElement(EventReader eventReader, YamlNodeTracker? tracker, Dictionary<string, YamlElement>? anchors)
+        {
             if (eventReader.Accept<MappingStart>())
-                return YamlMapping.Load(eventReader, tracker);
+            {
+                var mapping = YamlMapping.Load(eventReader, tracker, anchors);
+                RegisterAnchor(mapping, anchors);
+                return mapping;
+            }
 
             if (eventReader.Accept<SequenceStart>())
-                return YamlSequence.Load(eventReader, tracker);
+            {
+                var sequence = YamlSequence.Load(eventReader, tracker, anchors);
+                RegisterAnchor(sequence, anchors);
+                return sequence;
+            }
 
             if (eventReader.Accept<Scalar>())
-                return YamlValue.Load(eventReader, tracker);
+            {
+                var value = YamlValue.Load(eventReader, tracker);
+                RegisterAnchor(value, anchors);
+                return value;
+            }
+
+            if (eventReader.Accept<AnchorAlias>())
+            {
+                var alias = eventReader.Allow<AnchorAlias>();
+
+                if (anchors == null || !anchors.TryGetValue(alias.Value, out var anchored))
+                {
+                    throw new YamlException(alias.Start, alias.End, FormattableString.Invariant($"Found an alias '*{alias.Value}' referencing an unknown anchor."));
+                }
+
+                // The model API does not currently preserve aliases as a distinct node type.
+                // We materialize a copy so that writing the model back out does not emit duplicate anchors.
+                var clone = (YamlElement)anchored.DeepClone(tracker: null);
+                clone.Anchor = null;
+                return clone;
+            }
 
             return null;
+        }
+
+        private static void RegisterAnchor(YamlElement element, Dictionary<string, YamlElement>? anchors)
+        {
+            if (anchors == null)
+            {
+                return;
+            }
+
+            var anchor = element.Anchor;
+            if (!string.IsNullOrEmpty(anchor))
+            {
+                anchors[anchor] = element;
+            }
         }
 
         /// <summary>Enumerates parsing events for this YAML node.</summary>

@@ -150,17 +150,24 @@ namespace SharpYaml.Model
         /// <summary>Loads data.</summary>
         public static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker)
         {
+            return Load(eventReader, tracker, anchors: null);
+        }
+
+        internal static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker, Dictionary<string, YamlElement>? anchors)
+        {
             var mappingStart = eventReader.Allow<MappingStart>();
 
             var keys = new List<YamlElement>();
             var contents = new Dictionary<YamlElement, YamlElement?>();
             while (!eventReader.Accept<MappingEnd>())
             {
-                var key = ReadElement(eventReader, tracker);
-                var value = ReadElement(eventReader, tracker);
+                var key = ReadElement(eventReader, tracker, anchors);
+                var value = ReadElement(eventReader, tracker, anchors);
 
-                if (value == null)
-                    throw new Exception();
+                if (key is null || value is null)
+                {
+                    throw new YamlException("Unexpected end of mapping while loading YAML model.");
+                }
 
                 keys.Add(key);
                 contents[key] = value;

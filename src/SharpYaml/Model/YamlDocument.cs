@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 using System.Collections.Generic;
+using System;
 using SharpYaml.Events;
 using SharpYaml.Tokens;
 using DocumentEnd = SharpYaml.Events.DocumentEnd;
@@ -53,7 +54,8 @@ namespace SharpYaml.Model
         {
             var documentStart = eventReader.Allow<DocumentStart>();
 
-            var contents = ReadElement(eventReader, tracker);
+            var anchors = new Dictionary<string, YamlElement>(StringComparer.Ordinal);
+            var contents = ReadElement(eventReader, tracker, anchors);
 
             var documentEnd = eventReader.Allow<DocumentEnd>();
 

@@ -139,12 +139,17 @@ namespace SharpYaml.Model
         /// <summary>Loads data.</summary>
         public static YamlSequence Load(EventReader eventReader, YamlNodeTracker? tracker = null)
         {
+            return Load(eventReader, tracker, anchors: null);
+        }
+
+        internal static YamlSequence Load(EventReader eventReader, YamlNodeTracker? tracker, Dictionary<string, YamlElement>? anchors)
+        {
             var sequenceStart = eventReader.Allow<SequenceStart>();
 
             var contents = new List<YamlElement>();
             while (!eventReader.Accept<SequenceEnd>())
             {
-                var item = ReadElement(eventReader, tracker);
+                var item = ReadElement(eventReader, tracker, anchors);
                 if (item != null)
                     contents.Add(item);
             }
