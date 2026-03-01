@@ -59,6 +59,8 @@ var yaml = YamlSerializer.Serialize(config, options);
 var model = YamlSerializer.Deserialize<MyConfig>(yaml, options);
 ```
 
+By default, `PropertyNamingPolicy` is `null`, meaning CLR member names are used as-is for YAML mapping keys (same default as `System.Text.Json`).
+
 ### Source Generation
 
 Declare a context with `[JsonSerializable]` roots:

@@ -64,6 +64,15 @@ var roundTrip = YamlSerializer.Deserialize(yaml, typeof(MyConfig), MyYamlContext
 
 The generated context expects its own options instance to be used consistently. If you want to call an `options`-based overload, use `MyYamlContext.Default.Options`.
 
+## Naming policy and generated code
+
+For source generation, member names are resolved at build time using:
+
+- `YamlPropertyNameAttribute` / `JsonPropertyNameAttribute` when present (these override naming policies)
+- otherwise, `YamlSourceGenerationOptionsAttribute.PropertyNamingPolicy` (or no policy when unspecified)
+
+The generated serializer stores the resolved names directly and does not call `ConvertName(...)` at runtime for object members.
+
 ## Reflection control
 
 Reflection fallback can be disabled globally before first serializer use:

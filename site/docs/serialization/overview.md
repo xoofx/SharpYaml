@@ -36,6 +36,13 @@ var options = new YamlSerializerOptions
 };
 ```
 
+## Naming policy defaults
+
+By default, `YamlSerializerOptions.PropertyNamingPolicy` is `null`, meaning CLR member names are used as-is for YAML mapping keys.
+This matches the default behavior of `System.Text.Json` (outside of ASP.NET defaults).
+
+If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCase`.
+
 ### Option reference
 
 | Option | Default | Meaning |
