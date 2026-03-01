@@ -534,6 +534,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var token = property.MetadataToken;
 
                 var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property));
+                member.Converter = CreateConverterFromAttribute(property, property.PropertyType, options);
                 members.Add(member);
                 if (member.IsRequired)
                 {
@@ -582,6 +583,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var token = field.MetadataToken;
 
                 var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field));
+                member.Converter = CreateConverterFromAttribute(field, field.FieldType, options);
                 members.Add(member);
                 if (member.IsRequired)
                 {
@@ -1266,6 +1268,49 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         return false;
+    }
+
+    private static YamlConverter? CreateConverterFromAttribute(MemberInfo member, Type memberType, YamlSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(member);
+        ArgumentNullException.ThrowIfNull(memberType);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var attribute = member.GetCustomAttribute<YamlConverterAttribute>(inherit: true);
+        if (attribute is null)
+        {
+            return null;
+        }
+
+        var converterType = attribute.ConverterType;
+        if (converterType.IsGenericTypeDefinition)
+        {
+            throw new NotSupportedException($"Converter type '{converterType}' cannot be an open generic type.");
+        }
+
+        if (!typeof(YamlConverter).IsAssignableFrom(converterType))
+        {
+            throw new NotSupportedException($"Converter type '{converterType}' must derive from '{typeof(YamlConverter)}'.");
+        }
+
+        var converter = (YamlConverter)Activator.CreateInstance(converterType)!;
+        if (converter is YamlConverterFactory factory)
+        {
+            var created = factory.CreateConverter(memberType, options);
+            if (created is null || !created.CanConvert(memberType))
+            {
+                throw new InvalidOperationException($"Converter factory '{factory.GetType()}' returned an invalid converter for '{memberType}'.");
+            }
+
+            return created;
+        }
+
+        if (!converter.CanConvert(memberType))
+        {
+            throw new NotSupportedException($"Converter '{converterType}' cannot handle '{memberType}'.");
+        }
+
+        return converter;
     }
 
     private static string GetMemberName(MemberInfo member, YamlReaderWriterBase readerWriter)

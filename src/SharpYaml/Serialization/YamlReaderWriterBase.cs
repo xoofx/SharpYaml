@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using SharpYaml.Serialization.Converters;
 
 namespace SharpYaml.Serialization;
@@ -107,6 +108,13 @@ public abstract class YamlReaderWriterBase
             return cached;
         }
 
+        var attributeConverter = CreateConverterFromAttribute(typeToConvert);
+        if (attributeConverter is not null)
+        {
+            _converterCache[typeToConvert] = attributeConverter;
+            return attributeConverter;
+        }
+
         if (TryGetCustomConverter(typeToConvert, out var custom) && custom is not null)
         {
             _converterCache[typeToConvert] = custom;
@@ -121,6 +129,45 @@ public abstract class YamlReaderWriterBase
 
         _converterCache[typeToConvert] = created;
         return created;
+    }
+
+    private YamlConverter? CreateConverterFromAttribute(Type typeToConvert)
+    {
+        var attribute = typeToConvert.GetCustomAttribute<YamlConverterAttribute>(inherit: false);
+        if (attribute is null)
+        {
+            return null;
+        }
+
+        var converterType = attribute.ConverterType;
+        if (converterType.IsGenericTypeDefinition)
+        {
+            throw new NotSupportedException($"Converter type '{converterType}' cannot be an open generic type.");
+        }
+
+        if (!typeof(YamlConverter).IsAssignableFrom(converterType))
+        {
+            throw new NotSupportedException($"Converter type '{converterType}' must derive from '{typeof(YamlConverter)}'.");
+        }
+
+        var converter = (YamlConverter)Activator.CreateInstance(converterType)!;
+        if (converter is YamlConverterFactory factory)
+        {
+            var created = factory.CreateConverter(typeToConvert, Options);
+            if (created is null || !created.CanConvert(typeToConvert))
+            {
+                throw new InvalidOperationException($"Converter factory '{factory.GetType()}' returned an invalid converter for '{typeToConvert}'.");
+            }
+
+            return created;
+        }
+
+        if (!converter.CanConvert(typeToConvert))
+        {
+            throw new NotSupportedException($"Converter '{converterType}' cannot handle '{typeToConvert}'.");
+        }
+
+        return converter;
     }
 
     /// <summary>
