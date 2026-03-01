@@ -23,6 +23,17 @@ var options = new YamlSerializerOptions
 var model = YamlSerializer.Deserialize<MyConfig>(": invalid", options);
 ```
 
+## TryDeserialize
+
+If you prefer failure-tolerant parsing without exceptions, use `YamlSerializer.TryDeserialize(...)`:
+
+```csharp
+if (!YamlSerializer.TryDeserialize<MyConfig>(yaml, out var model, options))
+{
+    // Invalid YAML or incompatible payload.
+}
+```
+
 ## Required members
 
 If a required member is missing (for example `[YamlRequired]` or `[JsonRequired]`), deserialization throws `YamlException`.

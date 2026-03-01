@@ -297,6 +297,110 @@ public static class YamlSerializer
     }
 
     /// <summary>
+    /// Attempts to deserialize a YAML payload from text.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="yaml">The YAML payload.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="default"/>.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize<T>(string yaml, out T? value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(yaml);
+
+        try
+        {
+            value = Deserialize<T>(yaml, options);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = default;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to deserialize a YAML payload from text using generated metadata from a serializer context.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="yaml">The YAML payload.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="default"/>.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="yaml"/> or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize<T>(string yaml, YamlSerializerContext context, out T? value)
+    {
+        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(context);
+
+        try
+        {
+            value = Deserialize<T>(yaml, context);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = default;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to deserialize a YAML payload into an explicit destination type.
+    /// </summary>
+    /// <param name="yaml">The YAML payload.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="null"/>.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="yaml"/> or <paramref name="returnType"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize(string yaml, Type returnType, out object? value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(returnType);
+
+        try
+        {
+            value = Deserialize(yaml, returnType, options);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to deserialize a YAML payload into an explicit destination type using generated metadata from a serializer context.
+    /// </summary>
+    /// <param name="yaml">The YAML payload.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="yaml"/>, <paramref name="returnType"/>, or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize(string yaml, Type returnType, YamlSerializerContext context, out object? value)
+    {
+        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(context);
+
+        try
+        {
+            value = Deserialize(yaml, returnType, context);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Deserializes YAML from a text reader.
     /// </summary>
     /// <typeparam name="T">The destination CLR type.</typeparam>
@@ -313,6 +417,31 @@ public static class YamlSerializer
     }
 
     /// <summary>
+    /// Attempts to deserialize YAML from a text reader.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="reader">The source reader.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="default"/>.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize<T>(TextReader reader, out T? value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+
+        try
+        {
+            value = Deserialize<T>(reader, options);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = default;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Deserializes YAML from a stream using UTF-8 encoding.
     /// </summary>
     /// <typeparam name="T">The destination CLR type.</typeparam>
@@ -326,6 +455,31 @@ public static class YamlSerializer
 
         using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
         return Deserialize<T>(reader, options);
+    }
+
+    /// <summary>
+    /// Attempts to deserialize YAML from a stream using UTF-8 encoding.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="default"/>.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize<T>(Stream utf8Stream, out T? value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+
+        try
+        {
+            value = Deserialize<T>(utf8Stream, options);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = default;
+            return false;
+        }
     }
 
     /// <summary>
@@ -347,6 +501,32 @@ public static class YamlSerializer
     }
 
     /// <summary>
+    /// Attempts to deserialize YAML from a text reader using generated metadata from a serializer context.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="reader">The source reader.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="default"/>.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize<T>(TextReader reader, YamlSerializerContext context, out T? value)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(context);
+
+        try
+        {
+            value = Deserialize<T>(reader, context);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = default;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Deserializes YAML from a stream using UTF-8 encoding and generated metadata from a serializer context.
     /// </summary>
     /// <typeparam name="T">The destination CLR type.</typeparam>
@@ -362,6 +542,32 @@ public static class YamlSerializer
 
         using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
         return Deserialize<T>(reader, context);
+    }
+
+    /// <summary>
+    /// Attempts to deserialize YAML from a stream using UTF-8 encoding and generated metadata from a serializer context.
+    /// </summary>
+    /// <typeparam name="T">The destination CLR type.</typeparam>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="default"/>.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize<T>(Stream utf8Stream, YamlSerializerContext context, out T? value)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+        ArgumentGuard.ThrowIfNull(context);
+
+        try
+        {
+            value = Deserialize<T>(utf8Stream, context);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = default;
+            return false;
+        }
     }
 
     /// <summary>
@@ -383,6 +589,32 @@ public static class YamlSerializer
     }
 
     /// <summary>
+    /// Attempts to deserialize YAML from a text reader using an explicit destination type.
+    /// </summary>
+    /// <param name="reader">The source reader.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="null"/>.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> or <paramref name="returnType"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize(TextReader reader, Type returnType, out object? value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(returnType);
+
+        try
+        {
+            value = Deserialize(reader, returnType, options);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Deserializes YAML from a stream using UTF-8 encoding.
     /// </summary>
     /// <param name="utf8Stream">The source stream.</param>
@@ -397,6 +629,32 @@ public static class YamlSerializer
 
         using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
         return Deserialize(reader, returnType, options);
+    }
+
+    /// <summary>
+    /// Attempts to deserialize YAML from a stream using UTF-8 encoding and an explicit destination type.
+    /// </summary>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="null"/>.</param>
+    /// <param name="options">The serializer options. If <see langword="null"/>, <see cref="YamlSerializerOptions.Default"/> is used.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/> or <paramref name="returnType"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize(Stream utf8Stream, Type returnType, out object? value, YamlSerializerOptions? options = null)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+        ArgumentGuard.ThrowIfNull(returnType);
+
+        try
+        {
+            value = Deserialize(utf8Stream, returnType, options);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = null;
+            return false;
+        }
     }
 
     /// <summary>
@@ -419,6 +677,33 @@ public static class YamlSerializer
     }
 
     /// <summary>
+    /// Attempts to deserialize YAML from a text reader using an explicit destination type and generated metadata from a serializer context.
+    /// </summary>
+    /// <param name="reader">The source reader.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="returnType"/>, or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize(TextReader reader, Type returnType, YamlSerializerContext context, out object? value)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(context);
+
+        try
+        {
+            value = Deserialize(reader, returnType, context);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Deserializes YAML from a stream using UTF-8 encoding and generated metadata from a serializer context.
     /// </summary>
     /// <param name="utf8Stream">The source stream.</param>
@@ -435,6 +720,33 @@ public static class YamlSerializer
 
         using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
         return Deserialize(reader, returnType, context);
+    }
+
+    /// <summary>
+    /// Attempts to deserialize YAML from a stream using UTF-8 encoding and an explicit destination type using generated metadata from a serializer context.
+    /// </summary>
+    /// <param name="utf8Stream">The source stream.</param>
+    /// <param name="returnType">The destination CLR type.</param>
+    /// <param name="context">The source-generated serializer context.</param>
+    /// <param name="value">The deserialized value when successful; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> when deserialization succeeded; otherwise <see langword="false"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="utf8Stream"/>, <paramref name="returnType"/>, or <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static bool TryDeserialize(Stream utf8Stream, Type returnType, YamlSerializerContext context, out object? value)
+    {
+        ArgumentGuard.ThrowIfNull(utf8Stream);
+        ArgumentGuard.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(context);
+
+        try
+        {
+            value = Deserialize(utf8Stream, returnType, context);
+            return true;
+        }
+        catch (YamlException)
+        {
+            value = null;
+            return false;
+        }
     }
     /// <summary>
     /// Deserializes YAML from a span of characters.

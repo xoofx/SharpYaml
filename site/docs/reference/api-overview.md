@@ -44,6 +44,18 @@ Core APIs:
 - `Deserialize(TextReader reader, Type returnType, YamlSerializerOptions? options = null)`
 - `Deserialize<T>(TextReader reader, YamlSerializerContext context)`
 - `Deserialize(TextReader reader, Type returnType, YamlSerializerContext context)`
+- `TryDeserialize<T>(string yaml, out T? value, YamlSerializerOptions? options = null)`
+- `TryDeserialize<T>(string yaml, YamlSerializerContext context, out T? value)`
+- `TryDeserialize(string yaml, Type returnType, out object? value, YamlSerializerOptions? options = null)`
+- `TryDeserialize(string yaml, Type returnType, YamlSerializerContext context, out object? value)`
+- `TryDeserialize<T>(TextReader reader, out T? value, YamlSerializerOptions? options = null)`
+- `TryDeserialize<T>(TextReader reader, YamlSerializerContext context, out T? value)`
+- `TryDeserialize(TextReader reader, Type returnType, out object? value, YamlSerializerOptions? options = null)`
+- `TryDeserialize(TextReader reader, Type returnType, YamlSerializerContext context, out object? value)`
+- `TryDeserialize<T>(Stream utf8Stream, out T? value, YamlSerializerOptions? options = null)`
+- `TryDeserialize<T>(Stream utf8Stream, YamlSerializerContext context, out T? value)`
+- `TryDeserialize(Stream utf8Stream, Type returnType, out object? value, YamlSerializerOptions? options = null)`
+- `TryDeserialize(Stream utf8Stream, Type returnType, YamlSerializerContext context, out object? value)`
 - `Deserialize<T>(ReadOnlySpan<char> yaml, YamlSerializerOptions? options = null)`
 - `Deserialize(ReadOnlySpan<char> yaml, Type returnType, YamlSerializerOptions? options = null)`
 - `Deserialize<T>(ReadOnlySpan<char> yaml, YamlSerializerContext context)`
