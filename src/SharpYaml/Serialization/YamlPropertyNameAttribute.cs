@@ -6,7 +6,7 @@ namespace SharpYaml.Serialization;
 /// Specifies the serialized YAML property name for a member.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-public sealed class YamlPropertyNameAttribute : Attribute
+public sealed class YamlPropertyNameAttribute : YamlAttribute
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlPropertyNameAttribute"/> class.

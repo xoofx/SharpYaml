@@ -6,7 +6,7 @@ namespace SharpYaml.Serialization;
 /// Registers a derived type for polymorphic YAML serialization.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = true)]
-public sealed class YamlDerivedTypeAttribute : Attribute
+public sealed class YamlDerivedTypeAttribute : YamlAttribute
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlDerivedTypeAttribute"/> class.

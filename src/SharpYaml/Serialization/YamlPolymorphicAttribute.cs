@@ -6,7 +6,7 @@ namespace SharpYaml.Serialization;
 /// Marks a base type as polymorphic for YAML serialization.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
-public sealed class YamlPolymorphicAttribute : Attribute
+public sealed class YamlPolymorphicAttribute : YamlAttribute
 {
     /// <summary>
     /// Gets or sets the discriminator property name.

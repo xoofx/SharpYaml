@@ -6,7 +6,7 @@ namespace SharpYaml.Serialization;
 /// Specifies the emitted order for a serialized member.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-public sealed class YamlPropertyOrderAttribute : Attribute
+public sealed class YamlPropertyOrderAttribute : YamlAttribute
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlPropertyOrderAttribute"/> class.

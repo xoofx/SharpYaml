@@ -6,7 +6,7 @@ namespace SharpYaml.Serialization;
 /// Includes a non-public member in YAML serialization.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-public sealed class YamlIncludeAttribute : Attribute
+public sealed class YamlIncludeAttribute : YamlAttribute
 {
 }
 
