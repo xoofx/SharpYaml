@@ -1,5 +1,5 @@
 ---
-title: v2 to v3
+title: Migration (v2 to v3)
 ---
 
 # SharpYaml v2 to v3 Migration Guide

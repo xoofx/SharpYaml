@@ -10,7 +10,7 @@ Single source of truth for the overall project: read and follow `../AGENTS.md`.
 - `menu.yml` - Top-level navigation
 - `readme.md` - Landing/home page
 - `docs/` - End-user documentation
-- `migration/` - Migration guides (for example v2 to v3)
+- `migration.md` - Migration guide (v2 to v3)
 - `benchmarks/` - Benchmark methodology and results
 - `specs/` - Versioned design/specification documents (historical reference)
 - `img/` - Site images (logo, social banner)
@@ -32,4 +32,3 @@ lunet serve          # dev server with live reload at http://localhost:4000
 - Navigation is defined in `menu.yml` files (one per section/folder).
 - Keep examples short, correct, and copy-pasteable.
 - When adding a new page, add a corresponding entry in the relevant `menu.yml`.
-

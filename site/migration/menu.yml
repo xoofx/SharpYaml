@@ -1,4 +1,0 @@
-migration:
-  - {path: readme.md, title: Overview, self: true}
-  - {path: v2_to_v3.md, title: v2 to v3}
-

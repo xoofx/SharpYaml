@@ -653,7 +653,7 @@ This is the recommended execution order. Each step should be a self-contained PR
    - Add golden file coverage.
 
 10. **Docs and migration guide**
-   - Add `site/migration/v2_to_v3.md`.
+   - Add `site/migration.md`.
    - Update `README.md` usage examples to the new API.
 
 ## 12. Open Questions (Must Be Answered Before Coding)
