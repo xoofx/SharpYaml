@@ -1,30 +1,41 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <PackageId>SharpYaml</PackageId>
-    <AssemblyName>SharpYaml</AssemblyName>
-    <AssemblyTitle>SharpYaml</AssemblyTitle>
-    <RootNamespace>SharpYaml</RootNamespace>
-    <Description>A YAML portable .NET library. providing parsing and serialization of object graphs, compatible with CoreCLR.</Description>
     <TargetFramework>net10.0</TargetFramework>
-    <Authors>Alexandre Mutel</Authors>
+    <LangVersion>latest</LangVersion>
+    <Nullable>annotations</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+    <!-- Enable AOT analyzers -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>SharpYaml</PackageId>
+    <Description>A YAML portable .NET library providing parsing and serialization of object graphs, compatible with CoreCLR.</Description>
     <Copyright>Alexandre Mutel</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <PackageTags>yaml;parser;yml</PackageTags>
+    <Authors>Alexandre Mutel</Authors>
+    <PackageTags>yaml;parser;yml;serialization;deserialization</PackageTags>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageIcon>SharpYaml.png</PackageIcon>
     <PackageProjectUrl>https://github.com/xoofx/SharpYaml</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <!--Add support for sourcelink-->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <LangVersion>latest</LangVersion>
-    <Nullable>annotations</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyOriginatorKeyFile>SharpYaml.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../../img/SharpYaml.png" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)../../README.md" Pack="true" PackagePath="/" Link="readme.md" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MinVer">
