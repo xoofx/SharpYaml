@@ -8,7 +8,7 @@ SharpYaml 3 is a breaking-change release aligned with modern .NET serialization 
 
 ## Target Framework
 
-- v3 targets `net10.0` and `netstandard2.0`.
+- v3 targets `net8.0`, `net10.0`, and `netstandard2.0`.
 
 ## Main API Replacement
 

@@ -8,7 +8,9 @@ title: Getting started
 dotnet add package SharpYaml
 ```
 
-SharpYaml targets `net10.0` and `netstandard2.0`.
+SharpYaml targets `net8.0`, `net10.0`, and `netstandard2.0`.
+
+SharpYaml supports .NET `net8.0` through `net10.0` with fully optimized implementations, and also ships a `netstandard2.0` build for broad runtime compatibility.
 
 ## Serialize and deserialize
 

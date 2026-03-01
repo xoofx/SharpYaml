@@ -249,6 +249,10 @@ public abstract class YamlReaderWriterBase
             "Trimming",
             "IL2071",
             Justification = "This code path is only used by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+        [UnconditionalSuppressMessage(
+            "Trimming",
+            "IL2070",
+            Justification = "This code path is only used by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
 #endif
         public static YamlConverter? CreateConverter(Type typeToConvert)
         {
