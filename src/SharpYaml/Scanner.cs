@@ -1868,16 +1868,9 @@ namespace SharpYaml
                 // Consume non-blank characters.
                 while (!analyzer.IsBlankOrBreakOrZero())
                 {
-                    // Check for 'x:x' in the flow context. TODO: Fix the test "spec-08-13".
-
-                    if (flowLevel > 0 && analyzer.Check(':') && !analyzer.IsBlankOrBreakOrZero(1))
-                    {
-                        throw new SyntaxErrorException(start, CurrentPosition, "While scanning a plain scalar, find unexpected ':'.");
-                    }
-
                     // Check for indicators that may end a plain scalar.
 
-                    if ((analyzer.Check(':') && analyzer.IsBlankOrBreakOrZero(1)) || (flowLevel > 0 && analyzer.Check(",:?[]{}")))
+                    if ((analyzer.Check(':') && analyzer.IsBlankOrBreakOrZero(1)) || (flowLevel > 0 && analyzer.Check(",?[]{}")))
                     {
                         break;
                     }
