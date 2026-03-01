@@ -47,3 +47,11 @@ with api.dotnet
     ]
 end
 
+# ---------------------------------------------------------------------------
+# Search (exclude unpublished content)
+# ---------------------------------------------------------------------------
+
+with search
+    # Note: search is disabled by default unless enabled by the theme/template.
+    excludes.add ["/specs/**"]
+end

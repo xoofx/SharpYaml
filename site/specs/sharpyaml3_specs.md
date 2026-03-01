@@ -1,5 +1,6 @@
 ---
 title: SharpYaml 3 specification
+discard: true
 ---
 
 # SharpYaml 3 (SharpYaml3) Specification
