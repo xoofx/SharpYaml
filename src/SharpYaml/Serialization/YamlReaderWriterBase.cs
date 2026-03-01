@@ -341,6 +341,37 @@ public abstract class YamlReaderWriterBase
                 return YamlTimeSpanConverter.Instance;
             }
 
+#if NET6_0_OR_GREATER
+            if (typeToConvert == typeof(DateOnly))
+            {
+                return YamlDateOnlyConverter.Instance;
+            }
+
+            if (typeToConvert == typeof(TimeOnly))
+            {
+                return YamlTimeOnlyConverter.Instance;
+            }
+#endif
+
+#if NET5_0_OR_GREATER
+            if (typeToConvert == typeof(Half))
+            {
+                return YamlHalfConverter.Instance;
+            }
+#endif
+
+#if NET7_0_OR_GREATER
+            if (typeToConvert == typeof(Int128))
+            {
+                return YamlInt128Converter.Instance;
+            }
+
+            if (typeToConvert == typeof(UInt128))
+            {
+                return YamlUInt128Converter.Instance;
+            }
+#endif
+
             if (typeToConvert == typeof(nint))
             {
                 return YamlIntPtrConverter.Instance;

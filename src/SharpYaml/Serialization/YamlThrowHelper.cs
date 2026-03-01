@@ -132,6 +132,32 @@ public static class YamlThrowHelper
     public static YamlException ThrowInvalidTimeSpanScalar(YamlReader reader)
         => ThrowInvalidScalar(reader, $"Invalid TimeSpan scalar '{reader.ScalarValue}'.");
 
+#if NET6_0_OR_GREATER
+    /// <summary>Throws an exception for invalid <see cref="DateOnly"/> Scalar.</summary>
+    public static YamlException ThrowInvalidDateOnlyScalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid DateOnly scalar '{reader.ScalarValue}'.");
+
+    /// <summary>Throws an exception for invalid <see cref="TimeOnly"/> Scalar.</summary>
+    public static YamlException ThrowInvalidTimeOnlyScalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid TimeOnly scalar '{reader.ScalarValue}'.");
+#endif
+
+#if NET5_0_OR_GREATER
+    /// <summary>Throws an exception for invalid <see cref="Half"/> Scalar.</summary>
+    public static YamlException ThrowInvalidHalfScalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid Half scalar '{reader.ScalarValue}'.");
+#endif
+
+#if NET7_0_OR_GREATER
+    /// <summary>Throws an exception for invalid <see cref="Int128"/> Scalar.</summary>
+    public static YamlException ThrowInvalidInt128Scalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid Int128 scalar '{reader.ScalarValue}'.");
+
+    /// <summary>Throws an exception for invalid <see cref="UInt128"/> Scalar.</summary>
+    public static YamlException ThrowInvalidUInt128Scalar(YamlReader reader)
+        => ThrowInvalidScalar(reader, $"Invalid UInt128 scalar '{reader.ScalarValue}'.");
+#endif
+
     /// <summary>Throws an exception for alias Missing Value.</summary>
     public static YamlException ThrowAliasMissingValue(YamlReader reader)
         => new(reader.SourceName, reader.Start, reader.End, "Alias token did not provide an alias value.");

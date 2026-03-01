@@ -66,6 +66,15 @@ internal sealed class GeneratedWellKnownScalars
     public TimeSpan Duration { get; set; }
 }
 
+internal sealed class GeneratedModernScalars
+{
+    public DateOnly Date { get; set; }
+    public TimeOnly Time { get; set; }
+    public Half Ratio { get; set; }
+    public Int128 Big { get; set; }
+    public UInt128 UBig { get; set; }
+}
+
 internal sealed class GeneratedCollections
 {
     public int[] Numbers { get; set; } = Array.Empty<int>();
@@ -263,6 +272,7 @@ internal sealed class GeneratedJsonCtorModel
 [JsonSerializable(typeof(GeneratedContainer))]
 [JsonSerializable(typeof(GeneratedPrimitives))]
 [JsonSerializable(typeof(GeneratedWellKnownScalars))]
+[JsonSerializable(typeof(GeneratedModernScalars))]
 [JsonSerializable(typeof(GeneratedColor))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(int))]
@@ -372,11 +382,38 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
+    public void GeneratedContext_ModernScalarTypes_RoundTrip()
+    {
+        var payload = new GeneratedModernScalars
+        {
+            Date = new DateOnly(2026, 03, 01),
+            Time = new TimeOnly(12, 34, 56),
+            Ratio = (Half)1.5f,
+            Big = Int128.Parse("123456789012345678901234567890"),
+            UBig = UInt128.Parse("123456789012345678901234567891"),
+        };
+
+        var context = TestYamlSerializerContext.Default;
+        var typeInfo = context.GetTypeInfo<GeneratedModernScalars>();
+
+        var yaml = YamlSerializer.Serialize(payload, typeInfo);
+        var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
+
+        Assert.IsNotNull(roundTrip);
+        Assert.AreEqual(payload.Date, roundTrip.Date);
+        Assert.AreEqual(payload.Time, roundTrip.Time);
+        Assert.AreEqual(payload.Ratio, roundTrip.Ratio);
+        Assert.AreEqual(payload.Big, roundTrip.Big);
+        Assert.AreEqual(payload.UBig, roundTrip.UBig);
+    }
+
+    [TestMethod]
     public void GeneratedContextExposesJsonLikeTypeInfoPropertyNames()
     {
         var context = TestYamlSerializerContext.Default;
 
         Assert.IsNotNull(context.GeneratedPerson);
+        Assert.IsNotNull(context.GeneratedModernScalars);
         Assert.IsNotNull(context.Boolean);
         Assert.IsNotNull(context.Int32);
         Assert.IsNotNull(context.NullableInt32);

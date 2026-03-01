@@ -14,6 +14,15 @@ public sealed class YamlWellKnownScalarConverterTests
         public TimeSpan Duration { get; set; }
     }
 
+    private sealed class ModernPayload
+    {
+        public DateOnly Date { get; set; }
+        public TimeOnly Time { get; set; }
+        public Half Ratio { get; set; }
+        public Int128 Big { get; set; }
+        public UInt128 UBig { get; set; }
+    }
+
     [TestMethod]
     public void RoundTrip_WellKnownScalarTypes_ShouldSucceed()
     {
@@ -41,6 +50,38 @@ public sealed class YamlWellKnownScalarConverterTests
         var ex = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<Guid>("not-a-guid"));
         StringAssert.Contains(ex.Message, "Guid");
         // Marks are zero-based in SharpYaml, so line/column can be 0 for a scalar at the start of the document.
+        StringAssert.Contains(ex.Message, "Lin:");
+        StringAssert.Contains(ex.Message, "Col:");
+    }
+
+    [TestMethod]
+    public void RoundTrip_ModernScalarTypes_ShouldSucceed()
+    {
+        var payload = new ModernPayload
+        {
+            Date = new DateOnly(2026, 03, 01),
+            Time = new TimeOnly(12, 34, 56),
+            Ratio = (Half)1.5f,
+            Big = Int128.Parse("123456789012345678901234567890"),
+            UBig = UInt128.Parse("123456789012345678901234567891"),
+        };
+
+        var yaml = YamlSerializer.Serialize(payload);
+        var roundTrip = YamlSerializer.Deserialize<ModernPayload>(yaml);
+
+        Assert.IsNotNull(roundTrip);
+        Assert.AreEqual(payload.Date, roundTrip.Date);
+        Assert.AreEqual(payload.Time, roundTrip.Time);
+        Assert.AreEqual(payload.Ratio, roundTrip.Ratio);
+        Assert.AreEqual(payload.Big, roundTrip.Big);
+        Assert.AreEqual(payload.UBig, roundTrip.UBig);
+    }
+
+    [TestMethod]
+    public void Deserialize_InvalidInt128_ShouldThrowYamlExceptionWithContext()
+    {
+        var ex = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<Int128>("not-an-int128"));
+        StringAssert.Contains(ex.Message, "Int128");
         StringAssert.Contains(ex.Message, "Lin:");
         StringAssert.Contains(ex.Message, "Col:");
     }

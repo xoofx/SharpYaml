@@ -26,8 +26,11 @@ The built-in scalar converters support the following C# primitive types:
 - `char`
 - `string`
 - `DateTime`, `DateTimeOffset` (roundtrip/ISO-8601)
+- `DateOnly`, `TimeOnly` (ISO-8601, available on .NET 6+)
 - `Guid`
 - `TimeSpan`
+- `Half` (available on .NET 5+)
+- `Int128`, `UInt128` (available on .NET 7+)
 - enums (by name; numeric forms are accepted when possible)
 - nullable forms of the above (`T?`)
 

@@ -118,6 +118,37 @@ internal static class YamlBuiltInTypeInfoResolver
             return YamlTimeSpanConverter.Instance;
         }
 
+#if NET6_0_OR_GREATER
+        if (type == typeof(DateOnly))
+        {
+            return YamlDateOnlyConverter.Instance;
+        }
+
+        if (type == typeof(TimeOnly))
+        {
+            return YamlTimeOnlyConverter.Instance;
+        }
+#endif
+
+#if NET5_0_OR_GREATER
+        if (type == typeof(Half))
+        {
+            return YamlHalfConverter.Instance;
+        }
+#endif
+
+#if NET7_0_OR_GREATER
+        if (type == typeof(Int128))
+        {
+            return YamlInt128Converter.Instance;
+        }
+
+        if (type == typeof(UInt128))
+        {
+            return YamlUInt128Converter.Instance;
+        }
+#endif
+
         if (type == typeof(object))
         {
             return YamlUntypedObjectConverter.Instance;
@@ -162,6 +193,17 @@ internal static class YamlBuiltInTypeInfoResolver
         if (type == typeof(DateTimeOffset?)) return YamlNullableConverter<DateTimeOffset>.Instance;
         if (type == typeof(Guid?)) return YamlNullableConverter<Guid>.Instance;
         if (type == typeof(TimeSpan?)) return YamlNullableConverter<TimeSpan>.Instance;
+#if NET6_0_OR_GREATER
+        if (type == typeof(DateOnly?)) return YamlNullableConverter<DateOnly>.Instance;
+        if (type == typeof(TimeOnly?)) return YamlNullableConverter<TimeOnly>.Instance;
+#endif
+#if NET5_0_OR_GREATER
+        if (type == typeof(Half?)) return YamlNullableConverter<Half>.Instance;
+#endif
+#if NET7_0_OR_GREATER
+        if (type == typeof(Int128?)) return YamlNullableConverter<Int128>.Instance;
+        if (type == typeof(UInt128?)) return YamlNullableConverter<UInt128>.Instance;
+#endif
 
         return null;
     }

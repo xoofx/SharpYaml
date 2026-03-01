@@ -2967,6 +2967,81 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("                reader.Read();");
                 return;
             }
+
+            if (string.Equals(systemType.Name, "DateOnly", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.DateOnly.TryParse(reader.ScalarValue, global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedDateOnly))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateOnlyScalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedDateOnly")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "TimeOnly", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.TimeOnly.TryParse(reader.ScalarValue, global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedTimeOnly))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidTimeOnlyScalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedTimeOnly")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Half", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.Half.TryParse(reader.ScalarValue, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedHalf))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidHalfScalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedHalf")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Int128", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.Int128.TryParse(reader.ScalarValue, global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedInt128))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidInt128Scalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedInt128")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "UInt128", StringComparison.Ordinal))
+            {
+                builder.AppendLine("                if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
+                builder.AppendLine("                }");
+                builder.AppendLine("                if (!global::System.UInt128.TryParse(reader.ScalarValue, global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedUInt128))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt128Scalar(reader);");
+                builder.AppendLine("                }");
+                builder.Append("                ").Append(member.AssignExpression("parsedUInt128")).AppendLine(";");
+                builder.AppendLine("                reader.Read();");
+                return;
+            }
         }
 
         if (member.Type is INamedTypeSymbol enumType && enumType.TypeKind == TypeKind.Enum)
@@ -3255,6 +3330,21 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(".ToString(\"c\", global::System.Globalization.CultureInfo.InvariantCulture));");
                 return true;
             }
+
+            if (string.Equals(systemType.Name, "DateOnly", StringComparison.Ordinal) ||
+                string.Equals(systemType.Name, "TimeOnly", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(".ToString(\"O\", global::System.Globalization.CultureInfo.InvariantCulture));");
+                return true;
+            }
+
+            if (string.Equals(systemType.Name, "Half", StringComparison.Ordinal) ||
+                string.Equals(systemType.Name, "Int128", StringComparison.Ordinal) ||
+                string.Equals(systemType.Name, "UInt128", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(".ToString(global::System.Globalization.CultureInfo.InvariantCulture));");
+                return true;
+            }
         }
 
         if (typeSymbol is INamedTypeSymbol named && named.TypeKind == TypeKind.Enum)
@@ -3465,6 +3555,56 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidTimeSpanScalar(reader);");
                 builder.Append(indent).AppendLine("}");
                 builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedTimeSpan;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "DateOnly", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.DateOnly.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedDateOnly))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateOnlyScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedDateOnly;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "TimeOnly", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.TimeOnly.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedTimeOnly))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidTimeOnlyScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedTimeOnly;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Half", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.Half.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedHalf))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidHalfScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedHalf;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Int128", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.Int128.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedInt128))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidInt128Scalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedInt128;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "UInt128", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.UInt128.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedUInt128))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt128Scalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append("var ").Append(valueVarName).AppendLine(" = parsedUInt128;");
                 return;
             }
         }
@@ -3693,6 +3833,56 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append(indent).Append(targetExpression).AppendLine(" = parsedTimeSpan;");
                 return;
             }
+
+            if (string.Equals(systemType.Name, "DateOnly", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.DateOnly.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedDateOnly))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDateOnlyScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedDateOnly;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "TimeOnly", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.TimeOnly.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedTimeOnly))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidTimeOnlyScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedTimeOnly;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Half", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.Half.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedHalf))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidHalfScalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedHalf;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "Int128", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.Int128.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedInt128))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidInt128Scalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedInt128;");
+                return;
+            }
+
+            if (string.Equals(systemType.Name, "UInt128", StringComparison.Ordinal))
+            {
+                builder.Append(indent).Append("if (!global::System.UInt128.TryParse(").Append(textExpression).AppendLine(", global::System.Globalization.NumberStyles.Integer, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedUInt128))");
+                builder.Append(indent).AppendLine("{");
+                builder.Append(indent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt128Scalar(reader);");
+                builder.Append(indent).AppendLine("}");
+                builder.Append(indent).Append(targetExpression).AppendLine(" = parsedUInt128;");
+                return;
+            }
         }
 
         if (typeSymbol is INamedTypeSymbol named && named.TypeKind == TypeKind.Enum)
@@ -3842,15 +4032,20 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         if (type is INamedTypeSymbol systemType &&
             string.Equals(systemType.ContainingNamespace?.ToDisplayString(), "System", StringComparison.Ordinal))
         {
-            // Common non-primitive scalars supported out of the box (mirrors STJ built-ins).
-            if (string.Equals(systemType.Name, "DateTime", StringComparison.Ordinal) ||
-                string.Equals(systemType.Name, "DateTimeOffset", StringComparison.Ordinal) ||
-                string.Equals(systemType.Name, "Guid", StringComparison.Ordinal) ||
-                string.Equals(systemType.Name, "TimeSpan", StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
+             // Common non-primitive scalars supported out of the box (mirrors STJ built-ins).
+             if (string.Equals(systemType.Name, "DateTime", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "DateTimeOffset", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "Guid", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "TimeSpan", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "DateOnly", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "TimeOnly", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "Half", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "Int128", StringComparison.Ordinal) ||
+                 string.Equals(systemType.Name, "UInt128", StringComparison.Ordinal))
+             {
+                 return true;
+             }
+         }
 
         return type.SpecialType is SpecialType.System_String
             or SpecialType.System_Boolean
