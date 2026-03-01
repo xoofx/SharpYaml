@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -42,7 +43,7 @@ public sealed class YamlSerializerOptionsImmutabilityTests
     }
 
     [TestMethod]
-    public void Context_DoesNotOverrideExistingTypeInfoResolver()
+    public void Context_RejectsOptionsWithDifferentTypeInfoResolver()
     {
         var resolver = new DummyResolver();
         var options = new SharpYaml.YamlSerializerOptions
@@ -50,9 +51,7 @@ public sealed class YamlSerializerOptionsImmutabilityTests
             TypeInfoResolver = resolver,
         };
 
-        var context = new DummyContext(options);
-        Assert.AreSame(options, context.Options);
-        Assert.AreSame(resolver, context.Options.TypeInfoResolver);
+        _ = Assert.Throws<ArgumentException>(() => new DummyContext(options));
     }
 
     private sealed class DummyResolver : SharpYaml.IYamlTypeInfoResolver

@@ -45,6 +45,22 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor InvalidSourceGenerationOption = new(
+        id: "SHARPYAML005",
+        title: "Invalid source generation option",
+        messageFormat: "Invalid source generation option on context '{0}': {1}",
+        category: "SharpYaml.SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor InvalidConverterType = new(
+        id: "SHARPYAML006",
+        title: "Invalid converter type",
+        messageFormat: "Converter type '{0}' is invalid: {1}",
+        category: "SharpYaml.SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private sealed class SourceGenerationOptionsModel
     {
         public bool? WriteIndented { get; set; }
@@ -53,6 +69,40 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string? DefaultIgnoreCondition { get; set; }
         public string? PropertyNamingPolicy { get; set; }
         public string? DictionaryKeyPolicy { get; set; }
+        public string? MappingOrder { get; set; }
+        public string? Schema { get; set; }
+        public string? DuplicateKeyHandling { get; set; }
+        public bool? UnsafeAllowDeserializeFromTagTypeName { get; set; }
+        public string? ReferenceHandling { get; set; }
+        public string? SourceName { get; set; }
+        public bool? PreferPlainStyle { get; set; }
+        public bool? PreferQuotedForAmbiguousScalars { get; set; }
+        public string? DiscriminatorStyle { get; set; }
+        public string? TypeDiscriminatorPropertyName { get; set; }
+        public string? UnknownDerivedTypeHandling { get; set; }
+        public ImmutableArray<ITypeSymbol> ConverterTypes { get; set; } = ImmutableArray<ITypeSymbol>.Empty;
+
+        public void ApplyFrom(SourceGenerationOptionsModel other)
+        {
+            if (other.WriteIndented.HasValue) WriteIndented = other.WriteIndented;
+            if (other.IndentSize.HasValue) IndentSize = other.IndentSize;
+            if (other.PropertyNameCaseInsensitive.HasValue) PropertyNameCaseInsensitive = other.PropertyNameCaseInsensitive;
+            if (!string.IsNullOrEmpty(other.DefaultIgnoreCondition)) DefaultIgnoreCondition = other.DefaultIgnoreCondition;
+            if (!string.IsNullOrEmpty(other.PropertyNamingPolicy)) PropertyNamingPolicy = other.PropertyNamingPolicy;
+            if (!string.IsNullOrEmpty(other.DictionaryKeyPolicy)) DictionaryKeyPolicy = other.DictionaryKeyPolicy;
+            if (!string.IsNullOrEmpty(other.MappingOrder)) MappingOrder = other.MappingOrder;
+            if (!string.IsNullOrEmpty(other.Schema)) Schema = other.Schema;
+            if (!string.IsNullOrEmpty(other.DuplicateKeyHandling)) DuplicateKeyHandling = other.DuplicateKeyHandling;
+            if (other.UnsafeAllowDeserializeFromTagTypeName.HasValue) UnsafeAllowDeserializeFromTagTypeName = other.UnsafeAllowDeserializeFromTagTypeName;
+            if (!string.IsNullOrEmpty(other.ReferenceHandling)) ReferenceHandling = other.ReferenceHandling;
+            if (other.SourceName is not null) SourceName = other.SourceName;
+            if (other.PreferPlainStyle.HasValue) PreferPlainStyle = other.PreferPlainStyle;
+            if (other.PreferQuotedForAmbiguousScalars.HasValue) PreferQuotedForAmbiguousScalars = other.PreferQuotedForAmbiguousScalars;
+            if (!string.IsNullOrEmpty(other.DiscriminatorStyle)) DiscriminatorStyle = other.DiscriminatorStyle;
+            if (other.TypeDiscriminatorPropertyName is not null) TypeDiscriminatorPropertyName = other.TypeDiscriminatorPropertyName;
+            if (!string.IsNullOrEmpty(other.UnknownDerivedTypeHandling)) UnknownDerivedTypeHandling = other.UnknownDerivedTypeHandling;
+            if (!other.ConverterTypes.IsDefaultOrEmpty) ConverterTypes = other.ConverterTypes;
+        }
     }
 
     private sealed class ContextModel
@@ -126,7 +176,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         var serializableTypes = ImmutableArray.CreateBuilder<ITypeSymbol>();
-        var sourceGenerationOptions = new SourceGenerationOptionsModel();
+        var jsonSourceGenerationOptions = new SourceGenerationOptionsModel();
+        var yamlSourceGenerationOptions = new SourceGenerationOptionsModel();
         foreach (var attribute in classSymbol.GetAttributes())
         {
             if (IsJsonSerializableAttribute(attribute))
@@ -148,7 +199,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
             if (IsJsonSourceGenerationOptionsAttribute(attribute))
             {
-                ApplySourceGenerationOptionsAttribute(attribute, sourceGenerationOptions);
+                ApplyJsonSourceGenerationOptionsAttribute(attribute, jsonSourceGenerationOptions);
+                continue;
+            }
+
+            if (IsYamlSourceGenerationOptionsAttribute(attribute))
+            {
+                ApplyYamlSourceGenerationOptionsAttribute(attribute, yamlSourceGenerationOptions);
             }
         }
 
@@ -156,6 +213,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         {
             return null;
         }
+
+        var sourceGenerationOptions = new SourceGenerationOptionsModel();
+        sourceGenerationOptions.ApplyFrom(jsonSourceGenerationOptions);
+        sourceGenerationOptions.ApplyFrom(yamlSourceGenerationOptions);
 
         var isPartial = classDeclaration.Modifiers.Any(static modifier => modifier.IsKind(SyntaxKind.PartialKeyword));
         var containingNamespace = classSymbol.ContainingNamespace;
@@ -186,6 +247,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         {
             indexByType[resolvedTypes[i]] = i;
         }
+
+        ValidateSourceGenerationOptions(context, compilation, model);
 
         // Validate that member types are generated as well (or are known scalars).
         for (var i = 0; i < resolvedTypes.Length; i++)
@@ -285,6 +348,127 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         context.AddSource($"{model.TypeName}.g.cs", SourceText.From(source, Encoding.UTF8));
     }
 
+    private static void ValidateSourceGenerationOptions(SourceProductionContext context, Compilation compilation, ContextModel model)
+    {
+        var location = model.ContextSymbol.Locations.FirstOrDefault();
+        var options = model.SourceGenerationOptions;
+
+        if (options.IndentSize is < 1)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                InvalidSourceGenerationOption,
+                location,
+                model.ContextSymbol.ToDisplayString(),
+                $"{nameof(options.IndentSize)} must be at least 1."));
+        }
+
+        if (string.Equals(options.DiscriminatorStyle, "Unspecified", StringComparison.Ordinal))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                InvalidSourceGenerationOption,
+                location,
+                model.ContextSymbol.ToDisplayString(),
+                $"{nameof(options.DiscriminatorStyle)} cannot be Unspecified."));
+        }
+
+        if (options.ConverterTypes.IsDefaultOrEmpty)
+        {
+            return;
+        }
+
+        var yamlConverterSymbol = compilation.GetTypeByMetadataName("SharpYaml.Serialization.YamlConverter");
+        if (yamlConverterSymbol is null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < options.ConverterTypes.Length; i++)
+        {
+            var converterType = options.ConverterTypes[i];
+            if (converterType is not INamedTypeSymbol named)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidConverterType,
+                    location,
+                    converterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    "Converter types must be named types."));
+                continue;
+            }
+
+            if (named.TypeKind != TypeKind.Class && named.TypeKind != TypeKind.Struct)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidConverterType,
+                    location,
+                    named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    "Converter types must be classes or structs."));
+                continue;
+            }
+
+            if (named.IsAbstract)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidConverterType,
+                    location,
+                    named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    "Converter types cannot be abstract."));
+                continue;
+            }
+
+            if (named.IsUnboundGenericType || named.TypeArguments.Any(static arg => arg.TypeKind == TypeKind.TypeParameter))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidConverterType,
+                    location,
+                    named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    "Converter types cannot be open generic types."));
+                continue;
+            }
+
+            if (named.DeclaredAccessibility is Accessibility.Private or Accessibility.Protected or Accessibility.ProtectedAndInternal)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidConverterType,
+                    location,
+                    named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    "Converter types must be accessible to the generated context (public or internal)."));
+                continue;
+            }
+
+            if (!DerivesFrom(named, yamlConverterSymbol))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidConverterType,
+                    location,
+                    named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    $"Converter types must derive from '{yamlConverterSymbol.ToDisplayString()}'."));
+                continue;
+            }
+
+            if (!named.InstanceConstructors.Any(static ctor => ctor.Parameters.Length == 0 && ctor.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidConverterType,
+                    location,
+                    named.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    "Converter types must provide a public or internal parameterless constructor."));
+            }
+        }
+    }
+
+    private static bool DerivesFrom(INamedTypeSymbol symbol, INamedTypeSymbol baseType)
+    {
+        for (var current = symbol; current is not null; current = current.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, baseType))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static ImmutableArray<ITypeSymbol> ExpandSerializableTypes(ImmutableArray<ITypeSymbol> roots)
     {
         // Always include types declared via JsonSerializable. Additionally include polymorphic derived types
@@ -370,10 +554,6 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.AppendLine();
-        builder.AppendLine("    private global::SharpYaml.YamlSerializerOptions? _cachedOptions;");
-        builder.AppendLine("    private global::SharpYaml.YamlTypeInfo?[]? _cachedTypeInfos;");
-
-        builder.AppendLine();
         builder.AppendLine("    private static readonly global::System.Collections.Frozen.FrozenDictionary<global::System.Type, int> s_typeIndexByType =");
         builder.Append("        new global::System.Collections.Generic.Dictionary<global::System.Type, int>(").Append(types.Length).AppendLine(")");
         builder.AppendLine("        {");
@@ -386,35 +566,23 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("    public override global::SharpYaml.YamlTypeInfo? GetTypeInfo(global::System.Type type, global::SharpYaml.YamlSerializerOptions options)");
         builder.AppendLine("    {");
+        builder.AppendLine("        if (!global::System.Object.ReferenceEquals(options, Options))");
+        builder.AppendLine("        {");
+        builder.AppendLine("            throw new global::System.InvalidOperationException(");
+        builder.AppendLine("                $\"The provided {nameof(global::SharpYaml.YamlSerializerOptions)} instance does not match the options associated with the context '{GetType()}'. \" +");
+        builder.AppendLine("                $\"Use the overloads that accept a {nameof(global::SharpYaml.Serialization.YamlSerializerContext)} directly, or pass '{GetType()}.{nameof(global::SharpYaml.Serialization.YamlSerializerContext.Options)}'.\");");
+        builder.AppendLine("        }");
+        builder.AppendLine();
         builder.AppendLine("        if (!s_typeIndexByType.TryGetValue(type, out var index))");
         builder.AppendLine("        {");
         builder.AppendLine("            return null;");
         builder.AppendLine("        }");
         builder.AppendLine();
-        builder.AppendLine("        if (global::System.Object.ReferenceEquals(options, Options))");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return index switch");
-        builder.AppendLine("            {");
-        for (var index = 0; index < types.Length; index++)
-        {
-            builder.Append("                ").Append(index).Append(" => ").Append(typeInfoPropertyNames[index]).AppendLine(",");
-        }
-        builder.AppendLine("                _ => null,");
-        builder.AppendLine("            };");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        if (!global::System.Object.ReferenceEquals(options, _cachedOptions) || _cachedTypeInfos is null)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            _cachedOptions = options;");
-        builder.Append("            _cachedTypeInfos = new global::SharpYaml.YamlTypeInfo?[").Append(types.Length).AppendLine("];");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        var cache = _cachedTypeInfos!;");
         builder.AppendLine("        return index switch");
         builder.AppendLine("        {");
         for (var index = 0; index < types.Length; index++)
         {
-            builder.Append("            ").Append(index).Append(" => cache[").Append(index).Append("] ??= new GeneratedTypeInfo").Append(index).AppendLine("(options),");
+            builder.Append("            ").Append(index).Append(" => ").Append(typeInfoPropertyNames[index]).AppendLine(",");
         }
         builder.AppendLine("            _ => null,");
         builder.AppendLine("        };");
@@ -4119,6 +4287,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     private static bool IsJsonSourceGenerationOptionsAttribute(AttributeData attribute)
         => string.Equals(attribute.AttributeClass?.ToDisplayString(), "System.Text.Json.Serialization.JsonSourceGenerationOptionsAttribute", StringComparison.Ordinal);
 
+    private static bool IsYamlSourceGenerationOptionsAttribute(AttributeData attribute)
+        => string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlSourceGenerationOptionsAttribute", StringComparison.Ordinal);
+
     private static IEnumerable<ITypeSymbol> GetPolymorphicDerivedTypes(INamedTypeSymbol baseType)
     {
         if (TryGetPolymorphismInfo(baseType, out var info))
@@ -4433,7 +4604,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return candidate;
     }
 
-    private static void ApplySourceGenerationOptionsAttribute(AttributeData attribute, SourceGenerationOptionsModel model)
+    private static void ApplyJsonSourceGenerationOptionsAttribute(AttributeData attribute, SourceGenerationOptionsModel model)
     {
         foreach (var argument in attribute.NamedArguments)
         {
@@ -4456,6 +4627,82 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     break;
                 case "DictionaryKeyPolicy":
                     model.DictionaryKeyPolicy = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+            }
+        }
+    }
+
+    private static void ApplyYamlSourceGenerationOptionsAttribute(AttributeData attribute, SourceGenerationOptionsModel model)
+    {
+        foreach (var argument in attribute.NamedArguments)
+        {
+            switch (argument.Key)
+            {
+                case "WriteIndented":
+                    model.WriteIndented = argument.Value.Value as bool?;
+                    break;
+                case "IndentSize":
+                    model.IndentSize = argument.Value.Value as int?;
+                    break;
+                case "PropertyNameCaseInsensitive":
+                    model.PropertyNameCaseInsensitive = argument.Value.Value as bool?;
+                    break;
+                case "DefaultIgnoreCondition":
+                    model.DefaultIgnoreCondition = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "PropertyNamingPolicy":
+                    model.PropertyNamingPolicy = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "DictionaryKeyPolicy":
+                    model.DictionaryKeyPolicy = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "MappingOrder":
+                    model.MappingOrder = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "Schema":
+                    model.Schema = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "DuplicateKeyHandling":
+                    model.DuplicateKeyHandling = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "UnsafeAllowDeserializeFromTagTypeName":
+                    model.UnsafeAllowDeserializeFromTagTypeName = argument.Value.Value as bool?;
+                    break;
+                case "ReferenceHandling":
+                    model.ReferenceHandling = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "SourceName":
+                    model.SourceName = argument.Value.Value as string;
+                    break;
+                case "PreferPlainStyle":
+                    model.PreferPlainStyle = argument.Value.Value as bool?;
+                    break;
+                case "PreferQuotedForAmbiguousScalars":
+                    model.PreferQuotedForAmbiguousScalars = argument.Value.Value as bool?;
+                    break;
+                case "DiscriminatorStyle":
+                    model.DiscriminatorStyle = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "TypeDiscriminatorPropertyName":
+                    model.TypeDiscriminatorPropertyName = argument.Value.Value as string;
+                    break;
+                case "UnknownDerivedTypeHandling":
+                    model.UnknownDerivedTypeHandling = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "Converters":
+                    if (argument.Value.Kind == TypedConstantKind.Array)
+                    {
+                        var builder = ImmutableArray.CreateBuilder<ITypeSymbol>();
+                        foreach (var item in argument.Value.Values)
+                        {
+                            if (item.Kind == TypedConstantKind.Type && item.Value is ITypeSymbol converterType)
+                            {
+                                builder.Add(converterType);
+                            }
+                        }
+
+                        model.ConverterTypes = builder.ToImmutable();
+                    }
                     break;
             }
         }
@@ -4520,6 +4767,111 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append("            DictionaryKeyPolicy = global::System.Text.Json.JsonNamingPolicy.")
                 .Append(options.DictionaryKeyPolicy)
                 .AppendLine(",");
+        }
+
+        if (options.SourceName is { Length: > 0 } sourceName)
+        {
+            builder.Append("            SourceName = ")
+                .Append(ToLiteral(sourceName))
+                .AppendLine(",");
+        }
+
+        if (!string.IsNullOrEmpty(options.MappingOrder))
+        {
+            builder.Append("            MappingOrder = global::SharpYaml.YamlMappingOrderPolicy.")
+                .Append(options.MappingOrder)
+                .AppendLine(",");
+        }
+
+        if (!string.IsNullOrEmpty(options.Schema))
+        {
+            builder.Append("            Schema = global::SharpYaml.YamlSchemaKind.")
+                .Append(options.Schema)
+                .AppendLine(",");
+        }
+
+        if (!string.IsNullOrEmpty(options.DuplicateKeyHandling))
+        {
+            builder.Append("            DuplicateKeyHandling = global::SharpYaml.YamlDuplicateKeyHandling.")
+                .Append(options.DuplicateKeyHandling)
+                .AppendLine(",");
+        }
+
+        if (options.UnsafeAllowDeserializeFromTagTypeName.HasValue)
+        {
+            builder.Append("            UnsafeAllowDeserializeFromTagTypeName = ")
+                .Append(options.UnsafeAllowDeserializeFromTagTypeName.Value ? "true" : "false")
+                .AppendLine(",");
+        }
+
+        if (!string.IsNullOrEmpty(options.ReferenceHandling))
+        {
+            builder.Append("            ReferenceHandling = global::SharpYaml.YamlReferenceHandling.")
+                .Append(options.ReferenceHandling)
+                .AppendLine(",");
+        }
+
+        if (options.PreferPlainStyle.HasValue || options.PreferQuotedForAmbiguousScalars.HasValue)
+        {
+            builder.AppendLine("            ScalarStylePreferences = new global::SharpYaml.YamlScalarStylePreferences");
+            builder.AppendLine("            {");
+            if (options.PreferPlainStyle.HasValue)
+            {
+                builder.Append("                PreferPlainStyle = ")
+                    .Append(options.PreferPlainStyle.Value ? "true" : "false")
+                    .AppendLine(",");
+            }
+
+            if (options.PreferQuotedForAmbiguousScalars.HasValue)
+            {
+                builder.Append("                PreferQuotedForAmbiguousScalars = ")
+                    .Append(options.PreferQuotedForAmbiguousScalars.Value ? "true" : "false")
+                    .AppendLine(",");
+            }
+
+            builder.AppendLine("            },");
+        }
+
+        if (!string.IsNullOrEmpty(options.DiscriminatorStyle) ||
+            options.TypeDiscriminatorPropertyName is not null ||
+            !string.IsNullOrEmpty(options.UnknownDerivedTypeHandling))
+        {
+            builder.AppendLine("            PolymorphismOptions = new global::SharpYaml.YamlPolymorphismOptions");
+            builder.AppendLine("            {");
+            if (!string.IsNullOrEmpty(options.DiscriminatorStyle))
+            {
+                builder.Append("                DiscriminatorStyle = global::SharpYaml.YamlTypeDiscriminatorStyle.")
+                    .Append(options.DiscriminatorStyle)
+                    .AppendLine(",");
+            }
+
+            if (options.TypeDiscriminatorPropertyName is string typeDiscriminatorPropertyName)
+            {
+                builder.Append("                TypeDiscriminatorPropertyName = ")
+                    .Append(ToLiteral(typeDiscriminatorPropertyName))
+                    .AppendLine(",");
+            }
+
+            if (!string.IsNullOrEmpty(options.UnknownDerivedTypeHandling))
+            {
+                builder.Append("                UnknownDerivedTypeHandling = global::SharpYaml.YamlUnknownDerivedTypeHandling.")
+                    .Append(options.UnknownDerivedTypeHandling)
+                    .AppendLine(",");
+            }
+
+            builder.AppendLine("            },");
+        }
+
+        if (!options.ConverterTypes.IsDefaultOrEmpty)
+        {
+            builder.AppendLine("            Converters = new global::SharpYaml.Serialization.YamlConverter[]");
+            builder.AppendLine("            {");
+            for (var i = 0; i < options.ConverterTypes.Length; i++)
+            {
+                var converterType = options.ConverterTypes[i].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                builder.Append("                new ").Append(converterType).AppendLine("(),");
+            }
+            builder.AppendLine("            },");
         }
     }
 

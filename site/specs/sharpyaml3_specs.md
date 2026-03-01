@@ -198,7 +198,7 @@ Source generation is driven by a *context class* (like `JsonSerializerContext`).
 using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
-[JsonSourceGenerationOptions(WriteIndented = true)]
+[YamlSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(MyConfig))]
 [JsonSerializable(typeof(List<MyItem>))]
 internal partial class MyYamlContext : YamlSerializerContext
@@ -211,7 +211,11 @@ internal partial class MyYamlContext : YamlSerializerContext
 - Implements `IYamlTypeInfoResolver` for `YamlSerializerOptions.TypeInfoResolver`.
 - Provides the configured `YamlSerializerOptions`.
 
-The generator must honor the following subset of `JsonSourceGenerationOptionsAttribute` by mapping it into the generated context's default `YamlSerializerOptions`:
+The generator must honor `YamlSourceGenerationOptionsAttribute` by mapping it into the generated context's default `YamlSerializerOptions`.
+
+For convenience (and parity with `System.Text.Json`), the generator may also honor the overlapping subset of `JsonSourceGenerationOptionsAttribute`.
+
+The overlapping subset maps as follows:
 
 - `WriteIndented` -> `YamlSerializerOptions.WriteIndented`
 - `IndentSize` -> `YamlSerializerOptions.IndentSize`
@@ -220,7 +224,7 @@ The generator must honor the following subset of `JsonSourceGenerationOptionsAtt
 - `PropertyNamingPolicy` -> `YamlSerializerOptions.PropertyNamingPolicy` (mapped from `JsonKnownNamingPolicy`)
 - `DictionaryKeyPolicy` -> `YamlSerializerOptions.DictionaryKeyPolicy` (mapped from `JsonKnownNamingPolicy`)
 
-All YAML-specific settings (e.g. schema selection, duplicate key handling, scalar style preferences) live in `YamlSerializerOptions` and are not expressed via new source-generation attributes in v3.
+YAML-specific settings (e.g. schema selection, duplicate key handling, scalar style preferences, reference handling, polymorphism defaults, converter registration) are available on `YamlSourceGenerationOptionsAttribute` so they can be fixed at build time for NativeAOT-friendly contexts.
 
 `YamlSerializerContext` base type shape:
 
@@ -521,7 +525,7 @@ Behavioral requirements:
   - Be clearly marked as unsafe for trimming (via `[RequiresUnreferencedCode]`) unless fully annotated.
   - Be gated by `YamlSerializer.IsReflectionEnabledByDefault` (default: true), which can be disabled via `AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", false)` before first use.
   - When reflection is disabled and no generated metadata is available, `YamlSerializer` overloads that do not accept `YamlTypeInfo` must throw an `InvalidOperationException` explaining how to:
-    - Provide generated metadata (`YamlSerializerOptions.TypeInfoResolver = <generated context>`), or
+    - Provide generated metadata (use `YamlSerializer` overloads that accept a `YamlSerializerContext`, or pass `<context>.Options` to an `options`-based overload), or
     - Re-enable reflection (app context switch).
 
 ### 9.2 Generator deliverables

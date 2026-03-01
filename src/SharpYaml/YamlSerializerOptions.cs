@@ -164,16 +164,4 @@ public sealed record YamlSerializerOptions
     /// Gets or sets a metadata resolver used to retrieve <see cref="YamlTypeInfo"/> instances.
     /// </summary>
     public IYamlTypeInfoResolver? TypeInfoResolver { get; init; }
-
-    internal YamlSerializerOptions WithTypeInfoResolverIfMissing(IYamlTypeInfoResolver resolver)
-    {
-        ArgumentNullException.ThrowIfNull(resolver);
-
-        if (TypeInfoResolver is not null)
-        {
-            return this;
-        }
-
-        return this with { TypeInfoResolver = resolver };
-    }
 }

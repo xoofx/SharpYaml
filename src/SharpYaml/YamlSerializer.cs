@@ -481,6 +481,13 @@ public static class YamlSerializer
 
     private static YamlTypeInfo ResolveTypeInfo(YamlSerializerOptions options, Type requestedType)
     {
+        if (options.TypeInfoResolver is YamlSerializerContext context && !ReferenceEquals(options, context.Options))
+        {
+            throw new InvalidOperationException(
+                $"The provided {nameof(YamlSerializerOptions)} instance does not match the options associated with the source-generated context '{context.GetType()}'. " +
+                $"Use the overloads that accept a {nameof(YamlSerializerContext)} directly, or pass '{context.GetType()}.{nameof(YamlSerializerContext.Options)}' as the options instance.");
+        }
+
         var typeInfo = options.TypeInfoResolver?.GetTypeInfo(requestedType, options);
         if (typeInfo is not null)
         {

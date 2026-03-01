@@ -48,6 +48,8 @@ SharpYaml reuses `System.Text.Json` source-generation attributes.
 using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
+[YamlSourceGenerationOptions(
+    PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(MyConfig))]
 internal partial class MyYamlContext : YamlSerializerContext
 {
@@ -63,19 +65,13 @@ var yaml = YamlSerializer.Serialize(config, context.MyConfig);
 var roundTrip = YamlSerializer.Deserialize(yaml, context.MyConfig);
 ```
 
-If you need to resolve metadata by type at runtime (for example `Serialize(object, Type, ...)`), configure options with a resolver:
+If you need to resolve metadata by type at runtime (for example `Serialize(object, Type, ...)`), prefer the overloads that accept a context:
 
 ```csharp
-var options = new YamlSerializerOptions
-{
-    TypeInfoResolver = MyYamlContext.Default,
-};
-
-var yaml = YamlSerializer.Serialize(config, typeof(MyConfig), options);
+var yaml = YamlSerializer.Serialize(config, typeof(MyConfig), context);
 ```
 
 ## Next
 
 - [Serialization overview](serialization/overview.md)
 - [Low-level APIs](low-level/readme.md)
-

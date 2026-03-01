@@ -288,10 +288,10 @@ internal partial class TestYamlSerializerContext : YamlSerializerContext
     }
 }
 
-[JsonSourceGenerationOptions(
+[YamlSourceGenerationOptions(
     WriteIndented = false,
     PropertyNameCaseInsensitive = true,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingNull,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(GeneratedWithDefaultOptions))]
@@ -305,6 +305,13 @@ internal partial class TestYamlSerializerContextWithOptions : YamlSerializerCont
         : base(options)
     {
     }
+}
+
+[YamlSourceGenerationOptions(
+    Converters = new[] { typeof(ConstantIntConverter) })]
+[JsonSerializable(typeof(int))]
+internal partial class TestYamlSerializerContextWithConverters : YamlSerializerContext
+{
 }
 #pragma warning restore SYSLIB1224
 
@@ -402,12 +409,10 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
-    public void GenericSerializerUsesTypeInfoResolverFromOptions()
+    public void GenericSerializerUsesTypeInfoResolverFromContextOptions()
     {
-        var options = new YamlSerializerOptions
-        {
-            TypeInfoResolver = TestYamlSerializerContext.Default,
-        };
+        var context = TestYamlSerializerContext.Default;
+        var options = context.Options;
 
         var value = new GeneratedPerson
         {
@@ -425,7 +430,7 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
-    public void GeneratedContextDefaultAppliesJsonSourceGenerationOptions()
+    public void GeneratedContextDefaultAppliesYamlSourceGenerationOptions()
     {
         var context = TestYamlSerializerContextWithOptions.Default;
         var options = context.Options;
@@ -448,6 +453,32 @@ public class YamlSerializerSourceGenerationTests
 
         StringAssert.Contains(yaml, "displayName: Ada");
         Assert.IsFalse(yaml.Contains("optional:", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void GeneratedContextThrowsWhenOptionsInstanceDoesNotMatchContext()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var options = new YamlSerializerOptions
+        {
+            TypeInfoResolver = context,
+        };
+
+        _ = Assert.Throws<InvalidOperationException>(() => YamlSerializer.Serialize(new GeneratedPerson(), options));
+    }
+
+    [TestMethod]
+    public void GeneratedContextOptionsCanRegisterConvertersAtBuildTime()
+    {
+        var context = TestYamlSerializerContextWithConverters.Default;
+        Assert.AreEqual(1, context.Options.Converters.Count);
+        Assert.IsInstanceOfType(context.Options.Converters[0], typeof(ConstantIntConverter));
+
+        var yaml = YamlSerializer.Serialize(42, typeof(int), context);
+        Assert.AreEqual("123\n", yaml);
+
+        var roundTrip = YamlSerializer.Deserialize(yaml, typeof(int), context);
+        Assert.AreEqual(123, roundTrip);
     }
 
     [TestMethod]

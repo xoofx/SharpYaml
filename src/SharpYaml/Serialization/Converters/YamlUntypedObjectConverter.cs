@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SharpYaml.Serialization.Converters;
 
@@ -135,6 +136,10 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
         converter.Write(writer, value);
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2057",
+        Justification = "This opt-in feature enables tag-based activation by runtime type name and is not compatible with trimming. It is guarded by UnsafeAllowDeserializeFromTagTypeName.")]
     private object? TryReadUnsafeTaggedValue(YamlReader reader)
     {
         var tag = reader.Tag;

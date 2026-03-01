@@ -86,6 +86,7 @@ SharpYaml attributes (`SharpYaml.Serialization`):
 - `YamlPropertyOrderAttribute`
 - `YamlIgnoreAttribute`
 - `YamlIncludeAttribute`
+- `YamlSourceGenerationOptionsAttribute`
 - `YamlConstructorAttribute`
 - `YamlRequiredAttribute`
 - `YamlExtensionDataAttribute`
@@ -121,6 +122,8 @@ Define contexts with `JsonSerializable` roots:
 using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
+[YamlSourceGenerationOptions(
+    PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(MyModel))]
 internal partial class MyYamlContext : YamlSerializerContext
 {
@@ -130,24 +133,16 @@ internal partial class MyYamlContext : YamlSerializerContext
 Use generated metadata:
 
 ```csharp
-var context = new MyYamlContext();
-var options = new YamlSerializerOptions { TypeInfoResolver = context };
-var typeInfo = context.GetTypeInfo<MyModel>(options);
-var yaml = YamlSerializer.Serialize(model, typeInfo);
-var model2 = YamlSerializer.Deserialize(yaml, typeInfo);
+var context = MyYamlContext.Default;
 
 var yamlViaProperty = YamlSerializer.Serialize(model, context.MyModel);
 var modelViaProperty = YamlSerializer.Deserialize(yamlViaProperty, context.MyModel);
 
-var yamlFromContext = YamlSerializer.Serialize(model, typeof(MyModel), MyYamlContext.Default);
-var modelFromContext = (MyModel?)YamlSerializer.Deserialize(yamlFromContext, typeof(MyModel), MyYamlContext.Default);
+var yamlFromContext = YamlSerializer.Serialize(model, typeof(MyModel), context);
+var modelFromContext = (MyModel?)YamlSerializer.Deserialize(yamlFromContext, typeof(MyModel), context);
 
-var options = new YamlSerializerOptions
-{
-    TypeInfoResolver = MyYamlContext.Default
-};
-var yamlFromResolver = YamlSerializer.Serialize(model, options);
-var modelFromResolver = YamlSerializer.Deserialize<MyModel>(yamlFromResolver, options);
+var yamlFromOptions = YamlSerializer.Serialize(model, context.Options);
+var modelFromOptions = YamlSerializer.Deserialize<MyModel>(yamlFromOptions, context.Options);
 ```
 
 Generated type info property naming follows Json-style patterns:

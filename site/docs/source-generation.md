@@ -20,6 +20,9 @@ SharpYaml reuses `System.Text.Json.Serialization` generation attributes.
 using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
+[YamlSourceGenerationOptions(
+    WriteIndented = true,
+    PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(MyConfig))]
 [JsonSerializable(typeof(List<int>))]
 internal partial class MyYamlContext : YamlSerializerContext
@@ -28,6 +31,20 @@ internal partial class MyYamlContext : YamlSerializerContext
 ```
 
 The context type must be `partial` so the generator can add metadata properties.
+
+## Compile-time options
+
+Use `YamlSourceGenerationOptionsAttribute` to fix a context's default `YamlSerializerOptions` at build time (including converter registration):
+
+```csharp
+[YamlSourceGenerationOptions(
+    WriteIndented = false,
+    PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase,
+    Converters = new[] { typeof(MyCustomConverter) })]
+internal partial class MyYamlContext : YamlSerializerContext
+{
+}
+```
 
 ## Use generated metadata
 
@@ -38,16 +55,14 @@ var yaml = YamlSerializer.Serialize(value, MyYamlContext.Default.MyConfig);
 var roundTrip = YamlSerializer.Deserialize(yaml, MyYamlContext.Default.MyConfig);
 ```
 
-For APIs that take a `Type`, configure options with a resolver:
+For APIs that take a `Type`, prefer the overloads that accept a context:
 
 ```csharp
-var options = new YamlSerializerOptions
-{
-    TypeInfoResolver = MyYamlContext.Default,
-};
-
-var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), options);
+var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), MyYamlContext.Default);
+var roundTrip = YamlSerializer.Deserialize(yaml, typeof(MyConfig), MyYamlContext.Default);
 ```
+
+The generated context expects its own options instance to be used consistently. If you want to call an `options`-based overload, use `MyYamlContext.Default.Options`.
 
 ## Reflection control
 

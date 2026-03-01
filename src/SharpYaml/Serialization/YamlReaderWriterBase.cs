@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using SharpYaml.Serialization.Converters;
 
@@ -238,6 +239,14 @@ public abstract class YamlReaderWriterBase
 
     private static class YamlBuiltInConverters
     {
+        [UnconditionalSuppressMessage(
+            "AOT",
+            "IL3050",
+            Justification = "This code path is only used by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
+        [UnconditionalSuppressMessage(
+            "Trimming",
+            "IL2071",
+            Justification = "This code path is only used by reflection-based serialization. NativeAOT/trimming scenarios should use source-generated metadata.")]
         public static YamlConverter? CreateConverter(Type typeToConvert)
         {
             if (typeToConvert == typeof(string))

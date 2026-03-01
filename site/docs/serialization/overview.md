@@ -79,16 +79,15 @@ You can use a generated context in three styles:
 var yaml = YamlSerializer.Serialize(value, MyYamlContext.Default.MyConfig);
 ```
 
-2. Configure options with `TypeInfoResolver` (needed for APIs that take `Type`).
+2. Use the overloads that accept a context (needed for APIs that take `Type`).
 
 ```csharp
-var options = new YamlSerializerOptions { TypeInfoResolver = MyYamlContext.Default };
-var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), options);
+var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), MyYamlContext.Default);
 ```
 
-3. Resolve typed metadata explicitly.
+3. Use the context's options instance (when you need to call an `options`-based overload).
 
 ```csharp
-var options = new YamlSerializerOptions { TypeInfoResolver = MyYamlContext.Default };
-var typeInfo = MyYamlContext.Default.GetTypeInfo<MyConfig>(options);
+var options = MyYamlContext.Default.Options;
+var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), options);
 ```

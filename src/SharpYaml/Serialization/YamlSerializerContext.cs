@@ -20,10 +20,28 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
     /// </summary>
     /// <param name="options">The options used by this context.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="options"/> specifies a <see cref="YamlSerializerOptions.TypeInfoResolver"/> that is not this context.
+    /// </exception>
     protected YamlSerializerContext(YamlSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        Options = options.WithTypeInfoResolverIfMissing(this);
+
+        if (options.TypeInfoResolver is null)
+        {
+            Options = options with { TypeInfoResolver = this };
+            return;
+        }
+
+        if (!ReferenceEquals(options.TypeInfoResolver, this))
+        {
+            throw new ArgumentException(
+                $"The provided {nameof(YamlSerializerOptions)} instance is associated with a different {nameof(YamlSerializerOptions.TypeInfoResolver)}. " +
+                $"A {nameof(YamlSerializerContext)} must use an options instance whose {nameof(YamlSerializerOptions.TypeInfoResolver)} is the context itself.",
+                nameof(options));
+        }
+
+        Options = options;
     }
 
     /// <summary>

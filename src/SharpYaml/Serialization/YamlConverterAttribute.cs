@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SharpYaml.Serialization;
 
@@ -13,7 +14,7 @@ public sealed class YamlConverterAttribute : YamlAttribute
     /// </summary>
     /// <param name="converterType">The converter type.</param>
     /// <exception cref="ArgumentNullException"><paramref name="converterType"/> is <see langword="null"/>.</exception>
-    public YamlConverterAttribute(Type converterType)
+    public YamlConverterAttribute([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type converterType)
     {
         ArgumentNullException.ThrowIfNull(converterType);
         ConverterType = converterType;
@@ -22,6 +23,6 @@ public sealed class YamlConverterAttribute : YamlAttribute
     /// <summary>
     /// Gets the converter type.
     /// </summary>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type ConverterType { get; }
 }
-

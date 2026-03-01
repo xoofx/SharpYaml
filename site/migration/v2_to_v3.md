@@ -94,11 +94,9 @@ internal partial class MyYamlContext : YamlSerializerContext
 Then consume typed metadata:
 
 ```csharp
-var context = new MyYamlContext();
-var options = new YamlSerializerOptions { TypeInfoResolver = context };
-var typeInfo = context.GetTypeInfo<MyType>(options);
-var yaml = YamlSerializer.Serialize(value, typeInfo);
-var model = YamlSerializer.Deserialize(yaml, typeInfo);
+var context = MyYamlContext.Default;
+var yaml = YamlSerializer.Serialize(value, context.MyType);
+var model = YamlSerializer.Deserialize(yaml, context.MyType);
 ```
 
 ## Low-Level Roundtrip vs Object Mapping

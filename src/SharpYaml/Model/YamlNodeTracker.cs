@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -917,6 +918,10 @@ namespace SharpYaml.Model
             }
         }
 
+        [UnconditionalSuppressMessage(
+            "Trimming",
+            "IL2075",
+            Justification = "YamlNodeTracker is a legacy dynamic notification helper. It uses reflection-based invocation and is not used by the NativeAOT-friendly serialization path.")]
         void InvokeSubscribers(Path? path, TrackerEventArgs eventArgs)
         {
             Dictionary<WeakReference, string> dict;
