@@ -167,6 +167,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         var options = reader.Options;
+        var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(reader.PropertyNameComparer) : null;
         HashSet<Member>? seenMembers = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<Member>();
         var mappingStart = reader.Start;
         var requiredSeen = contract.RequiredMembers.Length == 0 ? null : new bool[contract.RequiredMembers.Length];
@@ -183,6 +185,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMergeToInstance(reader, instance!, contract, explicitKeys!, requiredSeen);
+                continue;
+            }
+
+            explicitKeys?.Add(key);
 
             if (!contract.TryGetMember(key, out var member))
             {
@@ -313,6 +323,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         var mappingStart = reader.Start;
         var mappingAnchor = reader.Anchor;
         var options = reader.Options;
+        var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(reader.PropertyNameComparer) : null;
 
         HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins
             ? null
@@ -338,6 +350,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMergeToConstructorBuffers(reader, contract, constructor, args, paramSeen, memberValues, extensionEntries, explicitKeys!, requiredSeen);
+                continue;
+            }
+
+            explicitKeys?.Add(key);
 
             var wasSeen = seenKeys is not null && !seenKeys.Add(key);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
@@ -553,6 +573,340 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         return instance;
+    }
+
+    private static bool IsMergeKeyEnabled(YamlSerializerOptions options)
+        => options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+
+    private void ReadAndApplyMergeToInstance(YamlReader reader, object instance, Contract contract, HashSet<string> explicitKeys, bool[]? requiredSeen)
+    {
+        if (!IsMergeKeyEnabled(reader.Options))
+        {
+            reader.Skip();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        {
+            reader.Read();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartMapping)
+        {
+            ApplyMergeMappingToInstance(reader, instance, contract, explicitKeys, requiredSeen);
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartSequence)
+        {
+            reader.Read();
+            while (reader.TokenType != YamlTokenType.EndSequence)
+            {
+                if (reader.TokenType != YamlTokenType.StartMapping)
+                {
+                    throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
+                }
+
+                ApplyMergeMappingToInstance(reader, instance, contract, explicitKeys, requiredSeen);
+            }
+
+            reader.Read();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            // Merge requires reading mapping entries; alias expansion is only supported when ReferenceHandling is Preserve
+            // and the alias resolves to a mapping-like value. For other cases, report a clear error.
+            if (reader.TryReadAlias(out var aliasValue) && aliasValue is Dictionary<string, object?> mergedDict)
+            {
+                foreach (var pair in mergedDict)
+                {
+                    if (explicitKeys.Contains(pair.Key))
+                    {
+                        continue;
+                    }
+
+                    if (contract.TryGetMember(pair.Key, out var member) && member.CanWrite)
+                    {
+                        member.SetValue(instance, pair.Value);
+                    }
+                }
+
+                return;
+            }
+
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge alias values are not supported unless they resolve to a mapping.");
+        }
+
+        throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
+    }
+
+    private void ApplyMergeMappingToInstance(YamlReader reader, object instance, Contract contract, HashSet<string> explicitKeys, bool[]? requiredSeen)
+    {
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
+            var key = reader.ScalarValue ?? string.Empty;
+            reader.Read();
+
+            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMergeToInstance(reader, instance, contract, explicitKeys, requiredSeen);
+                continue;
+            }
+
+            if (explicitKeys.Contains(key))
+            {
+                reader.Skip();
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var member))
+            {
+                if (requiredSeen is not null && member.RequiredIndex >= 0)
+                {
+                    requiredSeen[member.RequiredIndex] = true;
+                }
+
+                if (!member.CanWrite)
+                {
+                    if (contract.ExtensionData is not null)
+                    {
+                        ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                    }
+                    else
+                    {
+                        reader.Skip();
+                    }
+
+                    continue;
+                }
+
+                var converter = member.Converter ??= reader.GetConverter(member.MemberType);
+                object? value;
+                try
+                {
+                    value = converter.Read(reader, member.MemberType);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                try
+                {
+                    member.SetValue(instance, value);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                continue;
+            }
+
+            if (contract.ExtensionData is not null)
+            {
+                ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                continue;
+            }
+
+            reader.Skip();
+        }
+
+        reader.Read();
+    }
+
+    private void ReadAndApplyMergeToConstructorBuffers(
+        YamlReader reader,
+        Contract contract,
+        ConstructorModel constructor,
+        object?[] args,
+        bool[] paramSeen,
+        Dictionary<Member, BufferedMemberAssignment> memberValues,
+        List<BufferedExtensionEntry>? extensionEntries,
+        HashSet<string> explicitKeys,
+        bool[]? requiredSeen)
+    {
+        if (!IsMergeKeyEnabled(reader.Options))
+        {
+            reader.Skip();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        {
+            reader.Read();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartMapping)
+        {
+            ApplyMergeMappingToConstructorBuffers(reader, contract, constructor, args, paramSeen, memberValues, extensionEntries, explicitKeys, requiredSeen);
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartSequence)
+        {
+            reader.Read();
+            while (reader.TokenType != YamlTokenType.EndSequence)
+            {
+                if (reader.TokenType != YamlTokenType.StartMapping)
+                {
+                    throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
+                }
+
+                ApplyMergeMappingToConstructorBuffers(reader, contract, constructor, args, paramSeen, memberValues, extensionEntries, explicitKeys, requiredSeen);
+            }
+
+            reader.Read();
+            return;
+        }
+
+        throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
+    }
+
+    private void ApplyMergeMappingToConstructorBuffers(
+        YamlReader reader,
+        Contract contract,
+        ConstructorModel constructor,
+        object?[] args,
+        bool[] paramSeen,
+        Dictionary<Member, BufferedMemberAssignment> memberValues,
+        List<BufferedExtensionEntry>? extensionEntries,
+        HashSet<string> explicitKeys,
+        bool[]? requiredSeen)
+    {
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
+            var key = reader.ScalarValue ?? string.Empty;
+            reader.Read();
+
+            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMergeToConstructorBuffers(reader, contract, constructor, args, paramSeen, memberValues, extensionEntries, explicitKeys, requiredSeen);
+                continue;
+            }
+
+            if (explicitKeys.Contains(key))
+            {
+                reader.Skip();
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var requiredCandidate))
+            {
+                if (requiredSeen is not null && requiredCandidate.RequiredIndex >= 0)
+                {
+                    requiredSeen[requiredCandidate.RequiredIndex] = true;
+                }
+            }
+
+            if (constructor.TryGetParameterIndex(key, out var parameterIndex))
+            {
+                var parameterType = constructor.GetParameterType(parameterIndex);
+                var converter = reader.GetConverter(parameterType);
+                object? value;
+                try
+                {
+                    value = converter.Read(reader, parameterType);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                args[parameterIndex] = value;
+                paramSeen[parameterIndex] = true;
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var member))
+            {
+                if (!member.CanWrite)
+                {
+                    if (contract.ExtensionData is not null)
+                    {
+                        var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                        extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
+                    }
+                    else
+                    {
+                        reader.Skip();
+                    }
+
+                    continue;
+                }
+
+                var converter = member.Converter ??= reader.GetConverter(member.MemberType);
+                object? value;
+                try
+                {
+                    value = converter.Read(reader, member.MemberType);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                memberValues[member] = new BufferedMemberAssignment(member, value, keyStart, keyEnd);
+                continue;
+            }
+
+            if (contract.ExtensionData is not null)
+            {
+                var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
+                continue;
+            }
+
+            reader.Skip();
+        }
+
+        reader.Read();
     }
 
     private void WriteObjectCore(YamlWriter writer, object value, Contract contract)

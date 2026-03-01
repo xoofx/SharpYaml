@@ -34,8 +34,12 @@ var options = new YamlSerializerOptions
 };
 ```
 
+## Merge keys (`<<`)
+
+SharpYaml supports the YAML merge key (`<<`) when deserializing into .NET objects and `Dictionary<string, TValue>`.
+This behavior is enabled for `YamlSchemaKind.Core` and `YamlSchemaKind.Extended` (it is ignored for `Json` and `Failsafe` schemas).
+
 ## Notes
 
 - The syntax layer is designed for tooling and lossless roundtrip.
 - The object-mapping layer is optimized for configuration and does not preserve formatting/comments.
-

@@ -78,7 +78,11 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
             case YamlTokenType.StartMapping:
                 var mappingAnchor = reader.Anchor;
                 reader.Read();
-                var dict = new Dictionary<string, object?>(options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                var dict = new Dictionary<string, object?>(comparer);
+                var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+                HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
+                HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
                 if (reader.ReferenceReader is not null && mappingAnchor is not null)
                 {
                     reader.ReferenceReader.Register(mappingAnchor, dict);
@@ -93,25 +97,29 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
 
                     var key = reader.ScalarValue ?? string.Empty;
                     reader.Read();
-                    var value = Read(reader, typeof(object));
 
-                    if (dict.ContainsKey(key))
+                    if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
                     {
-                        switch (options.DuplicateKeyHandling)
-                        {
-                            case YamlDuplicateKeyHandling.Error:
-                                throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
-                            case YamlDuplicateKeyHandling.FirstWins:
-                                break;
-                            case YamlDuplicateKeyHandling.LastWins:
-                                dict[key] = value;
-                                break;
-                        }
+                        ReadAndApplyMerge(reader, dict, explicitKeys);
+                        continue;
                     }
-                    else
+
+                    explicitKeys?.Add(key);
+
+                    var wasSeen = seenKeys is not null && !seenKeys.Add(key);
+                    if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
                     {
-                        dict[key] = value;
+                        throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
                     }
+
+                    if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+                    {
+                        reader.Skip();
+                        continue;
+                    }
+
+                    var value = Read(reader, typeof(object));
+                    dict[key] = value;
                 }
                 reader.Read();
                 return dict;
@@ -164,5 +172,59 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
 
         var converter = reader.GetConverter(type);
         return converter.Read(reader, type);
+    }
+
+    private void ReadAndApplyMerge(YamlReader reader, Dictionary<string, object?> dictionary, HashSet<string>? explicitKeys)
+    {
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        {
+            reader.Read();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartMapping || reader.TokenType == YamlTokenType.Alias)
+        {
+            var merged = Read(reader, typeof(object));
+            if (merged is Dictionary<string, object?> mergedDict)
+            {
+                ApplyMergeDictionary(dictionary, mergedDict, explicitKeys);
+                return;
+            }
+
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
+        }
+
+        if (reader.TokenType == YamlTokenType.StartSequence)
+        {
+            reader.Read();
+            while (reader.TokenType != YamlTokenType.EndSequence)
+            {
+                var merged = Read(reader, typeof(object));
+                if (merged is not Dictionary<string, object?> mergedDict)
+                {
+                    throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
+                }
+
+                ApplyMergeDictionary(dictionary, mergedDict, explicitKeys);
+            }
+
+            reader.Read();
+            return;
+        }
+
+        throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
+    }
+
+    private static void ApplyMergeDictionary(Dictionary<string, object?> target, Dictionary<string, object?> merged, HashSet<string>? explicitKeys)
+    {
+        foreach (var pair in merged)
+        {
+            if (explicitKeys is not null && explicitKeys.Contains(pair.Key))
+            {
+                continue;
+            }
+
+            target[pair.Key] = pair.Value;
+        }
     }
 }
