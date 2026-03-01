@@ -9,4 +9,6 @@ docs:
   - {path: model/readme.md, title: YAML model, folder: true}
   - {path: serialization/readme.md, title: Serialization, folder: true}
   - {path: reference/readme.md, title: Reference, folder: true}
-
+  - {path: ../migration/readme.md, title: Migration, folder: true}
+  - {path: ../benchmarks/readme.md, title: Benchmarks, folder: true}
+  - {path: ../specs/readme.md, title: Specs, folder: true}
