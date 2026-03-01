@@ -89,13 +89,10 @@ namespace SharpYaml
             var yamlEvent = Allow<T>();
             if (yamlEvent == null)
             {
-                // TODO: Throw a better exception
                 throw new YamlException(
                     Parser.Current.Start,
                     Parser.Current.End,
-                    FormattableString.Invariant(
-                        $"Expected '{typeof(T).Name}', got '{Parser.Current.GetType().Name}' (at line {Parser.Current.Start.Line}, character {Parser.Current.Start.Column}).")
-                    );
+                    FormattableString.Invariant($"Expected '{typeof(T).Name}', got '{Parser.Current.GetType().Name}'."));
             }
             return yamlEvent;
         }
