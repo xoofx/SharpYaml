@@ -108,10 +108,60 @@ public sealed class YamlSerializerCollectionSupportReflectionTests
         Assert.IsTrue(result.Contains(2));
     }
 
+    [TestMethod]
+    public void Deserialize_ImmutableCollections_WithAnchors_ShouldPreserveReferences()
+    {
+        var yaml =
+            "Values: &a\n" +
+            "  - 1\n" +
+            "  - 2\n" +
+            "Other: *a\n";
+
+        var options = new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve };
+        var result = YamlSerializer.Deserialize<ImmutableAnchorPayload>(yaml, options);
+
+        Assert.IsNotNull(result);
+        Assert.IsNotNull(result.Values);
+        Assert.IsNotNull(result.Other);
+        Assert.IsTrue(ReferenceEquals(result.Values, result.Other));
+    }
+
+    [TestMethod]
+    public void Deserialize_ImmutableArray_WithAnchors_ShouldResolveAlias()
+    {
+        var yaml =
+            "Values: &a\n" +
+            "  - 10\n" +
+            "  - 20\n" +
+            "Other: *a\n";
+
+        var options = new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve };
+        var result = YamlSerializer.Deserialize<ImmutableArrayAnchorPayload>(yaml, options);
+
+        Assert.IsNotNull(result);
+        Assert.AreEqual(2, result.Values.Length);
+        Assert.AreEqual(2, result.Other.Length);
+        Assert.AreEqual(result.Values[0], result.Other[0]);
+        Assert.AreEqual(result.Values[1], result.Other[1]);
+    }
+
     internal enum TestColor
     {
         Red = 1,
         Green = 2,
     }
-}
 
+    private sealed class ImmutableAnchorPayload
+    {
+        public ImmutableList<int>? Values { get; set; }
+
+        public ImmutableList<int>? Other { get; set; }
+    }
+
+    private sealed class ImmutableArrayAnchorPayload
+    {
+        public ImmutableArray<int> Values { get; set; }
+
+        public ImmutableArray<int> Other { get; set; }
+    }
+}

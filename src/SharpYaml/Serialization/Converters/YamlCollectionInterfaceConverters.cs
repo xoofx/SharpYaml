@@ -230,14 +230,14 @@ internal sealed class YamlImmutableArrayConverter<TElement> : YamlConverter<Immu
 
     public override ImmutableArray<TElement> Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out _))
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into ImmutableArray.");
+            return (ImmutableArray<TElement>)rootAliasValue!;
         }
 
         if (reader.TokenType == YamlTokenType.Alias)
         {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into ImmutableArray.");
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into ImmutableArray unless ReferenceHandling is Preserve.");
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
@@ -252,6 +252,7 @@ internal sealed class YamlImmutableArrayConverter<TElement> : YamlConverter<Immu
         }
 
         _elementConverter ??= reader.GetConverter(typeof(TElement));
+        var rootAnchor = reader.Anchor;
         reader.Read();
 
         var builder = ImmutableArray.CreateBuilder<TElement>();
@@ -262,7 +263,13 @@ internal sealed class YamlImmutableArrayConverter<TElement> : YamlConverter<Immu
         }
 
         reader.Read();
-        return builder.ToImmutable();
+        var result = builder.ToImmutable();
+        if (rootAnchor is not null)
+        {
+            reader.RegisterAnchor(rootAnchor, result);
+        }
+
+        return result;
     }
 
     public override void Write(YamlWriter writer, ImmutableArray<TElement> value)
@@ -290,35 +297,14 @@ internal sealed class YamlImmutableListConverter<TElement> : YamlConverter<Immut
 
     public override ImmutableList<TElement>? Read(YamlReader reader)
     {
-        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "ImmutableList");
-        if (list is null)
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            return null;
-        }
-
-        return ImmutableList.CreateRange(list);
-    }
-
-    public override void Write(YamlWriter writer, ImmutableList<TElement>? value)
-    {
-        SequenceReadHelpers.WriteEnumerable(writer, value, ref _elementConverter);
-    }
-}
-
-internal sealed class YamlImmutableHashSetConverter<TElement> : YamlConverter<ImmutableHashSet<TElement>?>
-{
-    private YamlConverter? _elementConverter;
-
-    public override ImmutableHashSet<TElement>? Read(YamlReader reader)
-    {
-        if (reader.TryReadAlias(out _))
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an immutable set.");
+            return (ImmutableList<TElement>)rootAliasValue!;
         }
 
         if (reader.TokenType == YamlTokenType.Alias)
         {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an immutable set.");
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into ImmutableList unless ReferenceHandling is Preserve.");
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
@@ -333,6 +319,61 @@ internal sealed class YamlImmutableHashSetConverter<TElement> : YamlConverter<Im
         }
 
         _elementConverter ??= reader.GetConverter(typeof(TElement));
+        var rootAnchor = reader.Anchor;
+        reader.Read();
+
+        var builder = ImmutableList.CreateBuilder<TElement>();
+        while (reader.TokenType != YamlTokenType.EndSequence)
+        {
+            var value = _elementConverter.Read(reader, typeof(TElement));
+            builder.Add((TElement)value!);
+        }
+
+        reader.Read();
+        var result = builder.ToImmutable();
+        if (rootAnchor is not null)
+        {
+            reader.RegisterAnchor(rootAnchor, result);
+        }
+
+        return result;
+    }
+
+    public override void Write(YamlWriter writer, ImmutableList<TElement>? value)
+    {
+        SequenceReadHelpers.WriteEnumerable(writer, value, ref _elementConverter);
+    }
+}
+
+internal sealed class YamlImmutableHashSetConverter<TElement> : YamlConverter<ImmutableHashSet<TElement>?>
+{
+    private YamlConverter? _elementConverter;
+
+    public override ImmutableHashSet<TElement>? Read(YamlReader reader)
+    {
+        if (reader.TryReadAlias(out var rootAliasValue))
+        {
+            return (ImmutableHashSet<TElement>)rootAliasValue!;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an immutable set unless ReferenceHandling is Preserve.");
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        {
+            reader.Read();
+            return null;
+        }
+
+        if (reader.TokenType != YamlTokenType.StartSequence)
+        {
+            throw YamlThrowHelper.ThrowExpectedSequence(reader);
+        }
+
+        _elementConverter ??= reader.GetConverter(typeof(TElement));
+        var rootAnchor = reader.Anchor;
         reader.Read();
 
         var builder = ImmutableHashSet.CreateBuilder<TElement>();
@@ -343,7 +384,13 @@ internal sealed class YamlImmutableHashSetConverter<TElement> : YamlConverter<Im
         }
 
         reader.Read();
-        return builder.ToImmutable();
+        var result = builder.ToImmutable();
+        if (rootAnchor is not null)
+        {
+            reader.RegisterAnchor(rootAnchor, result);
+        }
+
+        return result;
     }
 
     public override void Write(YamlWriter writer, ImmutableHashSet<TElement>? value)
