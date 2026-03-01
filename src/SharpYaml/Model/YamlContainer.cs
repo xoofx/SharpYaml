@@ -1,30 +1,14 @@
-// Copyright (c) SharpYaml - Alexandre Mutel
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-namespace SharpYaml.Model
+// // Copyright (c) Alexandre Mutel. All rights reserved.
+// // Licensed under the MIT license.
+// // See LICENSE.txt file in the project root for full license information.
+
+namespace SharpYaml.Model;
+
+/// <summary>Represents the Yaml Container.</summary>
+public abstract class YamlContainer : YamlElement
 {
-    /// <summary>Represents the Yaml Container.</summary>
-    public abstract class YamlContainer : YamlElement
-    {
-        /// <summary>Gets or sets style.</summary>
-        public abstract YamlStyle Style { get; set; }
-        /// <summary>Gets or sets is Implicit.</summary>
-        public abstract bool IsImplicit { get; set; }
-    }
+    /// <summary>Gets or sets style.</summary>
+    public abstract YamlStyle Style { get; set; }
+    /// <summary>Gets or sets is Implicit.</summary>
+    public abstract bool IsImplicit { get; set; }
 }

@@ -1,149 +1,152 @@
+// // Copyright (c) Alexandre Mutel. All rights reserved.
+// // Licensed under the MIT license.
+// // See LICENSE.txt file in the project root for full license information.
+
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SharpYaml.Model
+namespace SharpYaml.Model;
+
+/// <summary>Represents the Path Trie.</summary>
+public class PathTrie
 {
-    /// <summary>Represents the Path Trie.</summary>
-    public class PathTrie
+    class PathTrieNode
     {
-        class PathTrieNode
+        public bool Self { get; private set; }
+        readonly Dictionary<ChildIndex, PathTrieNode> subPaths = new Dictionary<ChildIndex, PathTrieNode>();
+
+        public void Add(IList<ChildIndex> indices, int start)
         {
-            public bool Self { get; private set; }
-            readonly Dictionary<ChildIndex, PathTrieNode> subPaths = new Dictionary<ChildIndex, PathTrieNode>();
-
-            public void Add(IList<ChildIndex> indices, int start)
+            if (start == indices.Count)
             {
-                if (start == indices.Count)
-                {
-                    Self = true;
-                    return;
-                }
-
-                if (!subPaths.TryGetValue(indices[start], out var subPath))
-                {
-                    subPath = new PathTrieNode();
-                    subPaths[indices[start]] = subPath;
-                }
-
-                subPath.Add(indices, start + 1);
+                Self = true;
+                return;
             }
 
-            public bool Remove(IList<ChildIndex> indices, int start, bool removeChildren)
+            if (!subPaths.TryGetValue(indices[start], out var subPath))
             {
-                if (start == indices.Count)
-                {
-                    var result = Self || (removeChildren && subPaths.Count > 0);
-
-                    Self = false;
-
-                    if (removeChildren)
-                        subPaths.Clear();
-
-                    return result;
-                }
-
-                if (!subPaths.TryGetValue(indices[start], out var subPath))
-                    return false;
-
-                if (!subPath.Remove(indices, start + 1, removeChildren))
-                    return false;
-
-                if (subPath.IsEmpty)
-                    subPaths.Remove(indices[start]);
-
-                return true;
+                subPath = new PathTrieNode();
+                subPaths[indices[start]] = subPath;
             }
 
-            public bool IsEmpty
-            {
-                get { return !Self && subPaths.Count == 0; }
-            }
-
-            public PathTrieNode? Find(IList<ChildIndex> indices, int start)
-            {
-                if (start == indices.Count)
-                    return this;
-
-                if (!subPaths.TryGetValue(indices[start], out var subPath))
-                    return null;
-
-                return subPath.Find(indices, start + 1);
-            }
-
-            public IEnumerable<List<ChildIndex>> GetReversePaths()
-            {
-                if (Self)
-                    yield return new List<ChildIndex>();
-
-                foreach (var pair in subPaths)
-                {
-                    foreach (var path in pair.Value.GetReversePaths())
-                    {
-                        path.Add(pair.Key);
-                        yield return path;
-                    }
-                }
-            }
+            subPath.Add(indices, start + 1);
         }
 
-        private readonly Dictionary<YamlNode, PathTrieNode> roots = new Dictionary<YamlNode, PathTrieNode>();
-
-        /// <summary>Adds an item.</summary>
-        public void Add(Path path)
+        public bool Remove(IList<ChildIndex> indices, int start, bool removeChildren)
         {
-            if (!roots.TryGetValue(path.Root, out var root))
+            if (start == indices.Count)
             {
-                root = new PathTrieNode();
-                roots[path.Root] = root;
+                var result = Self || (removeChildren && subPaths.Count > 0);
+
+                Self = false;
+
+                if (removeChildren)
+                    subPaths.Clear();
+
+                return result;
             }
 
-            root.Add(path.Indices, 0);
-        }
-
-        /// <summary>Removes an item.</summary>
-        public bool Remove(Path path, bool removeChildren)
-        {
-            if (!roots.TryGetValue(path.Root, out var root))
+            if (!subPaths.TryGetValue(indices[start], out var subPath))
                 return false;
 
-            if (!root.Remove(path.Indices, 0, removeChildren))
+            if (!subPath.Remove(indices, start + 1, removeChildren))
                 return false;
 
-            if (root.IsEmpty)
-                roots.Remove(path.Root);
+            if (subPath.IsEmpty)
+                subPaths.Remove(indices[start]);
 
             return true;
         }
 
-        /// <summary>Determines whether a value exists.</summary>
-        public bool Contains(Path path, bool orChildren)
+        public bool IsEmpty
         {
-            if (!roots.TryGetValue(path.Root, out var root))
-                return false;
-
-            var node = root.Find(path.Indices, 0);
-            if (node == null)
-                return false;
-
-            return node.Self || orChildren;
+            get { return !Self && subPaths.Count == 0; }
         }
 
-        /// <summary>Gets subpaths.</summary>
-        public IEnumerable<Path> GetSubpaths(Path path)
+        public PathTrieNode? Find(IList<ChildIndex> indices, int start)
         {
-            if (!roots.TryGetValue(path.Root, out var root))
-                yield break;
+            if (start == indices.Count)
+                return this;
 
-            var node = root.Find(path.Indices, 0);
-            if (node == null)
-                yield break;
+            if (!subPaths.TryGetValue(indices[start], out var subPath))
+                return null;
 
-            foreach (var reversePath in node.GetReversePaths())
+            return subPath.Find(indices, start + 1);
+        }
+
+        public IEnumerable<List<ChildIndex>> GetReversePaths()
+        {
+            if (Self)
+                yield return new List<ChildIndex>();
+
+            foreach (var pair in subPaths)
             {
-                reversePath.AddRange(path.Indices.Reverse());
-                reversePath.Reverse();
-                yield return new Path(path.Root, reversePath.ToArray());
+                foreach (var path in pair.Value.GetReversePaths())
+                {
+                    path.Add(pair.Key);
+                    yield return path;
+                }
             }
+        }
+    }
+
+    private readonly Dictionary<YamlNode, PathTrieNode> roots = new Dictionary<YamlNode, PathTrieNode>();
+
+    /// <summary>Adds an item.</summary>
+    public void Add(Path path)
+    {
+        if (!roots.TryGetValue(path.Root, out var root))
+        {
+            root = new PathTrieNode();
+            roots[path.Root] = root;
+        }
+
+        root.Add(path.Indices, 0);
+    }
+
+    /// <summary>Removes an item.</summary>
+    public bool Remove(Path path, bool removeChildren)
+    {
+        if (!roots.TryGetValue(path.Root, out var root))
+            return false;
+
+        if (!root.Remove(path.Indices, 0, removeChildren))
+            return false;
+
+        if (root.IsEmpty)
+            roots.Remove(path.Root);
+
+        return true;
+    }
+
+    /// <summary>Determines whether a value exists.</summary>
+    public bool Contains(Path path, bool orChildren)
+    {
+        if (!roots.TryGetValue(path.Root, out var root))
+            return false;
+
+        var node = root.Find(path.Indices, 0);
+        if (node == null)
+            return false;
+
+        return node.Self || orChildren;
+    }
+
+    /// <summary>Gets subpaths.</summary>
+    public IEnumerable<Path> GetSubpaths(Path path)
+    {
+        if (!roots.TryGetValue(path.Root, out var root))
+            yield break;
+
+        var node = root.Find(path.Indices, 0);
+        if (node == null)
+            yield break;
+
+        foreach (var reversePath in node.GetReversePaths())
+        {
+            reversePath.AddRange(path.Indices.Reverse());
+            reversePath.Reverse();
+            yield return new Path(path.Root, reversePath.ToArray());
         }
     }
 }

@@ -1,47 +1,6 @@
-// Copyright (c) 2015 SharpYaml - Alexandre Mutel
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-// 
-// -------------------------------------------------------------------------------
-// SharpYaml is a fork of YamlDotNet https://github.com/aaubry/YamlDotNet
-// published with the following license:
-// -------------------------------------------------------------------------------
-// 
-// Copyright (c) 2008, 2009, 2010, 2011, 2012 Antoine Aubry
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// // Copyright (c) Alexandre Mutel. All rights reserved.
+// // Licensed under the MIT license.
+// // See LICENSE.txt file in the project root for full license information.
 
 using System;
 using System.Collections.Generic;
@@ -49,433 +8,432 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using SharpYaml.Events;
 
-namespace SharpYaml.Schemas
+namespace SharpYaml.Schemas;
+
+/// <summary>
+/// Base implementation for a based schema.
+/// </summary>
+public abstract class SchemaBase : IYamlSchema
 {
-    /// <summary>
-    /// Base implementation for a based schema.
-    /// </summary>
-    public abstract class SchemaBase : IYamlSchema
+    private readonly Dictionary<string, string> shortTagToLongTag = new Dictionary<string, string>();
+    private readonly Dictionary<string, string> longTagToShortTag = new Dictionary<string, string>();
+    private readonly List<ScalarResolutionRule> scalarTagResolutionRules = new List<ScalarResolutionRule>();
+    private readonly Dictionary<string, Regex> algorithms = new Dictionary<string, Regex>();
+
+    private readonly Dictionary<string, List<ScalarResolutionRule>> mapTagToScalarResolutionRuleList =
+        new Dictionary<string, List<ScalarResolutionRule>>();
+
+    private readonly Dictionary<Type, List<ScalarResolutionRule>> mapTypeToScalarResolutionRuleList =
+        new Dictionary<Type, List<ScalarResolutionRule>>();
+
+    private readonly Dictionary<Type, string> mapTypeToShortTag = new Dictionary<Type, string>();
+    private readonly Dictionary<string, Type> mapShortTagToType = new Dictionary<string, Type>();
+
+    private int updateCountter;
+    private bool needFirstUpdate = true;
+
+    /// <summary>Initializes a new schema instance and registers default tag mappings.</summary>
+    protected SchemaBase()
     {
-        private readonly Dictionary<string, string> shortTagToLongTag = new Dictionary<string, string>();
-        private readonly Dictionary<string, string> longTagToShortTag = new Dictionary<string, string>();
-        private readonly List<ScalarResolutionRule> scalarTagResolutionRules = new List<ScalarResolutionRule>();
-        private readonly Dictionary<string, Regex> algorithms = new Dictionary<string, Regex>();
+        RegisterDefaultTagMappings();
+    }
 
-        private readonly Dictionary<string, List<ScalarResolutionRule>> mapTagToScalarResolutionRuleList =
-            new Dictionary<string, List<ScalarResolutionRule>>();
+    /// <summary>
+    /// The string short tag: !!str
+    /// </summary>
+    public const string StrShortTag = "!!str";
 
-        private readonly Dictionary<Type, List<ScalarResolutionRule>> mapTypeToScalarResolutionRuleList =
-            new Dictionary<Type, List<ScalarResolutionRule>>();
+    /// <summary>
+    /// The string long tag: tag:yaml.org,2002:str
+    /// </summary>
+    public const string StrLongTag = "tag:yaml.org,2002:str";
 
-        private readonly Dictionary<Type, string> mapTypeToShortTag = new Dictionary<Type, string>();
-        private readonly Dictionary<string, Type> mapShortTagToType = new Dictionary<string, Type>();
+    /// <summary>Expands a short tag into its long form.</summary>
+    [return: NotNullIfNotNull("shortTag")]
+    public string? ExpandTag(string? shortTag)
+    {
+        if (shortTag == null)
+            return null;
 
-        private int updateCountter;
-        private bool needFirstUpdate = true;
+        return shortTagToLongTag.TryGetValue(shortTag, out var tagExpanded) ? tagExpanded : shortTag;
+    }
 
-        /// <summary>Initializes a new schema instance and registers default tag mappings.</summary>
-        protected SchemaBase()
+    /// <summary>Converts a long tag into its short form.</summary>
+    [return: NotNullIfNotNull("longTag")]
+    public string? ShortenTag(string? longTag)
+    {
+        if (longTag == null)
+            return null;
+
+        return longTagToShortTag.TryGetValue(longTag, out var tagShortened) ? tagShortened : longTag;
+    }
+
+    /// <summary>Gets default Tag.</summary>
+    public string GetDefaultTag(NodeEvent nodeEvent)
+    {
+        EnsureScalarRules();
+
+        if (nodeEvent == null)
+            throw new ArgumentNullException("nodeEvent");
+
+        if (nodeEvent is MappingStart mapping)
         {
-            RegisterDefaultTagMappings();
+            return GetDefaultTag(mapping);
         }
 
-        /// <summary>
-        /// The string short tag: !!str
-        /// </summary>
-        public const string StrShortTag = "!!str";
-
-        /// <summary>
-        /// The string long tag: tag:yaml.org,2002:str
-        /// </summary>
-        public const string StrLongTag = "tag:yaml.org,2002:str";
-
-        /// <summary>Expands a short tag into its long form.</summary>
-        [return: NotNullIfNotNull("shortTag")]
-        public string? ExpandTag(string? shortTag)
+        if (nodeEvent is SequenceStart sequence)
         {
-            if (shortTag == null)
-                return null;
-
-            return shortTagToLongTag.TryGetValue(shortTag, out var tagExpanded) ? tagExpanded : shortTag;
+            return GetDefaultTag(sequence);
         }
 
-        /// <summary>Converts a long tag into its short form.</summary>
-        [return: NotNullIfNotNull("longTag")]
-        public string? ShortenTag(string? longTag)
+        if (nodeEvent is Scalar scalar)
         {
-            if (longTag == null)
-                return null;
-
-            return longTagToShortTag.TryGetValue(longTag, out var tagShortened) ? tagShortened : longTag;
+            TryParse(scalar, false, out var tag, out _);
+            return tag;
         }
 
-        /// <summary>Gets default Tag.</summary>
-        public string GetDefaultTag(NodeEvent nodeEvent)
+        throw new NotSupportedException($"NodeEvent [{nodeEvent.GetType().FullName}] not supported");
+    }
+
+    /// <summary>Gets default Tag.</summary>
+    public string? GetDefaultTag(Type type)
+    {
+        if (type == null)
+            throw new ArgumentNullException("type");
+        EnsureScalarRules();
+
+        mapTypeToShortTag.TryGetValue(type, out var defaultTag);
+        return defaultTag;
+    }
+
+    /// <summary>Determines whether tag Implicit.</summary>
+    public bool IsTagImplicit(string? tag)
+    {
+        if (tag == null)
         {
-            EnsureScalarRules();
+            return true;
+        }
+        return shortTagToLongTag.ContainsKey(tag);
+    }
 
-            if (nodeEvent == null)
-                throw new ArgumentNullException("nodeEvent");
+    /// <summary>
+    /// Registers a long/short tag association.
+    /// </summary>
+    /// <param name="shortTag">The short tag.</param>
+    /// <param name="longTag">The long tag.</param>
+    /// <exception cref="System.ArgumentNullException">
+    /// shortTag
+    /// or
+    /// shortTag
+    /// </exception>
+    public void RegisterTag(string shortTag, string longTag)
+    {
+        if (shortTag == null)
+            throw new ArgumentNullException("shortTag");
+        if (longTag == null)
+            throw new ArgumentNullException("longTag");
 
-            if (nodeEvent is MappingStart mapping)
+        shortTagToLongTag[shortTag] = longTag;
+        longTagToShortTag[longTag] = shortTag;
+    }
+
+    /// <summary>
+    /// Gets the default tag for a <see cref="MappingStart"/> event.
+    /// </summary>
+    /// <param name="nodeEvent">The node event.</param>
+    /// <returns>The default tag for a map.</returns>
+    protected abstract string GetDefaultTag(MappingStart nodeEvent);
+
+    /// <summary>
+    /// Gets the default tag for a <see cref="SequenceStart"/> event.
+    /// </summary>
+    /// <param name="nodeEvent">The node event.</param>
+    /// <returns>The default tag for a seq.</returns>
+    protected abstract string GetDefaultTag(SequenceStart nodeEvent);
+
+    /// <summary>Tries to parse.</summary>
+    public virtual bool TryParse(Scalar scalar, bool parseValue, [NotNullWhen(true)] out string? defaultTag, out object? value)
+    {
+        if (scalar == null)
+            throw new ArgumentNullException("scalar");
+
+        EnsureScalarRules();
+
+        defaultTag = null;
+        value = null;
+
+        // DoubleQuoted and SingleQuoted string are always decoded
+        if (scalar.Style == ScalarStyle.DoubleQuoted || scalar.Style == ScalarStyle.SingleQuoted)
+        {
+            defaultTag = StrShortTag;
+            if (parseValue)
             {
-                return GetDefaultTag(mapping);
+                value = scalar.Value;
             }
-
-            if (nodeEvent is SequenceStart sequence)
-            {
-                return GetDefaultTag(sequence);
-            }
-
-            if (nodeEvent is Scalar scalar)
-            {
-                TryParse(scalar, false, out var tag, out _);
-                return tag;
-            }
-
-            throw new NotSupportedException($"NodeEvent [{nodeEvent.GetType().FullName}] not supported");
+            return true;
         }
 
-        /// <summary>Gets default Tag.</summary>
-        public string? GetDefaultTag(Type type)
+        // Parse only values if we have some rules
+        if (scalarTagResolutionRules.Count > 0)
         {
-            if (type == null)
-                throw new ArgumentNullException("type");
-            EnsureScalarRules();
-
-            mapTypeToShortTag.TryGetValue(type, out var defaultTag);
-            return defaultTag;
-        }
-
-        /// <summary>Determines whether tag Implicit.</summary>
-        public bool IsTagImplicit(string? tag)
-        {
-            if (tag == null)
+            foreach (var rule in scalarTagResolutionRules)
             {
-                return true;
-            }
-            return shortTagToLongTag.ContainsKey(tag);
-        }
+                var match = rule.Pattern.Match(scalar.Value);
+                if (!match.Success)
+                    continue;
 
-        /// <summary>
-        /// Registers a long/short tag association.
-        /// </summary>
-        /// <param name="shortTag">The short tag.</param>
-        /// <param name="longTag">The long tag.</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// shortTag
-        /// or
-        /// shortTag
-        /// </exception>
-        public void RegisterTag(string shortTag, string longTag)
-        {
-            if (shortTag == null)
-                throw new ArgumentNullException("shortTag");
-            if (longTag == null)
-                throw new ArgumentNullException("longTag");
-
-            shortTagToLongTag[shortTag] = longTag;
-            longTagToShortTag[longTag] = shortTag;
-        }
-
-        /// <summary>
-        /// Gets the default tag for a <see cref="MappingStart"/> event.
-        /// </summary>
-        /// <param name="nodeEvent">The node event.</param>
-        /// <returns>The default tag for a map.</returns>
-        protected abstract string GetDefaultTag(MappingStart nodeEvent);
-
-        /// <summary>
-        /// Gets the default tag for a <see cref="SequenceStart"/> event.
-        /// </summary>
-        /// <param name="nodeEvent">The node event.</param>
-        /// <returns>The default tag for a seq.</returns>
-        protected abstract string GetDefaultTag(SequenceStart nodeEvent);
-
-        /// <summary>Tries to parse.</summary>
-        public virtual bool TryParse(Scalar scalar, bool parseValue, [NotNullWhen(true)] out string? defaultTag, out object? value)
-        {
-            if (scalar == null)
-                throw new ArgumentNullException("scalar");
-
-            EnsureScalarRules();
-
-            defaultTag = null;
-            value = null;
-
-            // DoubleQuoted and SingleQuoted string are always decoded
-            if (scalar.Style == ScalarStyle.DoubleQuoted || scalar.Style == ScalarStyle.SingleQuoted)
-            {
-                defaultTag = StrShortTag;
+                defaultTag = rule.Tag;
                 if (parseValue)
                 {
-                    value = scalar.Value;
+                    value = rule.Decode(match);
                 }
                 return true;
             }
+        }
+        else
+        {
+            // Expand the tag to a default tag.
+            defaultTag = ShortenTag(scalar.Tag);
+        }
 
-            // Parse only values if we have some rules
-            if (scalarTagResolutionRules.Count > 0)
+        // Value was not successfully decoded
+        return false;
+    }
+
+    /// <summary>Tries to parse.</summary>
+    public bool TryParse(Scalar scalar, Type type, out object? value)
+    {
+        if (scalar == null)
+            throw new ArgumentNullException("scalar");
+        if (type == null)
+            throw new ArgumentNullException("type");
+
+        EnsureScalarRules();
+
+        value = null;
+
+        // DoubleQuoted and SingleQuoted string are always decoded
+        if (type == typeof(string) && (scalar.Style == ScalarStyle.DoubleQuoted || scalar.Style == ScalarStyle.SingleQuoted))
+        {
+            value = scalar.Value;
+            return true;
+        }
+
+        // Parse only values if we have some rules
+        if (mapTypeToScalarResolutionRuleList.Count > 0)
+        {
+            if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out var rules))
             {
-                foreach (var rule in scalarTagResolutionRules)
+                foreach (var rule in rules)
                 {
                     var match = rule.Pattern.Match(scalar.Value);
-                    if (!match.Success)
-                        continue;
-
-                    defaultTag = rule.Tag;
-                    if (parseValue)
+                    if (match.Success)
                     {
                         value = rule.Decode(match);
+                        return true;
                     }
-                    return true;
                 }
+            }
+        }
+
+        // Value was not successfully decoded
+        return false;
+    }
+
+    /// <summary>Gets type For Default Tag.</summary>
+    public Type? GetTypeForDefaultTag(string? shortTag)
+    {
+        if (shortTag == null)
+        {
+            return null;
+        }
+
+        mapShortTagToType.TryGetValue(shortTag, out var type);
+        return type;
+    }
+
+    /// <summary>
+    /// Prepare scalar rules. In the implementation of this method, should call <see cref="AddScalarRule{T}"/>
+    /// </summary>
+    protected virtual void PrepareScalarRules()
+    {
+    }
+
+    /// <summary>
+    /// Add a tag resolution rule that is invoked when <paramref name="regex" /> matches
+    /// the <see cref="Scalar">Value of</see> a <see cref="Scalar" /> node.
+    /// The tag is resolved to <paramref name="tag" /> and <paramref name="decode" /> is
+    /// invoked when actual value of type <typeparamref name="T" /> is extracted from
+    /// the node text.
+    /// </summary>
+    /// <typeparam name="T">Type of the scalar</typeparam>
+    /// <param name="tag">The tag.</param>
+    /// <param name="regex">The regex.</param>
+    /// <param name="decode">The decode function.</param>
+    /// <param name="encode">The encode function.</param>
+    /// <example>
+    ///   <code>
+    /// BeginUpdate(); // to avoid invoking slow internal calculation method many times.
+    /// Add( ... );
+    /// Add( ... );
+    /// Add( ... );
+    /// Add( ... );
+    /// EndUpdate();   // automaticall invoke internal calculation method
+    ///   </code></example>
+    protected void AddScalarRule<T>(string tag, string regex, Func<Match, T> decode, Func<T, string>? encode)
+    {
+        // Make sure the tag is expanded to its long form
+        var longTag = ShortenTag(tag);
+        scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T)m), typeof(T)));
+    }
+
+    /// <summary>Adds a scalar resolution rule for one or more CLR types.</summary>
+    protected void AddScalarRule(Type[] types, string tag, string regex, Func<Match, object> decode, Func<object, string>? encode)
+    {
+        // Make sure the tag is expanded to its long form
+        var longTag = ShortenTag(tag);
+        scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, decode, encode, types));
+    }
+
+    /// <summary>Registers a default tag mapping for <typeparamref name="T"/>.</summary>
+    protected void RegisterDefaultTagMapping<T>(string tag, bool isDefault = false)
+    {
+        if (tag == null)
+            throw new ArgumentNullException("tag");
+        RegisterDefaultTagMapping(tag, typeof(T), isDefault);
+    }
+
+    /// <summary>Registers a default tag mapping for the specified CLR type.</summary>
+    protected void RegisterDefaultTagMapping(string tag, Type type, bool isDefault)
+    {
+        if (tag == null)
+            throw new ArgumentNullException("tag");
+        if (type == null)
+            throw new ArgumentNullException("type");
+
+        if (!mapTypeToShortTag.ContainsKey(type))
+            mapTypeToShortTag.Add(type, tag);
+
+        if (isDefault)
+        {
+            mapShortTagToType[tag] = type;
+        }
+    }
+
+    /// <summary>
+    /// Allows to register tag mapping for all primitive types (e.g. int -> !!int)
+    /// </summary>
+    protected virtual void RegisterDefaultTagMappings()
+    {
+    }
+
+    private void EnsureScalarRules()
+    {
+        lock (this)
+        {
+            if (needFirstUpdate || updateCountter != scalarTagResolutionRules.Count)
+            {
+                PrepareScalarRules();
+                Update();
+                needFirstUpdate = false;
+            }
+        }
+    }
+
+    private void Update()
+    {
+        // Tag to joined regexp source
+        var mapTagToPartialRegexPattern = new Dictionary<string, string>();
+        foreach (var rule in scalarTagResolutionRules)
+        {
+            if (!mapTagToPartialRegexPattern.ContainsKey(rule.Tag))
+            {
+                mapTagToPartialRegexPattern.Add(rule.Tag, rule.PatternSource);
             }
             else
             {
-                // Expand the tag to a default tag.
-                defaultTag = ShortenTag(scalar.Tag);
-            }
-
-            // Value was not successfully decoded
-            return false;
-        }
-
-        /// <summary>Tries to parse.</summary>
-        public bool TryParse(Scalar scalar, Type type, out object? value)
-        {
-            if (scalar == null)
-                throw new ArgumentNullException("scalar");
-            if (type == null)
-                throw new ArgumentNullException("type");
-
-            EnsureScalarRules();
-
-            value = null;
-
-            // DoubleQuoted and SingleQuoted string are always decoded
-            if (type == typeof(string) && (scalar.Style == ScalarStyle.DoubleQuoted || scalar.Style == ScalarStyle.SingleQuoted))
-            {
-                value = scalar.Value;
-                return true;
-            }
-
-            // Parse only values if we have some rules
-            if (mapTypeToScalarResolutionRuleList.Count > 0)
-            {
-                if (mapTypeToScalarResolutionRuleList.TryGetValue(type, out var rules))
-                {
-                    foreach (var rule in rules)
-                    {
-                        var match = rule.Pattern.Match(scalar.Value);
-                        if (match.Success)
-                        {
-                            value = rule.Decode(match);
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            // Value was not successfully decoded
-            return false;
-        }
-
-        /// <summary>Gets type For Default Tag.</summary>
-        public Type? GetTypeForDefaultTag(string? shortTag)
-        {
-            if (shortTag == null)
-            {
-                return null;
-            }
-
-            mapShortTagToType.TryGetValue(shortTag, out var type);
-            return type;
-        }
-
-        /// <summary>
-        /// Prepare scalar rules. In the implementation of this method, should call <see cref="AddScalarRule{T}"/>
-        /// </summary>
-        protected virtual void PrepareScalarRules()
-        {
-        }
-
-        /// <summary>
-        /// Add a tag resolution rule that is invoked when <paramref name="regex" /> matches
-        /// the <see cref="Scalar">Value of</see> a <see cref="Scalar" /> node.
-        /// The tag is resolved to <paramref name="tag" /> and <paramref name="decode" /> is
-        /// invoked when actual value of type <typeparamref name="T" /> is extracted from
-        /// the node text.
-        /// </summary>
-        /// <typeparam name="T">Type of the scalar</typeparam>
-        /// <param name="tag">The tag.</param>
-        /// <param name="regex">The regex.</param>
-        /// <param name="decode">The decode function.</param>
-        /// <param name="encode">The encode function.</param>
-        /// <example>
-        ///   <code>
-        /// BeginUpdate(); // to avoid invoking slow internal calculation method many times.
-        /// Add( ... );
-        /// Add( ... );
-        /// Add( ... );
-        /// Add( ... );
-        /// EndUpdate();   // automaticall invoke internal calculation method
-        ///   </code></example>
-        protected void AddScalarRule<T>(string tag, string regex, Func<Match, T> decode, Func<T, string>? encode)
-        {
-            // Make sure the tag is expanded to its long form
-            var longTag = ShortenTag(tag);
-            scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, m => decode(m), m => encode((T)m), typeof(T)));
-        }
-
-        /// <summary>Adds a scalar resolution rule for one or more CLR types.</summary>
-        protected void AddScalarRule(Type[] types, string tag, string regex, Func<Match, object> decode, Func<object, string>? encode)
-        {
-            // Make sure the tag is expanded to its long form
-            var longTag = ShortenTag(tag);
-            scalarTagResolutionRules.Add(new ScalarResolutionRule(longTag, regex, decode, encode, types));
-        }
-
-        /// <summary>Registers a default tag mapping for <typeparamref name="T"/>.</summary>
-        protected void RegisterDefaultTagMapping<T>(string tag, bool isDefault = false)
-        {
-            if (tag == null)
-                throw new ArgumentNullException("tag");
-            RegisterDefaultTagMapping(tag, typeof(T), isDefault);
-        }
-
-        /// <summary>Registers a default tag mapping for the specified CLR type.</summary>
-        protected void RegisterDefaultTagMapping(string tag, Type type, bool isDefault)
-        {
-            if (tag == null)
-                throw new ArgumentNullException("tag");
-            if (type == null)
-                throw new ArgumentNullException("type");
-
-            if (!mapTypeToShortTag.ContainsKey(type))
-                mapTypeToShortTag.Add(type, tag);
-
-            if (isDefault)
-            {
-                mapShortTagToType[tag] = type;
+                mapTagToPartialRegexPattern[rule.Tag] += "|" + rule.PatternSource;
             }
         }
 
-        /// <summary>
-        /// Allows to register tag mapping for all primitive types (e.g. int -> !!int)
-        /// </summary>
-        protected virtual void RegisterDefaultTagMappings()
+        // Tag to joined regexp
+        algorithms.Clear();
+        foreach (var entry in mapTagToPartialRegexPattern)
         {
+            algorithms.Add(
+                entry.Key,
+                new Regex("^(" + entry.Value + ")$")
+            );
         }
 
-        private void EnsureScalarRules()
+        // Tag to decoding methods
+        mapTagToScalarResolutionRuleList.Clear();
+        foreach (var rule in scalarTagResolutionRules)
         {
-            lock (this)
+            if (!mapTagToScalarResolutionRuleList.ContainsKey(rule.Tag))
+                mapTagToScalarResolutionRuleList[rule.Tag] = new List<ScalarResolutionRule>();
+            mapTagToScalarResolutionRuleList[rule.Tag].Add(rule);
+        }
+
+        mapTypeToScalarResolutionRuleList.Clear();
+        foreach (var rule in scalarTagResolutionRules)
+        {
+            var types = rule.GetTypeOfValue();
+            foreach (var type in types)
             {
-                if (needFirstUpdate || updateCountter != scalarTagResolutionRules.Count)
-                {
-                    PrepareScalarRules();
-                    Update();
-                    needFirstUpdate = false;
-                }
+                if (!mapTypeToScalarResolutionRuleList.ContainsKey(type))
+                    mapTypeToScalarResolutionRuleList[type] = new List<ScalarResolutionRule>();
+                mapTypeToScalarResolutionRuleList[type].Add(rule);
             }
         }
 
-        private void Update()
+        // Update the counter
+        updateCountter = scalarTagResolutionRules.Count;
+    }
+
+    private class ScalarResolutionRule
+    {
+        public ScalarResolutionRule(string shortTag, string regex, Func<Match, object> decoder, Func<object, string>? encoder, params Type[] types)
         {
-            // Tag to joined regexp source
-            var mapTagToPartialRegexPattern = new Dictionary<string, string>();
-            foreach (var rule in scalarTagResolutionRules)
-            {
-                if (!mapTagToPartialRegexPattern.ContainsKey(rule.Tag))
-                {
-                    mapTagToPartialRegexPattern.Add(rule.Tag, rule.PatternSource);
-                }
-                else
-                {
-                    mapTagToPartialRegexPattern[rule.Tag] += "|" + rule.PatternSource;
-                }
-            }
-
-            // Tag to joined regexp
-            algorithms.Clear();
-            foreach (var entry in mapTagToPartialRegexPattern)
-            {
-                algorithms.Add(
-                    entry.Key,
-                    new Regex("^(" + entry.Value + ")$")
-                    );
-            }
-
-            // Tag to decoding methods
-            mapTagToScalarResolutionRuleList.Clear();
-            foreach (var rule in scalarTagResolutionRules)
-            {
-                if (!mapTagToScalarResolutionRuleList.ContainsKey(rule.Tag))
-                    mapTagToScalarResolutionRuleList[rule.Tag] = new List<ScalarResolutionRule>();
-                mapTagToScalarResolutionRuleList[rule.Tag].Add(rule);
-            }
-
-            mapTypeToScalarResolutionRuleList.Clear();
-            foreach (var rule in scalarTagResolutionRules)
-            {
-                var types = rule.GetTypeOfValue();
-                foreach (var type in types)
-                {
-                    if (!mapTypeToScalarResolutionRuleList.ContainsKey(type))
-                        mapTypeToScalarResolutionRuleList[type] = new List<ScalarResolutionRule>();
-                    mapTypeToScalarResolutionRuleList[type].Add(rule);
-                }
-            }
-
-            // Update the counter
-            updateCountter = scalarTagResolutionRules.Count;
+            Tag = shortTag;
+            PatternSource = regex;
+            Pattern = new Regex("^(?:" + regex + ")$");
+            this.types = types;
+            Decoder = decoder;
+            Encoder = encoder;
         }
 
-        private class ScalarResolutionRule
+        private readonly Type[] types;
+        private readonly Func<Match, object> Decoder;
+        private readonly Func<object, string>? Encoder;
+
+        public string Tag { get; protected set; }
+        public Regex Pattern { get; protected set; }
+        public string PatternSource { get; protected set; }
+
+        public object Decode(Match m)
         {
-            public ScalarResolutionRule(string shortTag, string regex, Func<Match, object> decoder, Func<object, string>? encoder, params Type[] types)
-            {
-                Tag = shortTag;
-                PatternSource = regex;
-                Pattern = new Regex("^(?:" + regex + ")$");
-                this.types = types;
-                Decoder = decoder;
-                Encoder = encoder;
-            }
+            return Decoder(m);
+        }
 
-            private readonly Type[] types;
-            private readonly Func<Match, object> Decoder;
-            private readonly Func<object, string>? Encoder;
+        public string Encode(object obj)
+        {
+            return Encoder(obj);
+        }
 
-            public string Tag { get; protected set; }
-            public Regex Pattern { get; protected set; }
-            public string PatternSource { get; protected set; }
+        public Type[] GetTypeOfValue()
+        {
+            return types;
+        }
 
-            public object Decode(Match m)
-            {
-                return Decoder(m);
-            }
+        public bool HasEncoder()
+        {
+            return Encoder != null;
+        }
 
-            public string Encode(object obj)
-            {
-                return Encoder(obj);
-            }
-
-            public Type[] GetTypeOfValue()
-            {
-                return types;
-            }
-
-            public bool HasEncoder()
-            {
-                return Encoder != null;
-            }
-
-            public bool IsMatch(string value)
-            {
-                return Pattern.IsMatch(value);
-            }
+        public bool IsMatch(string value)
+        {
+            return Pattern.IsMatch(value);
         }
     }
 }

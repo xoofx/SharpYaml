@@ -1,22 +1,7 @@
-// Copyright (c) SharpYaml - Alexandre Mutel
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// // Copyright (c) Alexandre Mutel. All rights reserved.
+// // Licensed under the MIT license.
+// // See LICENSE.txt file in the project root for full license information.
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -24,526 +9,525 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpYaml.Events;
 
-namespace SharpYaml.Model
+namespace SharpYaml.Model;
+
+/// <summary>Represents the Yaml Mapping.</summary>
+public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement?>, IList<KeyValuePair<YamlElement, YamlElement?>>
 {
-    /// <summary>Represents the Yaml Mapping.</summary>
-    public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement?>, IList<KeyValuePair<YamlElement, YamlElement?>>
+    private MappingStart _mappingStart;
+    private readonly List<YamlElement> _keys;
+    private readonly Dictionary<YamlElement, YamlElement?> _contents;
+
+    private Dictionary<string, YamlValue>? stringKeys;
+
+    /// <summary>Initializes a new instance of this type.</summary>
+    public YamlMapping()
     {
-        private MappingStart _mappingStart;
-        private readonly List<YamlElement> _keys;
-        private readonly Dictionary<YamlElement, YamlElement?> _contents;
+        _mappingStart = new MappingStart();
+        MappingEnd = new MappingEnd();
+        _keys = new List<YamlElement>();
+        _contents = new Dictionary<YamlElement, YamlElement?>();
+    }
 
-        private Dictionary<string, YamlValue>? stringKeys;
-
-        /// <summary>Initializes a new instance of this type.</summary>
-        public YamlMapping()
+    YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement?> contents, YamlNodeTracker? tracker)
+    {
+        if (tracker == null)
         {
-            _mappingStart = new MappingStart();
-            MappingEnd = new MappingEnd();
+            _keys = keys;
+            _contents = contents;
+        }
+        else
+        {
             _keys = new List<YamlElement>();
             _contents = new Dictionary<YamlElement, YamlElement?>();
+
+            Tracker = tracker;
+
+            foreach (var key in keys)
+                Add(key, contents[key]);
         }
 
-        YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement?> contents, YamlNodeTracker? tracker)
+        MappingStart = mappingStart;
+        this.MappingEnd = mappingEnd;
+    }
+
+    /// <summary>Gets mapping Start.</summary>
+    public MappingStart MappingStart
+    {
+        get => _mappingStart;
+        [MemberNotNull(nameof(_mappingStart))]
+        set
         {
-            if (tracker == null)
-            {
-                _keys = keys;
-                _contents = contents;
-            }
-            else
-            {
-                _keys = new List<YamlElement>();
-                _contents = new Dictionary<YamlElement, YamlElement?>();
+            var oldValue = _mappingStart;
 
-                Tracker = tracker;
-
-                foreach (var key in keys)
-                    Add(key, contents[key]);
-            }
-
-            MappingStart = mappingStart;
-            this.MappingEnd = mappingEnd;
-        }
-
-        /// <summary>Gets mapping Start.</summary>
-        public MappingStart MappingStart
-        {
-            get => _mappingStart;
-            [MemberNotNull(nameof(_mappingStart))]
-            set
-            {
-                var oldValue = _mappingStart;
-
-                _mappingStart = value;
-
-                if (Tracker != null)
-                    Tracker.OnMappingStartChanged(this, oldValue, value);
-            }
-        }
-
-        internal MappingEnd MappingEnd { get; }
-
-        /// <summary>Gets anchor.</summary>
-        public override string? Anchor
-        {
-            get { return _mappingStart.Anchor; }
-            set
-            {
-                MappingStart = new MappingStart(value,
-                    _mappingStart.Tag,
-                    _mappingStart.IsImplicit,
-                    _mappingStart.Style,
-                    _mappingStart.Start,
-                    _mappingStart.End);
-            }
-        }
-
-        /// <summary>Gets tag.</summary>
-        public override string? Tag
-        {
-            get { return _mappingStart.Tag; }
-            set
-            {
-                MappingStart = new MappingStart(_mappingStart.Anchor,
-                    value,
-                    string.IsNullOrEmpty(value),
-                    _mappingStart.Style,
-                    _mappingStart.Start,
-                    _mappingStart.End);
-            }
-        }
-
-        /// <summary>Gets style.</summary>
-        public override YamlStyle Style
-        {
-            get { return _mappingStart.Style; }
-            set
-            {
-                MappingStart = new MappingStart(_mappingStart.Anchor,
-                    _mappingStart.Tag,
-                    _mappingStart.IsImplicit,
-                    value,
-                    _mappingStart.Start,
-                    _mappingStart.End);
-            }
-        }
-
-        /// <summary>Gets a value indicating whether is Canonical.</summary>
-        public override bool IsCanonical { get { return _mappingStart.IsCanonical; } }
-
-        /// <summary>Gets is Implicit.</summary>
-        public override bool IsImplicit
-        {
-            get { return _mappingStart.IsImplicit; }
-            set
-            {
-                MappingStart = new MappingStart(_mappingStart.Anchor,
-                    _mappingStart.Tag,
-                    value,
-                    _mappingStart.Style,
-                    _mappingStart.Start,
-                    _mappingStart.End);
-            }
-        }
-
-        /// <summary>Loads data.</summary>
-        public static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker)
-        {
-            return Load(eventReader, tracker, anchors: null);
-        }
-
-        internal static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker, Dictionary<string, YamlElement>? anchors)
-        {
-            var mappingStart = eventReader.Allow<MappingStart>();
-
-            var keys = new List<YamlElement>();
-            var contents = new Dictionary<YamlElement, YamlElement?>();
-            while (!eventReader.Accept<MappingEnd>())
-            {
-                var key = ReadElement(eventReader, tracker, anchors);
-                var value = ReadElement(eventReader, tracker, anchors);
-
-                if (key is null || value is null)
-                {
-                    throw new YamlException("Unexpected end of mapping while loading YAML model.");
-                }
-
-                keys.Add(key);
-                contents[key] = value;
-            }
-
-            var mappingEnd = eventReader.Allow<MappingEnd>();
-
-            return new YamlMapping(mappingStart, mappingEnd, keys, contents, tracker);
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        /// <summary>Gets enumerator.</summary>
-        public IEnumerator<KeyValuePair<YamlElement, YamlElement?>> GetEnumerator()
-        {
-            return _keys.Select(k => new KeyValuePair<YamlElement, YamlElement?>(k, _contents[k])).GetEnumerator();
-        }
-
-        void ICollection<KeyValuePair<YamlElement, YamlElement?>>.Add(KeyValuePair<YamlElement, YamlElement?> item)
-        {
-            Add(item.Key, item.Value);
-        }
-
-        /// <summary>Removes all elements from the collection.</summary>
-        public void Clear()
-        {
-            var values = Tracker == null ? null : this.ToList();
-
-            _contents.Clear();
-            _keys.Clear();
-
-            stringKeys = null;
+            _mappingStart = value;
 
             if (Tracker != null)
+                Tracker.OnMappingStartChanged(this, oldValue, value);
+        }
+    }
+
+    internal MappingEnd MappingEnd { get; }
+
+    /// <summary>Gets anchor.</summary>
+    public override string? Anchor
+    {
+        get { return _mappingStart.Anchor; }
+        set
+        {
+            MappingStart = new MappingStart(value,
+                _mappingStart.Tag,
+                _mappingStart.IsImplicit,
+                _mappingStart.Style,
+                _mappingStart.Start,
+                _mappingStart.End);
+        }
+    }
+
+    /// <summary>Gets tag.</summary>
+    public override string? Tag
+    {
+        get { return _mappingStart.Tag; }
+        set
+        {
+            MappingStart = new MappingStart(_mappingStart.Anchor,
+                value,
+                string.IsNullOrEmpty(value),
+                _mappingStart.Style,
+                _mappingStart.Start,
+                _mappingStart.End);
+        }
+    }
+
+    /// <summary>Gets style.</summary>
+    public override YamlStyle Style
+    {
+        get { return _mappingStart.Style; }
+        set
+        {
+            MappingStart = new MappingStart(_mappingStart.Anchor,
+                _mappingStart.Tag,
+                _mappingStart.IsImplicit,
+                value,
+                _mappingStart.Start,
+                _mappingStart.End);
+        }
+    }
+
+    /// <summary>Gets a value indicating whether is Canonical.</summary>
+    public override bool IsCanonical { get { return _mappingStart.IsCanonical; } }
+
+    /// <summary>Gets is Implicit.</summary>
+    public override bool IsImplicit
+    {
+        get { return _mappingStart.IsImplicit; }
+        set
+        {
+            MappingStart = new MappingStart(_mappingStart.Anchor,
+                _mappingStart.Tag,
+                value,
+                _mappingStart.Style,
+                _mappingStart.Start,
+                _mappingStart.End);
+        }
+    }
+
+    /// <summary>Loads data.</summary>
+    public static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker)
+    {
+        return Load(eventReader, tracker, anchors: null);
+    }
+
+    internal static YamlMapping Load(EventReader eventReader, YamlNodeTracker? tracker, Dictionary<string, YamlElement>? anchors)
+    {
+        var mappingStart = eventReader.Allow<MappingStart>();
+
+        var keys = new List<YamlElement>();
+        var contents = new Dictionary<YamlElement, YamlElement?>();
+        while (!eventReader.Accept<MappingEnd>())
+        {
+            var key = ReadElement(eventReader, tracker, anchors);
+            var value = ReadElement(eventReader, tracker, anchors);
+
+            if (key is null || value is null)
             {
-                for (int i = values.Count - 1; i >= 0; i--)
-                    Tracker.OnMappingRemovePair(this, values[i], i, null);
-            }
-        }
-
-        bool ICollection<KeyValuePair<YamlElement, YamlElement?>>.Contains(KeyValuePair<YamlElement, YamlElement?> item)
-        {
-            return _contents.ContainsKey(item.Key);
-        }
-
-        void ICollection<KeyValuePair<YamlElement, YamlElement?>>.CopyTo(KeyValuePair<YamlElement, YamlElement?>[] array, int arrayIndex)
-        {
-            ((ICollection<KeyValuePair<YamlElement, YamlElement?>>)_contents).CopyTo(array, arrayIndex);
-        }
-
-        bool ICollection<KeyValuePair<YamlElement, YamlElement?>>.Remove(KeyValuePair<YamlElement, YamlElement?> item)
-        {
-            return Remove(item.Key);
-        }
-
-        /// <summary>Gets count.</summary>
-        public int Count { get { return _contents.Count; } }
-        /// <summary>Gets a value indicating whether is Read Only.</summary>
-        public bool IsReadOnly { get { return false; } }
-
-        /// <summary>Adds an item.</summary>
-        public void Add(YamlElement key, YamlElement? value)
-        {
-            _contents.Add(key, value);
-            _keys.Add(key);
-
-            if (stringKeys != null && key is YamlValue value1)
-            {
-                stringKeys[value1.Value] = value1;
-            }
-
-            if (Tracker != null)
-            {
-                key.Tracker = Tracker;
-                value.Tracker = Tracker;
-
-                Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value), _keys.Count - 1, null);
-            }
-        }
-
-        /// <summary>Gets tracker.</summary>
-        public override YamlNodeTracker? Tracker
-        {
-            get { return base.Tracker; }
-            internal set
-            {
-                if (Tracker == value)
-                    return;
-
-                base.Tracker = value;
-
-                for (var i = 0; i < _keys.Count; i++)
-                {
-                    var val = _contents[_keys[i]];
-
-                    _keys[i].Tracker = value;
-                    val.Tracker = value;
-
-                    Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(_keys[i], val), i, null);
-                }
-            }
-        }
-
-        /// <summary>Determines whether key.</summary>
-        public bool ContainsKey(YamlElement key)
-        {
-            return _contents.ContainsKey(key);
-        }
-
-        /// <summary>Determines whether key.</summary>
-        public bool ContainsKey(string key)
-        {
-            if (stringKeys == null)
-                stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
-
-            return stringKeys.ContainsKey(key);
-        }
-
-        /// <summary>Removes an item.</summary>
-        public bool Remove(YamlElement key)
-        {
-            var index = _keys.IndexOf(key);
-            if (index >= 0)
-            {
-                RemoveAt(index);
-                return true;
+                throw new YamlException("Unexpected end of mapping while loading YAML model.");
             }
 
+            keys.Add(key);
+            contents[key] = value;
+        }
+
+        var mappingEnd = eventReader.Allow<MappingEnd>();
+
+        return new YamlMapping(mappingStart, mappingEnd, keys, contents, tracker);
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    /// <summary>Gets enumerator.</summary>
+    public IEnumerator<KeyValuePair<YamlElement, YamlElement?>> GetEnumerator()
+    {
+        return _keys.Select(k => new KeyValuePair<YamlElement, YamlElement?>(k, _contents[k])).GetEnumerator();
+    }
+
+    void ICollection<KeyValuePair<YamlElement, YamlElement?>>.Add(KeyValuePair<YamlElement, YamlElement?> item)
+    {
+        Add(item.Key, item.Value);
+    }
+
+    /// <summary>Removes all elements from the collection.</summary>
+    public void Clear()
+    {
+        var values = Tracker == null ? null : this.ToList();
+
+        _contents.Clear();
+        _keys.Clear();
+
+        stringKeys = null;
+
+        if (Tracker != null)
+        {
+            for (int i = values.Count - 1; i >= 0; i--)
+                Tracker.OnMappingRemovePair(this, values[i], i, null);
+        }
+    }
+
+    bool ICollection<KeyValuePair<YamlElement, YamlElement?>>.Contains(KeyValuePair<YamlElement, YamlElement?> item)
+    {
+        return _contents.ContainsKey(item.Key);
+    }
+
+    void ICollection<KeyValuePair<YamlElement, YamlElement?>>.CopyTo(KeyValuePair<YamlElement, YamlElement?>[] array, int arrayIndex)
+    {
+        ((ICollection<KeyValuePair<YamlElement, YamlElement?>>)_contents).CopyTo(array, arrayIndex);
+    }
+
+    bool ICollection<KeyValuePair<YamlElement, YamlElement?>>.Remove(KeyValuePair<YamlElement, YamlElement?> item)
+    {
+        return Remove(item.Key);
+    }
+
+    /// <summary>Gets count.</summary>
+    public int Count { get { return _contents.Count; } }
+    /// <summary>Gets a value indicating whether is Read Only.</summary>
+    public bool IsReadOnly { get { return false; } }
+
+    /// <summary>Adds an item.</summary>
+    public void Add(YamlElement key, YamlElement? value)
+    {
+        _contents.Add(key, value);
+        _keys.Add(key);
+
+        if (stringKeys != null && key is YamlValue value1)
+        {
+            stringKeys[value1.Value] = value1;
+        }
+
+        if (Tracker != null)
+        {
+            key.Tracker = Tracker;
+            value.Tracker = Tracker;
+
+            Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value), _keys.Count - 1, null);
+        }
+    }
+
+    /// <summary>Gets tracker.</summary>
+    public override YamlNodeTracker? Tracker
+    {
+        get { return base.Tracker; }
+        internal set
+        {
+            if (Tracker == value)
+                return;
+
+            base.Tracker = value;
+
+            for (var i = 0; i < _keys.Count; i++)
+            {
+                var val = _contents[_keys[i]];
+
+                _keys[i].Tracker = value;
+                val.Tracker = value;
+
+                Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(_keys[i], val), i, null);
+            }
+        }
+    }
+
+    /// <summary>Determines whether key.</summary>
+    public bool ContainsKey(YamlElement key)
+    {
+        return _contents.ContainsKey(key);
+    }
+
+    /// <summary>Determines whether key.</summary>
+    public bool ContainsKey(string key)
+    {
+        if (stringKeys == null)
+            stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+        return stringKeys.ContainsKey(key);
+    }
+
+    /// <summary>Removes an item.</summary>
+    public bool Remove(YamlElement key)
+    {
+        var index = _keys.IndexOf(key);
+        if (index >= 0)
+        {
+            RemoveAt(index);
+            return true;
+        }
+
+        return false;
+    }
+
+
+    /// <summary>Removes an item.</summary>
+    public bool Remove(string key)
+    {
+        if (stringKeys == null)
+            stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+        if (!stringKeys.TryGetValue(key, out var yaml))
+            return false;
+
+        if (Remove(yaml))
+        {
+            stringKeys.Remove(key);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Tries to get Value.</summary>
+    public bool TryGetValue(YamlElement key, [MaybeNullWhen(false)] out YamlElement value)
+    {
+        return _contents.TryGetValue(key, out value);
+    }
+
+    /// <summary>Tries to get Value.</summary>
+    public bool TryGetValue(string key, [MaybeNullWhen(false)] out YamlElement value)
+    {
+        if (stringKeys == null)
+            stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+
+        if (!stringKeys.TryGetValue(key, out var yamlKey))
+        {
+            value = null;
             return false;
         }
 
+        return TryGetValue(yamlKey, out value);
+    }
 
-        /// <summary>Removes an item.</summary>
-        public bool Remove(string key)
+    /// <summary>Gets or sets an element at the specified index.</summary>
+    public YamlElement? this[YamlElement key]
+    {
+        get
+        {
+            if (!_contents.ContainsKey(key))
+                return null;
+            return _contents[key];
+        }
+        set
+        {
+            var keyAdded = false;
+            if (!_contents.ContainsKey(key))
+            {
+                _keys.Add(key);
+                keyAdded = true;
+
+                if (stringKeys != null && key is YamlValue yamlValue)
+                {
+                    stringKeys[yamlValue.Value] = yamlValue;
+                }
+            }
+
+            YamlElement? oldContents = null;
+            if (!keyAdded && Tracker != null)
+            {
+                oldContents = _contents[key];
+
+                if (stringKeys != null && key is YamlValue yamlValue)
+                {
+                    stringKeys[yamlValue.Value] = yamlValue;
+                }
+            }
+
+            _contents[key] = value;
+
+            if (Tracker != null)
+            {
+                if (keyAdded)
+                {
+                    key.Tracker = Tracker;
+                    value.Tracker = Tracker;
+                    Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value),
+                        _keys.Count - 1, null);
+                }
+                else
+                {
+                    value.Tracker = Tracker;
+                    Tracker.OnMappingPairChanged(this, _keys.IndexOf(key),
+                        new KeyValuePair<YamlElement, YamlElement?>(key, oldContents),
+                        new KeyValuePair<YamlElement, YamlElement?>(key, value));
+                }
+            }
+        }
+    }
+
+    /// <summary>Gets or sets an element at the specified index.</summary>
+    public YamlElement? this[string key]
+    {
+        get
         {
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-            if (!stringKeys.TryGetValue(key, out var yaml))
-                return false;
+            if (!stringKeys.ContainsKey(key))
+                return null;
 
-            if (Remove(yaml))
-            {
-                stringKeys.Remove(key);
-                return true;
-            }
-
-            return false;
+            return this[stringKeys[key]];
         }
-
-        /// <summary>Tries to get Value.</summary>
-        public bool TryGetValue(YamlElement key, [MaybeNullWhen(false)] out YamlElement value)
-        {
-            return _contents.TryGetValue(key, out value);
-        }
-
-        /// <summary>Tries to get Value.</summary>
-        public bool TryGetValue(string key, [MaybeNullWhen(false)] out YamlElement value)
+        set
         {
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-            if (!stringKeys.TryGetValue(key, out var yamlKey))
-            {
-                value = null;
-                return false;
-            }
+            if (!stringKeys.ContainsKey(key))
+                stringKeys[key] = new YamlValue(key);
 
-            return TryGetValue(yamlKey, out value);
+            this[stringKeys[key]] = value;
+        }
+    }
+
+    /// <summary>Gets keys.</summary>
+    public ICollection<YamlElement> Keys { get { return _keys; } }
+    /// <summary>Gets values.</summary>
+    public ICollection<YamlElement?> Values { get { return _contents.Values; } }
+
+    /// <summary>Gets the zero-based index of the specified item.</summary>
+    public int IndexOf(KeyValuePair<YamlElement, YamlElement?> item)
+    {
+        return _keys.IndexOf(item.Key);
+    }
+
+    /// <summary>Inserts an item at the specified index.</summary>
+    public void Insert(int index, KeyValuePair<YamlElement, YamlElement?> item)
+    {
+        if (_contents.ContainsKey(item.Key))
+            throw new Exception("Key already present.");
+
+        _keys.Insert(index, item.Key);
+        _contents[item.Key] = item.Value;
+
+        if (stringKeys != null && item.Key is YamlValue yamlValue)
+        {
+            stringKeys[yamlValue.Value] = yamlValue;
         }
 
-        /// <summary>Gets or sets an element at the specified index.</summary>
-        public YamlElement? this[YamlElement key]
+        if (Tracker != null)
         {
-            get
-            {
-                if (!_contents.ContainsKey(key))
-                    return null;
-                return _contents[key];
-            }
-            set
-            {
-                var keyAdded = false;
-                if (!_contents.ContainsKey(key))
-                {
-                    _keys.Add(key);
-                    keyAdded = true;
+            item.Key.Tracker = Tracker;
+            item.Value.Tracker = Tracker;
 
-                    if (stringKeys != null && key is YamlValue yamlValue)
-                    {
-                        stringKeys[yamlValue.Value] = yamlValue;
-                    }
-                }
+            ICollection<KeyValuePair<YamlElement, YamlElement?>>? nextChildren = null;
+            if (index < _contents.Count - 1)
+                nextChildren = this.Skip(index + 1).ToArray();
 
-                YamlElement? oldContents = null;
-                if (!keyAdded && Tracker != null)
-                {
-                    oldContents = _contents[key];
+            Tracker.OnMappingAddPair(this, item, index, nextChildren);
+        }
+    }
 
-                    if (stringKeys != null && key is YamlValue yamlValue)
-                    {
-                        stringKeys[yamlValue.Value] = yamlValue;
-                    }
-                }
+    /// <summary>Removes at.</summary>
+    public void RemoveAt(int index)
+    {
+        var key = _keys[index];
+        var value = _contents[key];
 
-                _contents[key] = value;
+        _keys.RemoveAt(index);
+        _contents.Remove(key);
 
-                if (Tracker != null)
-                {
-                    if (keyAdded)
-                    {
-                        key.Tracker = Tracker;
-                        value.Tracker = Tracker;
-                        Tracker.OnMappingAddPair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value),
-                            _keys.Count - 1, null);
-                    }
-                    else
-                    {
-                        value.Tracker = Tracker;
-                        Tracker.OnMappingPairChanged(this, _keys.IndexOf(key),
-                            new KeyValuePair<YamlElement, YamlElement?>(key, oldContents),
-                            new KeyValuePair<YamlElement, YamlElement?>(key, value));
-                    }
-                }
-            }
+        if (stringKeys != null && key is YamlValue value1)
+        {
+            stringKeys.Remove(value1.Value);
         }
 
-        /// <summary>Gets or sets an element at the specified index.</summary>
-        public YamlElement? this[string key]
+        if (Tracker != null)
         {
-            get
-            {
-                if (stringKeys == null)
-                    stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
+            IEnumerable<KeyValuePair<YamlElement, YamlElement?>>? nextChildren = null;
+            if (index < _contents.Count)
+                nextChildren = this.Skip(index);
 
-                if (!stringKeys.ContainsKey(key))
-                    return null;
-
-                return this[stringKeys[key]];
-            }
-            set
-            {
-                if (stringKeys == null)
-                    stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
-
-                if (!stringKeys.ContainsKey(key))
-                    stringKeys[key] = new YamlValue(key);
-
-                this[stringKeys[key]] = value;
-            }
+            Tracker.OnMappingRemovePair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value), index, nextChildren);
         }
+    }
 
-        /// <summary>Gets keys.</summary>
-        public ICollection<YamlElement> Keys { get { return _keys; } }
-        /// <summary>Gets values.</summary>
-        public ICollection<YamlElement?> Values { get { return _contents.Values; } }
-
-        /// <summary>Gets the zero-based index of the specified item.</summary>
-        public int IndexOf(KeyValuePair<YamlElement, YamlElement?> item)
+    /// <summary>Gets or sets an element at the specified index.</summary>
+    public KeyValuePair<YamlElement, YamlElement?> this[int index]
+    {
+        get { return new KeyValuePair<YamlElement, YamlElement?>(_keys[index], _contents[_keys[index]]); }
+        set
         {
-            return _keys.IndexOf(item.Key);
-        }
+            if (_keys[index] != value.Key && _contents.ContainsKey(value.Key))
+                throw new Exception("Key already present at a different index.");
 
-        /// <summary>Inserts an item at the specified index.</summary>
-        public void Insert(int index, KeyValuePair<YamlElement, YamlElement?> item)
-        {
-            if (_contents.ContainsKey(item.Key))
-                throw new Exception("Key already present.");
+            var oldKey = _keys[index];
+            var oldValue = _contents[oldKey];
 
-            _keys.Insert(index, item.Key);
-            _contents[item.Key] = item.Value;
+            if (_keys[index] != value.Key)
+            {
+                _contents.Remove(_keys[index]);
+            }
 
-            if (stringKeys != null && item.Key is YamlValue yamlValue)
+            if (stringKeys != null && oldKey is YamlValue yamlValue)
             {
                 stringKeys[yamlValue.Value] = yamlValue;
             }
 
-            if (Tracker != null)
+            if (stringKeys != null && value.Key is YamlValue key)
             {
-                item.Key.Tracker = Tracker;
-                item.Value.Tracker = Tracker;
-
-                ICollection<KeyValuePair<YamlElement, YamlElement?>>? nextChildren = null;
-                if (index < _contents.Count - 1)
-                    nextChildren = this.Skip(index + 1).ToArray();
-
-                Tracker.OnMappingAddPair(this, item, index, nextChildren);
+                stringKeys[key.Value] = key;
             }
-        }
 
-        /// <summary>Removes at.</summary>
-        public void RemoveAt(int index)
-        {
-            var key = _keys[index];
-            var value = _contents[key];
+            _keys[index] = value.Key;
+            _contents[value.Key] = value.Value;
 
-            _keys.RemoveAt(index);
-            _contents.Remove(key);
-
-            if (stringKeys != null && key is YamlValue value1)
-            {
-                stringKeys.Remove(value1.Value);
-            }
 
             if (Tracker != null)
             {
-                IEnumerable<KeyValuePair<YamlElement, YamlElement?>>? nextChildren = null;
-                if (index < _contents.Count)
-                    nextChildren = this.Skip(index);
-
-                Tracker.OnMappingRemovePair(this, new KeyValuePair<YamlElement, YamlElement?>(key, value), index, nextChildren);
+                value.Key.Tracker = Tracker;
+                value.Value.Tracker = Tracker;
+                Tracker.OnMappingPairChanged(this, index,
+                    new KeyValuePair<YamlElement, YamlElement?>(oldKey, oldValue),
+                    value);
             }
         }
+    }
 
-        /// <summary>Gets or sets an element at the specified index.</summary>
-        public KeyValuePair<YamlElement, YamlElement?> this[int index]
-        {
-            get { return new KeyValuePair<YamlElement, YamlElement?>(_keys[index], _contents[_keys[index]]); }
-            set
-            {
-                if (_keys[index] != value.Key && _contents.ContainsKey(value.Key))
-                    throw new Exception("Key already present at a different index.");
+    /// <summary>Creates a deep clone of the current value.</summary>
+    public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
+    {
+        var keysClone = new List<YamlElement>(_keys.Count);
+        for (var i = 0; i < _keys.Count; i++)
+            keysClone.Add((YamlElement)_keys[i].DeepClone());
 
-                var oldKey = _keys[index];
-                var oldValue = _contents[oldKey];
+        var cloneContents = new Dictionary<YamlElement, YamlElement?>();
 
-                if (_keys[index] != value.Key)
-                {
-                    _contents.Remove(_keys[index]);
-                }
+        for (var i = 0; i < _keys.Count; i++)
+            cloneContents[keysClone[i]] = (YamlElement)_contents[_keys[i]].DeepClone();
 
-                if (stringKeys != null && oldKey is YamlValue yamlValue)
-                {
-                    stringKeys[yamlValue.Value] = yamlValue;
-                }
-
-                if (stringKeys != null && value.Key is YamlValue key)
-                {
-                    stringKeys[key.Value] = key;
-                }
-
-                _keys[index] = value.Key;
-                _contents[value.Key] = value.Value;
-
-
-                if (Tracker != null)
-                {
-                    value.Key.Tracker = Tracker;
-                    value.Value.Tracker = Tracker;
-                    Tracker.OnMappingPairChanged(this, index,
-                        new KeyValuePair<YamlElement, YamlElement?>(oldKey, oldValue),
-                        value);
-                }
-            }
-        }
-
-        /// <summary>Creates a deep clone of the current value.</summary>
-        public override YamlNode DeepClone(YamlNodeTracker? tracker = null)
-        {
-            var keysClone = new List<YamlElement>(_keys.Count);
-            for (var i = 0; i < _keys.Count; i++)
-                keysClone.Add((YamlElement)_keys[i].DeepClone());
-
-            var cloneContents = new Dictionary<YamlElement, YamlElement?>();
-
-            for (var i = 0; i < _keys.Count; i++)
-                cloneContents[keysClone[i]] = (YamlElement)_contents[_keys[i]].DeepClone();
-
-            return new YamlMapping(_mappingStart,
-                MappingEnd,
-                keysClone,
-                cloneContents,
-                tracker);
-        }
+        return new YamlMapping(_mappingStart,
+            MappingEnd,
+            keysClone,
+            cloneContents,
+            tracker);
     }
 }
