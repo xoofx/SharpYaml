@@ -165,8 +165,8 @@ var modelViaProperty = YamlSerializer.Deserialize(yamlViaProperty, context.MyMod
 var yamlFromContext = YamlSerializer.Serialize(model, typeof(MyModel), context);
 var modelFromContext = (MyModel?)YamlSerializer.Deserialize(yamlFromContext, typeof(MyModel), context);
 
-var yamlFromOptions = YamlSerializer.Serialize(model, context.Options);
-var modelFromOptions = YamlSerializer.Deserialize<MyModel>(yamlFromOptions, context.Options);
+var yamlFromOptions = YamlSerializer.Serialize(model, context.MyModel.Options);
+var modelFromOptions = YamlSerializer.Deserialize<MyModel>(yamlFromOptions, context.MyModel.Options);
 ```
 
 Generated type info property naming follows Json-style patterns:

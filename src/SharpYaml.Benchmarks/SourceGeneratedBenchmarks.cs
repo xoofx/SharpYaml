@@ -19,7 +19,7 @@ public class SourceGeneratedBenchmarks
         _document = BenchmarkDataFactory.CreateDocument(serviceCount: 200, endpointCountPerService: 12);
 
         _sharpYamlContext = SharpYamlBenchmarkContext.Default;
-        _sharpYamlTypeInfo = (SharpYaml.YamlTypeInfo<BenchmarkDocument>)_sharpYamlContext.GetTypeInfo(typeof(BenchmarkDocument), _sharpYamlContext.Options)!;
+        _sharpYamlTypeInfo = _sharpYamlContext.BenchmarkDocument;
 
         var yamlDotNetStaticContext = new YamlDotNetBenchmarkContext();
         _yamlDotNetStaticSerializer = new StaticSerializerBuilder(yamlDotNetStaticContext).Build();

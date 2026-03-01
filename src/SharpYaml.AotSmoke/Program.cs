@@ -3,7 +3,7 @@ using SharpYaml;
 using SharpYaml.Serialization;
 
 var context = SmokeYamlContext.Default;
-var typeInfo = context.GetTypeInfo<SmokeConfig>();
+var typeInfo = context.SmokeConfig;
 
 var yaml = YamlSerializer.Serialize(
     new SmokeConfig

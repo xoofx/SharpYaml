@@ -497,7 +497,12 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(reader);
         ArgumentGuard.ThrowIfNull(context);
 
-        var typeInfo = context.GetTypeInfo<T>();
+        var typeInfo = ResolveTypeInfo(context, typeof(T)) as YamlTypeInfo<T>;
+        if (typeInfo is null)
+        {
+            throw new InvalidOperationException($"No generated metadata is available for type '{typeof(T)}' on context '{context.GetType()}'.");
+        }
+
         return DeserializeCore(typeInfo, reader);
     }
 
@@ -1048,7 +1053,7 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(context);
         ArgumentGuard.ThrowIfNull(requestedType);
 
-        var typeInfo = context.GetTypeInfo(requestedType, context.Options);
+        var typeInfo = context.GetTypeInfo(requestedType, context.GeneratedOptions);
         if (typeInfo is not null)
         {
             return typeInfo;
@@ -1059,11 +1064,11 @@ public static class YamlSerializer
 
     private static YamlTypeInfo ResolveTypeInfo(YamlSerializerOptions options, Type requestedType)
     {
-        if (options.TypeInfoResolver is YamlSerializerContext context && !ReferenceEquals(options, context.Options))
+        if (options.TypeInfoResolver is YamlSerializerContext context && !ReferenceEquals(options, context.GeneratedOptions))
         {
             throw new InvalidOperationException(
                 $"The provided {nameof(YamlSerializerOptions)} instance does not match the options associated with the source-generated context '{context.GetType()}'. " +
-                $"Use the overloads that accept a {nameof(YamlSerializerContext)} directly, or pass '{context.GetType()}.{nameof(YamlSerializerContext.Options)}' as the options instance.");
+                $"Use the overloads that accept a {nameof(YamlSerializerContext)} or a {nameof(YamlTypeInfo)} directly.");
         }
 
         var typeInfo = options.TypeInfoResolver?.GetTypeInfo(requestedType, options);

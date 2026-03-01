@@ -581,11 +581,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("    public override global::SharpYaml.YamlTypeInfo? GetTypeInfo(global::System.Type type, global::SharpYaml.YamlSerializerOptions options)");
         builder.AppendLine("    {");
-        builder.AppendLine("        if (!global::System.Object.ReferenceEquals(options, Options))");
+        builder.AppendLine("        if (!global::System.Object.ReferenceEquals(options, GeneratedOptions))");
         builder.AppendLine("        {");
         builder.AppendLine("            throw new global::System.InvalidOperationException(");
         builder.AppendLine("                $\"The provided {nameof(global::SharpYaml.YamlSerializerOptions)} instance does not match the options associated with the context '{GetType()}'. \" +");
-        builder.AppendLine("                $\"Use the overloads that accept a {nameof(global::SharpYaml.Serialization.YamlSerializerContext)} directly, or pass '{GetType()}.{nameof(global::SharpYaml.Serialization.YamlSerializerContext.Options)}'.\");");
+        builder.AppendLine("                $\"Use the overloads that accept a {nameof(global::SharpYaml.Serialization.YamlSerializerContext)} or a {nameof(global::SharpYaml.YamlTypeInfo)} directly.\");");
         builder.AppendLine("        }");
         builder.AppendLine();
         builder.AppendLine("        if (!s_typeIndexByType.TryGetValue(type, out var index))");
@@ -610,7 +610,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             var propertyName = typeInfoPropertyNames[index];
             builder.Append("    public global::SharpYaml.YamlTypeInfo<").Append(serializableType).Append("> ").Append(propertyName).AppendLine();
             builder.AppendLine("    {");
-            builder.Append("        get => _typeInfo").Append(index).Append(" ??= new GeneratedTypeInfo").Append(index).AppendLine("(Options);");
+            builder.Append("        get => _typeInfo").Append(index).Append(" ??= new GeneratedTypeInfo").Append(index).AppendLine("(GeneratedOptions);");
             builder.AppendLine("    }");
             builder.AppendLine();
 
@@ -5845,7 +5845,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         usedNames.Add("Default");
-        usedNames.Add("Options");
+        usedNames.Add("GeneratedOptions");
         usedNames.Add("TypeInfo");
         usedNames.Add("GetTypeInfo");
 

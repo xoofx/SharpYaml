@@ -62,7 +62,7 @@ var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), MyYamlContext.Defau
 var roundTrip = YamlSerializer.Deserialize(yaml, typeof(MyConfig), MyYamlContext.Default);
 ```
 
-The generated context expects its own options instance to be used consistently. If you want to call an `options`-based overload, use `MyYamlContext.Default.Options`.
+Prefer the overloads that accept a `YamlSerializerContext` or a `YamlTypeInfo<T>` directly. This avoids reflection and works well with trimming and NativeAOT.
 
 ## Naming policy and generated code
 

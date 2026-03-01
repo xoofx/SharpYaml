@@ -438,7 +438,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextProvidesTypedMetadata()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedPerson>();
+        var typeInfo = context.GeneratedPerson;
         var yaml = YamlSerializer.Serialize(
             new GeneratedPerson
             {
@@ -466,7 +466,7 @@ public class YamlSerializerSourceGenerationTests
         };
 
         var context = TestYamlSerializerContext.Default;
-        var typeInfo = context.GetTypeInfo<GeneratedWellKnownScalars>();
+        var typeInfo = context.GeneratedWellKnownScalars;
 
         var yaml = YamlSerializer.Serialize(payload, typeInfo);
         var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
@@ -491,7 +491,7 @@ public class YamlSerializerSourceGenerationTests
         };
 
         var context = TestYamlSerializerContext.Default;
-        var typeInfo = context.GetTypeInfo<GeneratedModernScalars>();
+        var typeInfo = context.GeneratedModernScalars;
 
         var yaml = YamlSerializer.Serialize(payload, typeInfo);
         var roundTrip = YamlSerializer.Deserialize(yaml, typeInfo);
@@ -547,8 +547,8 @@ public class YamlSerializerSourceGenerationTests
                 },
             },
             typeof(GeneratedContainer),
-            context.Options);
-        var container = (GeneratedContainer?)YamlSerializer.Deserialize(yaml, typeof(GeneratedContainer), context.Options);
+            context);
+        var container = (GeneratedContainer?)YamlSerializer.Deserialize(yaml, typeof(GeneratedContainer), context);
 
         Assert.IsNotNull(container);
         Assert.IsNotNull(container.Person);
@@ -579,7 +579,7 @@ public class YamlSerializerSourceGenerationTests
     public void GenericSerializerUsesTypeInfoResolverFromContextOptions()
     {
         var context = TestYamlSerializerContext.Default;
-        var options = context.Options;
+        var options = context.GeneratedPerson.Options;
 
         var value = new GeneratedPerson
         {
@@ -600,7 +600,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextDefaultAppliesYamlSourceGenerationOptions()
     {
         var context = TestYamlSerializerContextWithOptions.Default;
-        var options = context.Options;
+        var options = context.GeneratedWithDefaultOptions.Options;
 
         Assert.IsFalse(options.WriteIndented);
         Assert.IsTrue(options.PropertyNameCaseInsensitive);
@@ -638,8 +638,9 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextOptionsCanRegisterConvertersAtBuildTime()
     {
         var context = TestYamlSerializerContextWithConverters.Default;
-        Assert.AreEqual(1, context.Options.Converters.Count);
-        Assert.IsInstanceOfType(context.Options.Converters[0], typeof(ConstantIntConverter));
+        var options = context.Int32.Options;
+        Assert.AreEqual(1, options.Converters.Count);
+        Assert.IsInstanceOfType(options.Converters[0], typeof(ConstantIntConverter));
 
         var yaml = YamlSerializer.Serialize(42, typeof(int), context);
         Assert.AreEqual("123\n", yaml);
@@ -652,7 +653,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextRoundTripsPrimitiveMembers()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedPrimitives>();
+        var typeInfo = context.GeneratedPrimitives;
 
         var value = new GeneratedPrimitives
         {
@@ -709,12 +710,12 @@ public class YamlSerializerSourceGenerationTests
     {
         var context = new TestYamlSerializerContext();
 
-        var enumTypeInfo = context.GetTypeInfo<GeneratedColor>();
+        var enumTypeInfo = context.GeneratedColor;
         var yamlEnum = YamlSerializer.Serialize(GeneratedColor.Red, enumTypeInfo);
         Assert.AreEqual("Red\n", yamlEnum);
         Assert.AreEqual(GeneratedColor.Red, YamlSerializer.Deserialize(yamlEnum, enumTypeInfo));
 
-        var nullableTypeInfo = context.GetTypeInfo<int?>();
+        var nullableTypeInfo = context.NullableInt32;
         var yamlValue = YamlSerializer.Serialize((int?)123, nullableTypeInfo);
         Assert.AreEqual("123\n", yamlValue);
         Assert.AreEqual(123, YamlSerializer.Deserialize(yamlValue, nullableTypeInfo));
@@ -728,7 +729,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextRoundTripsCollectionMembers()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedCollections>();
+        var typeInfo = context.GeneratedCollections;
 
         var value = new GeneratedCollections
         {
@@ -777,17 +778,17 @@ public class YamlSerializerSourceGenerationTests
     {
         var context = new TestYamlSerializerContext();
 
-        var listTypeInfo = context.GetTypeInfo<List<int>>();
+        var listTypeInfo = context.ListInt32;
         var yamlList = YamlSerializer.Serialize(new List<int> { 1, 2, 3 }, listTypeInfo);
         var list = YamlSerializer.Deserialize(yamlList, listTypeInfo);
         Assert.IsNotNull(list);
         CollectionAssert.AreEqual(new[] { 1, 2, 3 }, list);
 
-        var arrayTypeInfo = context.GetTypeInfo<int[]>();
+        var arrayTypeInfo = context.Int32Array;
         var yamlArray = YamlSerializer.Serialize(new[] { 4, 5 }, arrayTypeInfo);
         CollectionAssert.AreEqual(new[] { 4, 5 }, YamlSerializer.Deserialize(yamlArray, arrayTypeInfo));
 
-        var dictTypeInfo = context.GetTypeInfo<Dictionary<string, int>>();
+        var dictTypeInfo = context.DictionaryStringInt32;
         var yamlDict = YamlSerializer.Serialize(new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 }, dictTypeInfo);
         var dict = YamlSerializer.Deserialize(yamlDict, dictTypeInfo);
         Assert.IsNotNull(dict);
@@ -800,34 +801,34 @@ public class YamlSerializerSourceGenerationTests
     {
         var context = new TestYamlSerializerContext();
 
-        var readOnlyListTypeInfo = context.GetTypeInfo<IReadOnlyList<int>>();
+        var readOnlyListTypeInfo = context.IReadOnlyListInt32;
         var yamlReadOnly = YamlSerializer.Serialize((IReadOnlyList<int>)new List<int> { 1, 2 }, readOnlyListTypeInfo);
         var roundReadOnly = YamlSerializer.Deserialize(yamlReadOnly, readOnlyListTypeInfo);
         Assert.IsNotNull(roundReadOnly);
         Assert.AreEqual(2, roundReadOnly.Count);
         Assert.AreEqual(1, roundReadOnly[0]);
 
-        var setTypeInfo = context.GetTypeInfo<HashSet<int>>();
+        var setTypeInfo = context.HashSetInt32;
         var yamlSet = YamlSerializer.Serialize(new HashSet<int> { 1, 2, 1 }, setTypeInfo);
         var roundSet = YamlSerializer.Deserialize(yamlSet, setTypeInfo);
         Assert.IsNotNull(roundSet);
         Assert.AreEqual(2, roundSet.Count);
 
-        var dictTypeInfo = context.GetTypeInfo<Dictionary<int, int>>();
+        var dictTypeInfo = context.DictionaryInt32Int32;
         var yamlDict = YamlSerializer.Serialize(new Dictionary<int, int> { [1] = 2 }, dictTypeInfo);
         StringAssert.Contains(yamlDict, "1:");
         var roundDict = YamlSerializer.Deserialize(yamlDict, dictTypeInfo);
         Assert.IsNotNull(roundDict);
         Assert.AreEqual(2, roundDict[1]);
 
-        var enumDictTypeInfo = context.GetTypeInfo<IReadOnlyDictionary<GeneratedColor, int>>();
+        var enumDictTypeInfo = context.IReadOnlyDictionaryGeneratedColorInt32;
         var yamlEnumDict = YamlSerializer.Serialize((IReadOnlyDictionary<GeneratedColor, int>)new Dictionary<GeneratedColor, int> { [GeneratedColor.Red] = 1 }, enumDictTypeInfo);
         StringAssert.Contains(yamlEnumDict, "Red:");
         var roundEnumDict = YamlSerializer.Deserialize(yamlEnumDict, enumDictTypeInfo);
         Assert.IsNotNull(roundEnumDict);
         Assert.AreEqual(1, roundEnumDict[GeneratedColor.Red]);
 
-        var immutableArrayTypeInfo = context.GetTypeInfo<ImmutableArray<int>>();
+        var immutableArrayTypeInfo = context.ImmutableArrayInt32;
         var yamlImmutable = YamlSerializer.Serialize(ImmutableArray.Create(3, 4), immutableArrayTypeInfo);
         var roundImmutable = YamlSerializer.Deserialize(yamlImmutable, immutableArrayTypeInfo);
         Assert.AreEqual(2, roundImmutable.Length);
@@ -839,7 +840,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextRoundTripsAdditionalCollectionMembers()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedMoreCollections>();
+        var typeInfo = context.GeneratedMoreCollections;
 
         var value = new GeneratedMoreCollections
         {
@@ -892,7 +893,7 @@ public class YamlSerializerSourceGenerationTests
                 ],
             });
 
-        var primitivesTypeInfo = context.GetTypeInfo<GeneratedPrimitives>();
+        var primitivesTypeInfo = context.GeneratedPrimitives;
         var yaml = YamlSerializer.Serialize(new GeneratedPrimitives { Int32Value = 5 }, primitivesTypeInfo);
         StringAssert.Contains(yaml, "Int32Value: 123");
 
@@ -900,7 +901,7 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(roundtripped);
         Assert.AreEqual(123, roundtripped.Int32Value);
 
-        var listTypeInfo = context.GetTypeInfo<List<int>>();
+        var listTypeInfo = context.ListInt32;
         var yamlList = YamlSerializer.Serialize(new List<int> { 1, 2 }, listTypeInfo);
         StringAssert.Contains(yamlList, "- 123");
         var list = YamlSerializer.Deserialize(yamlList, listTypeInfo);
@@ -920,7 +921,7 @@ public class YamlSerializerSourceGenerationTests
         var shared = new GeneratedReferenceNode { Name = "shared" };
         var container = new GeneratedReferenceContainer { First = shared, Second = shared };
 
-        var typeInfo = context.GetTypeInfo<GeneratedReferenceContainer>();
+        var typeInfo = context.GeneratedReferenceContainer;
         var yaml = YamlSerializer.Serialize(container, typeInfo);
         StringAssert.Contains(yaml, "&id002");
         StringAssert.Contains(yaml, "*id002");
@@ -945,7 +946,7 @@ public class YamlSerializerSourceGenerationTests
         var node = new GeneratedReferenceNode { Name = "self" };
         node.Next = node;
 
-        var typeInfo = context.GetTypeInfo<GeneratedReferenceNode>();
+        var typeInfo = context.GeneratedReferenceNode;
         var yaml = YamlSerializer.Serialize(node, typeInfo);
         StringAssert.Contains(yaml, "&id001");
         StringAssert.Contains(yaml, "*id001");
@@ -961,7 +962,7 @@ public class YamlSerializerSourceGenerationTests
     {
         var context = new TestYamlSerializerContext();
 
-        var typeInfo = context.GetTypeInfo<GeneratedZoo>();
+        var typeInfo = context.GeneratedZoo;
         var yaml = YamlSerializer.Serialize(
             new GeneratedZoo
             {
@@ -985,7 +986,7 @@ public class YamlSerializerSourceGenerationTests
     {
         var context = new TestYamlSerializerContext();
 
-        var typeInfo = context.GetTypeInfo<GeneratedTaggedZoo>();
+        var typeInfo = context.GeneratedTaggedZoo;
         var yaml = YamlSerializer.Serialize(
             new GeneratedTaggedZoo
             {
@@ -1013,7 +1014,7 @@ public class YamlSerializerSourceGenerationTests
                 SourceName = "generated.yaml",
             });
 
-        var typeInfo = context.GetTypeInfo<GeneratedPerson>();
+        var typeInfo = context.GeneratedPerson;
         var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("123", typeInfo));
         Assert.AreEqual("generated.yaml", exception.SourceName);
         StringAssert.Contains(exception.Message, "Lin:");
@@ -1024,7 +1025,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextInvokesLifecycleCallbacks()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedLifecycleCallbacks>();
+        var typeInfo = context.GeneratedLifecycleCallbacks;
 
         var value = new GeneratedLifecycleCallbacks { Value = 7 };
         var yaml = YamlSerializer.Serialize(value, typeInfo);
@@ -1044,7 +1045,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextHonorsYamlRequiredAttribute()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedRequiredPayload>();
+        var typeInfo = context.GeneratedRequiredPayload;
 
         var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Other: 1", typeInfo));
         StringAssert.Contains(exception.Message, "RequiredValue");
@@ -1054,7 +1055,7 @@ public class YamlSerializerSourceGenerationTests
     public void GeneratedContextSupportsYamlExtensionDataDictionary()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedExtensionDataDictionaryPayload>();
+        var typeInfo = context.GeneratedExtensionDataDictionaryPayload;
 
         var yaml = """
 Known: 2
@@ -1086,7 +1087,7 @@ extra_list:
     public void GeneratedContextSupportsYamlExtensionDataMapping()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedExtensionDataMappingPayload>();
+        var typeInfo = context.GeneratedExtensionDataMappingPayload;
 
         var roundtripped = YamlSerializer.Deserialize("a: 1", typeInfo);
         Assert.IsNotNull(roundtripped);
@@ -1110,7 +1111,7 @@ extra_list:
     public void GeneratedContextHonorsYamlConverterAttributeOnMember()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedMemberConverterPayload>();
+        var typeInfo = context.GeneratedMemberConverterPayload;
 
         var yaml = YamlSerializer.Serialize(new GeneratedMemberConverterPayload { Value = 5 }, typeInfo);
         StringAssert.Contains(yaml, "Value: 123");
@@ -1124,7 +1125,7 @@ extra_list:
     public void GeneratedContextHonorsYamlConverterAttributeOnType()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedTypeWithConverter>();
+        var typeInfo = context.GeneratedTypeWithConverter;
 
         var yaml = YamlSerializer.Serialize(new GeneratedTypeWithConverter { Value = 5 }, typeInfo);
         Assert.IsFalse(yaml.Contains("Value:", StringComparison.Ordinal));
@@ -1139,7 +1140,7 @@ extra_list:
     public void GeneratedContextUsesYamlConstructor()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedYamlCtorModel>();
+        var typeInfo = context.GeneratedYamlCtorModel;
 
         var value = YamlSerializer.Deserialize("Name: Bob\nAge: 42\n", typeInfo);
 
@@ -1152,7 +1153,7 @@ extra_list:
     public void GeneratedContextUsesJsonConstructor()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedJsonCtorModel>();
+        var typeInfo = context.GeneratedJsonCtorModel;
 
         var value = YamlSerializer.Deserialize("Name: Bob\nAge: 42\n", typeInfo);
 
@@ -1165,7 +1166,7 @@ extra_list:
     public void GeneratedContextThrowsWhenConstructorParameterMissing()
     {
         var context = new TestYamlSerializerContext();
-        var typeInfo = context.GetTypeInfo<GeneratedYamlCtorModel>();
+        var typeInfo = context.GeneratedYamlCtorModel;
 
         var ex = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Name: Bob\n", typeInfo));
         StringAssert.Contains(ex.Message, "age");

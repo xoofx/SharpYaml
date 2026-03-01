@@ -29,7 +29,7 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
 
         if (options.TypeInfoResolver is null)
         {
-            Options = options with { TypeInfoResolver = this };
+            GeneratedOptions = options with { TypeInfoResolver = this };
             return;
         }
 
@@ -41,30 +41,16 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
                 nameof(options));
         }
 
-        Options = options;
+        GeneratedOptions = options;
     }
 
     /// <summary>
-    /// Gets the options associated with this context.
+    /// Gets the options instance associated with this context.
     /// </summary>
-    public YamlSerializerOptions Options { get; }
-
-    /// <summary>
-    /// Gets typed metadata for a CLR type handled by this context.
-    /// </summary>
-    /// <typeparam name="T">The CLR type to resolve.</typeparam>
-    /// <returns>The resolved metadata.</returns>
-    /// <exception cref="InvalidOperationException">No metadata is available for <typeparamref name="T"/>.</exception>
-    public YamlTypeInfo<T> GetTypeInfo<T>()
-    {
-        var typeInfo = GetTypeInfo(typeof(T), Options) as YamlTypeInfo<T>;
-        if (typeInfo is null)
-        {
-            throw new InvalidOperationException($"No generated metadata is available for type '{typeof(T)}' on context '{GetType()}'.");
-        }
-
-        return typeInfo;
-    }
+    /// <remarks>
+    /// This is the options instance used by generated metadata properties on the context.
+    /// </remarks>
+    protected internal YamlSerializerOptions GeneratedOptions { get; }
 
     /// <inheritdoc />
     public abstract YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options);

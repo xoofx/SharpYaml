@@ -119,9 +119,4 @@ var yaml = YamlSerializer.Serialize(value, MyYamlContext.Default.MyConfig);
 var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), MyYamlContext.Default);
 ```
 
-3. Use the context's options instance (when you need to call an `options`-based overload).
-
-```csharp
-var options = MyYamlContext.Default.Options;
-var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), options);
-```
+Prefer the overloads that accept a `YamlSerializerContext` or a `YamlTypeInfo<T>` directly to avoid reflection and reduce configuration overhead.
