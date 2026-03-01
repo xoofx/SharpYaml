@@ -221,7 +221,9 @@ public static class YamlSerializer
     public static T? Deserialize<T>(TextReader reader, YamlSerializerOptions? options = null)
     {
         ArgumentGuard.ThrowIfNull(reader);
-        return Deserialize<T>(reader.ReadToEnd(), options);
+        var effectiveOptions = options ?? YamlSerializerOptions.Default;
+        var typeInfo = ResolveTypeInfo(effectiveOptions, typeof(T));
+        return (T?)DeserializeCore(typeInfo, reader);
     }
 
     /// <summary>
@@ -236,7 +238,10 @@ public static class YamlSerializer
     public static T? Deserialize<T>(TextReader reader, YamlSerializerContext context)
     {
         ArgumentGuard.ThrowIfNull(reader);
-        return Deserialize<T>(reader.ReadToEnd(), context);
+        ArgumentGuard.ThrowIfNull(context);
+
+        var typeInfo = context.GetTypeInfo<T>();
+        return DeserializeCore(typeInfo, reader);
     }
 
     /// <summary>
@@ -250,7 +255,11 @@ public static class YamlSerializer
     public static object? Deserialize(TextReader reader, Type returnType, YamlSerializerOptions? options = null)
     {
         ArgumentGuard.ThrowIfNull(reader);
-        return Deserialize(reader.ReadToEnd(), returnType, options);
+        ArgumentGuard.ThrowIfNull(returnType);
+
+        var effectiveOptions = options ?? YamlSerializerOptions.Default;
+        var typeInfo = ResolveTypeInfo(effectiveOptions, returnType);
+        return DeserializeCore(typeInfo, reader);
     }
 
     /// <summary>
@@ -265,7 +274,11 @@ public static class YamlSerializer
     public static object? Deserialize(TextReader reader, Type returnType, YamlSerializerContext context)
     {
         ArgumentGuard.ThrowIfNull(reader);
-        return Deserialize(reader.ReadToEnd(), returnType, context);
+        ArgumentGuard.ThrowIfNull(returnType);
+        ArgumentGuard.ThrowIfNull(context);
+
+        var typeInfo = ResolveTypeInfo(context, returnType);
+        return DeserializeCore(typeInfo, reader);
     }
 
     /// <summary>
@@ -421,6 +434,34 @@ public static class YamlSerializer
         }
 
         return typeInfo.Read(reader);
+    }
+
+    private static object? DeserializeCore(YamlTypeInfo typeInfo, TextReader reader)
+    {
+        ArgumentGuard.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(reader);
+
+        var yamlReader = YamlReader.Create(reader, typeInfo.Options);
+        if (!yamlReader.Read())
+        {
+            return null;
+        }
+
+        return typeInfo.ReadAsObject(yamlReader);
+    }
+
+    private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, TextReader reader)
+    {
+        ArgumentGuard.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(reader);
+
+        var yamlReader = YamlReader.Create(reader, typeInfo.Options);
+        if (!yamlReader.Read())
+        {
+            return default;
+        }
+
+        return typeInfo.Read(yamlReader);
     }
 
     private static StringBuilder AcquireStringBuilder(int minimumCapacity)
