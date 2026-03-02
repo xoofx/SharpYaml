@@ -332,9 +332,8 @@ public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement?>
     {
         get
         {
-            if (!_contents.ContainsKey(key))
-                return null;
-            return _contents[key];
+            _contents.TryGetValue(key, out var item);
+            return item;
         }
         set
         {
@@ -391,10 +390,10 @@ public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement?>
             if (stringKeys == null)
                 stringKeys = Keys.OfType<YamlValue>().ToDictionary(k => k.Value, k => k);
 
-            if (!stringKeys.ContainsKey(key))
+            if (!stringKeys.TryGetValue(key, out var stringKey))
                 return null;
 
-            return this[stringKeys[key]];
+            return this[stringKey];
         }
         set
         {
