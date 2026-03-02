@@ -147,7 +147,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             var compilation = input.Left;
             var models = input.Right;
 
-            var byMetadataName = new Dictionary<string, ContextModel>(StringComparer.Ordinal);
+            var byMetadataName = new Dictionary<string, ContextModel>(models.Length, StringComparer.Ordinal);
             foreach (var model in models)
             {
                 byMetadataName[model.ContextSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)] = model;
@@ -244,7 +244,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         var resolvedTypes = ExpandSerializableTypes(model.SerializableTypes);
 
-        var indexByType = new Dictionary<ITypeSymbol, int>(SymbolEqualityComparer.Default);
+        var indexByType = new Dictionary<ITypeSymbol, int>(resolvedTypes.Length, SymbolEqualityComparer.Default);
         for (var i = 0; i < resolvedTypes.Length; i++)
         {
             indexByType[resolvedTypes[i]] = i;
@@ -1703,7 +1703,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         var requiredMembers = members.Where(static m => m.IsRequired).ToArray();
-        var requiredVarBySymbol = new Dictionary<ISymbol, string>(SymbolEqualityComparer.Default);
+        var requiredVarBySymbol = new Dictionary<ISymbol, string>(requiredMembers.Length, SymbolEqualityComparer.Default);
         for (var i = 0; i < requiredMembers.Length; i++)
         {
             requiredVarBySymbol[requiredMembers[i].Symbol] = $"__required{index}_{requiredMembers[i].Symbol.Name}";
@@ -1714,8 +1714,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             .Where(m => IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol))
             .ToArray();
 
-        var bufferedMemberValueVarNames = new Dictionary<ISymbol, string>(SymbolEqualityComparer.Default);
-        var bufferedMemberSeenVarNames = new Dictionary<ISymbol, string>(SymbolEqualityComparer.Default);
+        var bufferedMemberValueVarNames = new Dictionary<ISymbol, string>(bufferedMembers.Length, SymbolEqualityComparer.Default);
+        var bufferedMemberSeenVarNames = new Dictionary<ISymbol, string>(bufferedMembers.Length, SymbolEqualityComparer.Default);
 
         for (var i = 0; i < bufferedMembers.Length; i++)
         {
