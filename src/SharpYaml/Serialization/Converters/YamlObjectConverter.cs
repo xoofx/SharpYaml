@@ -1284,7 +1284,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 return nameCompare != 0 ? nameCompare : x.DeclarationOrder.CompareTo(y.DeclarationOrder);
             });
 
-            var map = new Dictionary<string, Member>(readerWriter.PropertyNameComparer);
+            var map = new Dictionary<string, Member>(membersDeclaration.Length, readerWriter.PropertyNameComparer);
             for (var i = 0; i < membersDeclaration.Length; i++)
             {
                 var member = membersDeclaration[i];
