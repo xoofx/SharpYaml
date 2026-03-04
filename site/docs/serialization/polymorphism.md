@@ -8,7 +8,7 @@ It also supports YAML tags as an alternative discriminator style.
 
 ## JSON-like discriminator property
 
-Use `JsonPolymorphicAttribute` and `JsonDerivedTypeAttribute`:
+Use [`JsonPolymorphicAttribute`](xref:System.Text.Json.Serialization.JsonPolymorphicAttribute) and [`JsonDerivedTypeAttribute`](xref:System.Text.Json.Serialization.JsonDerivedTypeAttribute):
 
 ```csharp
 using System.Text.Json.Serialization;
@@ -31,7 +31,7 @@ Name: Rex
 
 ## YAML tag discriminator
 
-Use `YamlPolymorphicAttribute` and `YamlDerivedTypeAttribute`:
+Use [`YamlPolymorphicAttribute`](xref:SharpYaml.Serialization.YamlPolymorphicAttribute) and [`YamlDerivedTypeAttribute`](xref:SharpYaml.Serialization.YamlDerivedTypeAttribute):
 
 ```csharp
 using SharpYaml.Serialization;
@@ -46,5 +46,4 @@ public abstract class TaggedAnimal
 ## Notes
 
 - For safety, runtime activation from tag type names is disabled by default.
-- When using tags, prefer an explicit registry (`YamlDerivedType`/`JsonDerivedType`) over free-form type names.
-
+- When using tags, prefer an explicit registry ([`YamlDerivedTypeAttribute`](xref:SharpYaml.Serialization.YamlDerivedTypeAttribute) / [`JsonDerivedTypeAttribute`](xref:System.Text.Json.Serialization.JsonDerivedTypeAttribute)) over free-form type names.

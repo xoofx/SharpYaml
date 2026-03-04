@@ -10,20 +10,20 @@ Member-level attributes:
 
 | Attribute | Reflection | Source generated | Notes |
 | --- | --- | --- |
-| `JsonPropertyNameAttribute` | Yes | Yes | Overrides the serialized name. |
-| `JsonIgnoreAttribute` | Yes | Yes | Supports `Always`, `Never`, `WhenWritingNull`, `WhenWritingDefault`. |
-| `JsonIncludeAttribute` | Yes | Yes | Enables non-public members in supported scenarios. |
-| `JsonPropertyOrderAttribute` | Yes | Yes | Controls member ordering within mappings. |
-| `JsonRequiredAttribute` | Yes | Yes | Missing required members throw `YamlException`. |
-| `JsonExtensionDataAttribute` | Yes | Yes | Supports dictionary- and mapping-based extension data. |
+| [`JsonPropertyNameAttribute`](xref:System.Text.Json.Serialization.JsonPropertyNameAttribute) | Yes | Yes | Overrides the serialized name. |
+| [`JsonIgnoreAttribute`](xref:System.Text.Json.Serialization.JsonIgnoreAttribute) | Yes | Yes | Supports `Always`, `Never`, `WhenWritingNull`, `WhenWritingDefault`. |
+| [`JsonIncludeAttribute`](xref:System.Text.Json.Serialization.JsonIncludeAttribute) | Yes | Yes | Enables non-public members in supported scenarios. |
+| [`JsonPropertyOrderAttribute`](xref:System.Text.Json.Serialization.JsonPropertyOrderAttribute) | Yes | Yes | Controls member ordering within mappings. |
+| [`JsonRequiredAttribute`](xref:System.Text.Json.Serialization.JsonRequiredAttribute) | Yes | Yes | Missing required members throw [`YamlException`](xref:SharpYaml.YamlException). |
+| [`JsonExtensionDataAttribute`](xref:System.Text.Json.Serialization.JsonExtensionDataAttribute) | Yes | Yes | Supports dictionary- and mapping-based extension data. |
 
 Type-level attributes:
 
 | Attribute | Reflection | Source generated | Notes |
 | --- | --- | --- |
-| `JsonConstructorAttribute` | Yes | Yes | Selects which constructor to use for deserialization. |
-| `JsonPolymorphicAttribute` | Yes | Yes | Supported via discriminator properties (JSON-like). |
-| `JsonDerivedTypeAttribute` | Yes | Yes | Registers derived types and discriminators. |
+| [`JsonConstructorAttribute`](xref:System.Text.Json.Serialization.JsonConstructorAttribute) | Yes | Yes | Selects which constructor to use for deserialization. |
+| [`JsonPolymorphicAttribute`](xref:System.Text.Json.Serialization.JsonPolymorphicAttribute) | Yes | Yes | Supported via discriminator properties (JSON-like). |
+| [`JsonDerivedTypeAttribute`](xref:System.Text.Json.Serialization.JsonDerivedTypeAttribute) | Yes | Yes | Registers derived types and discriminators. |
 
 ## Unsupported JSON attributes
 
@@ -31,7 +31,7 @@ The following JSON attributes are not currently supported by SharpYaml:
 
 | Attribute | Alternative |
 | --- | --- |
-| `JsonConverterAttribute` | Use `YamlConverterAttribute` or register converters via options. |
+| [`JsonConverterAttribute`](xref:System.Text.Json.Serialization.JsonConverterAttribute) | Use [`YamlConverterAttribute`](xref:SharpYaml.Serialization.YamlConverterAttribute) or register converters via options. |
 | Converter-specific attributes (number handling, etc.) | Use converters. |
 
 ## Precedence rules

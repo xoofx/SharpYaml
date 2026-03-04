@@ -65,6 +65,6 @@ For non-string dictionary keys, SharpYaml currently supports **scalar** mapping 
 
 For custom types, SharpYaml uses an object converter that maps members to mapping keys. You can control this with:
 
-- naming policies (`PropertyNamingPolicy`)
-- JSON/YAML attributes (for example `[JsonPropertyName]`, `[YamlPropertyName]`)
-- converters (`YamlConverter<T>` and `YamlConverterAttribute`)
+- naming policies ([`YamlSerializerOptions.PropertyNamingPolicy`](xref:SharpYaml.YamlSerializerOptions.PropertyNamingPolicy))
+- JSON/YAML attributes (for example [`JsonPropertyNameAttribute`](xref:System.Text.Json.Serialization.JsonPropertyNameAttribute), [`YamlPropertyNameAttribute`](xref:SharpYaml.Serialization.YamlPropertyNameAttribute))
+- converters ([`YamlConverter<T>`](xref:SharpYaml.Serialization.YamlConverter`1) and [`YamlConverterAttribute`](xref:SharpYaml.Serialization.YamlConverterAttribute))

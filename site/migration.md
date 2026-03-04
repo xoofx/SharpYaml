@@ -42,12 +42,12 @@ The following legacy APIs are no longer public in v3:
 
 Use these replacements:
 
-- `YamlMemberAttribute` -> `YamlPropertyNameAttribute` and/or `YamlPropertyOrderAttribute`
+- `YamlMemberAttribute` -> [`YamlPropertyNameAttribute`](xref:SharpYaml.Serialization.YamlPropertyNameAttribute) and/or [`YamlPropertyOrderAttribute`](xref:SharpYaml.Serialization.YamlPropertyOrderAttribute)
 - `YamlIgnoreAttribute` -> `YamlIgnoreAttribute` (kept)
-- private-member inclusion via `YamlIncludeAttribute` or `JsonIncludeAttribute`
+- private-member inclusion via [`YamlIncludeAttribute`](xref:SharpYaml.Serialization.YamlIncludeAttribute) or [`JsonIncludeAttribute`](xref:System.Text.Json.Serialization.JsonIncludeAttribute)
 - polymorphism:
-- `JsonPolymorphicAttribute`, `JsonDerivedTypeAttribute`
-- or `YamlPolymorphicAttribute`, `YamlDerivedTypeAttribute`
+- [`JsonPolymorphicAttribute`](xref:System.Text.Json.Serialization.JsonPolymorphicAttribute), [`JsonDerivedTypeAttribute`](xref:System.Text.Json.Serialization.JsonDerivedTypeAttribute)
+- or [`YamlPolymorphicAttribute`](xref:SharpYaml.Serialization.YamlPolymorphicAttribute), [`YamlDerivedTypeAttribute`](xref:SharpYaml.Serialization.YamlDerivedTypeAttribute)
 
 Removed legacy attributes:
 
@@ -60,10 +60,10 @@ Removed legacy attributes:
 
 v3 supports key `System.Text.Json.Serialization` attributes directly for member mapping:
 
-- `JsonPropertyName`
-- `JsonPropertyOrder`
-- `JsonIgnore`
-- `JsonInclude`
+- [`JsonPropertyNameAttribute`](xref:System.Text.Json.Serialization.JsonPropertyNameAttribute)
+- [`JsonPropertyOrderAttribute`](xref:System.Text.Json.Serialization.JsonPropertyOrderAttribute)
+- [`JsonIgnoreAttribute`](xref:System.Text.Json.Serialization.JsonIgnoreAttribute)
+- [`JsonIncludeAttribute`](xref:System.Text.Json.Serialization.JsonIncludeAttribute)
 
 YAML-specific attributes take precedence when both are present.
 
@@ -75,12 +75,12 @@ Reflection fallback is available by default and can be disabled:
 AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", false);
 ```
 
-When disabled, POCO/object mapping requires metadata via `YamlSerializerOptions.TypeInfoResolver` (typically from a `YamlSerializerContext`).
+When disabled, POCO/object mapping requires metadata via [`YamlSerializerOptions.TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver) (typically from a [`YamlSerializerContext`](xref:SharpYaml.Serialization.YamlSerializerContext)).
 Built-in primitives and untyped containers remain supported without reflection.
 
 ## Source Generation
 
-Create a context class and declare serializable roots with `JsonSerializable`:
+Create a context class and declare serializable roots with [`JsonSerializableAttribute`](xref:System.Text.Json.Serialization.JsonSerializableAttribute):
 
 ```csharp
 using System.Text.Json.Serialization;
@@ -102,5 +102,5 @@ var model = YamlSerializer.Deserialize(yaml, context.MyType);
 
 ## Low-Level Roundtrip vs Object Mapping
 
-- Use `SharpYaml.Syntax` for lossless roundtrip and source span tooling.
-- `YamlSerializer` maps to .NET objects and does not preserve formatting/comments.
+- Use the syntax APIs (for example [`YamlSyntaxTree`](xref:SharpYaml.Syntax.YamlSyntaxTree)) for lossless roundtrip and source span tooling.
+- [`YamlSerializer`](xref:SharpYaml.YamlSerializer) maps to .NET objects and does not preserve formatting/comments.

@@ -62,5 +62,4 @@ name: a
 name: b
 ```
 
-SharpYaml can parse a stream into a syntax tree/model. The object serializer (`YamlSerializer`) focuses on mapping one document into a .NET object.
-
+SharpYaml can parse a stream into a syntax tree/model. The object serializer ([`YamlSerializer`](xref:SharpYaml.YamlSerializer)) focuses on mapping one document into a .NET object.

@@ -12,7 +12,7 @@ If you are using object mapping, you rarely need the emitter directly. The emitt
 
 ## Emitting a mapping
 
-The `Emitter` consumes `SharpYaml.Events.ParsingEvent` instances.
+The [`Emitter`](xref:SharpYaml.Emitter) consumes [`ParsingEvent`](xref:SharpYaml.Events.ParsingEvent) instances.
 
 ```csharp
 using System.IO;
@@ -41,7 +41,7 @@ var yaml = writer.ToString();
 
 ## Emitting a model
 
-If you are using the model layer (`SharpYaml.Model`), you can write it back through the emitter:
+If you are using the model layer (for example [`YamlStream`](xref:SharpYaml.Model.YamlStream)), you can write it back through the emitter:
 
 ```csharp
 using SharpYaml.Model;
@@ -57,8 +57,8 @@ doc.WriteTo(sb);
 
 Emission is influenced by options such as:
 
-- indentation (`WriteIndented`, `IndentSize`)
-- mapping ordering (`MappingOrder`)
-- scalar style preferences (`ScalarStylePreferences`)
+- indentation ([`YamlSerializerOptions.WriteIndented`](xref:SharpYaml.YamlSerializerOptions.WriteIndented), [`YamlSerializerOptions.IndentSize`](xref:SharpYaml.YamlSerializerOptions.IndentSize))
+- mapping ordering ([`YamlSerializerOptions.MappingOrder`](xref:SharpYaml.YamlSerializerOptions.MappingOrder))
+- scalar style preferences ([`YamlSerializerOptions.ScalarStylePreferences`](xref:SharpYaml.YamlSerializerOptions.ScalarStylePreferences))
 
-For object mapping, these are configured through `YamlSerializerOptions`. For low-level emission, the emitter has its own tuning knobs (canonical mode, indentation, width).
+For object mapping, these are configured through [`YamlSerializerOptions`](xref:SharpYaml.YamlSerializerOptions). For low-level emission, the emitter has its own tuning knobs (canonical mode, indentation, width).

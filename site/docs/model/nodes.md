@@ -4,15 +4,15 @@ title: Nodes and values
 
 The model layer represents YAML content as nodes:
 
-- `YamlValue` for scalar values
-- `YamlMapping` for mappings (key/value pairs)
-- `YamlSequence` for sequences (lists)
+- [`YamlValue`](xref:SharpYaml.Model.YamlValue) for scalar values
+- [`YamlMapping`](xref:SharpYaml.Model.YamlMapping) for mappings (key/value pairs)
+- [`YamlSequence`](xref:SharpYaml.Model.YamlSequence) for sequences (lists)
 
 This is useful for:
 
 - reading YAML without binding to a fixed CLR type
 - building YAML programmatically
-- representing extension data (`YamlExtensionData`) as a mapping
+- representing extension data (captured via [`YamlExtensionDataAttribute`](xref:SharpYaml.Serialization.YamlExtensionDataAttribute)) as a mapping
 
 ## Load and inspect YAML
 
@@ -46,7 +46,7 @@ var yaml = doc.ToString();
 
 ## Bridge to object mapping
 
-The model layer has helper APIs that go through `YamlSerializer`:
+The model layer has helper APIs that go through [`YamlSerializer`](xref:SharpYaml.YamlSerializer):
 
 ```csharp
 var element = YamlNode.FromObject(new { Name = "Ada" });

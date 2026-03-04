@@ -14,7 +14,7 @@ Use source generation when:
 
 ## Define a context
 
-SharpYaml reuses `System.Text.Json.Serialization` generation attributes.
+SharpYaml reuses `System.Text.Json.Serialization` generation attributes such as [`JsonSerializableAttribute`](xref:System.Text.Json.Serialization.JsonSerializableAttribute).
 
 ```csharp
 using System.Text.Json.Serialization;
@@ -34,7 +34,7 @@ The context type must be `partial` so the generator can add metadata properties.
 
 ## Compile-time options
 
-Use `YamlSourceGenerationOptionsAttribute` to fix a context's default `YamlSerializerOptions` at build time (including converter registration):
+Use [`YamlSourceGenerationOptionsAttribute`](xref:SharpYaml.Serialization.YamlSourceGenerationOptionsAttribute) to fix a context's default [`YamlSerializerOptions`](xref:SharpYaml.YamlSerializerOptions) at build time (including converter registration):
 
 ```csharp
 [YamlSourceGenerationOptions(
@@ -48,7 +48,7 @@ internal partial class MyYamlContext : YamlSerializerContext
 
 ## Use generated metadata
 
-Use the generated `YamlTypeInfo<T>` properties (recommended):
+Use the generated [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) properties (recommended):
 
 ```csharp
 var yaml = YamlSerializer.Serialize(value, MyYamlContext.Default.MyConfig);
@@ -62,14 +62,14 @@ var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), MyYamlContext.Defau
 var roundTrip = YamlSerializer.Deserialize(yaml, typeof(MyConfig), MyYamlContext.Default);
 ```
 
-Prefer the overloads that accept a `YamlSerializerContext` or a `YamlTypeInfo<T>` directly. This avoids reflection and works well with trimming and NativeAOT.
+Prefer the overloads that accept a [`YamlSerializerContext`](xref:SharpYaml.Serialization.YamlSerializerContext) or a [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) directly. This avoids reflection and works well with trimming and NativeAOT.
 
 ## Naming policy and generated code
 
 For source generation, member names are resolved at build time using:
 
-- `YamlPropertyNameAttribute` / `JsonPropertyNameAttribute` when present (these override naming policies)
-- otherwise, `YamlSourceGenerationOptionsAttribute.PropertyNamingPolicy` (or no policy when unspecified)
+- [`YamlPropertyNameAttribute`](xref:SharpYaml.Serialization.YamlPropertyNameAttribute) / [`JsonPropertyNameAttribute`](xref:System.Text.Json.Serialization.JsonPropertyNameAttribute) when present (these override naming policies)
+- otherwise, [`YamlSourceGenerationOptionsAttribute.PropertyNamingPolicy`](xref:SharpYaml.Serialization.YamlSourceGenerationOptionsAttribute.PropertyNamingPolicy) (or no policy when unspecified)
 
 The generated serializer stores the resolved names directly and does not call `ConvertName(...)` at runtime for object members.
 
@@ -81,7 +81,7 @@ Reflection fallback can be disabled globally before first serializer use:
 AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", false);
 ```
 
-When reflection is disabled, you must provide metadata via `YamlTypeInfo<T>` or `YamlSerializerOptions.TypeInfoResolver`.
+When reflection is disabled, you must provide metadata via [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) or [`YamlSerializerOptions.TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver).
 This applies to .NET object mapping (POCOs, collections of POCOs, etc.).
 Built-in primitives and untyped containers remain supported without reflection.
 

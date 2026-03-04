@@ -2,7 +2,7 @@
 title: YamlSerializer and options
 ---
 
-SharpYaml provides a `System.Text.Json`-style serialization API.
+SharpYaml provides a [`JsonSerializer`](xref:System.Text.Json.JsonSerializer)-style serialization API.
 
 ## Basic usage
 
@@ -41,15 +41,15 @@ var yaml = new string(buffer.WrittenSpan);
 
 ## Options
 
-`YamlSerializerOptions` is immutable and can be cached and reused.
+[`YamlSerializerOptions`](xref:SharpYaml.YamlSerializerOptions) is immutable and can be cached and reused.
 
 Common options:
 
-- `PropertyNamingPolicy` and `DictionaryKeyPolicy` (`System.Text.Json.JsonNamingPolicy`)
-- `WriteIndented` and `IndentSize`
-- `DefaultIgnoreCondition`
-- `PropertyNameCaseInsensitive`
-- `ReferenceHandling` (anchors/aliases)
+- [`PropertyNamingPolicy`](xref:SharpYaml.YamlSerializerOptions.PropertyNamingPolicy) and [`DictionaryKeyPolicy`](xref:SharpYaml.YamlSerializerOptions.DictionaryKeyPolicy) ([`JsonNamingPolicy`](xref:System.Text.Json.JsonNamingPolicy))
+- [`WriteIndented`](xref:SharpYaml.YamlSerializerOptions.WriteIndented) and [`IndentSize`](xref:SharpYaml.YamlSerializerOptions.IndentSize)
+- [`DefaultIgnoreCondition`](xref:SharpYaml.YamlSerializerOptions.DefaultIgnoreCondition)
+- [`PropertyNameCaseInsensitive`](xref:SharpYaml.YamlSerializerOptions.PropertyNameCaseInsensitive)
+- [`ReferenceHandling`](xref:SharpYaml.YamlSerializerOptions.ReferenceHandling) (anchors/aliases)
 
 ```csharp
 using System.Text.Json;
@@ -64,8 +64,8 @@ var options = new YamlSerializerOptions
 
 ## Naming policy defaults
 
-By default, `YamlSerializerOptions.PropertyNamingPolicy` is `null`, meaning CLR member names are used as-is for YAML mapping keys.
-This matches the default behavior of `System.Text.Json` (outside of ASP.NET defaults).
+By default, [`YamlSerializerOptions.PropertyNamingPolicy`](xref:SharpYaml.YamlSerializerOptions.PropertyNamingPolicy) is `null`, meaning CLR member names are used as-is for YAML mapping keys.
+This matches the default behavior of [`JsonSerializer`](xref:System.Text.Json.JsonSerializer) (outside of ASP.NET defaults).
 
 If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCase`.
 
@@ -73,30 +73,30 @@ If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCa
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `PropertyNamingPolicy` | `null` | Optional renaming for CLR member names. |
-| `DictionaryKeyPolicy` | `null` | Optional renaming for dictionary keys during serialization. |
-| `PropertyNameCaseInsensitive` | `false` | Case-insensitive property matching when reading. |
-| `DefaultIgnoreCondition` | `Never` | Skips `null`/default values when writing. |
-| `WriteIndented` | `true` | Enables indentation. |
-| `IndentSize` | `2` | Spaces per indent level when `WriteIndented` is enabled. |
-| `MappingOrder` | `Declaration` | Preserves declaration order by default (diff-friendly in code review). |
-| `Schema` | `Core` | Controls scalar resolution rules (YAML 1.2). |
-| `DuplicateKeyHandling` | `Error` | Controls behavior when duplicate keys are encountered. |
-| `ReferenceHandling` | `None` | Enables anchor/alias preservation when needed. |
-| `ScalarStylePreferences` | new | Controls scalar emission styles. |
-| `PolymorphismOptions` | new | Controls polymorphism behaviors. |
-| `UnsafeAllowDeserializeFromTagTypeName` | `false` | Allows tag-based activation by runtime type name (use only with trusted input). |
-| `TypeInfoResolver` | `null` | Provides metadata (generated or custom) for reflection-free serialization. |
-| `SourceName` | `null` | Used for error messages (file/path) when throwing `YamlException`. |
+| [`PropertyNamingPolicy`](xref:SharpYaml.YamlSerializerOptions.PropertyNamingPolicy) | `null` | Optional renaming for CLR member names. |
+| [`DictionaryKeyPolicy`](xref:SharpYaml.YamlSerializerOptions.DictionaryKeyPolicy) | `null` | Optional renaming for dictionary keys during serialization. |
+| [`PropertyNameCaseInsensitive`](xref:SharpYaml.YamlSerializerOptions.PropertyNameCaseInsensitive) | `false` | Case-insensitive property matching when reading. |
+| [`DefaultIgnoreCondition`](xref:SharpYaml.YamlSerializerOptions.DefaultIgnoreCondition) | [`YamlIgnoreCondition.Never`](xref:SharpYaml.YamlIgnoreCondition.Never) | Skips `null`/default values when writing. |
+| [`WriteIndented`](xref:SharpYaml.YamlSerializerOptions.WriteIndented) | `true` | Enables indentation. |
+| [`IndentSize`](xref:SharpYaml.YamlSerializerOptions.IndentSize) | `2` | Spaces per indent level when `WriteIndented` is enabled. |
+| [`MappingOrder`](xref:SharpYaml.YamlSerializerOptions.MappingOrder) | [`YamlMappingOrderPolicy.Declaration`](xref:SharpYaml.YamlMappingOrderPolicy.Declaration) | Preserves declaration order by default (diff-friendly in code review). |
+| [`Schema`](xref:SharpYaml.YamlSerializerOptions.Schema) | [`YamlSchemaKind.Core`](xref:SharpYaml.YamlSchemaKind.Core) | Controls scalar resolution rules (YAML 1.2). |
+| [`DuplicateKeyHandling`](xref:SharpYaml.YamlSerializerOptions.DuplicateKeyHandling) | [`YamlDuplicateKeyHandling.Error`](xref:SharpYaml.YamlDuplicateKeyHandling.Error) | Controls behavior when duplicate keys are encountered. |
+| [`ReferenceHandling`](xref:SharpYaml.YamlSerializerOptions.ReferenceHandling) | [`YamlReferenceHandling.None`](xref:SharpYaml.YamlReferenceHandling.None) | Enables anchor/alias preservation when needed. |
+| [`ScalarStylePreferences`](xref:SharpYaml.YamlSerializerOptions.ScalarStylePreferences) | new | Controls scalar emission styles. |
+| [`PolymorphismOptions`](xref:SharpYaml.YamlSerializerOptions.PolymorphismOptions) | new | Controls polymorphism behaviors. |
+| [`UnsafeAllowDeserializeFromTagTypeName`](xref:SharpYaml.YamlSerializerOptions.UnsafeAllowDeserializeFromTagTypeName) | `false` | Allows tag-based activation by runtime type name (use only with trusted input). |
+| [`TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver) | `null` | Provides metadata (generated or custom) for reflection-free serialization. |
+| [`SourceName`](xref:SharpYaml.YamlSerializerOptions.SourceName) | `null` | Used for error messages (file/path) when throwing [`YamlException`](xref:SharpYaml.YamlException). |
 
 ## Reflection vs metadata
 
 SharpYaml can resolve serialization metadata in two ways:
 
-1. **Generated metadata** using `YamlSerializerContext` and `YamlTypeInfo<T>` (recommended for NativeAOT).
+1. **Generated metadata** using [`YamlSerializerContext`](xref:SharpYaml.Serialization.YamlSerializerContext) and [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) (recommended for NativeAOT).
 2. **Reflection fallback** (enabled by default).
 
-If you disable reflection (see below), POCO/object mapping requires metadata via `YamlTypeInfo<T>` or `YamlSerializerOptions.TypeInfoResolver`.
+If you disable reflection (see below), POCO/object mapping requires metadata via [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) or [`YamlSerializerOptions.TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver).
 Built-in primitives and untyped containers remain supported without reflection.
 
 ```csharp
@@ -107,7 +107,7 @@ AppContext.SetSwitch("SharpYaml.YamlSerializer.IsReflectionEnabledByDefault", fa
 
 You can use a generated context in three styles:
 
-1. Use the generated `YamlTypeInfo<T>` property (recommended).
+1. Use the generated [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) property (recommended).
 
 ```csharp
 var yaml = YamlSerializer.Serialize(value, MyYamlContext.Default.MyConfig);
@@ -119,4 +119,4 @@ var yaml = YamlSerializer.Serialize(value, MyYamlContext.Default.MyConfig);
 var yaml = YamlSerializer.Serialize(value, typeof(MyConfig), MyYamlContext.Default);
 ```
 
-Prefer the overloads that accept a `YamlSerializerContext` or a `YamlTypeInfo<T>` directly to avoid reflection and reduce configuration overhead.
+Prefer the overloads that accept a [`YamlSerializerContext`](xref:SharpYaml.Serialization.YamlSerializerContext) or a [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) directly to avoid reflection and reduce configuration overhead.

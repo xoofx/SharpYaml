@@ -20,7 +20,7 @@ var options = new YamlSerializerOptions
 
 ## Attribute-based converters
 
-Use `YamlConverterAttribute` on a type or member:
+Use [`YamlConverterAttribute`](xref:SharpYaml.Serialization.YamlConverterAttribute) on a type or member:
 
 ```csharp
 using SharpYaml.Serialization;
@@ -33,7 +33,7 @@ public sealed class MyType
 
 ## Converter shape
 
-Converters operate on `YamlReader` and `YamlWriter`:
+Converters operate on [`YamlReader`](xref:SharpYaml.Serialization.YamlReader) and [`YamlWriter`](xref:SharpYaml.Serialization.YamlWriter):
 
 ```csharp
 public sealed class MyIntConverter : YamlConverter<int>
@@ -52,7 +52,7 @@ public sealed class MyIntConverter : YamlConverter<int>
 
 ## Reader and writer basics
 
-- `YamlReader` is positioned on a token; converters must consume the current value and advance the reader.
-- `YamlWriter` writes YAML in a streaming manner; converters should write a complete value (scalar/sequence/mapping).
+- [`YamlReader`](xref:SharpYaml.Serialization.YamlReader) is positioned on a token; converters must consume the current value and advance the reader.
+- [`YamlWriter`](xref:SharpYaml.Serialization.YamlWriter) writes YAML in a streaming manner; converters should write a complete value (scalar/sequence/mapping).
 
 For most custom scenarios, prefer writing scalars (`writer.WriteScalar(...)`) unless you need to emit complex YAML structures.

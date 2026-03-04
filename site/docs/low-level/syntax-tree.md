@@ -16,7 +16,7 @@ var text = "a: 1\n";
 var tree = YamlSyntaxTree.Parse(text);
 ```
 
-To include or exclude trivia tokens (whitespace/newlines/comments), use `YamlSyntaxOptions`:
+To include or exclude trivia tokens (whitespace/newlines/comments), use [`YamlSyntaxOptions`](xref:SharpYaml.Syntax.YamlSyntaxOptions):
 
 ```csharp
 var tree = YamlSyntaxTree.Parse(text, new YamlSyntaxOptions { IncludeTrivia = false });
@@ -26,14 +26,14 @@ var tree = YamlSyntaxTree.Parse(text, new YamlSyntaxOptions { IncludeTrivia = fa
 
 SharpYaml uses source locations for errors and editor integrations.
 
-- `Mark` captures index, line, and column.
-- `YamlSourceSpan` captures a start/end mark.
+- [`Mark`](xref:SharpYaml.Mark) captures index, line, and column.
+- [`YamlSourceSpan`](xref:SharpYaml.Syntax.YamlSourceSpan) captures a start/end mark.
 
-Parse errors throw `YamlException` with location information.
+Parse errors throw [`YamlException`](xref:SharpYaml.YamlException) with location information.
 
 ## Tokens
 
-The syntax tree exposes a flat list of `YamlSyntaxToken` with spans and text.
+The syntax tree exposes a flat list of [`YamlSyntaxToken`](xref:SharpYaml.Syntax.YamlSyntaxToken) with spans and text.
 
 This is useful for:
 

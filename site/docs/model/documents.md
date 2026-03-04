@@ -6,8 +6,8 @@ YAML supports multiple documents in a single stream.
 
 When you need:
 
-- a lossless representation with trivia and spans, use the syntax APIs (`SharpYaml.Syntax`)
-- a structured node representation for dynamic manipulation, use the model APIs (`SharpYaml.Model`)
+- a lossless representation with trivia and spans, use the syntax APIs (for example [`YamlSyntaxTree`](xref:SharpYaml.Syntax.YamlSyntaxTree))
+- a structured node representation for dynamic manipulation, use the model APIs (for example [`YamlStream`](xref:SharpYaml.Model.YamlStream))
 
 ## Load a multi-document stream
 
@@ -30,7 +30,7 @@ var second = stream[1];
 
 ## Serialize back to text
 
-Both `YamlDocument` and `YamlStream` can be written back:
+Both [`YamlDocument`](xref:SharpYaml.Model.YamlDocument) and [`YamlStream`](xref:SharpYaml.Model.YamlStream) can be written back:
 
 ```csharp
 var text = stream.ToString();

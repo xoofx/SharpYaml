@@ -42,9 +42,9 @@ var config2 = YamlSerializer.Deserialize<MyConfig>(yaml, options);
 
 ## Source generation (NativeAOT friendly)
 
-SharpYaml reuses `System.Text.Json` source-generation attributes.
+SharpYaml reuses `System.Text.Json` source-generation attributes such as [`JsonSerializableAttribute`](xref:System.Text.Json.Serialization.JsonSerializableAttribute).
 
-1. Declare a context with `[JsonSerializable]` roots:
+1. Declare a context with [`JsonSerializableAttribute`](xref:System.Text.Json.Serialization.JsonSerializableAttribute) roots:
 
 ```csharp
 using System.Text.Json.Serialization;
@@ -58,7 +58,7 @@ internal partial class MyYamlContext : YamlSerializerContext
 }
 ```
 
-2. Use the generated `YamlTypeInfo<T>`:
+2. Use the generated [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1):
 
 ```csharp
 var context = MyYamlContext.Default;

@@ -2,7 +2,7 @@
 title: YAML 1.2 and schemas
 ---
 
-SharpYaml targets YAML 1.2 behavior and exposes schema control via `YamlSerializerOptions.Schema`.
+SharpYaml targets YAML 1.2 behavior and exposes schema control via [`YamlSerializerOptions.Schema`](xref:SharpYaml.YamlSerializerOptions.Schema).
 
 Schemas influence how plain scalars are resolved:
 
@@ -37,7 +37,7 @@ var options = new YamlSerializerOptions
 ## Merge keys (`<<`)
 
 SharpYaml supports the YAML merge key (`<<`) when deserializing into .NET objects and `Dictionary<string, TValue>`.
-This behavior is enabled for `YamlSchemaKind.Core` and `YamlSchemaKind.Extended` (it is ignored for `Json` and `Failsafe` schemas).
+This behavior is enabled for [`YamlSchemaKind.Core`](xref:SharpYaml.YamlSchemaKind.Core) and [`YamlSchemaKind.Extended`](xref:SharpYaml.YamlSchemaKind.Extended) (it is ignored for [`YamlSchemaKind.Json`](xref:SharpYaml.YamlSchemaKind.Json) and [`YamlSchemaKind.Failsafe`](xref:SharpYaml.YamlSchemaKind.Failsafe) schemas).
 
 ## Notes
 
