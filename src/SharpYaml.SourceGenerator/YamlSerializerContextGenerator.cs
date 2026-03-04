@@ -5730,6 +5730,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         string? discriminatorPropertyNameOverride = null;
         int? discriminatorStyleOverrideValue = null;
         int? unknownOverrideValue = null;
+        int? yamlUnknownOverrideValue = null;
 
         var derivedTypes = ImmutableArray.CreateBuilder<DerivedTypeInfoModel>();
         var seenDerived = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
@@ -5749,6 +5750,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     {
                         discriminatorStyleOverrideValue = styleValue;
                     }
+                    else if (string.Equals(pair.Key, "UnknownDerivedTypeHandling", StringComparison.Ordinal) && pair.Value.Value is int unknownValue)
+                    {
+                        yamlUnknownOverrideValue = unknownValue;
+                    }
                 }
             }
             else if (string.Equals(attributeName, "System.Text.Json.Serialization.JsonPolymorphicAttribute", StringComparison.Ordinal))
@@ -5766,6 +5771,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     }
                 }
             }
+        }
+
+        // YamlPolymorphicAttribute.UnknownDerivedTypeHandling takes priority over JsonPolymorphicAttribute
+        // -1 is YamlUnknownDerivedTypeHandling.Unspecified
+        if (yamlUnknownOverrideValue is not null && yamlUnknownOverrideValue.Value != -1)
+        {
+            unknownOverrideValue = yamlUnknownOverrideValue;
         }
 
         // YamlDerivedTypeAttribute(Type derivedType) or YamlDerivedTypeAttribute(Type derivedType, string discriminator) { string? Tag }

@@ -77,6 +77,19 @@ public abstract class Animal { }
 
 When serializing a default derived type, no discriminator property is emitted.
 
+## Unknown discriminator handling
+
+By default, an unrecognized discriminator value causes deserialization to throw. You can override this per-type via [`YamlPolymorphicAttribute`](xref:SharpYaml.Serialization.YamlPolymorphicAttribute) or globally via [`YamlPolymorphismOptions`](xref:SharpYaml.YamlPolymorphismOptions):
+
+```csharp
+// Per-type: fall back to the base type on unknown discriminators
+[YamlPolymorphic(UnknownDerivedTypeHandling = YamlUnknownDerivedTypeHandling.FallBackToBase)]
+[YamlDerivedType(typeof(Circle), "circle")]
+public class Shape { }
+```
+
+The `YamlPolymorphicAttribute.UnknownDerivedTypeHandling` property takes precedence over the corresponding `JsonPolymorphicAttribute` setting and the global `YamlPolymorphismOptions.UnknownDerivedTypeHandling`.
+
 ## Notes
 
 - For safety, runtime activation from tag type names is disabled by default.

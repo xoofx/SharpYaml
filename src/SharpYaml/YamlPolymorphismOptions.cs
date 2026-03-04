@@ -50,8 +50,22 @@ public sealed class YamlPolymorphismOptions
     /// <summary>
     /// Gets or sets behavior when an unknown derived type discriminator is encountered.
     /// </summary>
-    public YamlUnknownDerivedTypeHandling UnknownDerivedTypeHandling { get; init; } = YamlUnknownDerivedTypeHandling.Fail;
+    /// <exception cref="ArgumentOutOfRangeException">Value is <see cref="YamlUnknownDerivedTypeHandling.Unspecified"/>.</exception>
+    public YamlUnknownDerivedTypeHandling UnknownDerivedTypeHandling
+    {
+        get => _unknownDerivedTypeHandling;
+        init
+        {
+            if (value == YamlUnknownDerivedTypeHandling.Unspecified)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value, "UnknownDerivedTypeHandling cannot be Unspecified on options.");
+            }
+
+            _unknownDerivedTypeHandling = value;
+        }
+    }
 
     private YamlTypeDiscriminatorStyle _discriminatorStyle = YamlTypeDiscriminatorStyle.Property;
     private string _typeDiscriminatorPropertyName = "$type";
+    private YamlUnknownDerivedTypeHandling _unknownDerivedTypeHandling = YamlUnknownDerivedTypeHandling.Fail;
 }

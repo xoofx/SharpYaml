@@ -86,6 +86,31 @@ public class YamlPolymorphismTests
         public double Radius { get; set; }
     }
 
+    [YamlPolymorphic(UnknownDerivedTypeHandling = YamlUnknownDerivedTypeHandling.FallBackToBase)]
+    [YamlDerivedType(typeof(YamlFallbackCircle), "circle")]
+    private class YamlFallbackShape
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class YamlFallbackCircle : YamlFallbackShape
+    {
+        public double Radius { get; set; }
+    }
+
+    [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+    [JsonDerivedType(typeof(JsonOverriddenCircle), "circle")]
+    [YamlPolymorphic(UnknownDerivedTypeHandling = YamlUnknownDerivedTypeHandling.FallBackToBase)]
+    private class JsonOverriddenShape
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class JsonOverriddenCircle : JsonOverriddenShape
+    {
+        public double Radius { get; set; }
+    }
+
     [TestMethod]
     public void SerializeEmitsPropertyDiscriminatorFirst()
     {
@@ -147,6 +172,29 @@ public class YamlPolymorphismTests
 
         Assert.IsNotNull(value);
         Assert.IsInstanceOfType<Shape>(value);
+        Assert.AreEqual("Base", value.Name);
+    }
+
+    [TestMethod]
+    public void YamlPolymorphicAttributeUnknownHandlingFallsBackToBase()
+    {
+        var yaml = "Name: Base\n$type: unknown\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<YamlFallbackShape>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<YamlFallbackShape>(value);
+        Assert.AreEqual("Base", value.Name);
+    }
+
+    [TestMethod]
+    public void YamlPolymorphicAttributeUnknownHandlingOverridesJsonAttribute()
+    {
+        // JsonPolymorphic defaults to FailSerialization, but YamlPolymorphic overrides to FallBackToBase
+        var yaml = "Name: Base\n$type: unknown\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<JsonOverriddenShape>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<JsonOverriddenShape>(value);
         Assert.AreEqual("Base", value.Name);
     }
 

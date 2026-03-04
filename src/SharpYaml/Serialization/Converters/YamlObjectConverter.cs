@@ -1616,7 +1616,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             discriminatorPropertyName ??= options.PolymorphismOptions.TypeDiscriminatorPropertyName;
 
             var unknownHandling = options.PolymorphismOptions.UnknownDerivedTypeHandling;
-            if (jsonPolymorphic is not null)
+            if (yamlPolymorphic is not null && yamlPolymorphic.UnknownDerivedTypeHandling != YamlUnknownDerivedTypeHandling.Unspecified)
+            {
+                unknownHandling = yamlPolymorphic.UnknownDerivedTypeHandling;
+            }
+            else if (jsonPolymorphic is not null)
             {
                 unknownHandling = jsonPolymorphic.UnknownDerivedTypeHandling switch
                 {

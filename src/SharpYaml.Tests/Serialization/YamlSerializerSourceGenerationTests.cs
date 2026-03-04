@@ -180,6 +180,23 @@ internal sealed class GeneratedDefaultZoo
     public GeneratedDefaultAnimal? Animal { get; set; }
 }
 
+[YamlPolymorphic(UnknownDerivedTypeHandling = YamlUnknownDerivedTypeHandling.FallBackToBase)]
+[YamlDerivedType(typeof(GeneratedFallbackCircle), "circle")]
+internal class GeneratedFallbackShape
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+internal sealed class GeneratedFallbackCircle : GeneratedFallbackShape
+{
+    public double Radius { get; set; }
+}
+
+internal sealed class GeneratedFallbackZoo
+{
+    public GeneratedFallbackShape? Shape { get; set; }
+}
+
 internal sealed class ConstantIntConverter : YamlConverter<int>
 {
     public override int Read(YamlReader reader)
@@ -336,6 +353,8 @@ internal sealed class GeneratedJsonCtorModel
 [JsonSerializable(typeof(GeneratedTaggedZoo))]
 [JsonSerializable(typeof(GeneratedDefaultAnimal))]
 [JsonSerializable(typeof(GeneratedDefaultZoo))]
+[JsonSerializable(typeof(GeneratedFallbackShape))]
+[JsonSerializable(typeof(GeneratedFallbackZoo))]
 [JsonSerializable(typeof(GeneratedLifecycleCallbacks))]
 [JsonSerializable(typeof(GeneratedRequiredPayload))]
 [JsonSerializable(typeof(GeneratedExtensionDataDictionaryPayload))]
@@ -1099,6 +1118,20 @@ public class YamlSerializerSourceGenerationTests
 
         StringAssert.Contains(yamlCat, "type: cat");
         StringAssert.Contains(yamlCat, "Name: Biscuit");
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsPolymorphism_YamlUnknownHandlingFallBackToBase()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var typeInfo = context.GeneratedFallbackZoo;
+        var yaml = "Shape:\n  $type: unknown\n  Name: Base\n";
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsInstanceOfType(roundtripped.Shape, typeof(GeneratedFallbackShape));
+        Assert.AreEqual("Base", roundtripped.Shape!.Name);
     }
 
     [TestMethod]

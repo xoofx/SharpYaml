@@ -10,6 +10,11 @@ namespace SharpYaml;
 public enum YamlUnknownDerivedTypeHandling
 {
     /// <summary>
+    /// Use the serializer options default.
+    /// </summary>
+    Unspecified = -1,
+
+    /// <summary>
     /// Throw when an unknown discriminator is encountered.
     /// </summary>
     Fail = 0,
