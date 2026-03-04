@@ -1015,11 +1015,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     }
 
                     builder.AppendLine("            writer.WriteStartMapping();");
-                    builder.AppendLine("            if (discriminatorStyle is global::SharpYaml.YamlTypeDiscriminatorStyle.Property or global::SharpYaml.YamlTypeDiscriminatorStyle.Both)");
-                    builder.AppendLine("            {");
-                    builder.AppendLine("                writer.WritePropertyName(discriminatorPropertyName);");
-                    builder.Append("                writer.WriteScalar(").Append(ToLiteral(derived.Discriminator)).AppendLine(");");
-                    builder.AppendLine("            }");
+                    if (derived.Discriminator is not null)
+                    {
+                        builder.AppendLine("            if (discriminatorStyle is global::SharpYaml.YamlTypeDiscriminatorStyle.Property or global::SharpYaml.YamlTypeDiscriminatorStyle.Both)");
+                        builder.AppendLine("            {");
+                        builder.AppendLine("                writer.WritePropertyName(discriminatorPropertyName);");
+                        builder.Append("                writer.WriteScalar(").Append(ToLiteral(derived.Discriminator)).AppendLine(");");
+                        builder.AppendLine("            }");
+                    }
                     builder.Append("            WriteMembers").Append(derivedIndex).Append("(writer, ").Append(derivedLocal).AppendLine(", discriminatorPropertyName);");
                     builder.AppendLine("            writer.WriteEndMapping();");
                     if (emitLifecycleCallbacks)
@@ -2948,7 +2951,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 for (var i = 0; i < polymorphism.DerivedTypes.Length; i++)
                 {
                     var derived = polymorphism.DerivedTypes[i];
-                    var derivedTypeName = derived.DerivedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    if (derived.Discriminator is null)
+                    {
+                        continue;
+                    }
+
                     if (!indexByType.TryGetValue(derived.DerivedType, out var derivedIndex))
                     {
                         continue;
@@ -2960,10 +2967,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     builder.Append("                return (").Append(typeName).Append(")ReadValue").Append(derivedIndex).AppendLine("(bufferedReader)!;");
                     builder.AppendLine("            }");
                 }
-                builder.AppendLine("            if (unknownDerivedTypeHandling == global::SharpYaml.YamlUnknownDerivedTypeHandling.Fail)");
-                builder.AppendLine("            {");
-                builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnknownTypeDiscriminator(bufferedReader, discriminatorValue, typeof(").Append(typeName).AppendLine("));");
-                builder.AppendLine("            }");
+
+                // When discriminator value is present but unrecognized, try default type before failing
+                if (polymorphism.DefaultDerivedType is not null && indexByType.TryGetValue(polymorphism.DefaultDerivedType, out var defaultIndexForUnknown))
+                {
+                    builder.Append("            return (").Append(typeName).Append(")ReadValue").Append(defaultIndexForUnknown).AppendLine("(bufferedReader)!;");
+                }
+                else
+                {
+                    builder.AppendLine("            if (unknownDerivedTypeHandling == global::SharpYaml.YamlUnknownDerivedTypeHandling.Fail)");
+                    builder.AppendLine("            {");
+                    builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnknownTypeDiscriminator(bufferedReader, discriminatorValue, typeof(").Append(typeName).AppendLine("));");
+                    builder.AppendLine("            }");
+                }
                 builder.AppendLine("        }");
 
                 builder.AppendLine("        if (discriminatorStyle is not global::SharpYaml.YamlTypeDiscriminatorStyle.Property && rootTag is not null)");
@@ -2989,7 +3005,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 }
                 builder.AppendLine("        }");
 
-                if (named.IsAbstract)
+                // Fallback: use default derived type if available
+                if (polymorphism.DefaultDerivedType is not null && indexByType.TryGetValue(polymorphism.DefaultDerivedType, out var defaultIndex))
+                {
+                    builder.Append("        return (").Append(typeName).Append(")ReadValue").Append(defaultIndex).AppendLine("(bufferedReader)!;");
+                }
+                else if (named.IsAbstract)
                 {
                     builder.Append("        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowAbstractTypeWithoutDiscriminator(bufferedReader, typeof(").Append(typeName).AppendLine("));");
                 }
@@ -5663,7 +5684,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private readonly struct DerivedTypeInfoModel
     {
-        public DerivedTypeInfoModel(ITypeSymbol derivedType, string discriminator, string? tag)
+        public DerivedTypeInfoModel(ITypeSymbol derivedType, string? discriminator, string? tag)
         {
             DerivedType = derivedType;
             Discriminator = discriminator;
@@ -5672,7 +5693,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         public ITypeSymbol DerivedType { get; }
 
-        public string Discriminator { get; }
+        public string? Discriminator { get; }
 
         public string? Tag { get; }
     }
@@ -5683,12 +5704,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             string? discriminatorPropertyNameOverride,
             int? discriminatorStyleOverrideValue,
             int? unknownDerivedTypeHandlingOverrideValue,
-            ImmutableArray<DerivedTypeInfoModel> derivedTypes)
+            ImmutableArray<DerivedTypeInfoModel> derivedTypes,
+            ITypeSymbol? defaultDerivedType)
         {
             DiscriminatorPropertyNameOverride = discriminatorPropertyNameOverride;
             DiscriminatorStyleOverrideValue = discriminatorStyleOverrideValue;
             UnknownDerivedTypeHandlingOverrideValue = unknownDerivedTypeHandlingOverrideValue;
             DerivedTypes = derivedTypes;
+            DefaultDerivedType = defaultDerivedType;
         }
 
         public string? DiscriminatorPropertyNameOverride { get; }
@@ -5698,6 +5721,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public int? UnknownDerivedTypeHandlingOverrideValue { get; }
 
         public ImmutableArray<DerivedTypeInfoModel> DerivedTypes { get; }
+
+        public ITypeSymbol? DefaultDerivedType { get; }
     }
 
     private static bool TryGetPolymorphismInfo(INamedTypeSymbol baseType, out PolymorphismInfoModel info)
@@ -5743,7 +5768,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
         }
 
-        // YamlDerivedTypeAttribute(Type derivedType, string discriminator) { string? Tag }
+        // YamlDerivedTypeAttribute(Type derivedType) or YamlDerivedTypeAttribute(Type derivedType, string discriminator) { string? Tag }
+        ITypeSymbol? defaultDerivedType = null;
         foreach (var attribute in baseType.GetAttributes())
         {
             if (!string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlDerivedTypeAttribute", StringComparison.Ordinal))
@@ -5751,21 +5777,21 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (attribute.ConstructorArguments.Length < 2)
+            if (attribute.ConstructorArguments.Length < 1)
             {
                 continue;
             }
 
             var derivedArg = attribute.ConstructorArguments[0];
-            var discriminatorArg = attribute.ConstructorArguments[1];
             if (derivedArg.Kind != TypedConstantKind.Type || derivedArg.Value is not ITypeSymbol derivedType)
             {
                 continue;
             }
 
-            if (discriminatorArg.Value is not string discriminator)
+            string? discriminator = null;
+            if (attribute.ConstructorArguments.Length >= 2 && attribute.ConstructorArguments[1].Value is string discValue)
             {
-                continue;
+                discriminator = discValue;
             }
 
             string? tag = null;
@@ -5779,11 +5805,16 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
             if (seenDerived.Add(derivedType))
             {
+                if (discriminator is null)
+                {
+                    defaultDerivedType = derivedType;
+                }
+
                 derivedTypes.Add(new DerivedTypeInfoModel(derivedType, discriminator, tag));
             }
         }
 
-        // JsonDerivedTypeAttribute(Type derivedType, string|int discriminator)
+        // JsonDerivedTypeAttribute(Type derivedType) or JsonDerivedTypeAttribute(Type derivedType, string|int discriminator)
         foreach (var attribute in baseType.GetAttributes())
         {
             if (!string.Equals(attribute.AttributeClass?.ToDisplayString(), "System.Text.Json.Serialization.JsonDerivedTypeAttribute", StringComparison.Ordinal))
@@ -5791,32 +5822,35 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (attribute.ConstructorArguments.Length < 2)
+            if (attribute.ConstructorArguments.Length < 1)
             {
                 continue;
             }
 
             var derivedArg = attribute.ConstructorArguments[0];
-            var discriminatorArg = attribute.ConstructorArguments[1];
             if (derivedArg.Kind != TypedConstantKind.Type || derivedArg.Value is not ITypeSymbol derivedType)
             {
                 continue;
             }
 
-            string? discriminator = discriminatorArg.Value switch
+            string? discriminator = null;
+            if (attribute.ConstructorArguments.Length >= 2)
             {
-                string s => s,
-                int i => i.ToString(global::System.Globalization.CultureInfo.InvariantCulture),
-                _ => null,
-            };
-
-            if (discriminator is null)
-            {
-                continue;
+                discriminator = attribute.ConstructorArguments[1].Value switch
+                {
+                    string s => s,
+                    int i => i.ToString(global::System.Globalization.CultureInfo.InvariantCulture),
+                    _ => null,
+                };
             }
 
             if (seenDerived.Add(derivedType))
             {
+                if (discriminator is null)
+                {
+                    defaultDerivedType ??= derivedType;
+                }
+
                 derivedTypes.Add(new DerivedTypeInfoModel(derivedType, discriminator, tag: null));
             }
         }
@@ -5831,7 +5865,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             discriminatorPropertyNameOverride,
             discriminatorStyleOverrideValue,
             unknownOverrideValue,
-            derivedTypes.ToImmutable());
+            derivedTypes.ToImmutable(),
+            defaultDerivedType);
         return true;
     }
 

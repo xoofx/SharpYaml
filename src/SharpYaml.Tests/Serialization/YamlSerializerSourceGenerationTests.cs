@@ -158,6 +158,28 @@ internal sealed class GeneratedTaggedZoo
     public GeneratedTaggedAnimal? Animal { get; set; }
 }
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(GeneratedDefaultCat), "cat")]
+[JsonDerivedType(typeof(GeneratedDefaultOther))]
+internal abstract class GeneratedDefaultAnimal
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+internal sealed class GeneratedDefaultCat : GeneratedDefaultAnimal
+{
+    public int Lives { get; set; }
+}
+
+internal sealed class GeneratedDefaultOther : GeneratedDefaultAnimal
+{
+}
+
+internal sealed class GeneratedDefaultZoo
+{
+    public GeneratedDefaultAnimal? Animal { get; set; }
+}
+
 internal sealed class ConstantIntConverter : YamlConverter<int>
 {
     public override int Read(YamlReader reader)
@@ -312,6 +334,8 @@ internal sealed class GeneratedJsonCtorModel
 [JsonSerializable(typeof(GeneratedZoo))]
 [JsonSerializable(typeof(GeneratedTaggedAnimal))]
 [JsonSerializable(typeof(GeneratedTaggedZoo))]
+[JsonSerializable(typeof(GeneratedDefaultAnimal))]
+[JsonSerializable(typeof(GeneratedDefaultZoo))]
 [JsonSerializable(typeof(GeneratedLifecycleCallbacks))]
 [JsonSerializable(typeof(GeneratedRequiredPayload))]
 [JsonSerializable(typeof(GeneratedExtensionDataDictionaryPayload))]
@@ -1003,6 +1027,78 @@ public class YamlSerializerSourceGenerationTests
         var dog = (GeneratedTaggedDog)roundtripped.Animal!;
         Assert.AreEqual("Rex", dog.Name);
         Assert.AreEqual(7, dog.BarkVolume);
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsPolymorphism_DefaultDerivedType_MissingDiscriminator()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var typeInfo = context.GeneratedDefaultZoo;
+        var yaml = "Animal:\n  Name: Cupcake\n";
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsInstanceOfType(roundtripped.Animal, typeof(GeneratedDefaultOther));
+        Assert.AreEqual("Cupcake", roundtripped.Animal!.Name);
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsPolymorphism_DefaultDerivedType_MatchedDiscriminator()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var typeInfo = context.GeneratedDefaultZoo;
+        var yaml = "Animal:\n  type: cat\n  Name: Biscuit\n  Lives: 7\n";
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsInstanceOfType(roundtripped.Animal, typeof(GeneratedDefaultCat));
+        var cat = (GeneratedDefaultCat)roundtripped.Animal!;
+        Assert.AreEqual("Biscuit", cat.Name);
+        Assert.AreEqual(7, cat.Lives);
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsPolymorphism_DefaultDerivedType_UnknownDiscriminator()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var typeInfo = context.GeneratedDefaultZoo;
+        var yaml = "Animal:\n  type: lizard\n  Name: Gex\n";
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.IsInstanceOfType(roundtripped.Animal, typeof(GeneratedDefaultOther));
+        Assert.AreEqual("Gex", roundtripped.Animal!.Name);
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsPolymorphism_DefaultDerivedType_Serialization()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var typeInfo = context.GeneratedDefaultZoo;
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedDefaultZoo
+            {
+                Animal = new GeneratedDefaultOther { Name = "Cupcake" },
+            },
+            typeInfo);
+
+        Assert.IsFalse(yaml.Contains("type:", StringComparison.Ordinal));
+        StringAssert.Contains(yaml, "Name: Cupcake");
+
+        // Cat should still get a discriminator
+        var yamlCat = YamlSerializer.Serialize(
+            new GeneratedDefaultZoo
+            {
+                Animal = new GeneratedDefaultCat { Name = "Biscuit", Lives = 7 },
+            },
+            typeInfo);
+
+        StringAssert.Contains(yamlCat, "type: cat");
+        StringAssert.Contains(yamlCat, "Name: Biscuit");
     }
 
     [TestMethod]

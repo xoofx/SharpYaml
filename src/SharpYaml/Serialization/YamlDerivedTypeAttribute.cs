@@ -13,6 +13,20 @@ namespace SharpYaml.Serialization;
 public sealed class YamlDerivedTypeAttribute : YamlAttribute
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="YamlDerivedTypeAttribute"/> class
+    /// with no discriminator, marking this derived type as the default when no discriminator matches.
+    /// </summary>
+    /// <param name="derivedType">The derived CLR type.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="derivedType"/> is <see langword="null"/>.</exception>
+    public YamlDerivedTypeAttribute(Type derivedType)
+    {
+        ArgumentGuard.ThrowIfNull(derivedType);
+
+        DerivedType = derivedType;
+        Discriminator = null;
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="YamlDerivedTypeAttribute"/> class.
     /// </summary>
     /// <param name="derivedType">The derived CLR type.</param>
@@ -33,9 +47,9 @@ public sealed class YamlDerivedTypeAttribute : YamlAttribute
     public Type DerivedType { get; }
 
     /// <summary>
-    /// Gets the discriminator value.
+    /// Gets the discriminator value, or <see langword="null"/> if this is the default derived type.
     /// </summary>
-    public string Discriminator { get; }
+    public string? Discriminator { get; }
 
     /// <summary>
     /// Gets or sets an optional explicit YAML tag for the derived type.

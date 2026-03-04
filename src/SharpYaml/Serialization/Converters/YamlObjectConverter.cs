@@ -957,6 +957,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 targetType = derived;
             }
+            else if (polymorphism.DefaultDerivedType is not null)
+            {
+                targetType = polymorphism.DefaultDerivedType;
+            }
             else if (polymorphism.UnknownDerivedTypeHandling == YamlUnknownDerivedTypeHandling.Fail)
             {
                 throw YamlThrowHelper.ThrowUnknownTypeDiscriminator(reader, discriminatorValue, typeof(T));
@@ -971,7 +975,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
         }
 
-        targetType ??= typeof(T);
+        targetType ??= polymorphism.DefaultDerivedType ?? typeof(T);
 
         var bufferedReader = reader.CreateReader(buffered);
         if (!bufferedReader.Read())
@@ -1004,7 +1008,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         writer.WriteStartMapping();
 
-        if (polymorphism.EmitsPropertyDiscriminator)
+        if (polymorphism.EmitsPropertyDiscriminator && derivedInfo.Discriminator is not null)
         {
             writer.WritePropertyName(polymorphism.DiscriminatorPropertyName);
             writer.WriteScalar(derivedInfo.Discriminator);
@@ -1547,7 +1551,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             YamlUnknownDerivedTypeHandling unknownDerivedTypeHandling,
             Dictionary<string, Type> discriminatorToType,
             Dictionary<string, Type> tagToType,
-            Dictionary<Type, DerivedTypeInfo> typeToDerived)
+            Dictionary<Type, DerivedTypeInfo> typeToDerived,
+            Type? defaultDerivedType)
         {
             DiscriminatorPropertyName = discriminatorPropertyName;
             Style = style;
@@ -1555,6 +1560,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             _discriminatorToType = discriminatorToType;
             _tagToType = tagToType;
             _typeToDerived = typeToDerived;
+            DefaultDerivedType = defaultDerivedType;
         }
 
         public string DiscriminatorPropertyName { get; }
@@ -1562,6 +1568,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public YamlTypeDiscriminatorStyle Style { get; }
 
         public YamlUnknownDerivedTypeHandling UnknownDerivedTypeHandling { get; }
+
+        public Type? DefaultDerivedType { get; }
 
         public bool AcceptsPropertyDiscriminator => Style is YamlTypeDiscriminatorStyle.Property or YamlTypeDiscriminatorStyle.Both;
 
@@ -1620,6 +1628,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var discriminatorToType = new Dictionary<string, Type>(StringComparer.Ordinal);
             var tagToType = new Dictionary<string, Type>(StringComparer.Ordinal);
             var typeToDerived = new Dictionary<Type, DerivedTypeInfo>();
+            Type? defaultDerivedType = null;
 
             foreach (YamlDerivedTypeAttribute attribute in yamlDerived)
             {
@@ -1628,8 +1637,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     throw new InvalidOperationException($"Derived type '{attribute.DerivedType}' is not assignable to '{type}'.");
                 }
 
-                discriminatorToType.Add(attribute.Discriminator, attribute.DerivedType);
-                typeToDerived[attribute.DerivedType] = new DerivedTypeInfo(attribute.Discriminator, attribute.Tag);
+                if (attribute.Discriminator is null)
+                {
+                    defaultDerivedType = attribute.DerivedType;
+                    typeToDerived[attribute.DerivedType] = new DerivedTypeInfo(null, attribute.Tag);
+                }
+                else
+                {
+                    discriminatorToType.Add(attribute.Discriminator, attribute.DerivedType);
+                    typeToDerived[attribute.DerivedType] = new DerivedTypeInfo(attribute.Discriminator, attribute.Tag);
+                }
+
                 if (attribute.Tag is not null)
                 {
                     tagToType.Add(attribute.Tag, attribute.DerivedType);
@@ -1643,9 +1661,19 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     throw new InvalidOperationException($"Derived type '{attribute.DerivedType}' is not assignable to '{type}'.");
                 }
 
+                if (attribute.TypeDiscriminator is null)
+                {
+                    defaultDerivedType ??= attribute.DerivedType;
+                    if (!typeToDerived.ContainsKey(attribute.DerivedType))
+                    {
+                        typeToDerived.Add(attribute.DerivedType, new DerivedTypeInfo(null, tag: null));
+                    }
+
+                    continue;
+                }
+
                 var discriminator = attribute.TypeDiscriminator switch
                 {
-                    null => throw new InvalidOperationException($"JsonDerivedTypeAttribute for '{attribute.DerivedType}' did not specify a discriminator."),
                     string s => s,
                     _ => Convert.ToString(attribute.TypeDiscriminator, CultureInfo.InvariantCulture) ?? string.Empty,
                 };
@@ -1661,18 +1689,18 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 }
             }
 
-            return new PolymorphismModel(discriminatorPropertyName, style, unknownHandling, discriminatorToType, tagToType, typeToDerived);
+            return new PolymorphismModel(discriminatorPropertyName, style, unknownHandling, discriminatorToType, tagToType, typeToDerived, defaultDerivedType);
         }
 
         public readonly struct DerivedTypeInfo
         {
-            public DerivedTypeInfo(string discriminator, string? tag)
+            public DerivedTypeInfo(string? discriminator, string? tag)
             {
                 Discriminator = discriminator;
                 Tag = tag;
             }
 
-            public string Discriminator { get; }
+            public string? Discriminator { get; }
 
             public string? Tag { get; }
         }

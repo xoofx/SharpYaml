@@ -43,6 +43,40 @@ public abstract class TaggedAnimal
 }
 ```
 
+## Default derived type
+
+A derived type registered without a discriminator acts as the default when the discriminator property is missing or unrecognized. This works with both `JsonDerivedTypeAttribute` and `YamlDerivedTypeAttribute`:
+
+```csharp
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Cat), "cat")]
+[JsonDerivedType(typeof(OtherAnimal))]        // default — no discriminator
+public abstract class Animal
+{
+    public string Name { get; set; } = "";
+}
+```
+
+```yaml
+# Deserialized as Cat (discriminator matches)
+type: cat
+Name: Biscuit
+
+# Deserialized as OtherAnimal (no discriminator → default)
+Name: Cupcake
+```
+
+The equivalent using YAML attributes:
+
+```csharp
+[YamlPolymorphic]
+[YamlDerivedType(typeof(Dog), "dog")]
+[YamlDerivedType(typeof(OtherAnimal))]        // default — no discriminator
+public abstract class Animal { }
+```
+
+When serializing a default derived type, no discriminator property is emitted.
+
 ## Notes
 
 - For safety, runtime activation from tag type names is disabled by default.

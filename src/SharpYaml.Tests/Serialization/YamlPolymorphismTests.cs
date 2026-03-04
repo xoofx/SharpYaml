@@ -40,6 +40,40 @@ public class YamlPolymorphismTests
         public int BarkVolume { get; set; }
     }
 
+    [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+    [JsonDerivedType(typeof(JsonDefaultCat), "cat")]
+    [JsonDerivedType(typeof(JsonDefaultOther))]
+    private abstract class JsonDefaultAnimal
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class JsonDefaultCat : JsonDefaultAnimal
+    {
+        public int Lives { get; set; }
+    }
+
+    private sealed class JsonDefaultOther : JsonDefaultAnimal
+    {
+    }
+
+    [YamlPolymorphic]
+    [YamlDerivedType(typeof(YamlDefaultDog), "dog")]
+    [YamlDerivedType(typeof(YamlDefaultOther))]
+    private abstract class YamlDefaultAnimal
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class YamlDefaultDog : YamlDefaultAnimal
+    {
+        public int BarkVolume { get; set; }
+    }
+
+    private sealed class YamlDefaultOther : YamlDefaultAnimal
+    {
+    }
+
     [YamlPolymorphic]
     [YamlDerivedType(typeof(Circle), "circle")]
     private class Shape
@@ -153,5 +187,102 @@ public class YamlPolymorphismTests
         StringAssert.Contains(yaml, "!cat");
         Assert.IsFalse(yaml.Contains("$type:", StringComparison.Ordinal));
         StringAssert.Contains(yaml, "Lives: 9");
+    }
+
+    [TestMethod]
+    public void JsonDefaultDerivedTypeDeserializesWhenDiscriminatorIsMissing()
+    {
+        var yaml = "Name: Cupcake\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<JsonDefaultAnimal>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<JsonDefaultOther>(value);
+        Assert.AreEqual("Cupcake", value.Name);
+    }
+
+    [TestMethod]
+    public void JsonDefaultDerivedTypeDeserializesWhenDiscriminatorMatches()
+    {
+        var yaml = "type: cat\nName: Biscuit\nLives: 7\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<JsonDefaultAnimal>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<JsonDefaultCat>(value);
+        Assert.AreEqual("Biscuit", value.Name);
+        Assert.AreEqual(7, ((JsonDefaultCat)value).Lives);
+    }
+
+    [TestMethod]
+    public void JsonDefaultDerivedTypeDeserializesWhenDiscriminatorIsUnknown()
+    {
+        var yaml = "type: lizard\nName: Gex\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<JsonDefaultAnimal>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<JsonDefaultOther>(value);
+        Assert.AreEqual("Gex", value.Name);
+    }
+
+    [TestMethod]
+    public void JsonDefaultDerivedTypeSerializesWithoutDiscriminator()
+    {
+        JsonDefaultAnimal animal = new JsonDefaultOther { Name = "Cupcake" };
+        var yaml = SharpYaml.YamlSerializer.Serialize(animal, typeof(JsonDefaultAnimal));
+
+        Assert.IsFalse(yaml.Contains("type:", StringComparison.Ordinal));
+        StringAssert.Contains(yaml, "Name: Cupcake");
+    }
+
+    [TestMethod]
+    public void JsonDefaultDerivedTypeSerializesWithDiscriminatorForNonDefaultType()
+    {
+        JsonDefaultAnimal animal = new JsonDefaultCat { Name = "Biscuit", Lives = 7 };
+        var yaml = SharpYaml.YamlSerializer.Serialize(animal, typeof(JsonDefaultAnimal));
+
+        StringAssert.Contains(yaml, "type: cat");
+        StringAssert.Contains(yaml, "Name: Biscuit");
+    }
+
+    [TestMethod]
+    public void YamlDefaultDerivedTypeDeserializesWhenDiscriminatorIsMissing()
+    {
+        var yaml = "Name: Cupcake\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<YamlDefaultAnimal>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<YamlDefaultOther>(value);
+        Assert.AreEqual("Cupcake", value.Name);
+    }
+
+    [TestMethod]
+    public void YamlDefaultDerivedTypeDeserializesWhenDiscriminatorMatches()
+    {
+        var yaml = "$type: dog\nName: Rex\nBarkVolume: 5\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<YamlDefaultAnimal>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<YamlDefaultDog>(value);
+        Assert.AreEqual("Rex", value.Name);
+        Assert.AreEqual(5, ((YamlDefaultDog)value).BarkVolume);
+    }
+
+    [TestMethod]
+    public void YamlDefaultDerivedTypeSerializesWithoutDiscriminator()
+    {
+        YamlDefaultAnimal animal = new YamlDefaultOther { Name = "Cupcake" };
+        var yaml = SharpYaml.YamlSerializer.Serialize(animal, typeof(YamlDefaultAnimal));
+
+        Assert.IsFalse(yaml.Contains("$type:", StringComparison.Ordinal));
+        StringAssert.Contains(yaml, "Name: Cupcake");
+    }
+
+    [TestMethod]
+    public void YamlDefaultDerivedTypeSerializesWithDiscriminatorForNonDefaultType()
+    {
+        YamlDefaultAnimal animal = new YamlDefaultDog { Name = "Rex", BarkVolume = 5 };
+        var yaml = SharpYaml.YamlSerializer.Serialize(animal, typeof(YamlDefaultAnimal));
+
+        StringAssert.Contains(yaml, "$type: dog");
+        StringAssert.Contains(yaml, "Name: Rex");
     }
 }
