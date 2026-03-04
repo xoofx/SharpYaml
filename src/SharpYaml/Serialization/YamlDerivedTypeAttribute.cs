@@ -42,6 +42,20 @@ public sealed class YamlDerivedTypeAttribute : YamlAttribute
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="YamlDerivedTypeAttribute"/> class with an integer discriminator.
+    /// </summary>
+    /// <param name="derivedType">The derived CLR type.</param>
+    /// <param name="discriminator">The integer discriminator value.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="derivedType"/> is <see langword="null"/>.</exception>
+    public YamlDerivedTypeAttribute(Type derivedType, int discriminator)
+    {
+        ArgumentGuard.ThrowIfNull(derivedType);
+
+        DerivedType = derivedType;
+        Discriminator = discriminator.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
     /// Gets the derived CLR type.
     /// </summary>
     public Type DerivedType { get; }

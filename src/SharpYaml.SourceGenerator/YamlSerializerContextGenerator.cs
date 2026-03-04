@@ -5780,7 +5780,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             unknownOverrideValue = yamlUnknownOverrideValue;
         }
 
-        // YamlDerivedTypeAttribute(Type derivedType) or YamlDerivedTypeAttribute(Type derivedType, string discriminator) { string? Tag }
+        // YamlDerivedTypeAttribute(Type derivedType) or YamlDerivedTypeAttribute(Type derivedType, string|int discriminator) { string? Tag }
         ITypeSymbol? defaultDerivedType = null;
         foreach (var attribute in baseType.GetAttributes())
         {
@@ -5801,9 +5801,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
 
             string? discriminator = null;
-            if (attribute.ConstructorArguments.Length >= 2 && attribute.ConstructorArguments[1].Value is string discValue)
+            if (attribute.ConstructorArguments.Length >= 2)
             {
-                discriminator = discValue;
+                discriminator = attribute.ConstructorArguments[1].Value switch
+                {
+                    string s => s,
+                    int i => i.ToString(global::System.Globalization.CultureInfo.InvariantCulture),
+                    _ => null,
+                };
             }
 
             string? tag = null;

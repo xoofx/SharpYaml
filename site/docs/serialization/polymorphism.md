@@ -77,6 +77,39 @@ public abstract class Animal { }
 
 When serializing a default derived type, no discriminator property is emitted.
 
+## Integer discriminators
+
+Discriminator values can be integers instead of strings. Both `JsonDerivedTypeAttribute` and `YamlDerivedTypeAttribute` accept an `int` argument:
+
+```csharp
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(Dog), 1)]
+[JsonDerivedType(typeof(Cat), 2)]
+public abstract class Animal
+{
+    public string Name { get; set; } = "";
+}
+```
+
+```csharp
+[YamlPolymorphic]
+[YamlDerivedType(typeof(Dog), 1)]
+[YamlDerivedType(typeof(Cat), 2)]
+public abstract class Animal
+{
+    public string Name { get; set; } = "";
+}
+```
+
+The integer is emitted as a plain YAML scalar:
+
+```yaml
+$type: 1
+Name: Rex
+```
+
+Integer discriminators are stored internally as strings (using invariant culture) so they work identically in both reflection mode and source-generated mode.
+
 ## Unknown discriminator handling
 
 By default, an unrecognized discriminator value causes deserialization to throw. You can override this per-type via [`YamlPolymorphicAttribute`](xref:SharpYaml.Serialization.YamlPolymorphicAttribute) or globally via [`YamlPolymorphismOptions`](xref:SharpYaml.YamlPolymorphismOptions):

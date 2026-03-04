@@ -74,6 +74,42 @@ public class YamlPolymorphismTests
     {
     }
 
+    [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+    [JsonDerivedType(typeof(JsonIntDog), 1)]
+    [JsonDerivedType(typeof(JsonIntCat), 2)]
+    private abstract class JsonIntAnimal
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class JsonIntDog : JsonIntAnimal
+    {
+        public int BarkVolume { get; set; }
+    }
+
+    private sealed class JsonIntCat : JsonIntAnimal
+    {
+        public int Lives { get; set; }
+    }
+
+    [YamlPolymorphic]
+    [YamlDerivedType(typeof(YamlIntDog), 1)]
+    [YamlDerivedType(typeof(YamlIntCat), 2)]
+    private abstract class YamlIntAnimal
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class YamlIntDog : YamlIntAnimal
+    {
+        public int BarkVolume { get; set; }
+    }
+
+    private sealed class YamlIntCat : YamlIntAnimal
+    {
+        public int Lives { get; set; }
+    }
+
     [YamlPolymorphic]
     [YamlDerivedType(typeof(Circle), "circle")]
     private class Shape
@@ -107,6 +143,18 @@ public class YamlPolymorphismTests
     }
 
     private sealed class JsonOverriddenCircle : JsonOverriddenShape
+    {
+        public double Radius { get; set; }
+    }
+
+    [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type", UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FallBackToBaseType)]
+    [JsonDerivedType(typeof(JsonFallbackCircle), "circle")]
+    private class JsonFallbackShape
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class JsonFallbackCircle : JsonFallbackShape
     {
         public double Radius { get; set; }
     }
@@ -332,5 +380,60 @@ public class YamlPolymorphismTests
 
         StringAssert.Contains(yaml, "$type: dog");
         StringAssert.Contains(yaml, "Name: Rex");
+    }
+
+    [TestMethod]
+    public void JsonIntDiscriminatorSerializesCorrectly()
+    {
+        JsonIntAnimal animal = new JsonIntDog { Name = "Rex", BarkVolume = 3 };
+        var yaml = SharpYaml.YamlSerializer.Serialize(animal, typeof(JsonIntAnimal));
+
+        StringAssert.Contains(yaml, "$type: 1");
+        StringAssert.Contains(yaml, "BarkVolume: 3");
+    }
+
+    [TestMethod]
+    public void JsonIntDiscriminatorDeserializesCorrectly()
+    {
+        var yaml = "$type: 2\nName: Mittens\nLives: 9\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<JsonIntAnimal>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<JsonIntCat>(value);
+        Assert.AreEqual("Mittens", value.Name);
+        Assert.AreEqual(9, ((JsonIntCat)value).Lives);
+    }
+
+    [TestMethod]
+    public void YamlIntDiscriminatorSerializesCorrectly()
+    {
+        YamlIntAnimal animal = new YamlIntDog { Name = "Rex", BarkVolume = 3 };
+        var yaml = SharpYaml.YamlSerializer.Serialize(animal, typeof(YamlIntAnimal));
+
+        StringAssert.Contains(yaml, "$type: 1");
+        StringAssert.Contains(yaml, "BarkVolume: 3");
+    }
+
+    [TestMethod]
+    public void YamlIntDiscriminatorDeserializesCorrectly()
+    {
+        var yaml = "$type: 2\nName: Mittens\nLives: 9\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<YamlIntAnimal>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<YamlIntCat>(value);
+        Assert.AreEqual("Mittens", value.Name);
+        Assert.AreEqual(9, ((YamlIntCat)value).Lives);
+    }
+
+    [TestMethod]
+    public void JsonPolymorphicAttributeUnknownHandlingFallsBackToBase()
+    {
+        var yaml = "Name: Base\n$type: unknown\n";
+        var value = SharpYaml.YamlSerializer.Deserialize<JsonFallbackShape>(yaml);
+
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<JsonFallbackShape>(value);
+        Assert.AreEqual("Base", value.Name);
     }
 }
