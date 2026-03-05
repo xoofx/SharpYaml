@@ -1,4 +1,4 @@
-# SharpYaml Documentation Site — Agent Instructions
+# SharpYaml Documentation Site -  Agent Instructions
 
 This folder contains the [Lunet](https://lunet.io)-based documentation website for SharpYaml.
 

@@ -50,7 +50,7 @@ A derived type registered without a discriminator acts as the default when the d
 ```csharp
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(Cat), "cat")]
-[JsonDerivedType(typeof(OtherAnimal))]        // default — no discriminator
+[JsonDerivedType(typeof(OtherAnimal))]        // default -  no discriminator
 public abstract class Animal
 {
     public string Name { get; set; } = "";
@@ -71,7 +71,7 @@ The equivalent using YAML attributes:
 ```csharp
 [YamlPolymorphic]
 [YamlDerivedType(typeof(Dog), "dog")]
-[YamlDerivedType(typeof(OtherAnimal))]        // default — no discriminator
+[YamlDerivedType(typeof(OtherAnimal))]        // default -  no discriminator
 public abstract class Animal { }
 ```
 

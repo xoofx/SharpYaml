@@ -37,7 +37,7 @@ namespace SharpYaml.Tests;
 public sealed class Yaml12CoreTests
 {
     // ───────────────────────────────────────────────────────────────────
-    // YAML 1.2 §10.1 — Failsafe Schema
+    // YAML 1.2 §10.1 -  Failsafe Schema
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -63,7 +63,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // YAML 1.2 §10.2 — JSON Schema
+    // YAML 1.2 §10.2 -  JSON Schema
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -138,7 +138,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // YAML 1.2 §10.3 — Core Schema
+    // YAML 1.2 §10.3 -  Core Schema
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -273,7 +273,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Extended Schema — Timestamps, bools, merge, binary integers
+    // Extended Schema -  Timestamps, bools, merge, binary integers
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -458,7 +458,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Schema — GetDefaultTag for Type
+    // Schema -  GetDefaultTag for Type
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -495,7 +495,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Parser — Empty & Multi-document Streams
+    // Parser -  Empty & Multi-document Streams
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -572,7 +572,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Scanner/Parser — Block Scalar Indicators
+    // Scanner/Parser -  Block Scalar Indicators
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -644,7 +644,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Scanner — Escape Sequences
+    // Scanner -  Escape Sequences
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -897,7 +897,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // YamlStream Model — Round-Trip Tests
+    // YamlStream Model -  Round-Trip Tests
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -974,7 +974,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Serializer — Values that need quoting
+    // Serializer -  Values that need quoting
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -1033,7 +1033,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Emitter — Additional edge cases
+    // Emitter -  Additional edge cases
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
@@ -1108,7 +1108,7 @@ public sealed class Yaml12CoreTests
     }
 
     // ───────────────────────────────────────────────────────────────────
-    // Complex YAML structures — integration-level parsing tests
+    // Complex YAML structures -  integration-level parsing tests
     // ───────────────────────────────────────────────────────────────────
 
     [TestMethod]
