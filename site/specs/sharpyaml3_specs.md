@@ -194,15 +194,14 @@ Design rules:
 
 Expose a generator-friendly API similar to STJ, but **do not require tagging model types**.
 
-Source generation is driven by a *context class* (like `JsonSerializerContext`). Types are declared on the context using the existing `System.Text.Json.Serialization.JsonSerializableAttribute` so users can keep a familiar workflow and often reuse their existing lists of types.
+Source generation is driven by a *context class* (like `JsonSerializerContext`). Types are declared on the context using `SharpYaml.Serialization.YamlSerializableAttribute`, with `JsonSerializableAttribute` accepted only as a legacy migration path that emits a SharpYaml warning.
 
 ```csharp
-using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
 [YamlSourceGenerationOptions(WriteIndented = true)]
-[JsonSerializable(typeof(MyConfig))]
-[JsonSerializable(typeof(List<MyItem>))]
+[YamlSerializable(typeof(MyConfig))]
+[YamlSerializable(typeof(List<MyItem>))]
 internal partial class MyYamlContext : YamlSerializerContext
 {
 }
@@ -633,7 +632,7 @@ This is the recommended execution order. Each step should be a self-contained PR
 
 6. **Source generator**
    - Add new analyzer project `src/SharpYaml.SourceGeneration/`.
-   - Implement incremental generator that targets `YamlSerializerContext`-derived classes and reads `[JsonSerializable(typeof(...))]` entries to determine the type graph to generate.
+   - Implement incremental generator that targets `YamlSerializerContext`-derived classes and reads `[YamlSerializable(typeof(...))]` entries to determine the type graph to generate.
    - Ensure generated metadata supports the v3 serializer pipeline without reflection.
 
 7. **Span<char> and streaming**

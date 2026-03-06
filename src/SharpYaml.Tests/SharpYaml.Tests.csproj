@@ -4,7 +4,6 @@
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
     <Nullable>annotations</Nullable>
-    <NoWarn>$(NoWarn);SYSLIB1224</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
@@ -17,10 +16,11 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MSTest" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SharpYaml\SharpYaml.csproj" />
     <ProjectReference Include="..\SharpYaml.FeatureSwitchSmoke\SharpYaml.FeatureSwitchSmoke.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
-    <ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\SharpYaml.SourceGenerator\SharpYaml.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" PrivateAssets="all" />
   </ItemGroup>
 </Project>

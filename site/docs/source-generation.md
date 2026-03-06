@@ -14,17 +14,16 @@ Use source generation when:
 
 ## Define a context
 
-SharpYaml reuses `System.Text.Json.Serialization` generation attributes such as [`JsonSerializableAttribute`](xref:System.Text.Json.Serialization.JsonSerializableAttribute).
+SharpYaml uses [`YamlSerializableAttribute`](xref:SharpYaml.Serialization.YamlSerializableAttribute) to declare source-generated roots.
 
 ```csharp
-using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
 [YamlSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase)]
-[JsonSerializable(typeof(MyConfig))]
-[JsonSerializable(typeof(List<int>))]
+[YamlSerializable(typeof(MyConfig))]
+[YamlSerializable(typeof(List<int>))]
 internal partial class MyYamlContext : YamlSerializerContext
 {
 }
@@ -106,4 +105,4 @@ Even when reflection-based object mapping is disabled, SharpYaml still supports 
 
 - If generated properties are missing, ensure the project references the `SharpYaml` NuGet package (the generator is shipped in-package under `analyzers/dotnet/cs`).
 - Ensure the context class is `partial`.
-- Ensure roots are declared via `[JsonSerializable(typeof(...))]`.
+- Ensure roots are declared via `[YamlSerializable(typeof(...))]`.

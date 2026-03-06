@@ -26,7 +26,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor UnsupportedMemberType = new(
         id: "SHARPYAML002",
         title: "Unsupported member type",
-        messageFormat: "Type '{0}' contains member '{1}' of unsupported type '{2}'. Add [JsonSerializable(typeof({2}))] to the context or change the member type.",
+        messageFormat: "Type '{0}' contains member '{1}' of unsupported type '{2}'. Add [YamlSerializable(typeof({2}))] to the context or change the member type.",
         category: "SharpYaml.SourceGeneration",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -61,6 +61,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         messageFormat: "Converter type '{0}' is invalid: {1}",
         category: "SharpYaml.SourceGeneration",
         defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor JsonSerializableOnYamlSerializerContext = new(
+        id: "SHARPYAML007",
+        title: "JsonSerializable is not valid on YamlSerializerContext",
+        messageFormat: "Context '{0}' uses [JsonSerializable] for '{1}'. Replace it with [YamlSerializable].",
+        category: "SharpYaml.SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     private sealed class SourceGenerationOptionsModel
@@ -113,7 +121,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             INamedTypeSymbol contextSymbol,
             string namespaceName,
             string typeName,
-            ImmutableArray<ITypeSymbol> serializableTypes,
+            ImmutableArray<SerializableTypeModel> serializableTypes,
+            ImmutableArray<LegacyJsonSerializableUsageModel> legacyJsonSerializableUsages,
             SourceGenerationOptionsModel sourceGenerationOptions,
             bool isValid)
         {
@@ -121,6 +130,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             NamespaceName = namespaceName;
             TypeName = typeName;
             SerializableTypes = serializableTypes;
+            LegacyJsonSerializableUsages = legacyJsonSerializableUsages;
             SourceGenerationOptions = sourceGenerationOptions;
             IsValid = isValid;
         }
@@ -128,9 +138,34 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public INamedTypeSymbol ContextSymbol { get; }
         public string NamespaceName { get; }
         public string TypeName { get; }
-        public ImmutableArray<ITypeSymbol> SerializableTypes { get; }
+        public ImmutableArray<SerializableTypeModel> SerializableTypes { get; }
+        public ImmutableArray<LegacyJsonSerializableUsageModel> LegacyJsonSerializableUsages { get; }
         public SourceGenerationOptionsModel SourceGenerationOptions { get; }
         public bool IsValid { get; }
+    }
+
+    private sealed class SerializableTypeModel
+    {
+        public SerializableTypeModel(ITypeSymbol typeSymbol, string? typeInfoPropertyName)
+        {
+            TypeSymbol = typeSymbol;
+            TypeInfoPropertyName = typeInfoPropertyName;
+        }
+
+        public ITypeSymbol TypeSymbol { get; }
+        public string? TypeInfoPropertyName { get; }
+    }
+
+    private sealed class LegacyJsonSerializableUsageModel
+    {
+        public LegacyJsonSerializableUsageModel(Location? location, ITypeSymbol typeSymbol)
+        {
+            Location = location;
+            TypeSymbol = typeSymbol;
+        }
+
+        public Location? Location { get; }
+        public ITypeSymbol TypeSymbol { get; }
     }
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -177,25 +212,21 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return null;
         }
 
-        var serializableTypes = ImmutableArray.CreateBuilder<ITypeSymbol>();
+        var serializableTypes = ImmutableArray.CreateBuilder<SerializableTypeModel>();
+        var legacyJsonSerializableUsages = ImmutableArray.CreateBuilder<LegacyJsonSerializableUsageModel>();
         var jsonSourceGenerationOptions = new SourceGenerationOptionsModel();
         var yamlSourceGenerationOptions = new SourceGenerationOptionsModel();
         foreach (var attribute in classSymbol.GetAttributes())
         {
-            if (IsJsonSerializableAttribute(attribute))
+            if (TryCreateSerializableTypeModel(attribute, out var serializableType))
             {
-                if (attribute.ConstructorArguments.Length != 1)
+                serializableTypes.Add(serializableType);
+                if (IsJsonSerializableAttribute(attribute))
                 {
-                    continue;
+                    legacyJsonSerializableUsages.Add(new LegacyJsonSerializableUsageModel(
+                        attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
+                        serializableType.TypeSymbol));
                 }
-
-                var argument = attribute.ConstructorArguments[0];
-                if (argument.Kind != TypedConstantKind.Type || argument.Value is not ITypeSymbol typeSymbol)
-                {
-                    continue;
-                }
-
-                serializableTypes.Add(typeSymbol);
                 continue;
             }
 
@@ -230,6 +261,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             namespaceName,
             typeName,
             serializableTypes.ToImmutable(),
+            legacyJsonSerializableUsages.ToImmutable(),
             sourceGenerationOptions,
             isValid: isPartial);
     }
@@ -242,7 +274,17 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
-        var resolvedTypes = ExpandSerializableTypes(model.SerializableTypes);
+        for (var i = 0; i < model.LegacyJsonSerializableUsages.Length; i++)
+        {
+            var usage = model.LegacyJsonSerializableUsages[i];
+            context.ReportDiagnostic(Diagnostic.Create(
+                JsonSerializableOnYamlSerializerContext,
+                usage.Location ?? model.ContextSymbol.Locations.FirstOrDefault(),
+                model.ContextSymbol.ToDisplayString(),
+                usage.TypeSymbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+        }
+
+        var resolvedTypes = ExpandSerializableTypes(model.SerializableTypes.Select(static item => item.TypeSymbol).ToImmutableArray());
 
         var indexByType = new Dictionary<ITypeSymbol, int>(resolvedTypes.Length, SymbolEqualityComparer.Default);
         for (var i = 0; i < resolvedTypes.Length; i++)
@@ -485,7 +527,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static ImmutableArray<ITypeSymbol> ExpandSerializableTypes(ImmutableArray<ITypeSymbol> roots)
     {
-        // Always include types declared via JsonSerializable. Additionally include polymorphic derived types
+        // Always include explicitly declared root types. Additionally include polymorphic derived types
         // so generated polymorphism dispatch can call into their serializers without requiring explicit roots.
         var builder = ImmutableArray.CreateBuilder<ITypeSymbol>();
         var seen = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
@@ -1319,7 +1361,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
 
             if (selectedConstructor is not null &&
-                selectedConstructor.Parameters.Length != 0)
+                (selectedConstructor.Parameters.Length != 0 ||
+                 members.Any(static member => member.IsInitOnly) ||
+                 extensionData is { IsInitOnly: true }))
             {
                 if (selectedConstructor.DeclaredAccessibility != Accessibility.Public)
                 {
@@ -1712,10 +1756,15 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             requiredVarBySymbol[requiredMembers[i].Symbol] = $"__required{index}_{requiredMembers[i].Symbol.Name}";
         }
 
-        // Buffer writable members that are not constructor-bound so we can assign them after we create the instance.
+        // Buffer writable members that are not constructor-bound. Init-only members are applied in the object initializer
+        // when the instance is created, while mutable members are assigned afterwards.
         var bufferedMembers = members
             .Where(m => IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol))
             .ToArray();
+        var initOnlyMembers = bufferedMembers.Where(static m => m.IsInitOnly).ToArray();
+        var postCreateBufferedMembers = bufferedMembers.Where(static m => !m.IsInitOnly).ToArray();
+        var useObjectInitializer = initOnlyMembers.Length != 0 || extensionData is { IsInitOnly: true };
+        var initOnlyExtensionDataValueVarName = extensionData is { IsInitOnly: true } ? $"__extensionData{index}" : null;
 
         var bufferedMemberValueVarNames = new Dictionary<ISymbol, string>(bufferedMembers.Length, SymbolEqualityComparer.Default);
         var bufferedMemberSeenVarNames = new Dictionary<ISymbol, string>(bufferedMembers.Length, SymbolEqualityComparer.Default);
@@ -1905,7 +1954,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 rhs => localValueVar + " = " + rhs,
                 member.IgnoreConditionExpression,
                 member.AttributeConverterTypeName,
-                member.IsRequired);
+                member.IsRequired,
+                member.IsInitOnly);
 
             builder.Append("                if (!matched && global::System.String.Equals(mergeKey, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
@@ -2036,7 +2086,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 rhs => localValueVar + " = " + rhs,
                 member.IgnoreConditionExpression,
                 member.AttributeConverterTypeName,
-                member.IsRequired);
+                member.IsRequired,
+                member.IsInitOnly);
 
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
@@ -2116,6 +2167,127 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.AppendLine();
+        if (useObjectInitializer)
+        {
+            builder.Append("        var __defaults").Append(index).Append(" = default(").Append(typeName);
+            if (typeSymbol.IsReferenceType)
+            {
+                builder.Append('?');
+            }
+
+            builder.AppendLine(");");
+            if (extensionData is { IsInitOnly: true })
+            {
+                builder.Append("        __defaults").Append(index).Append(" = new ").Append(typeName).Append('(');
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    if (i != 0)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append(parameterValueVarNames[i]);
+                }
+
+                builder.AppendLine(");");
+            }
+            else
+            {
+                builder.Append("        if (");
+                for (var i = 0; i < initOnlyMembers.Length; i++)
+                {
+                    if (i != 0)
+                    {
+                        builder.Append(" || ");
+                    }
+
+                    builder.Append('!').Append(bufferedMemberSeenVarNames[initOnlyMembers[i].Symbol]);
+                }
+
+                builder.AppendLine(")");
+                builder.AppendLine("        {");
+                builder.Append("            __defaults").Append(index).Append(" = new ").Append(typeName).Append('(');
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    if (i != 0)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append(parameterValueVarNames[i]);
+                }
+
+                builder.AppendLine(");");
+                builder.AppendLine("        }");
+            }
+
+            if (extensionData is { IsInitOnly: true } initOnlyExtensionData)
+            {
+                builder.Append("        var ").Append(initOnlyExtensionDataValueVarName).Append(" = __defaults").Append(index);
+                if (typeSymbol.IsReferenceType)
+                {
+                    builder.Append('!');
+                }
+
+                builder.Append('.').Append(initOnlyExtensionData.Symbol.Name).AppendLine(";");
+                builder.AppendLine("        if (extensionEntries is not null && extensionEntries.Count != 0)");
+                builder.AppendLine("        {");
+                if (initOnlyExtensionData.Kind == ExtensionDataKind.Dictionary)
+                {
+                    var valueTypeName = (initOnlyExtensionData.DictionaryValueType ?? throw new InvalidOperationException("Extension data dictionary value type is missing."))
+                        .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+                    builder.Append("            var container = ").Append(initOnlyExtensionDataValueVarName).AppendLine(";");
+                    builder.AppendLine("            if (container is null)");
+                    builder.AppendLine("            {");
+                    builder.Append("                container = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
+                        .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
+                    builder.Append("                ").Append(initOnlyExtensionDataValueVarName).AppendLine(" = container;");
+                    builder.AppendLine("            }");
+                    builder.AppendLine("            for (var i = 0; i < extensionEntries.Count; i++)");
+                    builder.AppendLine("            {");
+                    builder.AppendLine("                var entry = extensionEntries[i];");
+                    builder.AppendLine("                container[entry.Key] = entry.Value;");
+                    builder.AppendLine("            }");
+                }
+                else
+                {
+                    builder.Append("            var mapping = ").Append(initOnlyExtensionDataValueVarName).AppendLine(";");
+                    builder.AppendLine("            if (mapping is null)");
+                    builder.AppendLine("            {");
+                    builder.AppendLine("                mapping = new global::SharpYaml.Model.YamlMapping();");
+                    builder.Append("                ").Append(initOnlyExtensionDataValueVarName).AppendLine(" = mapping;");
+                    builder.AppendLine("            }");
+                    builder.AppendLine("            var list = (global::System.Collections.Generic.IList<global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>>)mapping;");
+                    builder.AppendLine("            for (var entryIndex = 0; entryIndex < extensionEntries.Count; entryIndex++)");
+                    builder.AppendLine("            {");
+                    builder.AppendLine("                var entry = extensionEntries[entryIndex];");
+                    builder.AppendLine("                var extensionKey = entry.Key;");
+                    builder.AppendLine("                var extensionValue = entry.Value;");
+                    builder.AppendLine("                var replaced = false;");
+                    builder.AppendLine("                for (var i = 0; i < list.Count; i++)");
+                    builder.AppendLine("                {");
+                    builder.AppendLine("                    var pair = list[i];");
+                    builder.AppendLine("                    if (pair.Key is global::SharpYaml.Model.YamlValue keyValue && global::System.String.Equals(keyValue.Value, extensionKey, global::System.StringComparison.Ordinal))");
+                    builder.AppendLine("                    {");
+                    builder.AppendLine("                        list[i] = new global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>(pair.Key, extensionValue);");
+                    builder.AppendLine("                        replaced = true;");
+                    builder.AppendLine("                        break;");
+                    builder.AppendLine("                    }");
+                    builder.AppendLine("                }");
+                    builder.AppendLine("                if (!replaced)");
+                    builder.AppendLine("                {");
+                    builder.AppendLine("                    mapping.Add(new global::SharpYaml.Model.YamlValue(extensionKey), extensionValue);");
+                    builder.AppendLine("                }");
+                    builder.AppendLine("            }");
+                }
+
+                builder.AppendLine("        }");
+            }
+
+            builder.AppendLine();
+        }
+
         builder.Append("        var instance = new ").Append(typeName).Append('(');
         for (var i = 0; i < parameters.Length; i++)
         {
@@ -2125,7 +2297,37 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
             builder.Append(parameterValueVarNames[i]);
         }
-        builder.AppendLine(");");
+
+        if (!useObjectInitializer)
+        {
+            builder.AppendLine(");");
+        }
+        else
+        {
+            builder.AppendLine(")");
+            builder.AppendLine("        {");
+            for (var i = 0; i < initOnlyMembers.Length; i++)
+            {
+                var member = initOnlyMembers[i];
+                var seenVar = bufferedMemberSeenVarNames[member.Symbol];
+                var valueVar = bufferedMemberValueVarNames[member.Symbol];
+
+                builder.Append("            ").Append(member.Symbol.Name).Append(" = ").Append(seenVar).Append(" ? ").Append(valueVar).Append(" : __defaults").Append(index);
+                if (typeSymbol.IsReferenceType)
+                {
+                    builder.Append('!');
+                }
+
+                builder.Append('.').Append(member.Symbol.Name).AppendLine(",");
+            }
+
+            if (extensionData is { IsInitOnly: true } initOnlyExtensionData)
+            {
+                builder.Append("            ").Append(initOnlyExtensionData.Symbol.Name).Append(" = ").Append(initOnlyExtensionDataValueVarName).AppendLine(",");
+            }
+
+            builder.AppendLine("        };");
+        }
 
         builder.AppendLine("        if (instanceAnchor is not null) { reader.RegisterAnchor(instanceAnchor, instance); }");
 
@@ -2146,9 +2348,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         // Apply buffered writable members.
-        for (var i = 0; i < bufferedMembers.Length; i++)
+        for (var i = 0; i < postCreateBufferedMembers.Length; i++)
         {
-            var member = bufferedMembers[i];
+            var member = postCreateBufferedMembers[i];
             var localValueVar = bufferedMemberValueVarNames[member.Symbol];
             var localSeenVar = bufferedMemberSeenVarNames[member.Symbol];
             builder.AppendLine();
@@ -2159,7 +2361,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         // Apply buffered extension entries.
-        if (extensionData is not null)
+        if (extensionData is not null && !extensionData.IsInitOnly)
         {
             builder.AppendLine();
             builder.AppendLine("        if (extensionEntries is not null)");
@@ -5144,7 +5346,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             Func<string, string> assignExpression,
             string ignoreConditionExpression,
             string? attributeConverterTypeName,
-            bool isRequired)
+            bool isRequired,
+            bool isInitOnly)
         {
             Symbol = symbol;
             Type = type;
@@ -5155,6 +5358,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             IgnoreConditionExpression = ignoreConditionExpression;
             AttributeConverterTypeName = attributeConverterTypeName;
             IsRequired = isRequired;
+            IsInitOnly = isInitOnly;
         }
 
         public ISymbol Symbol { get; }
@@ -5166,6 +5370,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string IgnoreConditionExpression { get; }
         public string? AttributeConverterTypeName { get; }
         public bool IsRequired { get; }
+        public bool IsInitOnly { get; }
     }
 
     private enum ExtensionDataKind
@@ -5183,7 +5388,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             ITypeSymbol? dictionaryValueType,
             string accessExpression,
             Func<string, string>? assignExpression,
-            bool canAssign)
+            bool canAssign,
+            bool isInitOnly)
         {
             Symbol = symbol;
             Type = type;
@@ -5192,6 +5398,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             AccessExpression = accessExpression;
             AssignExpression = assignExpression;
             CanAssign = canAssign;
+            IsInitOnly = isInitOnly;
         }
 
         public ISymbol Symbol { get; }
@@ -5201,6 +5408,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string AccessExpression { get; }
         public Func<string, string>? AssignExpression { get; }
         public bool CanAssign { get; }
+        public bool IsInitOnly { get; }
     }
 
     private static MemberModel CreateMemberModel(ISymbol member, JsonNamingPolicy? propertyNamingPolicy)
@@ -5214,7 +5422,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var ignoreConditionExpression = GetIgnoreConditionExpression(member);
         var converterTypeName = GetYamlConverterAttributeTypeName(member);
         var isRequired = HasAttribute(member, "SharpYaml.Serialization.YamlRequiredAttribute") || HasAttribute(member, "System.Text.Json.Serialization.JsonRequiredAttribute");
-        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, isRequired);
+        var isInitOnly = member is IPropertySymbol property && IsInitOnlyProperty(property);
+        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, isRequired, isInitOnly);
     }
 
     private static (string ForRead, string ForWrite) GetSerializedMemberNameExpressions(ISymbol member, JsonNamingPolicy? propertyNamingPolicy)
@@ -5545,13 +5754,18 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var accessExpression = "instance." + symbol.Name;
         Func<string, string>? assignExpression = null;
         var canAssign = false;
+        var isInitOnly = false;
 
         if (symbol is IPropertySymbol property)
         {
+            isInitOnly = IsInitOnlyProperty(property);
             if (property.SetMethod is not null)
             {
-                canAssign = true;
-                assignExpression = rhs => "instance." + property.Name + " = " + rhs;
+                canAssign = !isInitOnly;
+                if (canAssign)
+                {
+                    assignExpression = rhs => "instance." + property.Name + " = " + rhs;
+                }
             }
         }
         else if (symbol is IFieldSymbol field)
@@ -5563,7 +5777,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
         }
 
-        return new ExtensionDataMemberModel(symbol, memberType, kind, dictionaryValueType, accessExpression, assignExpression, canAssign);
+        return new ExtensionDataMemberModel(symbol, memberType, kind, dictionaryValueType, accessExpression, assignExpression, canAssign, isInitOnly);
     }
 
     private static bool IsWritableMember(ISymbol member)
@@ -5587,6 +5801,25 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
 
             return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsInitOnlyProperty(IPropertySymbol property)
+    {
+        if (property.SetMethod is not { } setMethod)
+        {
+            return false;
+        }
+
+        foreach (var modifier in setMethod.ReturnTypeCustomModifiers)
+        {
+            if (!modifier.IsOptional &&
+                string.Equals(modifier.Modifier.ToDisplayString(), "System.Runtime.CompilerServices.IsExternalInit", StringComparison.Ordinal))
+            {
+                return true;
+            }
         }
 
         return false;
@@ -5662,6 +5895,33 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return false;
     }
 
+    private static bool TryCreateSerializableTypeModel(AttributeData attribute, out SerializableTypeModel model)
+    {
+        model = null!;
+
+        if (!IsYamlSerializableAttribute(attribute) && !IsJsonSerializableAttribute(attribute))
+        {
+            return false;
+        }
+
+        if (attribute.ConstructorArguments.Length != 1)
+        {
+            return false;
+        }
+
+        var argument = attribute.ConstructorArguments[0];
+        if (argument.Kind != TypedConstantKind.Type || argument.Value is not ITypeSymbol typeSymbol)
+        {
+            return false;
+        }
+
+        model = new SerializableTypeModel(typeSymbol, GetTypeInfoPropertyNameOverride(attribute));
+        return true;
+    }
+
+    private static bool IsYamlSerializableAttribute(AttributeData attribute)
+        => string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlSerializableAttribute", StringComparison.Ordinal);
+
     private static bool IsJsonSerializableAttribute(AttributeData attribute)
         => string.Equals(attribute.AttributeClass?.ToDisplayString(), "System.Text.Json.Serialization.JsonSerializableAttribute", StringComparison.Ordinal);
 
@@ -5670,6 +5930,20 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static bool IsYamlSourceGenerationOptionsAttribute(AttributeData attribute)
         => string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlSourceGenerationOptionsAttribute", StringComparison.Ordinal);
+
+    private static string? GetTypeInfoPropertyNameOverride(AttributeData attribute)
+    {
+        foreach (var namedArgument in attribute.NamedArguments)
+        {
+            if (string.Equals(namedArgument.Key, "TypeInfoPropertyName", StringComparison.Ordinal) &&
+                namedArgument.Value.Value is string typeInfoPropertyName)
+            {
+                return typeInfoPropertyName;
+            }
+        }
+
+        return null;
+    }
 
     private static IEnumerable<ITypeSymbol> GetPolymorphicDerivedTypes(INamedTypeSymbol baseType)
     {
@@ -5891,6 +6165,18 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     {
         var names = ImmutableArray.CreateBuilder<string>(types.Length);
         var usedNames = new HashSet<string>(StringComparer.Ordinal);
+        var requestedNames = new Dictionary<ITypeSymbol, string>(SymbolEqualityComparer.Default);
+
+        for (var i = 0; i < model.SerializableTypes.Length; i++)
+        {
+            var requestedName = model.SerializableTypes[i].TypeInfoPropertyName;
+            if (!string.IsNullOrWhiteSpace(requestedName) &&
+                !requestedNames.ContainsKey(model.SerializableTypes[i].TypeSymbol))
+            {
+                requestedNames.Add(model.SerializableTypes[i].TypeSymbol, requestedName!);
+            }
+        }
+
         foreach (var member in model.ContextSymbol.GetMembers())
         {
             usedNames.Add(member.Name);
@@ -5903,7 +6189,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         for (var i = 0; i < types.Length; i++)
         {
-            var baseName = SanitizeTypeInfoPropertyName(BuildTypeInfoPropertyBaseName(types[i]));
+            var baseName = requestedNames.TryGetValue(types[i], out var requestedName)
+                ? SanitizeTypeInfoPropertyName(requestedName)
+                : SanitizeTypeInfoPropertyName(BuildTypeInfoPropertyBaseName(types[i]));
             if (string.IsNullOrEmpty(baseName))
             {
                 baseName = "TypeInfo";

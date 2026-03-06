@@ -80,13 +80,12 @@ Built-in primitives and untyped containers remain supported without reflection.
 
 ## Source Generation
 
-Create a context class and declare serializable roots with [`JsonSerializableAttribute`](xref:System.Text.Json.Serialization.JsonSerializableAttribute):
+Create a context class and declare serializable roots with [`YamlSerializableAttribute`](xref:SharpYaml.Serialization.YamlSerializableAttribute):
 
 ```csharp
-using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
-[JsonSerializable(typeof(MyType))]
+[YamlSerializable(typeof(MyType))]
 internal partial class MyYamlContext : YamlSerializerContext
 {
 }

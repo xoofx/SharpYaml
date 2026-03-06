@@ -31,7 +31,7 @@ internal sealed class SmokeConfig
     public bool Enabled { get; set; }
 }
 
-[JsonSerializable(typeof(SmokeConfig))]
+[YamlSerializable(typeof(SmokeConfig))]
 internal partial class SmokeYamlContext : YamlSerializerContext
 {
 }

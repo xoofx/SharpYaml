@@ -325,6 +325,29 @@ internal sealed class GeneratedRequiredPayload
     public int RequiredValue { get; set; }
 }
 
+internal sealed class GeneratedYamlRequiredInitOnlyPayload
+{
+    [YamlRequired]
+    public string Name { get; init; } = string.Empty;
+
+    public int Age { get; init; }
+}
+
+internal sealed class GeneratedJsonRequiredInitOnlyPayload
+{
+    [JsonRequired]
+    public string Name { get; init; } = string.Empty;
+
+    public int Age { get; init; }
+}
+
+internal sealed class GeneratedOptionalInitOnlyPayload
+{
+    public string Name { get; init; } = "fallback";
+
+    public int Age { get; init; } = 7;
+}
+
 internal sealed class GeneratedExtensionDataDictionaryPayload
 {
     public int Known { get; set; }
@@ -337,6 +360,22 @@ internal sealed class GeneratedExtensionDataMappingPayload
 {
     [YamlExtensionData]
     public SharpYaml.Model.YamlMapping? Extra { get; set; }
+}
+
+internal sealed class GeneratedInitOnlyExtensionDataDictionaryPayload
+{
+    public int Known { get; set; }
+
+    [YamlExtensionData]
+    public Dictionary<string, object?> Extra { get; init; } = new();
+}
+
+internal sealed class GeneratedInitOnlyExtensionDataMappingPayload
+{
+    public int Known { get; set; }
+
+    [YamlExtensionData]
+    public SharpYaml.Model.YamlMapping Extra { get; init; } = new();
 }
 
 internal sealed class GeneratedMemberConverterPayload
@@ -407,55 +446,59 @@ internal sealed class GeneratedJsonCtorModel
     public int Age { get; }
 }
 
-#pragma warning disable SYSLIB1224
-[JsonSerializable(typeof(GeneratedPerson))]
-[JsonSerializable(typeof(GeneratedContainer))]
-[JsonSerializable(typeof(GeneratedPrimitives))]
-[JsonSerializable(typeof(GeneratedWellKnownScalars))]
-[JsonSerializable(typeof(GeneratedModernScalars))]
-[JsonSerializable(typeof(GeneratedColor))]
-[JsonSerializable(typeof(bool))]
-[JsonSerializable(typeof(int))]
-[JsonSerializable(typeof(int?))]
-[JsonSerializable(typeof(GeneratedCollections))]
-[JsonSerializable(typeof(GeneratedMoreCollections))]
-[JsonSerializable(typeof(List<int>))]
-[JsonSerializable(typeof(Dictionary<string, int>))]
-[JsonSerializable(typeof(Dictionary<int, int>))]
-[JsonSerializable(typeof(Dictionary<int, string>))]
-[JsonSerializable(typeof(IReadOnlyList<int>))]
-[JsonSerializable(typeof(ISet<string>))]
-[JsonSerializable(typeof(HashSet<int>))]
-[JsonSerializable(typeof(IReadOnlyDictionary<GeneratedColor, int>))]
-[JsonSerializable(typeof(ImmutableArray<int>))]
-[JsonSerializable(typeof(ImmutableList<string>))]
-[JsonSerializable(typeof(int[]))]
-[JsonSerializable(typeof(GeneratedReferenceNode))]
-[JsonSerializable(typeof(GeneratedReferenceContainer))]
-[JsonSerializable(typeof(GeneratedAnimal))]
-[JsonSerializable(typeof(GeneratedZoo))]
-[JsonSerializable(typeof(GeneratedTaggedAnimal))]
-[JsonSerializable(typeof(GeneratedTaggedZoo))]
-[JsonSerializable(typeof(GeneratedDefaultAnimal))]
-[JsonSerializable(typeof(GeneratedDefaultZoo))]
-[JsonSerializable(typeof(GeneratedYamlDefaultAnimal))]
-[JsonSerializable(typeof(GeneratedYamlDefaultZoo))]
-[JsonSerializable(typeof(GeneratedFallbackShape))]
-[JsonSerializable(typeof(GeneratedFallbackZoo))]
-[JsonSerializable(typeof(GeneratedJsonIntAnimal))]
-[JsonSerializable(typeof(GeneratedJsonIntZoo))]
-[JsonSerializable(typeof(GeneratedYamlIntAnimal))]
-[JsonSerializable(typeof(GeneratedYamlIntZoo))]
-[JsonSerializable(typeof(GeneratedJsonFallbackShape))]
-[JsonSerializable(typeof(GeneratedJsonFallbackZoo))]
-[JsonSerializable(typeof(GeneratedLifecycleCallbacks))]
-[JsonSerializable(typeof(GeneratedRequiredPayload))]
-[JsonSerializable(typeof(GeneratedExtensionDataDictionaryPayload))]
-[JsonSerializable(typeof(GeneratedExtensionDataMappingPayload))]
-[JsonSerializable(typeof(GeneratedMemberConverterPayload))]
-[JsonSerializable(typeof(GeneratedTypeWithConverter))]
-[JsonSerializable(typeof(GeneratedYamlCtorModel))]
-[JsonSerializable(typeof(GeneratedJsonCtorModel))]
+[YamlSerializable(typeof(GeneratedPerson))]
+[YamlSerializable(typeof(GeneratedContainer))]
+[YamlSerializable(typeof(GeneratedPrimitives))]
+[YamlSerializable(typeof(GeneratedWellKnownScalars))]
+[YamlSerializable(typeof(GeneratedModernScalars))]
+[YamlSerializable(typeof(GeneratedColor))]
+[YamlSerializable(typeof(bool))]
+[YamlSerializable(typeof(int))]
+[YamlSerializable(typeof(int?))]
+[YamlSerializable(typeof(GeneratedCollections))]
+[YamlSerializable(typeof(GeneratedMoreCollections))]
+[YamlSerializable(typeof(List<int>))]
+[YamlSerializable(typeof(Dictionary<string, int>))]
+[YamlSerializable(typeof(Dictionary<int, int>))]
+[YamlSerializable(typeof(Dictionary<int, string>))]
+[YamlSerializable(typeof(IReadOnlyList<int>))]
+[YamlSerializable(typeof(ISet<string>))]
+[YamlSerializable(typeof(HashSet<int>))]
+[YamlSerializable(typeof(IReadOnlyDictionary<GeneratedColor, int>))]
+[YamlSerializable(typeof(ImmutableArray<int>))]
+[YamlSerializable(typeof(ImmutableList<string>))]
+[YamlSerializable(typeof(int[]))]
+[YamlSerializable(typeof(GeneratedReferenceNode))]
+[YamlSerializable(typeof(GeneratedReferenceContainer))]
+[YamlSerializable(typeof(GeneratedAnimal))]
+[YamlSerializable(typeof(GeneratedZoo))]
+[YamlSerializable(typeof(GeneratedTaggedAnimal))]
+[YamlSerializable(typeof(GeneratedTaggedZoo))]
+[YamlSerializable(typeof(GeneratedDefaultAnimal))]
+[YamlSerializable(typeof(GeneratedDefaultZoo))]
+[YamlSerializable(typeof(GeneratedYamlDefaultAnimal))]
+[YamlSerializable(typeof(GeneratedYamlDefaultZoo))]
+[YamlSerializable(typeof(GeneratedFallbackShape))]
+[YamlSerializable(typeof(GeneratedFallbackZoo))]
+[YamlSerializable(typeof(GeneratedJsonIntAnimal))]
+[YamlSerializable(typeof(GeneratedJsonIntZoo))]
+[YamlSerializable(typeof(GeneratedYamlIntAnimal))]
+[YamlSerializable(typeof(GeneratedYamlIntZoo))]
+[YamlSerializable(typeof(GeneratedJsonFallbackShape))]
+[YamlSerializable(typeof(GeneratedJsonFallbackZoo))]
+[YamlSerializable(typeof(GeneratedLifecycleCallbacks))]
+[YamlSerializable(typeof(GeneratedRequiredPayload))]
+[YamlSerializable(typeof(GeneratedYamlRequiredInitOnlyPayload))]
+[YamlSerializable(typeof(GeneratedJsonRequiredInitOnlyPayload))]
+[YamlSerializable(typeof(GeneratedOptionalInitOnlyPayload))]
+[YamlSerializable(typeof(GeneratedExtensionDataDictionaryPayload))]
+[YamlSerializable(typeof(GeneratedExtensionDataMappingPayload))]
+[YamlSerializable(typeof(GeneratedInitOnlyExtensionDataDictionaryPayload))]
+[YamlSerializable(typeof(GeneratedInitOnlyExtensionDataMappingPayload))]
+[YamlSerializable(typeof(GeneratedMemberConverterPayload))]
+[YamlSerializable(typeof(GeneratedTypeWithConverter))]
+[YamlSerializable(typeof(GeneratedYamlCtorModel))]
+[YamlSerializable(typeof(GeneratedJsonCtorModel))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
     public TestYamlSerializerContext()
@@ -474,7 +517,7 @@ internal partial class TestYamlSerializerContext : YamlSerializerContext
     DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingNull,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
-[JsonSerializable(typeof(GeneratedWithDefaultOptions))]
+[YamlSerializable(typeof(GeneratedWithDefaultOptions))]
 internal partial class TestYamlSerializerContextWithOptions : YamlSerializerContext
 {
     public TestYamlSerializerContextWithOptions()
@@ -489,11 +532,16 @@ internal partial class TestYamlSerializerContextWithOptions : YamlSerializerCont
 
 [YamlSourceGenerationOptions(
     Converters = new[] { typeof(ConstantIntConverter) })]
-[JsonSerializable(typeof(int))]
+[YamlSerializable(typeof(int))]
 internal partial class TestYamlSerializerContextWithConverters : YamlSerializerContext
 {
 }
-#pragma warning restore SYSLIB1224
+
+[YamlSerializable(typeof(GeneratedPerson), TypeInfoPropertyName = "GeneratedPersonTypeInfo")]
+[YamlSerializable(typeof(Dictionary<string, int>), TypeInfoPropertyName = "IntMapTypeInfo")]
+internal partial class TestYamlSerializerContextWithCustomPropertyNames : YamlSerializerContext
+{
+}
 
 [TestClass]
 public class YamlSerializerSourceGenerationTests
@@ -641,7 +689,7 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
-    public void GeneratedContextExposesJsonLikeTypeInfoPropertyNames()
+    public void GeneratedContextExposesDefaultTypeInfoPropertyNames()
     {
         var context = TestYamlSerializerContext.Default;
 
@@ -667,6 +715,31 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(person);
         Assert.AreEqual("Ada", person.FirstName);
         Assert.AreEqual(37, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsCustomTypeInfoPropertyNames()
+    {
+        var context = TestYamlSerializerContextWithCustomPropertyNames.Default;
+
+        Assert.IsNotNull(context.GeneratedPersonTypeInfo);
+        Assert.IsNotNull(context.IntMapTypeInfo);
+
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedPerson
+            {
+                FirstName = "Ada",
+                Age = 37,
+            },
+            context.GeneratedPersonTypeInfo);
+        var person = YamlSerializer.Deserialize(yaml, context.GeneratedPersonTypeInfo);
+        var resolved = context.GetTypeInfo(typeof(GeneratedPerson), context.GeneratedPersonTypeInfo.Options);
+
+        StringAssert.Contains(yaml, "first_name: Ada");
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(37, person.Age);
+        Assert.AreSame(context.GeneratedPersonTypeInfo, resolved);
     }
 
     [TestMethod]
@@ -1378,6 +1451,62 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
+    public void GeneratedContextSupportsInitOnlyMembers()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedOptionalInitOnlyPayload;
+
+        var value = YamlSerializer.Deserialize("Name: Ada\nAge: 37\n", typeInfo);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Ada", value.Name);
+        Assert.AreEqual(37, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextPreservesDefaultsForMissingInitOnlyMembers()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedOptionalInitOnlyPayload;
+
+        var value = YamlSerializer.Deserialize("Name: Ada\n", typeInfo);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Ada", value.Name);
+        Assert.AreEqual(7, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsYamlRequiredAttributeOnInitOnlyMembers()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedYamlRequiredInitOnlyPayload;
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Age: 37\n", typeInfo));
+        StringAssert.Contains(exception.Message, "Name");
+
+        var value = YamlSerializer.Deserialize("Name: Ada\nAge: 37\n", typeInfo);
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Ada", value.Name);
+        Assert.AreEqual(37, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsJsonRequiredAttributeOnInitOnlyMembers()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedJsonRequiredInitOnlyPayload;
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Age: 37\n", typeInfo));
+        StringAssert.Contains(exception.Message, "Name");
+
+        var value = YamlSerializer.Deserialize("Name: Ada\nAge: 37\n", typeInfo);
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Ada", value.Name);
+        Assert.AreEqual(37, value.Age);
+    }
+
+    [TestMethod]
     public void GeneratedContextSupportsYamlExtensionDataDictionary()
     {
         var context = new TestYamlSerializerContext();
@@ -1429,6 +1558,75 @@ extra_list:
                 },
             },
             typeInfo);
+        StringAssert.Contains(serialized, "x:");
+        StringAssert.Contains(serialized, "y");
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsInitOnlyYamlExtensionDataDictionary()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedInitOnlyExtensionDataDictionaryPayload;
+
+        var yaml = """
+Known: 2
+extra_int: 1
+extra_list:
+  - a
+  - b
+""";
+
+        var roundtripped = YamlSerializer.Deserialize(yaml, typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.AreEqual(2, roundtripped.Known);
+        Assert.IsNotNull(roundtripped.Extra);
+        Assert.IsTrue(roundtripped.Extra.ContainsKey("extra_int"));
+        Assert.IsTrue(roundtripped.Extra.ContainsKey("extra_list"));
+
+        var withoutExtras = YamlSerializer.Deserialize("Known: 3\n", typeInfo);
+        Assert.IsNotNull(withoutExtras);
+        Assert.IsNotNull(withoutExtras.Extra);
+        Assert.AreEqual(0, withoutExtras.Extra.Count);
+
+        var serialized = YamlSerializer.Serialize(
+            new GeneratedInitOnlyExtensionDataDictionaryPayload
+            {
+                Known = 4,
+                Extra = new Dictionary<string, object?> { ["x"] = 5 },
+            },
+            typeInfo);
+        StringAssert.Contains(serialized, "Known: 4");
+        StringAssert.Contains(serialized, "x: 5");
+    }
+
+    [TestMethod]
+    public void GeneratedContextSupportsInitOnlyYamlExtensionDataMapping()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedInitOnlyExtensionDataMappingPayload;
+
+        var roundtripped = YamlSerializer.Deserialize("Known: 2\na: 1\n", typeInfo);
+        Assert.IsNotNull(roundtripped);
+        Assert.AreEqual(2, roundtripped.Known);
+        Assert.IsNotNull(roundtripped.Extra);
+        Assert.AreEqual(1, roundtripped.Extra.Count);
+
+        var withoutExtras = YamlSerializer.Deserialize("Known: 3\n", typeInfo);
+        Assert.IsNotNull(withoutExtras);
+        Assert.IsNotNull(withoutExtras.Extra);
+        Assert.AreEqual(0, withoutExtras.Extra.Count);
+
+        var serialized = YamlSerializer.Serialize(
+            new GeneratedInitOnlyExtensionDataMappingPayload
+            {
+                Known = 4,
+                Extra = new SharpYaml.Model.YamlMapping
+                {
+                    { new SharpYaml.Model.YamlValue("x"), new SharpYaml.Model.YamlValue("y") },
+                },
+            },
+            typeInfo);
+        StringAssert.Contains(serialized, "Known: 4");
         StringAssert.Contains(serialized, "x:");
         StringAssert.Contains(serialized, "y");
     }

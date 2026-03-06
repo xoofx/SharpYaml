@@ -10,7 +10,7 @@ SharpYaml is a high-performance .NET YAML parser, emitter, and object serializer
 
 - **`System.Text.Json`-style API**: familiar surface with `YamlSerializer`, `YamlSerializerOptions`, `YamlTypeInfo<T>`
 - **YAML 1.2 Core Schema**: spec-compliant parsing with configurable schema (Failsafe, JSON, Core, Extended)
-- **Source generation**: NativeAOT / trimming friendly via `YamlSerializerContext` - reuses `[JsonSerializable]` attributes
+- **Source generation**: NativeAOT / trimming friendly via `YamlSerializerContext` with `[YamlSerializable]` roots
 - **`System.Text.Json` attribute interop**: reuse `[JsonPropertyName]`, `[JsonIgnore]`, `[JsonPropertyOrder]`, `[JsonConstructor]`
 - **Flexible I/O**: serialize/deserialize from `string`, `ReadOnlySpan<char>`, `TextReader`, `TextWriter`
 - **Rich options**: naming policies, indent control, null handling, duplicate key behavior, reference handling, polymorphism
@@ -63,13 +63,12 @@ By default, `PropertyNamingPolicy` is `null`, meaning CLR member names are used 
 
 ### Source Generation
 
-Declare a context with `[JsonSerializable]` roots:
+Declare a context with `[YamlSerializable]` roots:
 
 ```csharp
-using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
-[JsonSerializable(typeof(MyConfig))]
+[YamlSerializable(typeof(MyConfig))]
 internal partial class MyYamlContext : YamlSerializerContext { }
 ```
 
