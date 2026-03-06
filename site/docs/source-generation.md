@@ -72,6 +72,14 @@ For source generation, member names are resolved at build time using:
 
 The generated serializer stores the resolved names directly and does not call `ConvertName(...)` at runtime for object members.
 
+## Constructor selection
+
+Source-generated deserialization honors [`YamlConstructorAttribute`](xref:SharpYaml.Serialization.YamlConstructorAttribute) and [`JsonConstructorAttribute`](xref:System.Text.Json.Serialization.JsonConstructorAttribute).
+
+- `public`, `internal`, and `protected internal` constructors can be called directly from generated code.
+- `private`, `protected`, and `private protected` constructors remain reflection-only; use reflection-based serialization for those models.
+- When no constructor attribute is present, source generation follows the same default-constructor/public-constructor selection rules as reflection-based serialization.
+
 ## Reflection control
 
 Reflection fallback can be disabled globally before first serializer use:

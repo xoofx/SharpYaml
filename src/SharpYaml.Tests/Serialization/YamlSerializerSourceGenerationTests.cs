@@ -446,6 +446,34 @@ internal sealed class GeneratedJsonCtorModel
     public int Age { get; }
 }
 
+internal sealed class GeneratedInternalYamlCtorModel
+{
+    [YamlConstructor]
+    internal GeneratedInternalYamlCtorModel(string name, int age)
+    {
+        Name = name;
+        Age = age;
+    }
+
+    public string Name { get; }
+
+    public int Age { get; }
+}
+
+internal sealed class GeneratedInternalJsonCtorModel
+{
+    [JsonConstructor]
+    internal GeneratedInternalJsonCtorModel(string name, int age)
+    {
+        Name = name;
+        Age = age;
+    }
+
+    public string Name { get; }
+
+    public int Age { get; }
+}
+
 [YamlSerializable(typeof(GeneratedPerson))]
 [YamlSerializable(typeof(GeneratedContainer))]
 [YamlSerializable(typeof(GeneratedPrimitives))]
@@ -499,6 +527,8 @@ internal sealed class GeneratedJsonCtorModel
 [YamlSerializable(typeof(GeneratedTypeWithConverter))]
 [YamlSerializable(typeof(GeneratedYamlCtorModel))]
 [YamlSerializable(typeof(GeneratedJsonCtorModel))]
+[YamlSerializable(typeof(GeneratedInternalYamlCtorModel))]
+[YamlSerializable(typeof(GeneratedInternalJsonCtorModel))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
     public TestYamlSerializerContext()
@@ -1678,6 +1708,32 @@ extra_list:
     {
         var context = new TestYamlSerializerContext();
         var typeInfo = context.GeneratedJsonCtorModel;
+
+        var value = YamlSerializer.Deserialize("Name: Bob\nAge: 42\n", typeInfo);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Bob", value.Name);
+        Assert.AreEqual(42, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextUsesInternalYamlConstructor()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedInternalYamlCtorModel;
+
+        var value = YamlSerializer.Deserialize("Name: Bob\nAge: 42\n", typeInfo);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Bob", value.Name);
+        Assert.AreEqual(42, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextUsesInternalJsonConstructor()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedInternalJsonCtorModel;
 
         var value = YamlSerializer.Deserialize("Name: Bob\nAge: 42\n", typeInfo);
 

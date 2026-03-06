@@ -21,7 +21,7 @@ Type-level attributes:
 
 | Attribute | Reflection | Source generated | Notes |
 | --- | --- | --- |
-| [`JsonConstructorAttribute`](xref:System.Text.Json.Serialization.JsonConstructorAttribute) | Yes | Yes | Selects which constructor to use for deserialization. |
+| [`JsonConstructorAttribute`](xref:System.Text.Json.Serialization.JsonConstructorAttribute) | Yes | Yes | Selects which constructor to use for deserialization. Source generation supports constructors accessible to generated code (`public`, `internal`, `protected internal`). |
 | [`JsonPolymorphicAttribute`](xref:System.Text.Json.Serialization.JsonPolymorphicAttribute) | Yes | Yes | Supported via discriminator properties (JSON-like). |
 | [`JsonDerivedTypeAttribute`](xref:System.Text.Json.Serialization.JsonDerivedTypeAttribute) | Yes | Yes | Registers derived types and discriminators. |
 
@@ -65,3 +65,5 @@ public sealed class Endpoint
     public Endpoint(string url) => Url = url;
 }
 ```
+
+Reflection-based serialization can also use non-public constructors marked with `[JsonConstructor]`.

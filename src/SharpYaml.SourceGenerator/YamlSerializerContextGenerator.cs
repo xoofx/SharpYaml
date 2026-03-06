@@ -1360,18 +1360,18 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 return;
             }
 
+            if (selectedConstructor is not null && !IsConstructorAccessibleFromGeneratedContext(selectedConstructor))
+            {
+                builder.Append("        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, ").Append(ToLiteral("The generated YAML serializer only supports constructors that are accessible from generated code (public, internal, or protected internal).")).AppendLine(");");
+                builder.AppendLine("    }");
+                return;
+            }
+
             if (selectedConstructor is not null &&
                 (selectedConstructor.Parameters.Length != 0 ||
                  members.Any(static member => member.IsInitOnly) ||
                  extensionData is { IsInitOnly: true }))
             {
-                if (selectedConstructor.DeclaredAccessibility != Accessibility.Public)
-                {
-                    builder.Append("        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowNotSupported(reader, ").Append(ToLiteral("The generated YAML serializer does not support non-public constructors.")).AppendLine(");");
-                    builder.AppendLine("    }");
-                    return;
-                }
-
                 EmitReadObjectCoreWithConstructor(builder, index, ctorType, typeName, selectedConstructor, members, extensionData, indexByType, emitLifecycleCallbacks, propertyNamingPolicy);
                 builder.AppendLine("    }");
                 return;
@@ -5295,6 +5295,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         notSupportedMessage = $"Type '{type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}' defines multiple public constructors. Use [YamlConstructor] or [JsonConstructor] to select the constructor to use for deserialization.";
         return false;
     }
+
+    private static bool IsConstructorAccessibleFromGeneratedContext(IMethodSymbol constructor)
+        => constructor.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal;
 
     private static string GetOptionalParameterDefaultValueExpression(IParameterSymbol parameter)
     {

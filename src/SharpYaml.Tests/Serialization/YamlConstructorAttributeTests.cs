@@ -33,6 +33,24 @@ public sealed class YamlConstructorAttributeTests
     }
 
     [TestMethod]
+    public void Deserialize_UsesPrivateYamlConstructor()
+    {
+        var value = YamlSerializer.Deserialize<PrivateYamlCtorModel>("Name: Bob\nAge: 42\n")!;
+
+        Assert.AreEqual("Bob", value.Name);
+        Assert.AreEqual(42, value.Age);
+    }
+
+    [TestMethod]
+    public void Deserialize_UsesPrivateJsonConstructor()
+    {
+        var value = YamlSerializer.Deserialize<PrivateJsonCtorModel>("Name: Bob\nAge: 42\n")!;
+
+        Assert.AreEqual("Bob", value.Name);
+        Assert.AreEqual(42, value.Age);
+    }
+
+    [TestMethod]
     public void Serialize_SerializesGetOnlyProperties()
     {
         var yaml = YamlSerializer.Serialize(new YamlCtorModel("Bob", 42));
@@ -65,6 +83,34 @@ public sealed class YamlConstructorAttributeTests
     {
         [JsonConstructor]
         public JsonCtorModel(string name, int age)
+        {
+            Name = name;
+            Age = age;
+        }
+
+        public string Name { get; }
+
+        public int Age { get; }
+    }
+
+    private sealed class PrivateYamlCtorModel
+    {
+        [YamlConstructor]
+        private PrivateYamlCtorModel(string name, int age)
+        {
+            Name = name;
+            Age = age;
+        }
+
+        public string Name { get; }
+
+        public int Age { get; }
+    }
+
+    private sealed class PrivateJsonCtorModel
+    {
+        [JsonConstructor]
+        private PrivateJsonCtorModel(string name, int age)
         {
             Name = name;
             Age = age;
