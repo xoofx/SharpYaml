@@ -348,6 +348,13 @@ internal sealed class GeneratedOptionalInitOnlyPayload
     public int Age { get; init; } = 7;
 }
 
+internal sealed class GeneratedNullableInitOnlyPayload
+{
+    public string? NullableName { get; init; }
+
+    public string NonNullableName { get; init; } = "fallback";
+}
+
 internal sealed class GeneratedExtensionDataDictionaryPayload
 {
     public int Known { get; set; }
@@ -519,6 +526,7 @@ internal sealed class GeneratedInternalJsonCtorModel
 [YamlSerializable(typeof(GeneratedYamlRequiredInitOnlyPayload))]
 [YamlSerializable(typeof(GeneratedJsonRequiredInitOnlyPayload))]
 [YamlSerializable(typeof(GeneratedOptionalInitOnlyPayload))]
+[YamlSerializable(typeof(GeneratedNullableInitOnlyPayload))]
 [YamlSerializable(typeof(GeneratedExtensionDataDictionaryPayload))]
 [YamlSerializable(typeof(GeneratedExtensionDataMappingPayload))]
 [YamlSerializable(typeof(GeneratedInitOnlyExtensionDataDictionaryPayload))]
@@ -1504,6 +1512,34 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(value);
         Assert.AreEqual("Ada", value.Name);
         Assert.AreEqual(7, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContextPreservesNullableDefaultsForMissingInitOnlyMembers()
+    {
+        var context = new TestYamlSerializerContext();
+        var typeInfo = context.GeneratedNullableInitOnlyPayload;
+
+        var value = YamlSerializer.Deserialize("NonNullableName: Ada\n", typeInfo);
+
+        Assert.IsNotNull(value);
+        Assert.IsNull(value.NullableName);
+        Assert.AreEqual("Ada", value.NonNullableName);
+    }
+
+    [TestMethod]
+    public void GeneratedContextCanDeserializeNullableInitOnlyMembersViaResolverOverload()
+    {
+        var context = new TestYamlSerializerContext();
+
+        var value = (GeneratedNullableInitOnlyPayload?)YamlSerializer.Deserialize(
+            "{}\n",
+            typeof(GeneratedNullableInitOnlyPayload),
+            context);
+
+        Assert.IsNotNull(value);
+        Assert.IsNull(value.NullableName);
+        Assert.AreEqual("fallback", value.NonNullableName);
     }
 
     [TestMethod]

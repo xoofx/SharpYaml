@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -15,6 +16,11 @@ namespace SharpYaml.Tests.Serialization;
 [TestClass]
 public class YamlSerializerContextGeneratorDiagnosticTests
 {
+    private static readonly string[] NullableWarningIds = ["CS8600", "CS8601", "CS8602", "CS8603", "CS8604", "CS8618"];
+
+    private static readonly ImmutableDictionary<string, ReportDiagnostic> NullableWarningsAsErrors =
+        NullableWarningIds.ToImmutableDictionary(static id => id, static _ => ReportDiagnostic.Error);
+
     [TestMethod]
     public void GeneratorWarnsWhenJsonSerializableIsUsedOnYamlSerializerContext()
     {
@@ -28,23 +34,9 @@ public class YamlSerializerContextGeneratorDiagnosticTests
             }
             """;
 
-        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
-        var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
+        var result = RunGenerator(source);
 
-        var compilation = CSharpCompilation.Create(
-            assemblyName: "GeneratorWarningTests",
-            syntaxTrees: new[] { syntaxTree },
-            references: GetMetadataReferences(),
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            generators: new[] { new YamlSerializerContextGenerator().AsSourceGenerator() },
-            parseOptions: parseOptions);
-
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
-
-        var diagnostics = generatorDiagnostics
-            .Concat(outputCompilation.GetDiagnostics())
+        var diagnostics = result.Diagnostics
             .Where(static diagnostic => diagnostic.Id == "SHARPYAML007")
             .ToArray();
 
@@ -52,6 +44,68 @@ public class YamlSerializerContextGeneratorDiagnosticTests
         Assert.AreEqual(DiagnosticSeverity.Warning, diagnostics[0].Severity);
         StringAssert.Contains(diagnostics[0].GetMessage(), "[JsonSerializable]");
         StringAssert.Contains(diagnostics[0].GetMessage(), "[YamlSerializable]");
+    }
+
+    [TestMethod]
+    public void GeneratorDoesNotReportNullableWarningsForMissingNullableInitOnlyProperties()
+    {
+        const string source = """
+            #nullable enable
+
+            using SharpYaml.Serialization;
+
+            public sealed class AppOptions
+            {
+                public string? NullableMock { get; init; }
+
+                public string NonNullableMock { get; init; } = string.Empty;
+            }
+
+            [YamlSerializable(typeof(AppOptions))]
+            internal partial class AppOptionsYamlContext : YamlSerializerContext
+            {
+            }
+            """;
+
+        var result = RunGenerator(source);
+
+        var nullableDiagnostics = result.Diagnostics
+            .Where(static diagnostic => diagnostic.Severity >= DiagnosticSeverity.Warning)
+            .Where(diagnostic => NullableWarningIds.Contains(diagnostic.Id, StringComparer.Ordinal))
+            .ToArray();
+
+        Assert.AreEqual(0, nullableDiagnostics.Length, string.Join(Environment.NewLine, nullableDiagnostics.Select(static diagnostic => diagnostic.ToString())));
+        StringAssert.Contains(result.GeneratedSource, "NullableMock");
+        StringAssert.Contains(result.GeneratedSource, "NonNullableMock");
+    }
+
+    private static (Compilation OutputCompilation, Diagnostic[] Diagnostics, string GeneratedSource) RunGenerator(string source)
+    {
+        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
+        var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
+
+        var compilation = CSharpCompilation.Create(
+            assemblyName: "GeneratorWarningTests",
+            syntaxTrees: new[] { syntaxTree },
+            references: GetMetadataReferences(),
+            options: new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable)
+                .WithSpecificDiagnosticOptions(NullableWarningsAsErrors));
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            generators: new[] { new YamlSerializerContextGenerator().AsSourceGenerator() },
+            parseOptions: parseOptions);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
+
+        var generatedSource = string.Join(
+            Environment.NewLine,
+            driver.GetRunResult().Results
+                .SelectMany(static result => result.GeneratedSources)
+                .Select(static generatedSourceResult => generatedSourceResult.SourceText.ToString()));
+
+        return (outputCompilation, generatorDiagnostics.Concat(outputCompilation.GetDiagnostics()).ToArray(), generatedSource);
     }
 
     private static MetadataReference[] GetMetadataReferences()
