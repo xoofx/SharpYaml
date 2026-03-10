@@ -29,7 +29,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into '{typeof(T)}' unless ReferenceHandling is Preserve.");
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return default;
@@ -588,7 +588,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return;
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return;
@@ -758,7 +758,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return;
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return;

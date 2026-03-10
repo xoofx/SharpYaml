@@ -34,34 +34,9 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
         switch (reader.TokenType)
         {
             case YamlTokenType.Scalar:
-                var text = reader.ScalarValue.AsSpan();
-                if (YamlScalar.IsNull(text))
-                {
-                    reader.Read();
-                    return null;
-                }
-
-                if (YamlScalar.TryParseBool(text, out var boolean))
-                {
-                    reader.Read();
-                    return boolean;
-                }
-
-                if (YamlScalar.TryParseInt64(text, out var integer))
-                {
-                    reader.Read();
-                    return integer;
-                }
-
-                if (YamlScalar.TryParseDouble(text, out var floating))
-                {
-                    reader.Read();
-                    return floating;
-                }
-
-                var str = reader.ScalarValue ?? string.Empty;
+                var scalar = YamlScalar.ResolveObject(reader);
                 reader.Read();
-                return str;
+                return scalar;
 
             case YamlTokenType.StartSequence:
                 var sequenceAnchor = reader.Anchor;
@@ -180,7 +155,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
 
     private void ReadAndApplyMerge(YamlReader reader, Dictionary<string, object?> dictionary, HashSet<string>? explicitKeys)
     {
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return;

@@ -22,7 +22,7 @@ internal sealed class YamlEnumConverter<TEnum> : YamlConverter<TEnum> where TEnu
             return parsed;
         }
 
-        if (YamlScalar.TryParseInt64(text.AsSpan(), out var numeric))
+        if (YamlScalar.TryParseInt64(reader, out var numeric))
         {
             reader.Read();
             return (TEnum)Enum.ToObject(typeof(TEnum), numeric);

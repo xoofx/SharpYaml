@@ -127,6 +127,15 @@ public sealed record YamlSerializerOptions
     public YamlSchemaKind Schema { get; init; } = YamlSchemaKind.Core;
 
     /// <summary>
+    /// Gets or sets a value indicating whether scalar deserialization should resolve through <see cref="Schema"/>.
+    /// </summary>
+    /// <remarks>
+    /// When <see langword="false"/>, built-in converters use a fast span-based path for common YAML 1.2 scalars while still honoring quoted scalars as strings.
+    /// When <see langword="true"/>, scalar resolution goes through the selected <see cref="Schema"/>.
+    /// </remarks>
+    public bool UseSchema { get; init; }
+
+    /// <summary>
     /// Gets or sets behavior when duplicate mapping keys are encountered while reading.
     /// </summary>
     public YamlDuplicateKeyHandling DuplicateKeyHandling { get; init; } = YamlDuplicateKeyHandling.Error;

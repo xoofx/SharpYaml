@@ -17,8 +17,7 @@ internal sealed class YamlSingleConverter : YamlConverter<float>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        var value = reader.ScalarValue.AsSpan();
-        if (!YamlScalar.TryParseDouble(value, out var parsed))
+        if (!YamlScalar.TryParseDouble(reader, out var parsed))
         {
             throw YamlThrowHelper.ThrowInvalidFloatScalar(reader);
         }

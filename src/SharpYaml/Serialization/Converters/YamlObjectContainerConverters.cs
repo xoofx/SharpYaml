@@ -23,7 +23,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
             throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return null;
@@ -118,7 +118,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
 
     private void ReadAndApplyMerge(YamlReader reader, Dictionary<string, object?> dictionary, HashSet<string>? explicitKeys)
     {
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return;
@@ -190,7 +190,7 @@ internal sealed class YamlListObjectConverter : YamlConverter<List<object?>?>
             throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a list unless ReferenceHandling is Preserve.");
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return null;
@@ -265,7 +265,7 @@ internal sealed class YamlObjectArrayConverter : YamlConverter<object[]?>
             throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an array unless ReferenceHandling is Preserve.");
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return null;

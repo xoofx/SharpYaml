@@ -93,6 +93,11 @@ public sealed class YamlReader : YamlReaderWriterBase
     public string? ScalarValue => _state.ScalarValue;
 
     /// <summary>
+    /// Gets the current scalar style when <see cref="TokenType"/> is <see cref="YamlTokenType.Scalar"/>.
+    /// </summary>
+    public ScalarStyle ScalarStyle => _state.ScalarStyle;
+
+    /// <summary>
     /// Gets the current YAML tag (when present) for the current token.
     /// </summary>
     public string? Tag => _state.Tag;
@@ -354,6 +359,7 @@ public sealed class YamlReader : YamlReaderWriterBase
 
         public YamlTokenType TokenType { get; private set; }
         public string? ScalarValue { get; private set; }
+        public ScalarStyle ScalarStyle { get; private set; } = ScalarStyle.Any;
         public string? Tag { get; private set; }
         public string? Anchor { get; private set; }
         public string? Alias { get; private set; }
@@ -382,6 +388,7 @@ public sealed class YamlReader : YamlReaderWriterBase
                 }
 
                 ScalarValue = null;
+                ScalarStyle = ScalarStyle.Any;
                 Tag = null;
                 Anchor = null;
                 Alias = null;
@@ -411,6 +418,7 @@ public sealed class YamlReader : YamlReaderWriterBase
                     case Scalar scalar:
                         TokenType = YamlTokenType.Scalar;
                         ScalarValue = scalar.Value;
+                        ScalarStyle = scalar.Style;
                         Tag = scalar.Tag;
                         Anchor = scalar.Anchor;
                         return true;
@@ -426,6 +434,7 @@ public sealed class YamlReader : YamlReaderWriterBase
 
             TokenType = YamlTokenType.None;
             ScalarValue = null;
+            ScalarStyle = ScalarStyle.Any;
             Tag = null;
             Anchor = null;
             Alias = null;

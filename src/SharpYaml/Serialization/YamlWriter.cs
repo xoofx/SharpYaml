@@ -236,6 +236,26 @@ public sealed class YamlWriter : YamlReaderWriterBase
     }
 
     /// <summary>
+    /// Writes a CLR string value, quoting ambiguous YAML scalars when configured.
+    /// </summary>
+    /// <param name="value">The string value to write.</param>
+    public void WriteString(string? value)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+
+        if (value is null)
+        {
+            Write("null");
+            CompleteValueAfterScalar();
+            return;
+        }
+
+        WriteStringCore(value.AsSpan(), isKey: false);
+        CompleteValueAfterScalar();
+    }
+
+    /// <summary>
     /// Writes a scalar value from a character span.
     /// </summary>
     /// <param name="value">The scalar text.</param>
@@ -761,6 +781,43 @@ public sealed class YamlWriter : YamlReaderWriterBase
         Write('"');
         WriteEscaped(value);
         Write('"');
+    }
+
+    private void WriteStringCore(ReadOnlySpan<char> value, bool isKey)
+    {
+        if (value.Length == 0)
+        {
+            Write("''");
+            return;
+        }
+
+        if (ShouldQuoteAmbiguousScalar(value))
+        {
+            Write('"');
+            WriteEscaped(value);
+            Write('"');
+            return;
+        }
+
+        WriteScalarCore(value, isKey);
+    }
+
+    private bool ShouldQuoteAmbiguousScalar(ReadOnlySpan<char> value)
+    {
+        if (!Options.ScalarStylePreferences.PreferQuotedForAmbiguousScalars)
+        {
+            return false;
+        }
+
+        if (value.Equals("<<", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return YamlScalar.IsNull(value) ||
+               YamlScalar.TryParseBool(value, out _) ||
+               YamlScalar.TryParseInt64(value, out _) ||
+               YamlScalar.TryParseDouble(value, out _);
     }
 
     private static bool IsPlainSafe(ReadOnlySpan<char> value, bool isKey)

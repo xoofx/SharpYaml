@@ -12,7 +12,7 @@ internal sealed class YamlNullableConverter<T> : YamlConverter<T?> where T : str
 
     public override T? Read(YamlReader reader)
     {
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return null;

@@ -81,6 +81,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string? DictionaryKeyPolicy { get; set; }
         public string? MappingOrder { get; set; }
         public string? Schema { get; set; }
+        public bool? UseSchema { get; set; }
         public string? DuplicateKeyHandling { get; set; }
         public bool? UnsafeAllowDeserializeFromTagTypeName { get; set; }
         public string? ReferenceHandling { get; set; }
@@ -102,6 +103,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             if (!string.IsNullOrEmpty(other.DictionaryKeyPolicy)) DictionaryKeyPolicy = other.DictionaryKeyPolicy;
             if (!string.IsNullOrEmpty(other.MappingOrder)) MappingOrder = other.MappingOrder;
             if (!string.IsNullOrEmpty(other.Schema)) Schema = other.Schema;
+            if (other.UseSchema.HasValue) UseSchema = other.UseSchema;
             if (!string.IsNullOrEmpty(other.DuplicateKeyHandling)) DuplicateKeyHandling = other.DuplicateKeyHandling;
             if (other.UnsafeAllowDeserializeFromTagTypeName.HasValue) UnsafeAllowDeserializeFromTagTypeName = other.UnsafeAllowDeserializeFromTagTypeName;
             if (!string.IsNullOrEmpty(other.ReferenceHandling)) ReferenceHandling = other.ReferenceHandling;
@@ -756,7 +758,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         if (typeSymbol.SpecialType == SpecialType.System_String)
         {
-            builder.AppendLine("        writer.WriteScalar(value);");
+            builder.AppendLine("        writer.WriteString(value);");
             builder.AppendLine("        return;");
             builder.AppendLine("    }");
             return;
@@ -1488,7 +1490,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("                reader.Skip();");
         builder.AppendLine("                return;");
         builder.AppendLine("            }");
-        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
         builder.AppendLine("            {");
         builder.AppendLine("                reader.Read();");
         builder.AppendLine("                return;");
@@ -1843,7 +1845,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("                reader.Skip();");
         builder.AppendLine("                return;");
         builder.AppendLine("            }");
-        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+        builder.AppendLine("            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
         builder.AppendLine("            {");
         builder.AppendLine("                reader.Read();");
         builder.AppendLine("                return;");
@@ -2525,7 +2527,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         if (typeSymbol is INamedTypeSymbol nullableType && nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
         {
             var underlyingType = nullableType.TypeArguments[0];
-            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("        {");
             builder.AppendLine("            reader.Read();");
             builder.AppendLine("            return default;");
@@ -2555,7 +2557,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("            reader.Read();");
             builder.AppendLine("            return parsed;");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(text.AsSpan(), out var numeric))");
+            builder.AppendLine("        if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var numeric))");
             builder.AppendLine("        {");
             builder.AppendLine("            reader.Read();");
             builder.Append("            return (").Append(typeName).AppendLine(")global::System.Enum.ToObject(typeof(" + typeName + "), numeric);");
@@ -2572,7 +2574,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.Append("            return (").Append(typeName).AppendLine(")rootAliasValue!;");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("        {");
             builder.AppendLine("            reader.Read();");
             builder.AppendLine("            return default;");
@@ -2604,7 +2606,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.Append("            return (").Append(typeName).AppendLine(")rootAliasValue!;");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("        {");
             builder.AppendLine("            reader.Read();");
             builder.AppendLine("            return default;");
@@ -2696,7 +2698,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.Append("            return (").Append(typeName).AppendLine(")rootAliasValue!;");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("        {");
             builder.AppendLine("            reader.Read();");
             builder.AppendLine("            return default;");
@@ -2750,7 +2752,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
                 builder.AppendLine("            {");
-                builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+                builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
                 builder.AppendLine("                {");
                 builder.AppendLine("                    reader.Read();");
                 builder.AppendLine("                }");
@@ -2857,6 +2859,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
             builder.AppendLine("        var value = reader.ScalarValue ?? string.Empty;");
+            builder.AppendLine("        if (global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
+            builder.AppendLine("        {");
+            builder.AppendLine("            reader.Read();");
+            builder.AppendLine("            return null;");
+            builder.AppendLine("        }");
             builder.AppendLine("        reader.Read();");
             builder.AppendLine("        return value;");
             builder.AppendLine("    }");
@@ -2869,7 +2876,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseBool(reader.ScalarValue.AsSpan(), out var result))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseBool(reader, out var result))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidBooleanScalar(reader);");
             builder.AppendLine("        }");
@@ -2885,7 +2892,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt32(reader.ScalarValue.AsSpan(), out var result))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt32(reader, out var result))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidIntegerScalar(reader);");
             builder.AppendLine("        }");
@@ -2901,7 +2908,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var result))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var result))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidIntegerScalar(reader);");
             builder.AppendLine("        }");
@@ -2917,7 +2924,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt32(reader.ScalarValue.AsSpan(), out var result))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt32(reader, out var result))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt32Scalar(reader);");
             builder.AppendLine("        }");
@@ -2933,7 +2940,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var result))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var result))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt64Scalar(reader);");
             builder.AppendLine("        }");
@@ -2949,7 +2956,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > byte.MaxValue)");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var parsed) || parsed > byte.MaxValue)");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidByteScalar(reader);");
             builder.AppendLine("        }");
@@ -2965,7 +2972,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < sbyte.MinValue or > sbyte.MaxValue)");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var parsed) || parsed is < sbyte.MinValue or > sbyte.MaxValue)");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidSByteScalar(reader);");
             builder.AppendLine("        }");
@@ -2981,7 +2988,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < short.MinValue or > short.MaxValue)");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var parsed) || parsed is < short.MinValue or > short.MaxValue)");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidInt16Scalar(reader);");
             builder.AppendLine("        }");
@@ -2997,7 +3004,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > ushort.MaxValue)");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var parsed) || parsed > ushort.MaxValue)");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt16Scalar(reader);");
             builder.AppendLine("        }");
@@ -3013,7 +3020,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var parsed))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidNIntScalar(reader);");
             builder.AppendLine("        }");
@@ -3029,7 +3036,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var parsed))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidNUIntScalar(reader);");
             builder.AppendLine("        }");
@@ -3045,7 +3052,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader.ScalarValue.AsSpan(), out var result))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader, out var result))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidFloatScalar(reader);");
             builder.AppendLine("        }");
@@ -3061,7 +3068,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader.ScalarValue.AsSpan(), out var parsed))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader, out var parsed))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidFloatScalar(reader);");
             builder.AppendLine("        }");
@@ -3077,7 +3084,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("        }");
-            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseDecimal(reader.ScalarValue.AsSpan(), out var result))");
+            builder.AppendLine("        if (!global::SharpYaml.Serialization.YamlScalar.TryParseDecimal(reader, out var result))");
             builder.AppendLine("        {");
             builder.AppendLine("            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDecimalScalar(reader);");
             builder.AppendLine("        }");
@@ -3109,7 +3116,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("        {");
                 builder.Append("            return (").Append(typeName).AppendLine(")rootAliasValue!;");
                 builder.AppendLine("        }");
-                builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+                builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
                 builder.AppendLine("        {");
                 builder.AppendLine("            reader.Read();");
                 builder.AppendLine("            return default;");
@@ -3513,7 +3520,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         if (member.Type is INamedTypeSymbol nullableType && nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
         {
             var underlyingType = nullableType.TypeArguments[0];
-            builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
             builder.AppendLine("                    reader.Read();");
@@ -3538,8 +3545,16 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
                 builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.Append("                ").Append(member.AssignExpression("reader.ScalarValue ?? string.Empty")).AppendLine(";");
-            builder.AppendLine("                reader.Read();");
+            builder.AppendLine("                if (global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
+            builder.AppendLine("                {");
+            builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
+            builder.AppendLine("                    reader.Read();");
+            builder.AppendLine("                }");
+            builder.AppendLine("                else");
+            builder.AppendLine("                {");
+            builder.Append("                    ").Append(member.AssignExpression("reader.ScalarValue ?? string.Empty")).AppendLine(";");
+            builder.AppendLine("                    reader.Read();");
+            builder.AppendLine("                }");
             return;
         }
 
@@ -3549,7 +3564,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseBool(reader.ScalarValue.AsSpan(), out var parsedBool))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseBool(reader, out var parsedBool))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidBooleanScalar(reader);");
             builder.AppendLine("                }");
@@ -3564,7 +3579,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsedByte) || parsedByte > byte.MaxValue)");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var parsedByte) || parsedByte > byte.MaxValue)");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidByteScalar(reader);");
             builder.AppendLine("                }");
@@ -3579,7 +3594,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsedSByte) || parsedSByte is < sbyte.MinValue or > sbyte.MaxValue)");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var parsedSByte) || parsedSByte is < sbyte.MinValue or > sbyte.MaxValue)");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidSByteScalar(reader);");
             builder.AppendLine("                }");
@@ -3594,7 +3609,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsedInt16) || parsedInt16 is < short.MinValue or > short.MaxValue)");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var parsedInt16) || parsedInt16 is < short.MinValue or > short.MaxValue)");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidInt16Scalar(reader);");
             builder.AppendLine("                }");
@@ -3609,7 +3624,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsedUInt16) || parsedUInt16 > ushort.MaxValue)");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var parsedUInt16) || parsedUInt16 > ushort.MaxValue)");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt16Scalar(reader);");
             builder.AppendLine("                }");
@@ -3624,7 +3639,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt32(reader.ScalarValue.AsSpan(), out var parsed))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt32(reader, out var parsed))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidIntegerScalar(reader);");
             builder.AppendLine("                }");
@@ -3639,7 +3654,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsedInt64))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var parsedInt64))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidIntegerScalar(reader);");
             builder.AppendLine("                }");
@@ -3654,7 +3669,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt32(reader.ScalarValue.AsSpan(), out var parsedUInt32))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt32(reader, out var parsedUInt32))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt32Scalar(reader);");
             builder.AppendLine("                }");
@@ -3669,7 +3684,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsedUInt64))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var parsedUInt64))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidUInt64Scalar(reader);");
             builder.AppendLine("                }");
@@ -3684,7 +3699,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsedIntPtr))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var parsedIntPtr))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidNIntScalar(reader);");
             builder.AppendLine("                }");
@@ -3699,7 +3714,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsedUIntPtr))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseUInt64(reader, out var parsedUIntPtr))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidNUIntScalar(reader);");
             builder.AppendLine("                }");
@@ -3714,7 +3729,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader.ScalarValue.AsSpan(), out var parsedDouble))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader, out var parsedDouble))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidFloatScalar(reader);");
             builder.AppendLine("                }");
@@ -3729,7 +3744,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader.ScalarValue.AsSpan(), out var parsedSingle))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseDouble(reader, out var parsedSingle))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidFloatScalar(reader);");
             builder.AppendLine("                }");
@@ -3744,7 +3759,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.AppendLine("                }");
-            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseDecimal(reader.ScalarValue.AsSpan(), out var parsedDecimal))");
+            builder.AppendLine("                if (!global::SharpYaml.Serialization.YamlScalar.TryParseDecimal(reader, out var parsedDecimal))");
             builder.AppendLine("                {");
             builder.AppendLine("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowInvalidDecimalScalar(reader);");
             builder.AppendLine("                }");
@@ -3918,7 +3933,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append("                    ").Append(member.AssignExpression("parsedEnum")).AppendLine(";");
             builder.AppendLine("                    reader.Read();");
             builder.AppendLine("                }");
-            builder.AppendLine("                else if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(text.AsSpan(), out var numeric))");
+            builder.AppendLine("                else if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var numeric))");
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression($"({enumTypeName})global::System.Enum.ToObject(typeof({enumTypeName}), numeric)")).AppendLine(";");
             builder.AppendLine("                    reader.Read();");
@@ -3938,7 +3953,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression($"({memberTypeName})memberAliasValue!")).AppendLine(";");
             builder.AppendLine("                }");
-            builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
             builder.AppendLine("                    reader.Read();");
@@ -3973,7 +3988,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression($"({memberTypeName})memberAliasValue!")).AppendLine(";");
             builder.AppendLine("                }");
-            builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
             builder.AppendLine("                    reader.Read();");
@@ -4068,7 +4083,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression($"({memberTypeName})memberAliasValue!")).AppendLine(";");
             builder.AppendLine("                }");
-            builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+            builder.AppendLine("                else if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression("default")).AppendLine(";");
             builder.AppendLine("                    reader.Read();");
@@ -4125,7 +4140,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.AppendLine("                        if (dictionaryMergeEnabled && global::System.String.Equals(entryKey, \"<<\", global::System.StringComparison.Ordinal))");
                 builder.AppendLine("                        {");
-                builder.AppendLine("                            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader.ScalarValue.AsSpan()))");
+                builder.AppendLine("                            if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
                 builder.AppendLine("                            {");
                 builder.AppendLine("                                reader.Read();");
                 builder.AppendLine("                            }");
@@ -4287,7 +4302,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     {
         if (typeSymbol.SpecialType == SpecialType.System_String)
         {
-            builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(");");
+            builder.Append(indent).Append("writer.WriteString(").Append(valueExpression).AppendLine(");");
             return true;
         }
 
@@ -4391,7 +4406,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     private static void EmitReadScalar(StringBuilder builder, ITypeSymbol typeSymbol, string valueVarName, string textExpression = "reader.ScalarValue", string indent = "        ")
     {
         // Caller ensures TokenType == Scalar; this helper only parses and assigns into a local variable.
-        var spanExpression = textExpression + ".AsSpan()";
+        var spanExpression = "reader";
 
         if (typeSymbol.SpecialType == SpecialType.System_String)
         {
@@ -4650,7 +4665,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append(indent).AppendLine("{");
             builder.Append(indent).Append("    ").Append(valueVarName).AppendLine(" = parsedEnum;");
             builder.Append(indent).AppendLine("}");
-            builder.Append(indent).AppendLine("else if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(enumText.AsSpan(), out var numeric))");
+            builder.Append(indent).AppendLine("else if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var numeric))");
             builder.Append(indent).AppendLine("{");
             builder.Append(indent).Append("    ").Append(valueVarName).Append(" = (").Append(enumTypeName).AppendLine(")global::System.Enum.ToObject(typeof(" + enumTypeName + "), numeric);");
             builder.Append(indent).AppendLine("}");
@@ -4925,7 +4940,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append(indent).AppendLine("{");
             builder.Append(indent).Append("    ").Append(targetExpression).AppendLine(" = parsedEnum;");
             builder.Append(indent).AppendLine("}");
-            builder.Append(indent).AppendLine("else if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(enumText.AsSpan(), out var numeric))");
+            builder.Append(indent).AppendLine("else if (global::SharpYaml.Serialization.YamlScalar.TryParseInt64(reader, out var numeric))");
             builder.Append(indent).AppendLine("{");
             builder.Append(indent).Append("    ").Append(targetExpression).Append(" = (").Append(enumTypeName).AppendLine(")global::System.Enum.ToObject(typeof(" + enumTypeName + "), numeric);");
             builder.Append(indent).AppendLine("}");
@@ -6365,6 +6380,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 case "Schema":
                     model.Schema = NormalizeEnumName(argument.Value.ToCSharpString());
                     break;
+                case "UseSchema":
+                    model.UseSchema = argument.Value.Value as bool?;
+                    break;
                 case "DuplicateKeyHandling":
                     model.DuplicateKeyHandling = NormalizeEnumName(argument.Value.ToCSharpString());
                     break;
@@ -6490,6 +6508,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         {
             builder.Append("            Schema = global::SharpYaml.YamlSchemaKind.")
                 .Append(options.Schema)
+                .AppendLine(",");
+        }
+
+        if (options.UseSchema.HasValue)
+        {
+            builder.Append("            UseSchema = ")
+                .Append(options.UseSchema.Value ? "true" : "false")
                 .AppendLine(",");
         }
 

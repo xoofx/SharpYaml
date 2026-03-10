@@ -13,6 +13,12 @@ internal sealed class YamlStringConverter : YamlConverter<string?>
         if (reader.TokenType == YamlTokenType.Scalar)
         {
             var value = reader.ScalarValue ?? string.Empty;
+            if (YamlScalar.IsNull(reader))
+            {
+                reader.Read();
+                return null;
+            }
+
             reader.Read();
             return value;
         }
@@ -27,6 +33,6 @@ internal sealed class YamlStringConverter : YamlConverter<string?>
 
     public override void Write(YamlWriter writer, string? value)
     {
-        writer.WriteScalar(value);
+        writer.WriteString(value);
     }
 }

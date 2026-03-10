@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -177,5 +178,77 @@ public sealed class YamlScalarTests
 
             Assert.AreEqual(@case.ExpectedValue, value);
         }
+    }
+
+    [TestMethod]
+    public void StringDeserializer_DistinguishesPlainAndQuotedScalars()
+    {
+        var yaml = """
+            plainNull: null
+            quotedNull: "null"
+            plainEmpty:
+            quotedBool: "true"
+            quotedInt: "42"
+            """;
+
+        var values = YamlSerializer.Deserialize<Dictionary<string, string?>>(yaml)!;
+
+        Assert.IsNull(values["plainNull"]);
+        Assert.IsNull(values["plainEmpty"]);
+        Assert.AreEqual("null", values["quotedNull"]);
+        Assert.AreEqual("true", values["quotedBool"]);
+        Assert.AreEqual("42", values["quotedInt"]);
+    }
+
+    [TestMethod]
+    public void UntypedDeserializer_DistinguishesPlainAndQuotedScalars()
+    {
+        var yaml = """
+            plainNull: null
+            quotedNull: "null"
+            plainBool: true
+            quotedBool: "true"
+            plainInt: 42
+            quotedInt: "42"
+            """;
+
+        var values = YamlSerializer.Deserialize<Dictionary<string, object?>>(yaml)!;
+
+        Assert.IsNull(values["plainNull"]);
+        Assert.AreEqual("null", values["quotedNull"]);
+        Assert.AreEqual(true, values["plainBool"]);
+        Assert.AreEqual("true", values["quotedBool"]);
+        Assert.AreEqual(42L, values["plainInt"]);
+        Assert.AreEqual("42", values["quotedInt"]);
+    }
+
+    [TestMethod]
+    public void SchemaAwareDeserialization_UsesExtendedSchemaForPlainScalars()
+    {
+        var options = new YamlSerializerOptions
+        {
+            Schema = YamlSchemaKind.Extended,
+            UseSchema = true,
+        };
+
+        Assert.AreEqual(true, YamlSerializer.Deserialize<bool>("yes", options));
+        _ = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<bool>("\"yes\"", options));
+
+        var yaml = """
+            plainBool: yes
+            quotedBool: "yes"
+            plainNull:
+            quotedNull: "null"
+            binary: 0b10
+            hex: 0x10
+            """;
+        var values = YamlSerializer.Deserialize<Dictionary<string, object?>>(yaml, options)!;
+
+        Assert.AreEqual(true, values["plainBool"]);
+        Assert.AreEqual("yes", values["quotedBool"]);
+        Assert.IsNull(values["plainNull"]);
+        Assert.AreEqual("null", values["quotedNull"]);
+        Assert.AreEqual(2, values["binary"]);
+        Assert.AreEqual(16, values["hex"]);
     }
 }

@@ -18,7 +18,7 @@ internal sealed class YamlByteConverter : YamlConverter<byte>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > byte.MaxValue)
+        if (!YamlScalar.TryParseUInt64(reader, out var parsed) || parsed > byte.MaxValue)
         {
             throw YamlThrowHelper.ThrowInvalidByteScalar(reader);
         }
@@ -42,7 +42,7 @@ internal sealed class YamlSByteConverter : YamlConverter<sbyte>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < sbyte.MinValue or > sbyte.MaxValue)
+        if (!YamlScalar.TryParseInt64(reader, out var parsed) || parsed is < sbyte.MinValue or > sbyte.MaxValue)
         {
             throw YamlThrowHelper.ThrowInvalidSByteScalar(reader);
         }
@@ -66,7 +66,7 @@ internal sealed class YamlInt16Converter : YamlConverter<short>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed is < short.MinValue or > short.MaxValue)
+        if (!YamlScalar.TryParseInt64(reader, out var parsed) || parsed is < short.MinValue or > short.MaxValue)
         {
             throw YamlThrowHelper.ThrowInvalidInt16Scalar(reader);
         }
@@ -90,7 +90,7 @@ internal sealed class YamlUInt16Converter : YamlConverter<ushort>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed) || parsed > ushort.MaxValue)
+        if (!YamlScalar.TryParseUInt64(reader, out var parsed) || parsed > ushort.MaxValue)
         {
             throw YamlThrowHelper.ThrowInvalidUInt16Scalar(reader);
         }
@@ -114,7 +114,7 @@ internal sealed class YamlUInt32Converter : YamlConverter<uint>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseUInt32(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseUInt32(reader, out var parsed))
         {
             throw YamlThrowHelper.ThrowInvalidUInt32Scalar(reader);
         }
@@ -138,7 +138,7 @@ internal sealed class YamlUInt64Converter : YamlConverter<ulong>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseUInt64(reader, out var parsed))
         {
             throw YamlThrowHelper.ThrowInvalidUInt64Scalar(reader);
         }
@@ -187,7 +187,7 @@ internal sealed class YamlDecimalConverter : YamlConverter<decimal>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseDecimal(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseDecimal(reader, out var parsed))
         {
             throw YamlThrowHelper.ThrowInvalidDecimalScalar(reader);
         }
@@ -211,7 +211,7 @@ internal sealed class YamlIntPtrConverter : YamlConverter<nint>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseInt64(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseInt64(reader, out var parsed))
         {
             throw YamlThrowHelper.ThrowInvalidNIntScalar(reader);
         }
@@ -235,7 +235,7 @@ internal sealed class YamlUIntPtrConverter : YamlConverter<nuint>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        if (!YamlScalar.TryParseUInt64(reader.ScalarValue.AsSpan(), out var parsed))
+        if (!YamlScalar.TryParseUInt64(reader, out var parsed))
         {
             throw YamlThrowHelper.ThrowInvalidNUIntScalar(reader);
         }

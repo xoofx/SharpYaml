@@ -65,6 +65,11 @@ public sealed class YamlSourceGenerationOptionsAttribute : YamlAttribute
     public YamlSchemaKind Schema { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether scalar deserialization should resolve through <see cref="Schema"/>.
+    /// </summary>
+    public bool UseSchema { get; set; }
+
+    /// <summary>
     /// Gets or sets behavior when duplicate mapping keys are encountered while reading.
     /// </summary>
     public YamlDuplicateKeyHandling DuplicateKeyHandling { get; set; }

@@ -17,8 +17,7 @@ internal sealed class YamlBooleanConverter : YamlConverter<bool>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        var value = reader.ScalarValue.AsSpan();
-        if (!YamlScalar.TryParseBool(value, out var result))
+        if (!YamlScalar.TryParseBool(reader, out var result))
         {
             throw YamlThrowHelper.ThrowInvalidBooleanScalar(reader);
         }

@@ -4,6 +4,8 @@
 
 using System;
 using System.Globalization;
+using SharpYaml.Schemas;
+using ScalarEvent = SharpYaml.Events.Scalar;
 
 namespace SharpYaml.Serialization;
 
@@ -12,6 +14,10 @@ namespace SharpYaml.Serialization;
 /// </summary>
 public static class YamlScalar
 {
+    private static readonly ExtendedSchema s_extendedSchema = new();
+    private static readonly FailsafeSchema s_failsafeSchema = new();
+    private static readonly JsonSchema s_jsonSchema = new();
+
     /// <summary>
     /// Determines whether a scalar represents YAML null (for example <c>null</c> or <c>~</c>).
     /// </summary>
@@ -101,7 +107,6 @@ public static class YamlScalar
             return false;
         }
 
-        // Remove underscores (allocate to avoid stack-spans escaping analysis).
         ReadOnlySpan<char> cleaned = value;
         if (ContainsChar(value, '_'))
         {
@@ -208,7 +213,6 @@ public static class YamlScalar
             return false;
         }
 
-        // Remove underscores (allocate to avoid stack-spans escaping analysis).
         ReadOnlySpan<char> cleaned = value;
         string? underscoreRemoved = null;
         if (ContainsChar(value, '_'))
@@ -343,6 +347,429 @@ public static class YamlScalar
 #else
         return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
 #endif
+    }
+
+    /// <summary>
+    /// Determines whether the current scalar token represents YAML null while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    public static bool IsNull(YamlReader reader)
+    {
+        if (reader.TokenType != YamlTokenType.Scalar)
+        {
+            return false;
+        }
+
+        if (reader.Options.UseSchema)
+        {
+            return TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                   string.Equals(defaultTag, JsonSchema.NullShortTag, StringComparison.Ordinal) &&
+                   value is null;
+        }
+
+        if (HasStringTag(reader))
+        {
+            return false;
+        }
+
+        return IsNull(reader.ScalarValue.AsSpan(), reader.ScalarStyle);
+    }
+
+    /// <summary>
+    /// Parses the current scalar token as a YAML boolean while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    /// <param name="result">The parsed boolean value.</param>
+    public static bool TryParseBool(YamlReader reader, out bool result)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                string.Equals(defaultTag, JsonSchema.BoolShortTag, StringComparison.Ordinal) &&
+                value is bool boolean)
+            {
+                result = boolean;
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        return TryParseBool(reader.ScalarValue.AsSpan(), out result);
+    }
+
+    /// <summary>
+    /// Parses the current scalar token as a YAML integer while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    /// <param name="result">The parsed integer value.</param>
+    public static bool TryParseInt32(YamlReader reader, out int result)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal) &&
+                TryConvertToInt64(value, out var parsed) &&
+                parsed is >= int.MinValue and <= int.MaxValue)
+            {
+                result = (int)parsed;
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        return TryParseInt32(reader.ScalarValue.AsSpan(), out result);
+    }
+
+    /// <summary>
+    /// Parses the current scalar token as an unsigned YAML integer while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    /// <param name="result">The parsed unsigned integer value.</param>
+    public static bool TryParseUInt32(YamlReader reader, out uint result)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal) &&
+                TryConvertToUInt64(value, out var parsed) &&
+                parsed <= uint.MaxValue)
+            {
+                result = (uint)parsed;
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        return TryParseUInt32(reader.ScalarValue.AsSpan(), out result);
+    }
+
+    /// <summary>
+    /// Parses the current scalar token as an unsigned YAML integer while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    /// <param name="result">The parsed unsigned integer value.</param>
+    public static bool TryParseUInt64(YamlReader reader, out ulong result)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal) &&
+                TryConvertToUInt64(value, out result))
+            {
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        return TryParseUInt64(reader.ScalarValue.AsSpan(), out result);
+    }
+
+    /// <summary>
+    /// Parses the current scalar token as a YAML integer while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    /// <param name="result">The parsed integer value.</param>
+    public static bool TryParseInt64(YamlReader reader, out long result)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal) &&
+                TryConvertToInt64(value, out result))
+            {
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        return TryParseInt64(reader.ScalarValue.AsSpan(), out result);
+    }
+
+    /// <summary>
+    /// Parses the current scalar token as a YAML floating-point value while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    /// <param name="result">The parsed floating-point value.</param>
+    public static bool TryParseDouble(YamlReader reader, out double result)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                (string.Equals(defaultTag, JsonSchema.FloatShortTag, StringComparison.Ordinal) ||
+                 string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal)) &&
+                TryConvertToDouble(value, out result))
+            {
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        return TryParseDouble(reader.ScalarValue.AsSpan(), out result);
+    }
+
+    /// <summary>
+    /// Parses the current scalar token as a YAML decimal value while honoring scalar style and <see cref="YamlSerializerOptions.UseSchema"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned on a scalar token.</param>
+    /// <param name="result">The parsed decimal value.</param>
+    public static bool TryParseDecimal(YamlReader reader, out decimal result)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
+                (string.Equals(defaultTag, JsonSchema.FloatShortTag, StringComparison.Ordinal) ||
+                 string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal)) &&
+                TryConvertToDecimal(value, out result))
+            {
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        return TryParseDecimal(reader.ScalarValue.AsSpan(), out result);
+    }
+
+    internal static object? ResolveObject(YamlReader reader)
+    {
+        if (reader.Options.UseSchema)
+        {
+            if (TryResolveSchemaScalar(reader, out _, out var value))
+            {
+                return value;
+            }
+
+            return reader.ScalarValue ?? string.Empty;
+        }
+
+        if (!IsPlainStyle(reader.ScalarStyle) || HasStringTag(reader))
+        {
+            return reader.ScalarValue ?? string.Empty;
+        }
+
+        var text = reader.ScalarValue.AsSpan();
+        if (IsNull(text))
+        {
+            return null;
+        }
+
+        if (TryParseBool(text, out var boolean))
+        {
+            return boolean;
+        }
+
+        if (TryParseInt64(text, out var integer))
+        {
+            return integer;
+        }
+
+        if (TryParseDouble(text, out var floating))
+        {
+            return floating;
+        }
+
+        return reader.ScalarValue ?? string.Empty;
+    }
+
+    private static bool IsNull(ReadOnlySpan<char> value, ScalarStyle style) => IsPlainStyle(style) && IsNull(value);
+
+    private static bool HasStringTag(YamlReader reader)
+    {
+        if (reader.Tag is null)
+        {
+            return false;
+        }
+
+        var schema = GetSchema(reader.Options.Schema);
+        return string.Equals(schema.ShortenTag(reader.Tag), SchemaBase.StrShortTag, StringComparison.Ordinal);
+    }
+
+    private static bool IsPlainStyle(ScalarStyle style) => style is ScalarStyle.Any or ScalarStyle.Plain;
+
+    private static bool TryResolveSchemaScalar(YamlReader reader, out string? defaultTag, out object? value)
+    {
+        var schema = GetSchema(reader.Options.Schema);
+        var scalar = CreateScalar(reader);
+        if (reader.Tag is not null)
+        {
+            var shortTag = schema.ShortenTag(reader.Tag);
+            if (shortTag is not null)
+            {
+                if (TryResolveExplicitTag(schema, shortTag, scalar, out value))
+                {
+                    defaultTag = shortTag;
+                    return true;
+                }
+
+                defaultTag = shortTag;
+                value = null;
+                return false;
+            }
+        }
+
+        return schema.TryParse(scalar, true, out defaultTag, out value);
+    }
+
+    private static bool TryResolveExplicitTag(IYamlSchema schema, string shortTag, ScalarEvent scalar, out object? value)
+    {
+        if (string.Equals(shortTag, SchemaBase.StrShortTag, StringComparison.Ordinal))
+        {
+            value = scalar.Value;
+            return true;
+        }
+
+        var plainScalar = IsPlainStyle(scalar.Style)
+            ? scalar
+            : new ScalarEvent(
+                scalar.Anchor,
+                scalar.Tag,
+                scalar.Value,
+                ScalarStyle.Plain,
+                scalar.IsPlainImplicit,
+                scalar.IsQuotedImplicit,
+                scalar.Start,
+                scalar.End);
+
+        if (schema.TryParse(plainScalar, true, out var resolvedTag, out value) && string.Equals(resolvedTag, shortTag, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (string.Equals(shortTag, JsonSchema.NullShortTag, StringComparison.Ordinal) && IsNull(scalar.Value.AsSpan()))
+        {
+            value = null;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static ScalarEvent CreateScalar(YamlReader reader)
+        => new(
+            reader.Anchor,
+            reader.Tag,
+            reader.ScalarValue ?? string.Empty,
+            reader.ScalarStyle,
+            isPlainImplicit: IsPlainStyle(reader.ScalarStyle),
+            isQuotedImplicit: !IsPlainStyle(reader.ScalarStyle),
+            reader.Start,
+            reader.End);
+
+    private static IYamlSchema GetSchema(YamlSchemaKind schemaKind)
+        => schemaKind switch
+        {
+            YamlSchemaKind.Json => s_jsonSchema,
+            YamlSchemaKind.Failsafe => s_failsafeSchema,
+            YamlSchemaKind.Extended => s_extendedSchema,
+            _ => CoreSchema.Instance,
+        };
+
+    private static bool TryConvertToInt64(object? value, out long result)
+    {
+        switch (value)
+        {
+            case int intValue:
+                result = intValue;
+                return true;
+            case long longValue:
+                result = longValue;
+                return true;
+            case ulong ulongValue when ulongValue <= (ulong)long.MaxValue:
+                result = (long)ulongValue;
+                return true;
+            default:
+                result = default;
+                return false;
+        }
+    }
+
+    private static bool TryConvertToUInt64(object? value, out ulong result)
+    {
+        switch (value)
+        {
+            case int intValue when intValue >= 0:
+                result = (ulong)intValue;
+                return true;
+            case long longValue when longValue >= 0:
+                result = (ulong)longValue;
+                return true;
+            case ulong ulongValue:
+                result = ulongValue;
+                return true;
+            default:
+                result = default;
+                return false;
+        }
+    }
+
+    private static bool TryConvertToDouble(object? value, out double result)
+    {
+        switch (value)
+        {
+            case int intValue:
+                result = intValue;
+                return true;
+            case long longValue:
+                result = longValue;
+                return true;
+            case ulong ulongValue:
+                result = ulongValue;
+                return true;
+            case float floatValue:
+                result = floatValue;
+                return true;
+            case double doubleValue:
+                result = doubleValue;
+                return true;
+            case decimal decimalValue:
+                result = (double)decimalValue;
+                return true;
+            default:
+                result = default;
+                return false;
+        }
+    }
+
+    private static bool TryConvertToDecimal(object? value, out decimal result)
+    {
+        switch (value)
+        {
+            case int intValue:
+                result = intValue;
+                return true;
+            case long longValue:
+                result = longValue;
+                return true;
+            case ulong ulongValue:
+                result = ulongValue;
+                return true;
+            case float floatValue when !float.IsNaN(floatValue) && !float.IsInfinity(floatValue):
+                result = (decimal)floatValue;
+                return true;
+            case double doubleValue when !double.IsNaN(doubleValue) && !double.IsInfinity(doubleValue):
+                result = (decimal)doubleValue;
+                return true;
+            case decimal decimalValue:
+                result = decimalValue;
+                return true;
+            default:
+                result = default;
+                return false;
+        }
     }
 
     private static ReadOnlySpan<char> Trim(ReadOnlySpan<char> value)

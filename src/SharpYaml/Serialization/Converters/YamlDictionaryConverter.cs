@@ -24,7 +24,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
             throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return null;
@@ -123,7 +123,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
     private void ReadAndApplyMerge(YamlReader reader, Dictionary<string, TValue> dictionary, HashSet<string>? explicitKeys)
     {
         // Merge key is only applied for Core/Extended schemas (JSON/Failsafe treat it as a normal key).
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return;
@@ -197,7 +197,7 @@ internal sealed class YamlDictionaryConverter<TKey, TValue> : YamlConverter<Dict
             throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
         }
 
-        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader.ScalarValue.AsSpan()))
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return null;

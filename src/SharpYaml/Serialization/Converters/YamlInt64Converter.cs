@@ -17,8 +17,7 @@ internal sealed class YamlInt64Converter : YamlConverter<long>
             throw YamlThrowHelper.ThrowExpectedScalar(reader);
         }
 
-        var value = reader.ScalarValue.AsSpan();
-        if (!YamlScalar.TryParseInt64(value, out var result))
+        if (!YamlScalar.TryParseInt64(reader, out var result))
         {
             throw YamlThrowHelper.ThrowInvalidIntegerScalar(reader);
         }

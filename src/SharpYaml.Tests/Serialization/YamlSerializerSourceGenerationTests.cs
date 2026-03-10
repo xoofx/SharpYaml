@@ -30,6 +30,17 @@ internal sealed class GeneratedWithDefaultOptions
     public string? Optional { get; set; }
 }
 
+internal sealed class GeneratedSchemaAwareScalars
+{
+    public string? NullableText { get; set; }
+
+    public string? QuotedText { get; set; }
+
+    public bool PlainFlag { get; set; }
+
+    public string? QuotedFlag { get; set; }
+}
+
 internal enum GeneratedColor
 {
     Red = 1,
@@ -575,6 +586,14 @@ internal partial class TestYamlSerializerContextWithConverters : YamlSerializerC
 {
 }
 
+[YamlSourceGenerationOptions(
+    Schema = YamlSchemaKind.Extended,
+    UseSchema = true)]
+[YamlSerializable(typeof(GeneratedSchemaAwareScalars))]
+internal partial class TestYamlSerializerContextWithSchema : YamlSerializerContext
+{
+}
+
 [YamlSerializable(typeof(GeneratedPerson), TypeInfoPropertyName = "GeneratedPersonTypeInfo")]
 [YamlSerializable(typeof(Dictionary<string, int>), TypeInfoPropertyName = "IntMapTypeInfo")]
 internal partial class TestYamlSerializerContextWithCustomPropertyNames : YamlSerializerContext
@@ -879,6 +898,30 @@ public class YamlSerializerSourceGenerationTests
         };
 
         _ = Assert.Throws<InvalidOperationException>(() => YamlSerializer.Serialize(new GeneratedPerson(), options));
+    }
+
+    [TestMethod]
+    public void GeneratedContext_CanUseSchemaAwareScalarResolution()
+    {
+        var context = TestYamlSerializerContextWithSchema.Default;
+        var options = context.GeneratedSchemaAwareScalars.Options;
+
+        Assert.IsTrue(options.UseSchema);
+        Assert.AreEqual(YamlSchemaKind.Extended, options.Schema);
+
+        var yaml = """
+            NullableText: null
+            QuotedText: "null"
+            PlainFlag: yes
+            QuotedFlag: "yes"
+            """;
+        var value = YamlSerializer.Deserialize(yaml, context.GeneratedSchemaAwareScalars);
+
+        Assert.IsNotNull(value);
+        Assert.IsNull(value.NullableText);
+        Assert.AreEqual("null", value.QuotedText);
+        Assert.AreEqual(true, value.PlainFlag);
+        Assert.AreEqual("yes", value.QuotedFlag);
     }
 
     [TestMethod]
