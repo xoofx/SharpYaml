@@ -200,7 +200,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 if (contract.ExtensionData is null)
                 {
-                    reader.Skip();
+                    SkipOrThrowUnmappedMember(reader, contract, key);
                     continue;
                 }
 
@@ -447,7 +447,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
-            reader.Skip();
+            SkipOrThrowUnmappedMember(reader, contract, key);
         }
 
         // Ensure all constructor parameters are satisfied before constructing the instance.
@@ -579,6 +579,16 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     private static bool IsMergeKeyEnabled(YamlSerializerOptions options)
         => options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+
+    private static void SkipOrThrowUnmappedMember(YamlReader reader, Contract contract, string key)
+    {
+        if (contract.UnmappedMemberHandling == JsonUnmappedMemberHandling.Disallow)
+        {
+            throw YamlThrowHelper.ThrowUnmappedMember(reader, contract.DeclaringType, key);
+        }
+
+        reader.Skip();
+    }
 
     private void ReadAndApplyMergeToInstance(YamlReader reader, object instance, Contract contract, HashSet<string> explicitKeys, bool[]? requiredSeen)
     {
@@ -735,7 +745,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
-            reader.Skip();
+            SkipOrThrowUnmappedMember(reader, contract, key);
         }
 
         reader.Read();
@@ -905,7 +915,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
-            reader.Skip();
+            SkipOrThrowUnmappedMember(reader, contract, key);
         }
 
         reader.Read();
@@ -1053,6 +1063,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         private readonly Dictionary<string, Member> _membersByName;
 
         public Contract(
+            Type declaringType,
             Func<object> createInstance,
             ConstructorModel? constructorModel,
             Member[] membersDeclaration,
@@ -1060,8 +1071,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             Dictionary<string, Member> membersByName,
             Member[] requiredMembers,
             ExtensionDataInfo? extensionData,
-            PolymorphismModel? polymorphism)
+            PolymorphismModel? polymorphism,
+            JsonUnmappedMemberHandling unmappedMemberHandling)
         {
+            DeclaringType = declaringType;
             CreateInstance = createInstance;
             Constructor = constructorModel;
             MembersDeclaration = membersDeclaration;
@@ -1070,7 +1083,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             RequiredMembers = requiredMembers;
             ExtensionData = extensionData;
             Polymorphism = polymorphism;
+            UnmappedMemberHandling = unmappedMemberHandling;
         }
+
+        public Type DeclaringType { get; }
 
         public Func<object> CreateInstance { get; }
 
@@ -1086,6 +1102,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public PolymorphismModel? Polymorphism { get; }
 
+        public JsonUnmappedMemberHandling UnmappedMemberHandling { get; }
+
 #if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "Trimming",
@@ -1100,6 +1118,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         {
             ArgumentGuard.ThrowIfNull(readerWriter);
             var options = readerWriter.Options;
+            var unmappedMemberHandling = GetUnmappedMemberHandling(type, options);
 
             var members = new List<Member>();
             var requiredMembers = new List<Member>();
@@ -1301,7 +1320,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredMembers[i].RequiredIndex = i;
             }
 
-            return new Contract(createInstance, constructorModel, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), extensionData, polymorphism);
+            return new Contract(type, createInstance, constructorModel, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), extensionData, polymorphism, unmappedMemberHandling);
         }
 
         public bool TryGetMember(string name, out Member member) => _membersByName.TryGetValue(name, out member!);
@@ -2155,6 +2174,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         return false;
+    }
+
+    private static JsonUnmappedMemberHandling GetUnmappedMemberHandling(Type type, YamlSerializerOptions options)
+    {
+        ArgumentGuard.ThrowIfNull(type);
+        ArgumentGuard.ThrowIfNull(options);
+
+        var jsonUnmappedMemberHandling = type.GetCustomAttribute<JsonUnmappedMemberHandlingAttribute>(inherit: false);
+        return jsonUnmappedMemberHandling?.UnmappedMemberHandling ?? options.UnmappedMemberHandling;
     }
 
     private static YamlConverter? CreateConverterFromAttribute(MemberInfo member, Type memberType, YamlSerializerOptions options)

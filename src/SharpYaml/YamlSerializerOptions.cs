@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using SharpYaml.Serialization;
 
 namespace SharpYaml;
@@ -87,6 +88,15 @@ public sealed record YamlSerializerOptions
     /// Gets or sets a value indicating whether property name matching is case-insensitive.
     /// </summary>
     public bool PropertyNameCaseInsensitive { get; init; }
+
+    /// <summary>
+    /// Gets or sets how unmapped YAML members are handled during object deserialization.
+    /// </summary>
+    /// <remarks>
+    /// This matches <see cref="JsonSerializerOptions.UnmappedMemberHandling"/> behavior from <c>System.Text.Json</c>.
+    /// Extension data members still capture unmatched properties when present.
+    /// </remarks>
+    public JsonUnmappedMemberHandling UnmappedMemberHandling { get; init; } = JsonUnmappedMemberHandling.Skip;
 
     /// <summary>
     /// Gets or sets the default ignore condition for null/default values.

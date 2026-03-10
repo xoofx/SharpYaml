@@ -103,3 +103,46 @@ var model = YamlSerializer.Deserialize(yaml, context.MyType);
 
 - Use the syntax APIs (for example [`YamlSyntaxTree`](xref:SharpYaml.Syntax.YamlSyntaxTree)) for lossless roundtrip and source span tooling.
 - [`YamlSerializer`](xref:SharpYaml.YamlSerializer) maps to .NET objects and does not preserve formatting/comments.
+
+## SerializerSettings Migration
+
+Most `SerializerSettings` switches from v2 were removed because v3 follows the `YamlSerializerOptions`/`YamlSerializerContext` model and aligns with `System.Text.Json` behavior where practical.
+
+| v2 setting | v3 equivalent | Notes |
+| --- | --- | --- |
+| `NamingConvention = new CamelCaseNamingConvention()` | `PropertyNamingPolicy = JsonNamingPolicy.CamelCase` | Use `System.Text.Json.JsonNamingPolicy` for CLR property names, and `DictionaryKeyPolicy` for dictionary keys. |
+| `IgnoreUnmatchedProperties = true` | default behavior | SharpYaml v3 skips unmatched YAML members by default, matching `System.Text.Json`. |
+| `IgnoreUnmatchedProperties = false` | `UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow` | Use the options-level setting or `[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]` on a specific type to fail on unknown members. |
+| `EmitTags = false` | default behavior | v3 does not emit tags for ordinary object serialization unless they are required for polymorphism or explicitly written by a converter. |
+| `ResetAlias = true` | default behavior | v3 does not preserve object identity unless `ReferenceHandling = YamlReferenceHandling.Preserve` is enabled. Serializer reuse does not carry aliases between operations. |
+
+### Unmatched members and extension data
+
+If a type has [`YamlExtensionDataAttribute`](xref:SharpYaml.Serialization.YamlExtensionDataAttribute) or [`JsonExtensionDataAttribute`](xref:System.Text.Json.Serialization.JsonExtensionDataAttribute), unmatched YAML members are captured there instead of being rejected.
+
+```csharp
+using SharpYaml;
+using System.Text.Json.Serialization;
+
+var options = new YamlSerializerOptions
+{
+    UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+};
+```
+
+```csharp
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using SharpYaml.Serialization;
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed class MyModel
+{
+    public string Name { get; set; } = string.Empty;
+
+    [YamlExtensionData]
+    public Dictionary<string, object?> Extra { get; set; } = new();
+}
+```
+
+In the example above, unknown YAML members are still stored in `Extra`; extension data takes precedence over `UnmappedMemberHandling`.

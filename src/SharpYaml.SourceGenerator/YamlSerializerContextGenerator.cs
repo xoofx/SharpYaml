@@ -82,6 +82,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string? MappingOrder { get; set; }
         public string? Schema { get; set; }
         public bool? UseSchema { get; set; }
+        public string? UnmappedMemberHandling { get; set; }
         public string? DuplicateKeyHandling { get; set; }
         public bool? UnsafeAllowDeserializeFromTagTypeName { get; set; }
         public string? ReferenceHandling { get; set; }
@@ -104,6 +105,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             if (!string.IsNullOrEmpty(other.MappingOrder)) MappingOrder = other.MappingOrder;
             if (!string.IsNullOrEmpty(other.Schema)) Schema = other.Schema;
             if (other.UseSchema.HasValue) UseSchema = other.UseSchema;
+            if (!string.IsNullOrEmpty(other.UnmappedMemberHandling)) UnmappedMemberHandling = other.UnmappedMemberHandling;
             if (!string.IsNullOrEmpty(other.DuplicateKeyHandling)) DuplicateKeyHandling = other.DuplicateKeyHandling;
             if (other.UnsafeAllowDeserializeFromTagTypeName.HasValue) UnsafeAllowDeserializeFromTagTypeName = other.UnsafeAllowDeserializeFromTagTypeName;
             if (!string.IsNullOrEmpty(other.ReferenceHandling)) ReferenceHandling = other.ReferenceHandling;
@@ -1334,6 +1336,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             .AppendLine("(global::SharpYaml.Serialization.YamlReader reader)");
         builder.AppendLine("    {");
         builder.AppendLine("        var options = reader.Options;");
+        if (extensionData is null)
+        {
+            builder.Append("        var unmappedMemberHandling = ").Append(GetUnmappedMemberHandlingExpression(typeSymbol)).AppendLine(";");
+        }
         builder.AppendLine("        var hasCustomConverters = options.Converters.Count != 0;");
         builder.AppendLine("        if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartMapping)");
         builder.AppendLine("        {");
@@ -1586,6 +1592,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
+            builder.AppendLine("                    if (unmappedMemberHandling == global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)");
+            builder.AppendLine("                    {");
+            builder.Append("                        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnmappedMember(reader, typeof(").Append(typeName).AppendLine("), mergeKey);");
+            builder.AppendLine("                    }");
             builder.AppendLine("                    reader.Skip();");
         }
         builder.AppendLine("                }");
@@ -1651,6 +1661,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
+            builder.AppendLine("                if (unmappedMemberHandling == global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)");
+            builder.AppendLine("                {");
+            builder.Append("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnmappedMember(reader, typeof(").Append(typeName).AppendLine("), key);");
+            builder.AppendLine("                }");
             builder.AppendLine("                reader.Skip();");
         }
         builder.AppendLine("            }");
@@ -2008,6 +2022,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
+            builder.AppendLine("                    if (unmappedMemberHandling == global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)");
+            builder.AppendLine("                    {");
+            builder.Append("                        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnmappedMember(reader, typeof(").Append(typeName).AppendLine("), mergeKey);");
+            builder.AppendLine("                    }");
             builder.AppendLine("                    reader.Skip();");
         }
         builder.AppendLine("                }");
@@ -2140,6 +2158,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
+            builder.AppendLine("                if (unmappedMemberHandling == global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)");
+            builder.AppendLine("                {");
+            builder.Append("                    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnmappedMember(reader, typeof(").Append(typeName).AppendLine("), key);");
+            builder.AppendLine("                }");
             builder.AppendLine("                reader.Skip();");
         }
         builder.AppendLine("            }");
@@ -6383,6 +6405,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 case "UseSchema":
                     model.UseSchema = argument.Value.Value as bool?;
                     break;
+                case "UnmappedMemberHandling":
+                    model.UnmappedMemberHandling = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
                 case "DuplicateKeyHandling":
                     model.DuplicateKeyHandling = NormalizeEnumName(argument.Value.ToCSharpString());
                     break;
@@ -6444,6 +6469,46 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         var lastDot = text.LastIndexOf('.');
         return lastDot >= 0 && lastDot < text.Length - 1 ? text.Substring(lastDot + 1) : text;
+    }
+
+    private static string GetUnmappedMemberHandlingExpression(ITypeSymbol typeSymbol)
+    {
+        if (typeSymbol is INamedTypeSymbol namedType)
+        {
+            var overrideValue = TryGetJsonUnmappedMemberHandlingOverride(namedType);
+            if (!string.IsNullOrEmpty(overrideValue))
+            {
+                return "global::System.Text.Json.Serialization.JsonUnmappedMemberHandling." + overrideValue;
+            }
+        }
+
+        return "options.UnmappedMemberHandling";
+    }
+
+    private static string? TryGetJsonUnmappedMemberHandlingOverride(INamedTypeSymbol typeSymbol)
+    {
+        foreach (var attribute in typeSymbol.GetAttributes())
+        {
+            if (!string.Equals(attribute.AttributeClass?.ToDisplayString(), "System.Text.Json.Serialization.JsonUnmappedMemberHandlingAttribute", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (attribute.ConstructorArguments.Length != 0)
+            {
+                return NormalizeEnumName(attribute.ConstructorArguments[0].ToCSharpString());
+            }
+
+            foreach (var argument in attribute.NamedArguments)
+            {
+                if (string.Equals(argument.Key, "UnmappedMemberHandling", StringComparison.Ordinal))
+                {
+                    return NormalizeEnumName(argument.Value.ToCSharpString());
+                }
+            }
+        }
+
+        return null;
     }
 
     private static void AppendOptionAssignments(StringBuilder builder, SourceGenerationOptionsModel options)
@@ -6515,6 +6580,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         {
             builder.Append("            UseSchema = ")
                 .Append(options.UseSchema.Value ? "true" : "false")
+                .AppendLine(",");
+        }
+
+        if (!string.IsNullOrEmpty(options.UnmappedMemberHandling))
+        {
+            builder.Append("            UnmappedMemberHandling = global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.")
+                .Append(options.UnmappedMemberHandling)
                 .AppendLine(",");
         }
 

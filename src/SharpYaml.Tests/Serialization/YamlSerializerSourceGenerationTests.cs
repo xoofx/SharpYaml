@@ -30,6 +30,21 @@ internal sealed class GeneratedWithDefaultOptions
     public string? Optional { get; set; }
 }
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+internal sealed class GeneratedAttributedUnmappedPayload
+{
+    public string DisplayName { get; set; } = string.Empty;
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+internal sealed class GeneratedAttributedExtensionDataPayload
+{
+    public string DisplayName { get; set; } = string.Empty;
+
+    [YamlExtensionData]
+    public Dictionary<string, object?> Extra { get; set; } = new();
+}
+
 internal sealed class GeneratedSchemaAwareScalars
 {
     public string? NullableText { get; set; }
@@ -542,6 +557,8 @@ internal sealed class GeneratedInternalJsonCtorModel
 [YamlSerializable(typeof(GeneratedExtensionDataMappingPayload))]
 [YamlSerializable(typeof(GeneratedInitOnlyExtensionDataDictionaryPayload))]
 [YamlSerializable(typeof(GeneratedInitOnlyExtensionDataMappingPayload))]
+[YamlSerializable(typeof(GeneratedAttributedUnmappedPayload))]
+[YamlSerializable(typeof(GeneratedAttributedExtensionDataPayload))]
 [YamlSerializable(typeof(GeneratedMemberConverterPayload))]
 [YamlSerializable(typeof(GeneratedTypeWithConverter))]
 [YamlSerializable(typeof(GeneratedYamlCtorModel))]
@@ -591,6 +608,13 @@ internal partial class TestYamlSerializerContextWithConverters : YamlSerializerC
     UseSchema = true)]
 [YamlSerializable(typeof(GeneratedSchemaAwareScalars))]
 internal partial class TestYamlSerializerContextWithSchema : YamlSerializerContext
+{
+}
+
+[YamlSourceGenerationOptions(
+    UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
+[YamlSerializable(typeof(GeneratedWithDefaultOptions))]
+internal partial class TestYamlSerializerContextWithStrictUnmappedMembers : YamlSerializerContext
 {
 }
 
@@ -873,6 +897,7 @@ public class YamlSerializerSourceGenerationTests
         Assert.AreEqual(YamlIgnoreCondition.WhenWritingNull, options.DefaultIgnoreCondition);
         Assert.AreSame(JsonNamingPolicy.CamelCase, options.PropertyNamingPolicy);
         Assert.AreSame(JsonNamingPolicy.CamelCase, options.DictionaryKeyPolicy);
+        Assert.AreEqual(JsonUnmappedMemberHandling.Skip, options.UnmappedMemberHandling);
         Assert.AreSame(context, options.TypeInfoResolver);
 
         var yaml = YamlSerializer.Serialize(
@@ -922,6 +947,61 @@ public class YamlSerializerSourceGenerationTests
         Assert.AreEqual("null", value.QuotedText);
         Assert.AreEqual(true, value.PlainFlag);
         Assert.AreEqual("yes", value.QuotedFlag);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_SkipsUnmappedMembersByDefault()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var value = YamlSerializer.Deserialize(
+            "first_name: Ada\nAge: 37\nUnknown: test\n",
+            context.GeneratedPerson);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Ada", value.FirstName);
+        Assert.AreEqual(37, value.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_CanDisallowUnmappedMembersViaOptions()
+    {
+        var context = TestYamlSerializerContextWithStrictUnmappedMembers.Default;
+        var options = context.GeneratedWithDefaultOptions.Options;
+
+        Assert.AreEqual(JsonUnmappedMemberHandling.Disallow, options.UnmappedMemberHandling);
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize(
+            "DisplayName: Ada\nUnknown: test\n",
+            context.GeneratedWithDefaultOptions));
+
+        StringAssert.Contains(exception.Message, "Unknown");
+        StringAssert.Contains(exception.Message, typeof(GeneratedWithDefaultOptions).ToString());
+    }
+
+    [TestMethod]
+    public void GeneratedContext_HonorsJsonUnmappedMemberHandlingAttribute()
+    {
+        var context = TestYamlSerializerContext.Default;
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize(
+            "DisplayName: Ada\nUnknown: test\n",
+            context.GeneratedAttributedUnmappedPayload));
+
+        StringAssert.Contains(exception.Message, "Unknown");
+        StringAssert.Contains(exception.Message, typeof(GeneratedAttributedUnmappedPayload).ToString());
+    }
+
+    [TestMethod]
+    public void GeneratedContext_UnmappedMemberHandlingDoesNotConflictWithExtensionData()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var value = YamlSerializer.Deserialize(
+            "DisplayName: Ada\nUnknown: test\n",
+            context.GeneratedAttributedExtensionDataPayload);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual("Ada", value.DisplayName);
+        Assert.AreEqual("test", value.Extra["Unknown"]);
     }
 
     [TestMethod]

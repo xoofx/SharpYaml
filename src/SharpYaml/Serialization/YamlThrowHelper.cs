@@ -230,4 +230,18 @@ public static class YamlThrowHelper
 
         return new YamlException(reader.SourceName, mappingStart, reader.End, $"Missing required constructor parameter '{parameterName}' for '{declaringType}'.");
     }
+
+    /// <summary>Throws an exception when an unmapped member is encountered during deserialization.</summary>
+    /// <param name="reader">The reader positioned on the unmapped member value.</param>
+    /// <param name="declaringType">The target CLR type being deserialized.</param>
+    /// <param name="memberName">The unmapped YAML member name.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/>, <paramref name="declaringType"/>, or <paramref name="memberName"/> is <see langword="null"/>.</exception>
+    public static YamlException ThrowUnmappedMember(YamlReader reader, Type declaringType, string memberName)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(memberName);
+
+        return new YamlException(reader.SourceName, reader.Start, reader.End, $"The YAML member '{memberName}' could not be mapped to '{declaringType}'.");
+    }
 }

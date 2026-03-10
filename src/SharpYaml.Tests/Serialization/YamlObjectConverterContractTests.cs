@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
@@ -45,6 +46,21 @@ public sealed class YamlObjectConverterContractTests
     private sealed class Person
     {
         public string FirstName { get; set; } = string.Empty;
+    }
+
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    private sealed class StrictPerson
+    {
+        public string FirstName { get; set; } = string.Empty;
+    }
+
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    private sealed class StrictExtensionDataPerson
+    {
+        public string FirstName { get; set; } = string.Empty;
+
+        [YamlExtensionData]
+        public Dictionary<string, object?> Extra { get; set; } = new();
     }
 
     private sealed class NullIgnoreModel
@@ -131,6 +147,45 @@ public sealed class YamlObjectConverterContractTests
 
         Assert.IsNotNull(person);
         Assert.AreEqual("Ada", person.FirstName);
+    }
+
+    [TestMethod]
+    public void UnmappedMembers_AreSkippedByDefault()
+    {
+        var person = YamlSerializer.Deserialize<Person>("FirstName: Ada\nLastName: Lovelace\n");
+
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+    }
+
+    [TestMethod]
+    public void UnmappedMembers_CanBeDisallowedViaOptions()
+    {
+        var options = new YamlSerializerOptions { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<Person>("FirstName: Ada\nLastName: Lovelace\n", options));
+
+        StringAssert.Contains(exception.Message, "LastName");
+        StringAssert.Contains(exception.Message, typeof(Person).ToString());
+    }
+
+    [TestMethod]
+    public void JsonUnmappedMemberHandlingAttribute_CanDisallowUnknownMembers()
+    {
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<StrictPerson>("FirstName: Ada\nLastName: Lovelace\n"));
+
+        StringAssert.Contains(exception.Message, "LastName");
+        StringAssert.Contains(exception.Message, typeof(StrictPerson).ToString());
+    }
+
+    [TestMethod]
+    public void JsonUnmappedMemberHandling_DoesNotConflictWithExtensionData()
+    {
+        var person = YamlSerializer.Deserialize<StrictExtensionDataPerson>("FirstName: Ada\nLastName: Lovelace\n");
+
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual("Lovelace", person.Extra["LastName"]);
     }
 
     [TestMethod]

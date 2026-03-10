@@ -50,6 +50,11 @@ public sealed class YamlSourceGenerationOptionsAttribute : YamlAttribute
     public bool PropertyNameCaseInsensitive { get; set; }
 
     /// <summary>
+    /// Gets or sets how unmapped YAML members are handled during object deserialization.
+    /// </summary>
+    public JsonUnmappedMemberHandling UnmappedMemberHandling { get; set; }
+
+    /// <summary>
     /// Gets or sets the default ignore condition for null/default values.
     /// </summary>
     public YamlIgnoreCondition DefaultIgnoreCondition { get; set; }
