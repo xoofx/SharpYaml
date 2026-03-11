@@ -33,7 +33,8 @@ internal sealed class YamlModelNodeConverter : YamlConverter
         var end = reader.End;
 
         var buffered = YamlReader.BufferCurrentNodeToString(reader);
-        var stream = YamlStream.Load(new StringReader(buffered));
+        var parser = Parser.CreateParser(new StringReader(buffered), reader.Options.EffectiveMaxDepth, sourceName);
+        var stream = YamlStream.Load(new EventReader(parser));
         if (stream.Count == 0 || stream[0].Contents is null)
         {
             return null;

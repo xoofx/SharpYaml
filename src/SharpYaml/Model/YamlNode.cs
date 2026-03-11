@@ -146,10 +146,11 @@ public abstract class YamlNode
     public static YamlElement FromObject(object value, YamlSerializerOptions? options = null, Type? expectedType = null)
     {
         ArgumentGuard.ThrowIfNull(value);
+        var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var yaml = expectedType is null
-            ? YamlSerializer.Serialize(value, options)
-            : YamlSerializer.Serialize(value, expectedType, options);
-        var stream = YamlStream.Load(new StringReader(yaml));
+            ? YamlSerializer.Serialize(value, effectiveOptions)
+            : YamlSerializer.Serialize(value, expectedType, effectiveOptions);
+        var stream = YamlStream.Load(new EventReader(Parser.CreateParser(new StringReader(yaml), effectiveOptions.EffectiveMaxDepth)));
         if (stream.Count == 0 || stream[0].Contents is null)
         {
             throw new YamlException("Unable to materialize a YAML element from the serialized object graph.");

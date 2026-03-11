@@ -184,7 +184,26 @@ public sealed record YamlSerializerOptions
     public YamlReferenceHandling ReferenceHandling { get; init; }
 
     /// <summary>
+    /// Gets or sets the maximum allowed nesting depth for YAML mappings and sequences during serialization and deserialization.
+    /// </summary>
+    /// <remarks>
+    /// A value of <c>0</c> uses the default limit of 64.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Value is less than 0.</exception>
+    public int MaxDepth
+    {
+        get;
+        init
+        {
+            YamlDepthHelper.ValidateMaxDepth(value, nameof(value));
+            field = value;
+        }
+    }
+
+    /// <summary>
     /// Gets or sets a metadata resolver used to retrieve <see cref="YamlTypeInfo"/> instances.
     /// </summary>
     public IYamlTypeInfoResolver? TypeInfoResolver { get; init; }
+
+    internal int EffectiveMaxDepth => YamlDepthHelper.GetEffectiveMaxDepth(MaxDepth);
 }

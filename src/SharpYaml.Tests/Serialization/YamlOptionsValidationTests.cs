@@ -40,6 +40,12 @@ public sealed class YamlOptionsValidationTests
     }
 
     [TestMethod]
+    public void Options_MaxDepth_CannotBeNegative()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new YamlSerializerOptions { MaxDepth = -1 });
+    }
+
+    [TestMethod]
     public void Options_Converters_CannotBeNullOrContainNull()
     {
         Assert.Throws<ArgumentNullException>(() => new YamlSerializerOptions { Converters = null! });

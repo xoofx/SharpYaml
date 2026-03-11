@@ -141,6 +141,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <summary>
     /// Writes the start of a mapping.
     /// </summary>
+    /// <exception cref="YamlException">The configured maximum nesting depth was exceeded.</exception>
     public void WriteStartMapping()
     {
         PushContainer(ContainerKind.Mapping);
@@ -163,6 +164,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <summary>
     /// Writes the start of a sequence.
     /// </summary>
+    /// <exception cref="YamlException">The configured maximum nesting depth was exceeded.</exception>
     public void WriteStartSequence()
     {
         PushContainer(ContainerKind.Sequence);
@@ -599,6 +601,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
 
     private void PushContainer(ContainerKind kind)
     {
+        if (_depth >= Options.EffectiveMaxDepth)
+        {
+            throw YamlDepthHelper.CreateMaxDepthExceededException(Options.EffectiveMaxDepth);
+        }
+
         PendingStartKind pendingStart;
 
         if (_depth == 0)

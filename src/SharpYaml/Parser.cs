@@ -20,13 +20,60 @@ namespace SharpYaml;
 /// <summary>Represents the Parser.</summary>
 public static class Parser
 {
-    /// <summary>Creates parser.</summary>
+    /// <summary>
+    /// Creates a YAML parser with the default maximum nesting depth.
+    /// </summary>
+    /// <param name="reader">The YAML reader.</param>
+    /// <returns>The parser.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
     public static IParser CreateParser(TextReader reader)
     {
-        if (reader is StringReader stringReader)
-            return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()));
+        return CreateParser(reader, maxDepth: 0);
+    }
 
-        else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength));
+    /// <summary>
+    /// Creates a YAML parser with a configurable maximum nesting depth.
+    /// </summary>
+    /// <param name="reader">The YAML reader.</param>
+    /// <param name="maxDepth">
+    /// The maximum allowed nesting depth for mappings and sequences.
+    /// A value of <c>0</c> uses the default limit of 64.
+    /// </param>
+    /// <returns>The parser.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxDepth"/> is less than 0.</exception>
+    public static IParser CreateParser(TextReader reader, int maxDepth)
+    {
+        return CreateParser(reader, maxDepth, sourceName: null);
+    }
+
+    /// <summary>
+    /// Creates a YAML parser with a configurable maximum nesting depth and optional source name.
+    /// </summary>
+    /// <param name="reader">The YAML reader.</param>
+    /// <param name="maxDepth">
+    /// The maximum allowed nesting depth for mappings and sequences.
+    /// A value of <c>0</c> uses the default limit of 64.
+    /// </param>
+    /// <param name="sourceName">
+    /// An optional source name associated with the YAML payload, such as a file path, used when reporting depth-limit failures.
+    /// </param>
+    /// <returns>The parser.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxDepth"/> is less than 0.</exception>
+    public static IParser CreateParser(TextReader reader, int maxDepth, string? sourceName)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        var effectiveMaxDepth = YamlDepthHelper.GetEffectiveMaxDepth(maxDepth, nameof(maxDepth));
+        return CreateParserCore(reader, effectiveMaxDepth, sourceName);
+    }
+
+    private static IParser CreateParserCore(TextReader reader, int maxDepth, string? sourceName)
+    {
+        if (reader is StringReader stringReader)
+            return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()), maxDepth, sourceName);
+
+        else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength), maxDepth, sourceName);
     }
 }
 
@@ -40,6 +87,9 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
     private ParserState state;
 
     private readonly Scanner<TBuffer> scanner;
+    private readonly int _maxDepth;
+    private readonly string? _sourceName;
+    private int _currentDepth;
     private Token? currentToken;
 
     private Token GetCurrentToken()
@@ -58,8 +108,13 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
     /// Initializes a new instance of the <see cref="IParser"/> class.
     /// </summary>
     /// <param name="buffer">The input where the YAML stream is to be read.</param>
-    public Parser(TBuffer buffer)
+    /// <param name="maxDepth">The maximum allowed nesting depth for mappings and sequences.</param>
+    /// <param name="sourceName">The optional source name used when reporting depth-limit failures.</param>
+    public Parser(TBuffer buffer, int maxDepth = YamlDepthHelper.DefaultMaxDepth, string? sourceName = null)
     {
+        ArgumentGuard.ThrowIfNull(buffer);
+        _maxDepth = YamlDepthHelper.GetEffectiveMaxDepth(maxDepth, nameof(maxDepth));
+        _sourceName = sourceName;
         scanner = new Scanner<TBuffer>(buffer);
     }
 
@@ -84,7 +139,25 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         {
             // Generate the next event.
             Current = StateMachine();
+            EnforceMaxDepth(Current);
             return true;
+        }
+    }
+
+    private void EnforceMaxDepth(Event current)
+    {
+        if (current is Events.SequenceStart or Events.MappingStart)
+        {
+            if (_currentDepth >= _maxDepth)
+            {
+                throw YamlDepthHelper.CreateMaxDepthExceededException(_maxDepth, current.Start, current.End, _sourceName);
+            }
+
+            _currentDepth++;
+        }
+        else if (current is Events.SequenceEnd or Events.MappingEnd)
+        {
+            _currentDepth--;
         }
     }
 
