@@ -12,6 +12,19 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
 {
     private YamlConverter? _valueConverter;
 
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(Dictionary<string, TValue>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not Dictionary<string, TValue> dictionary)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must be a '{typeof(Dictionary<string, TValue>)}'.");
+        }
+
+        return PopulateDictionary(reader, dictionary);
+    }
+
     public override Dictionary<string, TValue>? Read(YamlReader reader)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
@@ -178,12 +191,98 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
             target[pair.Key] = pair.Value;
         }
     }
+
+    private Dictionary<string, TValue>? PopulateDictionary(YamlReader reader, Dictionary<string, TValue> dictionary)
+    {
+        if (reader.TryReadAlias(out var rootAliasValue))
+        {
+            return (Dictionary<string, TValue>)rootAliasValue!;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return null;
+        }
+
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        _valueConverter ??= reader.GetConverter(typeof(TValue));
+        var options = reader.Options;
+        var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+        var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
+        HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
+        if (reader.ReferenceReader is not null && reader.Anchor is not null)
+        {
+            reader.ReferenceReader.Register(reader.Anchor, dictionary);
+        }
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var key = reader.ScalarValue ?? string.Empty;
+            reader.Read();
+
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMerge(reader, dictionary, explicitKeys);
+                continue;
+            }
+
+            explicitKeys?.Add(key);
+
+            var wasSeen = seenKeys is not null && !seenKeys.Add(key);
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
+            {
+                throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
+            }
+
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+            {
+                reader.Skip();
+                continue;
+            }
+
+            var value = _valueConverter.Read(reader, typeof(TValue));
+            dictionary[key] = (TValue)value!;
+        }
+
+        reader.Read();
+        return dictionary;
+    }
 }
 
 internal sealed class YamlDictionaryConverter<TKey, TValue> : YamlConverter<Dictionary<TKey, TValue>?>
 {
     private YamlConverter? _keyConverter;
     private YamlConverter? _valueConverter;
+
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(Dictionary<TKey, TValue>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not Dictionary<TKey, TValue> dictionary)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must be a '{typeof(Dictionary<TKey, TValue>)}'.");
+        }
+
+        return PopulateDictionary(reader, dictionary);
+    }
 
     public override Dictionary<TKey, TValue>? Read(YamlReader reader)
     {
@@ -421,11 +520,140 @@ internal sealed class YamlDictionaryConverter<TKey, TValue> : YamlConverter<Dict
 
         return key.ToString() ?? string.Empty;
     }
+
+    private Dictionary<TKey, TValue>? PopulateDictionary(YamlReader reader, Dictionary<TKey, TValue> dictionary)
+    {
+        if (reader.TryReadAlias(out var rootAliasValue))
+        {
+            return (Dictionary<TKey, TValue>)rootAliasValue!;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return null;
+        }
+
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        _keyConverter ??= reader.GetConverter(typeof(TKey));
+        _valueConverter ??= reader.GetConverter(typeof(TValue));
+
+        var options = reader.Options;
+        if (reader.ReferenceReader is not null && reader.Anchor is not null)
+        {
+            reader.ReferenceReader.Register(reader.Anchor, dictionary);
+        }
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
+            object? rawKey;
+            try
+            {
+                rawKey = _keyConverter.Read(reader, typeof(TKey));
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+
+            if (rawKey is null)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, "Dictionary key cannot be null.");
+            }
+
+            var key = (TKey)rawKey;
+
+            object? rawValue;
+            try
+            {
+                rawValue = _valueConverter.Read(reader, typeof(TValue));
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+
+            if (dictionary.ContainsKey(key))
+            {
+                switch (options.DuplicateKeyHandling)
+                {
+                    case YamlDuplicateKeyHandling.Error:
+                        throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key.ToString() ?? string.Empty);
+                    case YamlDuplicateKeyHandling.FirstWins:
+                        break;
+                    case YamlDuplicateKeyHandling.LastWins:
+                        dictionary[key] = (TValue)rawValue!;
+                        break;
+                }
+            }
+            else
+            {
+                dictionary[key] = (TValue)rawValue!;
+            }
+        }
+
+        reader.Read();
+        return dictionary;
+    }
 }
 
 internal sealed class YamlIDictionaryConverter<TKey, TValue> : YamlConverter<IDictionary<TKey, TValue>?>
 {
     private readonly YamlDictionaryConverter<TKey, TValue> _inner = new();
+
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(IDictionary<TKey, TValue>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not IDictionary<TKey, TValue> dictionary)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(IDictionary<TKey, TValue>)}'.");
+        }
+
+        if (dictionary is Dictionary<TKey, TValue> concrete)
+        {
+            return _inner.Populate(reader, typeof(Dictionary<TKey, TValue>), concrete);
+        }
+
+        var populated = (Dictionary<TKey, TValue>?)_inner.Read(reader);
+        if (populated is null)
+        {
+            return null;
+        }
+
+        foreach (var pair in populated)
+        {
+            dictionary[pair.Key] = pair.Value;
+        }
+
+        return dictionary;
+    }
 
     public override IDictionary<TKey, TValue>? Read(YamlReader reader) => _inner.Read(reader);
 

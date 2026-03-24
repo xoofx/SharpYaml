@@ -99,6 +99,17 @@ public sealed record YamlSerializerOptions
     public JsonUnmappedMemberHandling UnmappedMemberHandling { get; init; } = JsonUnmappedMemberHandling.Skip;
 
     /// <summary>
+    /// Gets or sets the preferred object creation handling for properties and fields during deserialization.
+    /// </summary>
+    /// <remarks>
+    /// This mirrors <see cref="JsonSerializerOptions.PreferredObjectCreationHandling"/> from <c>System.Text.Json</c>.
+    /// Member-level <see cref="JsonObjectCreationHandlingAttribute"/> overrides this setting, while a type-level
+    /// <see cref="JsonObjectCreationHandlingAttribute"/> applies it as the default for members on that type.
+    /// The default behavior is <see cref="JsonObjectCreationHandling.Replace"/>.
+    /// </remarks>
+    public JsonObjectCreationHandling PreferredObjectCreationHandling { get; init; } = JsonObjectCreationHandling.Replace;
+
+    /// <summary>
     /// Gets or sets the default ignore condition for null/default values.
     /// </summary>
     public YamlIgnoreCondition DefaultIgnoreCondition { get; init; }

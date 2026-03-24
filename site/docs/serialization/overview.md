@@ -49,6 +49,7 @@ Common options:
 - [`WriteIndented`](xref:SharpYaml.YamlSerializerOptions.WriteIndented) and [`IndentSize`](xref:SharpYaml.YamlSerializerOptions.IndentSize)
 - [`DefaultIgnoreCondition`](xref:SharpYaml.YamlSerializerOptions.DefaultIgnoreCondition)
 - [`PropertyNameCaseInsensitive`](xref:SharpYaml.YamlSerializerOptions.PropertyNameCaseInsensitive)
+- [`PreferredObjectCreationHandling`](xref:SharpYaml.YamlSerializerOptions.PreferredObjectCreationHandling)
 - [`ReferenceHandling`](xref:SharpYaml.YamlSerializerOptions.ReferenceHandling) (anchors/aliases)
 
 ```csharp
@@ -76,6 +77,7 @@ If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCa
 | [`PropertyNamingPolicy`](xref:SharpYaml.YamlSerializerOptions.PropertyNamingPolicy) | `null` | Optional renaming for CLR member names. |
 | [`DictionaryKeyPolicy`](xref:SharpYaml.YamlSerializerOptions.DictionaryKeyPolicy) | `null` | Optional renaming for dictionary keys during serialization. |
 | [`PropertyNameCaseInsensitive`](xref:SharpYaml.YamlSerializerOptions.PropertyNameCaseInsensitive) | `false` | Case-insensitive property matching when reading. |
+| [`PreferredObjectCreationHandling`](xref:SharpYaml.YamlSerializerOptions.PreferredObjectCreationHandling) | [`JsonObjectCreationHandling.Replace`](xref:System.Text.Json.Serialization.JsonObjectCreationHandling.Replace) | Controls whether members are replaced or populated during deserialization. |
 | [`DefaultIgnoreCondition`](xref:SharpYaml.YamlSerializerOptions.DefaultIgnoreCondition) | [`YamlIgnoreCondition.Never`](xref:SharpYaml.YamlIgnoreCondition.Never) | Skips `null`/default values when writing. |
 | [`WriteIndented`](xref:SharpYaml.YamlSerializerOptions.WriteIndented) | `true` | Enables indentation. |
 | [`IndentSize`](xref:SharpYaml.YamlSerializerOptions.IndentSize) | `2` | Spaces per indent level when `WriteIndented` is enabled. |
@@ -88,6 +90,27 @@ If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCa
 | [`UnsafeAllowDeserializeFromTagTypeName`](xref:SharpYaml.YamlSerializerOptions.UnsafeAllowDeserializeFromTagTypeName) | `false` | Allows tag-based activation by runtime type name (use only with trusted input). |
 | [`TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver) | `null` | Provides metadata (generated or custom) for reflection-free serialization. |
 | [`SourceName`](xref:SharpYaml.YamlSerializerOptions.SourceName) | `null` | Used for error messages (file/path) when throwing [`YamlException`](xref:SharpYaml.YamlException). |
+
+## Object creation handling
+
+SharpYaml follows the same default as `System.Text.Json`: member values are replaced unless you opt into population.
+
+```csharp
+using System.Text.Json.Serialization;
+using SharpYaml;
+
+var options = new YamlSerializerOptions
+{
+    PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate,
+};
+```
+
+You can also opt in per type or per member with [`JsonObjectCreationHandlingAttribute`](xref:System.Text.Json.Serialization.JsonObjectCreationHandlingAttribute).
+
+- `Replace` is the default.
+- `Populate` reuses existing mutable reference-type members such as child objects, `List<T>`, `IList<T>`, `ICollection<T>`, `Dictionary<TKey, TValue>`, and `IDictionary<TKey, TValue>`.
+- Member-level `[JsonObjectCreationHandling(...)]` overrides the type or options default.
+- Struct members require a setter for `Populate`. A readonly struct property marked with `Populate` throws at runtime, matching `System.Text.Json`.
 
 ## Reflection vs metadata
 

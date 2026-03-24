@@ -17,6 +17,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 {
     private Contract? _contract;
 
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(T);
+
     public override T? Read(YamlReader reader)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
@@ -59,6 +61,69 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         return ReadObjectCore(reader, contract);
+    }
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(typeToConvert);
+        ArgumentGuard.ThrowIfNull(existingValue);
+
+        if (typeToConvert != typeof(T))
+        {
+            throw new InvalidOperationException($"Converter '{GetType()}' cannot populate '{typeToConvert}'.");
+        }
+
+        if (reader.TryReadAlias(out var aliasValue))
+        {
+            return aliasValue;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into '{typeof(T)}' unless ReferenceHandling is Preserve.");
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return default;
+        }
+
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        Contract contract;
+        try
+        {
+            contract = _contract ??= Contract.Create(typeof(T), reader);
+        }
+        catch (YamlException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, exception.Message, exception);
+        }
+
+        if (contract.Polymorphism is not null)
+        {
+            var runtimeValue = ReadPolymorphic(reader, contract);
+            return runtimeValue;
+        }
+
+        if (typeof(T).IsValueType)
+        {
+            object boxed = existingValue;
+            PopulateObjectCore(reader, contract, boxed);
+            return (T)boxed;
+        }
+
+        PopulateObjectCore(reader, contract, existingValue);
+        return existingValue;
     }
 
     public override void Write(YamlWriter writer, T? value)
@@ -224,20 +289,6 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredSeen[member.RequiredIndex] = true;
             }
 
-            if (!member.CanWrite)
-            {
-                if (contract.ExtensionData is not null)
-                {
-                    ReadExtensionData(reader, instance!, contract.ExtensionData, key);
-                }
-                else
-                {
-                    reader.Skip();
-                }
-
-                continue;
-            }
-
             var wasSeen = seenMembers is not null && !seenMembers.Add(member);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
             {
@@ -250,33 +301,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
-            var converter = member.Converter ??= reader.GetConverter(member.MemberType);
-            object? value;
-            try
-            {
-                value = converter.Read(reader, member.MemberType);
-            }
-            catch (YamlException)
-            {
-                throw;
-            }
-            catch (Exception exception)
-            {
-                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
-            }
-
-            try
-            {
-                member.SetValue(instance!, value);
-            }
-            catch (YamlException)
-            {
-                throw;
-            }
-            catch (Exception exception)
-            {
-                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
-            }
+            ReadAndApplyMemberValue(reader, instance!, contract, member, key, keyStart, keyEnd);
         }
 
         if (requiredSeen is not null)
@@ -316,6 +341,137 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         return instance;
+    }
+
+    private static void PopulateObjectCore(YamlReader reader, Contract contract, object instance)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(contract);
+        ArgumentGuard.ThrowIfNull(instance);
+
+        if (instance is IYamlOnDeserializing onDeserializing)
+        {
+            try
+            {
+                onDeserializing.OnDeserializing();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, reader.Start, reader.End, $"An error occurred while invoking '{nameof(IYamlOnDeserializing)}.{nameof(IYamlOnDeserializing.OnDeserializing)}' on '{instance.GetType()}'.", exception);
+            }
+        }
+
+        var options = reader.Options;
+        var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(reader.PropertyNameComparer) : null;
+        HashSet<Member>? seenMembers = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<Member>();
+        var mappingStart = reader.Start;
+        var requiredSeen = contract.RequiredMembers.Length == 0 ? null : new bool[contract.RequiredMembers.Length];
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
+            var key = reader.ScalarValue ?? string.Empty;
+            reader.Read();
+
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMergeToPopulatedInstance(reader, instance, contract, explicitKeys!, requiredSeen);
+                continue;
+            }
+
+            explicitKeys?.Add(key);
+
+            if (!contract.TryGetMember(key, out var member))
+            {
+                if (contract.ExtensionData is null)
+                {
+                    SkipOrThrowUnmappedMember(reader, contract, key);
+                    continue;
+                }
+
+                try
+                {
+                    ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                continue;
+            }
+
+            if (requiredSeen is not null && member.RequiredIndex >= 0)
+            {
+                requiredSeen[member.RequiredIndex] = true;
+            }
+
+            var wasSeen = seenMembers is not null && !seenMembers.Add(member);
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, $"Duplicate mapping key '{key}'.");
+            }
+
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+            {
+                reader.Skip();
+                continue;
+            }
+
+            ReadAndApplyMemberValue(reader, instance, contract, member, key, keyStart, keyEnd);
+        }
+
+        if (requiredSeen is not null)
+        {
+            List<string>? missing = null;
+            for (var i = 0; i < requiredSeen.Length; i++)
+            {
+                if (!requiredSeen[i])
+                {
+                    missing ??= new List<string>();
+                    missing.Add(contract.RequiredMembers[i].Name);
+                }
+            }
+
+            if (missing is not null)
+            {
+                throw new YamlException(reader.SourceName, mappingStart, reader.End, $"Missing required mapping key(s) for '{instance.GetType()}': {string.Join(", ", missing)}.");
+            }
+        }
+
+        reader.Read();
+
+        if (instance is IYamlOnDeserialized onDeserialized)
+        {
+            try
+            {
+                onDeserialized.OnDeserialized();
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, reader.Start, reader.End, $"An error occurred while invoking '{nameof(IYamlOnDeserialized)}.{nameof(IYamlOnDeserialized.OnDeserialized)}' on '{instance.GetType()}'.", exception);
+            }
+        }
     }
 
     private T? ReadObjectCoreWithConstructor(YamlReader reader, Contract contract)
@@ -694,48 +850,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     requiredSeen[member.RequiredIndex] = true;
                 }
 
-                if (!member.CanWrite)
-                {
-                    if (contract.ExtensionData is not null)
-                    {
-                        ReadExtensionData(reader, instance, contract.ExtensionData, key);
-                    }
-                    else
-                    {
-                        reader.Skip();
-                    }
-
-                    continue;
-                }
-
-                var converter = member.Converter ??= reader.GetConverter(member.MemberType);
-                object? value;
-                try
-                {
-                    value = converter.Read(reader, member.MemberType);
-                }
-                catch (YamlException)
-                {
-                    throw;
-                }
-                catch (Exception exception)
-                {
-                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
-                }
-
-                try
-                {
-                    member.SetValue(instance, value);
-                }
-                catch (YamlException)
-                {
-                    throw;
-                }
-                catch (Exception exception)
-                {
-                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
-                }
-
+                ReadAndApplyMemberValue(reader, instance, contract, member, key, keyStart, keyEnd);
                 continue;
             }
 
@@ -749,6 +864,258 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         reader.Read();
+    }
+
+    private static void ReadAndApplyMergeToPopulatedInstance(YamlReader reader, object instance, Contract contract, HashSet<string> explicitKeys, bool[]? requiredSeen)
+    {
+        if (!IsMergeKeyEnabled(reader.Options))
+        {
+            reader.Skip();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartMapping)
+        {
+            ApplyMergeMappingToPopulatedInstance(reader, instance, contract, explicitKeys, requiredSeen);
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartSequence)
+        {
+            reader.Read();
+            while (reader.TokenType != YamlTokenType.EndSequence)
+            {
+                if (reader.TokenType != YamlTokenType.StartMapping)
+                {
+                    throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
+                }
+
+                ApplyMergeMappingToPopulatedInstance(reader, instance, contract, explicitKeys, requiredSeen);
+            }
+
+            reader.Read();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge alias values are not supported unless they resolve to a mapping.");
+        }
+
+        throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
+    }
+
+    private static void ApplyMergeMappingToPopulatedInstance(YamlReader reader, object instance, Contract contract, HashSet<string> explicitKeys, bool[]? requiredSeen)
+    {
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
+            var key = reader.ScalarValue ?? string.Empty;
+            reader.Read();
+
+            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMergeToPopulatedInstance(reader, instance, contract, explicitKeys, requiredSeen);
+                continue;
+            }
+
+            if (explicitKeys.Contains(key))
+            {
+                reader.Skip();
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var member))
+            {
+                if (requiredSeen is not null && member.RequiredIndex >= 0)
+                {
+                    requiredSeen[member.RequiredIndex] = true;
+                }
+
+                ReadAndApplyMemberValue(reader, instance, contract, member, key, keyStart, keyEnd);
+                continue;
+            }
+
+            if (contract.ExtensionData is not null)
+            {
+                ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                continue;
+            }
+
+            SkipOrThrowUnmappedMember(reader, contract, key);
+        }
+
+        reader.Read();
+    }
+
+    private static void ReadAndApplyMemberValue(YamlReader reader, object instance, Contract contract, Member member, string key, Mark keyStart, Mark keyEnd)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(instance);
+        ArgumentGuard.ThrowIfNull(contract);
+        ArgumentGuard.ThrowIfNull(member);
+
+        var effectiveHandling = member.GetEffectiveObjectCreationHandling(contract.PreferredObjectCreationHandling);
+        var preferPopulate = effectiveHandling == JsonObjectCreationHandling.Populate;
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            if (preferPopulate && !member.CanWrite)
+            {
+                throw new InvalidOperationException($"Unable to assign 'null' to the property or field of type '{member.MemberType}'.");
+            }
+
+            if (!member.CanWrite)
+            {
+                if (contract.ExtensionData is not null)
+                {
+                    ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                }
+                else
+                {
+                    reader.Skip();
+                }
+
+                return;
+            }
+
+            reader.Read();
+            try
+            {
+                member.SetValue(instance, null);
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+            return;
+        }
+
+        var converter = member.Converter ??= reader.GetConverter(member.MemberType);
+        var canPopulate = converter.CanPopulate(member.MemberType);
+        var canPopulateMember = canPopulate && (!member.MemberType.IsValueType || member.CanWrite);
+        var explicitPopulate = member.ObjectCreationHandling == JsonObjectCreationHandling.Populate;
+
+        if (preferPopulate && explicitPopulate && !canPopulateMember)
+        {
+            if (member.MemberType.IsValueType && !member.CanWrite)
+            {
+                throw new InvalidOperationException($"Property '{member.ClrName}' on type '{contract.DeclaringType}' is marked with JsonObjectCreationHandling.Populate but is a value type that doesn't have a setter.");
+            }
+
+            throw new InvalidOperationException($"Property '{member.ClrName}' on type '{contract.DeclaringType}' is marked with JsonObjectCreationHandling.Populate but it doesn't support populating. This can be either because the property type is immutable or it could use a custom converter.");
+        }
+
+        if (preferPopulate && canPopulateMember)
+        {
+            object? currentValue;
+            try
+            {
+                currentValue = member.GetValue(instance);
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+
+            if (currentValue is not null)
+            {
+                object? populatedValue;
+                try
+                {
+                    populatedValue = converter.Populate(reader, member.MemberType, currentValue);
+                }
+                catch (YamlException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                }
+
+                if (member.CanWrite)
+                {
+                    try
+                    {
+                        member.SetValue(instance, populatedValue);
+                    }
+                    catch (YamlException)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+                    }
+                }
+
+                return;
+            }
+        }
+
+        if (!member.CanWrite)
+        {
+            if (contract.ExtensionData is not null)
+            {
+                ReadExtensionData(reader, instance, contract.ExtensionData, key);
+            }
+            else
+            {
+                reader.Skip();
+            }
+
+            return;
+        }
+
+        object? value;
+        try
+        {
+            value = converter.Read(reader, member.MemberType);
+        }
+        catch (YamlException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+        }
+
+        try
+        {
+            member.SetValue(instance, value);
+        }
+        catch (YamlException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+        }
     }
 
     private void ReadAndApplyMergeToConstructorBuffers(
@@ -1072,7 +1439,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             Member[] requiredMembers,
             ExtensionDataInfo? extensionData,
             PolymorphismModel? polymorphism,
-            JsonUnmappedMemberHandling unmappedMemberHandling)
+            JsonUnmappedMemberHandling unmappedMemberHandling,
+            JsonObjectCreationHandling preferredObjectCreationHandling)
         {
             DeclaringType = declaringType;
             CreateInstance = createInstance;
@@ -1084,6 +1452,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             ExtensionData = extensionData;
             Polymorphism = polymorphism;
             UnmappedMemberHandling = unmappedMemberHandling;
+            PreferredObjectCreationHandling = preferredObjectCreationHandling;
         }
 
         public Type DeclaringType { get; }
@@ -1104,6 +1473,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public JsonUnmappedMemberHandling UnmappedMemberHandling { get; }
 
+        public JsonObjectCreationHandling PreferredObjectCreationHandling { get; }
+
 #if !NETSTANDARD2_0
         [UnconditionalSuppressMessage(
             "Trimming",
@@ -1119,6 +1490,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             ArgumentGuard.ThrowIfNull(readerWriter);
             var options = readerWriter.Options;
             var unmappedMemberHandling = GetUnmappedMemberHandling(type, options);
+            var preferredObjectCreationHandling = GetPreferredObjectCreationHandling(type, options);
 
             var members = new List<Member>();
             var requiredMembers = new List<Member>();
@@ -1159,7 +1531,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                         throw new NotSupportedException($"Extension data member '{property.Name}' on '{type}' must be readable.");
                     }
 
-                    var extensionMember = new Member(property.Name, order: 0, declarationOrder: property.MetadataToken, property.PropertyType, property, ignoreCondition: null, isRequired: false, canWrite);
+                    var extensionMember = new Member(property.Name, order: 0, declarationOrder: property.MetadataToken, property.PropertyType, property, ignoreCondition: null, isRequired: false, canWrite, objectCreationHandling: null);
                     extensionData = ExtensionDataInfo.Create(type, extensionMember, property.PropertyType);
                     continue;
                 }
@@ -1178,7 +1550,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(property);
                 var token = property.MetadataToken;
 
-                var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property), canWrite);
+                var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property), canWrite, GetObjectCreationHandling(property));
                 member.Converter = CreateConverterFromAttribute(property, property.PropertyType, options);
                 members.Add(member);
                 if (member.IsRequired)
@@ -1206,7 +1578,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                         throw new NotSupportedException($"Extension data member '{field.Name}' on '{type}' cannot be required.");
                     }
 
-                    var extensionMember = new Member(field.Name, order: 0, declarationOrder: field.MetadataToken, field.FieldType, field, ignoreCondition: null, isRequired: false, canWrite: !field.IsInitOnly);
+                    var extensionMember = new Member(field.Name, order: 0, declarationOrder: field.MetadataToken, field.FieldType, field, ignoreCondition: null, isRequired: false, canWrite: !field.IsInitOnly, objectCreationHandling: null);
                     extensionData = ExtensionDataInfo.Create(type, extensionMember, field.FieldType);
                     continue;
                 }
@@ -1227,7 +1599,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(field);
                 var token = field.MetadataToken;
 
-                var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field), canWrite: !field.IsInitOnly);
+                var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field), canWrite: !field.IsInitOnly, GetObjectCreationHandling(field));
                 member.Converter = CreateConverterFromAttribute(field, field.FieldType, options);
                 members.Add(member);
                 if (member.IsRequired)
@@ -1320,7 +1692,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredMembers[i].RequiredIndex = i;
             }
 
-            return new Contract(type, createInstance, constructorModel, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), extensionData, polymorphism, unmappedMemberHandling);
+            return new Contract(type, createInstance, constructorModel, membersDeclaration, membersSorted, map, requiredMembers.ToArray(), extensionData, polymorphism, unmappedMemberHandling, preferredObjectCreationHandling);
         }
 
         public bool TryGetMember(string name, out Member member) => _membersByName.TryGetValue(name, out member!);
@@ -1734,7 +2106,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         private readonly PropertyInfo? _property;
         private readonly FieldInfo? _field;
 
-        public Member(string name, int order, int declarationOrder, Type memberType, PropertyInfo property, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite)
+        public Member(string name, int order, int declarationOrder, Type memberType, PropertyInfo property, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite, JsonObjectCreationHandling? objectCreationHandling)
         {
             ClrName = property.Name;
             Name = name;
@@ -1746,9 +2118,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             IgnoreCondition = ignoreCondition;
             IsRequired = isRequired;
             CanWrite = canWrite;
+            ObjectCreationHandling = objectCreationHandling;
         }
 
-        public Member(string name, int order, int declarationOrder, Type memberType, FieldInfo field, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite)
+        public Member(string name, int order, int declarationOrder, Type memberType, FieldInfo field, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite, JsonObjectCreationHandling? objectCreationHandling)
         {
             ClrName = field.Name;
             Name = name;
@@ -1760,6 +2133,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             IgnoreCondition = ignoreCondition;
             IsRequired = isRequired;
             CanWrite = canWrite;
+            ObjectCreationHandling = objectCreationHandling;
         }
 
         public string ClrName { get; }
@@ -1776,6 +2150,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public bool CanWrite { get; }
 
+        public JsonObjectCreationHandling? ObjectCreationHandling { get; }
+
         public YamlIgnoreCondition? IgnoreCondition { get; }
 
         public bool IsRequired { get; }
@@ -1783,6 +2159,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public int RequiredIndex { get; set; } = -1;
 
         public YamlConverter? Converter { get; set; }
+
+        public JsonObjectCreationHandling GetEffectiveObjectCreationHandling(JsonObjectCreationHandling preferredObjectCreationHandling)
+            => ObjectCreationHandling ?? preferredObjectCreationHandling;
 
         public object? GetValue(object instance)
         {
@@ -2183,6 +2562,21 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         var jsonUnmappedMemberHandling = type.GetCustomAttribute<JsonUnmappedMemberHandlingAttribute>(inherit: false);
         return jsonUnmappedMemberHandling?.UnmappedMemberHandling ?? options.UnmappedMemberHandling;
+    }
+
+    private static JsonObjectCreationHandling GetPreferredObjectCreationHandling(Type type, YamlSerializerOptions options)
+    {
+        ArgumentGuard.ThrowIfNull(type);
+        ArgumentGuard.ThrowIfNull(options);
+
+        var attribute = type.GetCustomAttribute<JsonObjectCreationHandlingAttribute>(inherit: false);
+        return attribute?.Handling ?? options.PreferredObjectCreationHandling;
+    }
+
+    private static JsonObjectCreationHandling? GetObjectCreationHandling(MemberInfo member)
+    {
+        ArgumentGuard.ThrowIfNull(member);
+        return member.GetCustomAttribute<JsonObjectCreationHandlingAttribute>(inherit: true)?.Handling;
     }
 
     private static YamlConverter? CreateConverterFromAttribute(MemberInfo member, Type memberType, YamlSerializerOptions options)

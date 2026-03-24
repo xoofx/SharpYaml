@@ -21,7 +21,8 @@ using SharpYaml.Serialization;
 
 [YamlSourceGenerationOptions(
     WriteIndented = true,
-    PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase)]
+    PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase,
+    PreferredObjectCreationHandling = System.Text.Json.Serialization.JsonObjectCreationHandling.Populate)]
 [YamlSerializable(typeof(MyConfig))]
 [YamlSerializable(typeof(List<int>))]
 internal partial class MyYamlContext : YamlSerializerContext
@@ -39,11 +40,14 @@ Use [`YamlSourceGenerationOptionsAttribute`](xref:SharpYaml.Serialization.YamlSo
 [YamlSourceGenerationOptions(
     WriteIndented = false,
     PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase,
+    PreferredObjectCreationHandling = System.Text.Json.Serialization.JsonObjectCreationHandling.Populate,
     Converters = new[] { typeof(MyCustomConverter) })]
 internal partial class MyYamlContext : YamlSerializerContext
 {
 }
 ```
+
+`PreferredObjectCreationHandling` works the same way as [`YamlSerializerOptions.PreferredObjectCreationHandling`](xref:SharpYaml.YamlSerializerOptions.PreferredObjectCreationHandling): `Replace` is the default, and `Populate` reuses existing mutable members when possible.
 
 ## Use generated metadata
 

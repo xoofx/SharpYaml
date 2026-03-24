@@ -55,6 +55,11 @@ public sealed class YamlSourceGenerationOptionsAttribute : YamlAttribute
     public JsonUnmappedMemberHandling UnmappedMemberHandling { get; set; }
 
     /// <summary>
+    /// Gets or sets the preferred object creation handling for members during deserialization.
+    /// </summary>
+    public JsonObjectCreationHandling PreferredObjectCreationHandling { get; set; }
+
+    /// <summary>
     /// Gets or sets the default ignore condition for null/default values.
     /// </summary>
     public YamlIgnoreCondition DefaultIgnoreCondition { get; set; }

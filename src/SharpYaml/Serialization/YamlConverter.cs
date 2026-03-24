@@ -22,6 +22,33 @@ public abstract class YamlConverter
     public abstract object? Read(YamlReader reader, Type typeToConvert);
 
     /// <summary>
+    /// Determines whether this converter can populate an existing instance instead of creating a replacement.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation returns <see langword="false"/>.
+    /// </remarks>
+    public virtual bool CanPopulate(Type typeToConvert)
+    {
+        ArgumentGuard.ThrowIfNull(typeToConvert);
+        return false;
+    }
+
+    /// <summary>
+    /// Populates an existing value instance from YAML.
+    /// </summary>
+    /// <remarks>
+    /// Converters that support population should override both <see cref="CanPopulate(Type)"/> and this method.
+    /// The default implementation throws <see cref="NotSupportedException"/>.
+    /// </remarks>
+    public virtual object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(typeToConvert);
+        ArgumentGuard.ThrowIfNull(existingValue);
+        throw new NotSupportedException($"Converter '{GetType()}' does not support populating '{typeToConvert}'.");
+    }
+
+    /// <summary>
     /// Writes a value to YAML.
     /// </summary>
     public abstract void Write(YamlWriter writer, object? value);

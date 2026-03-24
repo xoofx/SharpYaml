@@ -11,6 +11,19 @@ internal sealed class YamlListConverter<TElement> : YamlConverter<List<TElement>
 {
     private YamlConverter? _elementConverter;
 
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(List<TElement>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not List<TElement> list)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must be a '{typeof(List<TElement>)}'.");
+        }
+
+        return SequenceReadHelpers.PopulateCollection(reader, list, ref _elementConverter, "List");
+    }
+
     public override List<TElement>? Read(YamlReader reader)
     {
         if (reader.TryReadAlias(out var rootAliasValue))

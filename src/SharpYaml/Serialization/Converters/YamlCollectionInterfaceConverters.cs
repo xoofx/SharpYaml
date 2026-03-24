@@ -44,6 +44,19 @@ internal sealed class YamlIListConverter<TElement> : YamlConverter<IList<TElemen
 {
     private YamlConverter? _elementConverter;
 
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(IList<TElement>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not IList<TElement> list)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(IList<TElement>)}'.");
+        }
+
+        return SequenceReadHelpers.PopulateCollection(reader, list, ref _elementConverter, "IList");
+    }
+
     public override IList<TElement>? Read(YamlReader reader)
     {
         var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "IList");
@@ -60,6 +73,19 @@ internal sealed class YamlICollectionConverter<TElement> : YamlConverter<ICollec
 {
     private YamlConverter? _elementConverter;
 
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(ICollection<TElement>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not ICollection<TElement> collection)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(ICollection<TElement>)}'.");
+        }
+
+        return SequenceReadHelpers.PopulateCollection(reader, collection, ref _elementConverter, "ICollection");
+    }
+
     public override ICollection<TElement>? Read(YamlReader reader)
     {
         var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "ICollection");
@@ -75,6 +101,19 @@ internal sealed class YamlICollectionConverter<TElement> : YamlConverter<ICollec
 internal sealed class YamlHashSetConverter<TElement> : YamlConverter<HashSet<TElement>?>
 {
     private YamlConverter? _elementConverter;
+
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(HashSet<TElement>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not HashSet<TElement> set)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must be a '{typeof(HashSet<TElement>)}'.");
+        }
+
+        return SequenceReadHelpers.PopulateCollection(reader, set, ref _elementConverter, "HashSet");
+    }
 
     public override HashSet<TElement>? Read(YamlReader reader)
     {
@@ -153,6 +192,19 @@ internal sealed class YamlHashSetConverter<TElement> : YamlConverter<HashSet<TEl
 internal sealed class YamlISetConverter<TElement> : YamlConverter<ISet<TElement>?>
 {
     private YamlConverter? _elementConverter;
+
+    public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(ISet<TElement>);
+
+    public override object? Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ArgumentGuard.ThrowIfNull(existingValue);
+        if (existingValue is not ISet<TElement> set)
+        {
+            throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(ISet<TElement>)}'.");
+        }
+
+        return SequenceReadHelpers.PopulateCollection(reader, set, ref _elementConverter, "ISet");
+    }
 
     public override ISet<TElement>? Read(YamlReader reader)
     {
@@ -489,5 +541,49 @@ internal static class SequenceReadHelpers
             elementConverter.Write(writer, item);
         }
         writer.WriteEndSequence();
+    }
+
+    public static ICollection<TElement>? PopulateCollection<TElement>(YamlReader reader, ICollection<TElement> collection, ref YamlConverter? elementConverter, string typeDisplayName)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(collection);
+
+        if (reader.TryReadAlias(out var rootAliasValue))
+        {
+            return (ICollection<TElement>)rootAliasValue!;
+        }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into {typeDisplayName} unless ReferenceHandling is Preserve.");
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return null;
+        }
+
+        if (reader.TokenType != YamlTokenType.StartSequence)
+        {
+            throw YamlThrowHelper.ThrowExpectedSequence(reader);
+        }
+
+        if (reader.ReferenceReader is not null && reader.Anchor is not null)
+        {
+            reader.ReferenceReader.Register(reader.Anchor, collection);
+        }
+
+        elementConverter ??= reader.GetConverter(typeof(TElement));
+        reader.Read();
+
+        while (reader.TokenType != YamlTokenType.EndSequence)
+        {
+            var value = elementConverter.Read(reader, typeof(TElement));
+            collection.Add((TElement)value!);
+        }
+
+        reader.Read();
+        return collection;
     }
 }

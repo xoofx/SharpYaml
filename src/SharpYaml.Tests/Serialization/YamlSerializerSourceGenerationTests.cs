@@ -507,6 +507,48 @@ internal sealed class GeneratedInternalJsonCtorModel
     public int Age { get; }
 }
 
+internal sealed class GeneratedPopulateChild
+{
+    public int Existing { get; set; }
+
+    public int Added { get; set; }
+}
+
+internal sealed class GeneratedPopulateContainer
+{
+    public GeneratedPopulateChild Child { get; } = new() { Existing = 1 };
+
+    public List<int> Numbers { get; } = [1, 2];
+}
+
+[JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+internal sealed class GeneratedPopulateViaTypeAttributeContainer
+{
+    public GeneratedPopulateChild Child { get; } = new() { Existing = 1 };
+
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Replace)]
+    public List<int> Numbers { get; } = [1, 2];
+}
+
+internal struct GeneratedPopulateStructChild
+{
+    public int Existing { get; set; }
+
+    public int Added { get; set; }
+}
+
+internal sealed class GeneratedPopulateStructContainer
+{
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public GeneratedPopulateStructChild Child { get; set; } = new() { Existing = 1 };
+}
+
+internal sealed class GeneratedReadOnlyPopulateStructContainer
+{
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public GeneratedPopulateStructChild Child { get; } = new() { Existing = 1 };
+}
+
 [YamlSerializable(typeof(GeneratedPerson))]
 [YamlSerializable(typeof(GeneratedContainer))]
 [YamlSerializable(typeof(GeneratedPrimitives))]
@@ -565,6 +607,12 @@ internal sealed class GeneratedInternalJsonCtorModel
 [YamlSerializable(typeof(GeneratedJsonCtorModel))]
 [YamlSerializable(typeof(GeneratedInternalYamlCtorModel))]
 [YamlSerializable(typeof(GeneratedInternalJsonCtorModel))]
+[YamlSerializable(typeof(GeneratedPopulateChild))]
+[YamlSerializable(typeof(GeneratedPopulateContainer))]
+[YamlSerializable(typeof(GeneratedPopulateViaTypeAttributeContainer))]
+[YamlSerializable(typeof(GeneratedPopulateStructChild))]
+[YamlSerializable(typeof(GeneratedPopulateStructContainer))]
+[YamlSerializable(typeof(GeneratedReadOnlyPopulateStructContainer))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
     public TestYamlSerializerContext()
@@ -615,6 +663,14 @@ internal partial class TestYamlSerializerContextWithSchema : YamlSerializerConte
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
 [YamlSerializable(typeof(GeneratedWithDefaultOptions))]
 internal partial class TestYamlSerializerContextWithStrictUnmappedMembers : YamlSerializerContext
+{
+}
+
+[YamlSourceGenerationOptions(
+    PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate)]
+[YamlSerializable(typeof(GeneratedPopulateChild))]
+[YamlSerializable(typeof(GeneratedPopulateContainer))]
+internal partial class TestYamlSerializerContextWithPopulate : YamlSerializerContext
 {
 }
 
@@ -717,6 +773,97 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(person);
         Assert.AreEqual("Ada", person.FirstName);
         Assert.AreEqual(37, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_ReplaceIsDefault_ForReadOnlyMembers()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            Child:
+              Added: 2
+            Numbers:
+              - 3
+              - 4
+            """;
+
+        var value = YamlSerializer.Deserialize(yaml, context.GeneratedPopulateContainer);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual(1, value.Child.Existing);
+        Assert.AreEqual(0, value.Child.Added);
+        CollectionAssert.AreEqual(new[] { 1, 2 }, value.Numbers);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_PopulatesReadOnlyMembers_WhenPreferredObjectCreationHandlingIsPopulate()
+    {
+        var context = TestYamlSerializerContextWithPopulate.Default;
+        var yaml = """
+            Child:
+              Added: 2
+            Numbers:
+              - 3
+              - 4
+            """;
+
+        var value = YamlSerializer.Deserialize(yaml, context.GeneratedPopulateContainer);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual(1, value.Child.Existing);
+        Assert.AreEqual(2, value.Child.Added);
+        CollectionAssert.AreEqual(new[] { 1, 2, 3, 4 }, value.Numbers);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_HonorsJsonObjectCreationHandlingAttribute_OnTypeAndProperty()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            Child:
+              Added: 2
+            Numbers:
+              - 3
+              - 4
+            """;
+
+        var value = YamlSerializer.Deserialize(yaml, context.GeneratedPopulateViaTypeAttributeContainer);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual(1, value.Child.Existing);
+        Assert.AreEqual(2, value.Child.Added);
+        CollectionAssert.AreEqual(new[] { 1, 2 }, value.Numbers);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_PopulateOnStructPropertyWithSetter_AssignsBackModifiedCopy()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            Child:
+              Added: 2
+            """;
+
+        var value = YamlSerializer.Deserialize(yaml, context.GeneratedPopulateStructContainer);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual(1, value.Child.Existing);
+        Assert.AreEqual(2, value.Child.Added);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_PopulateOnReadOnlyStructProperty_Throws()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            Child:
+              Added: 2
+            """;
+
+        var exception = Assert.Throws<InvalidOperationException>(() => YamlSerializer.Deserialize(yaml, context.GeneratedReadOnlyPopulateStructContainer));
+
+        StringAssert.Contains(exception.Message, "value type");
+        StringAssert.Contains(exception.Message, "doesn't have a setter");
     }
 
     [TestMethod]
