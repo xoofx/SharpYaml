@@ -469,6 +469,20 @@ public abstract class YamlReaderWriterBase
                     return (YamlConverter)Activator.CreateInstance(converterType)!;
                 }
 
+#if NET9_0_OR_GREATER
+                if (definition == typeof(System.Collections.Generic.OrderedDictionary<,>) && args[0] == typeof(string))
+                {
+                    var converterType = typeof(YamlOrderedDictionaryConverter<>).MakeGenericType(args[1]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+
+                if (definition == typeof(System.Collections.Generic.OrderedDictionary<,>))
+                {
+                    var converterType = typeof(YamlOrderedDictionaryConverter<,>).MakeGenericType(args[0], args[1]);
+                    return (YamlConverter)Activator.CreateInstance(converterType)!;
+                }
+#endif
+
                 if (definition == typeof(IDictionary<,>))
                 {
                     var converterType = typeof(YamlIDictionaryConverter<,>).MakeGenericType(args[0], args[1]);
