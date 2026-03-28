@@ -711,3 +711,72 @@ internal sealed class YamlIReadOnlyDictionaryConverter<TKey, TValue> : YamlConve
         _inner.Write(writer, materialized);
     }
 }
+
+#if NET9_0_OR_GREATER
+internal sealed class YamlOrderedDictionaryConverter<TValue> : YamlConverter<System.Collections.Generic.OrderedDictionary<string, TValue>?>
+{
+    private readonly YamlDictionaryConverter<TValue> _inner = new();
+
+    public override System.Collections.Generic.OrderedDictionary<string, TValue>? Read(YamlReader reader)
+    {
+        var dict = _inner.Read(reader);
+        if (dict is null) return null;
+        var comparer = reader.Options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var ordered = new System.Collections.Generic.OrderedDictionary<string, TValue>(dict.Count, comparer);
+        foreach (var pair in dict)
+        {
+            ordered[pair.Key] = pair.Value;
+        }
+        return ordered;
+    }
+
+    public override void Write(YamlWriter writer, System.Collections.Generic.OrderedDictionary<string, TValue>? value)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        var dict = new Dictionary<string, TValue>(value.Count);
+        foreach (var pair in value)
+        {
+            dict[pair.Key] = pair.Value;
+        }
+        _inner.Write(writer, dict);
+    }
+}
+
+internal sealed class YamlOrderedDictionaryConverter<TKey, TValue> : YamlConverter<System.Collections.Generic.OrderedDictionary<TKey, TValue>?>
+{
+    private readonly YamlDictionaryConverter<TKey, TValue> _inner = new();
+
+    public override System.Collections.Generic.OrderedDictionary<TKey, TValue>? Read(YamlReader reader)
+    {
+        var dict = _inner.Read(reader);
+        if (dict is null) return null;
+        var ordered = new System.Collections.Generic.OrderedDictionary<TKey, TValue>(dict.Count);
+        foreach (var pair in dict)
+        {
+            ordered.Add(pair.Key, pair.Value);
+        }
+        return ordered;
+    }
+
+    public override void Write(YamlWriter writer, System.Collections.Generic.OrderedDictionary<TKey, TValue>? value)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        var dict = new Dictionary<TKey, TValue>(value.Count);
+        foreach (var pair in value)
+        {
+            dict[pair.Key] = pair.Value;
+        }
+        _inner.Write(writer, dict);
+    }
+}
+#endif

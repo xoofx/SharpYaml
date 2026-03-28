@@ -2719,9 +2719,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        var rootAnchor = reader.Anchor;");
             builder.AppendLine("        reader.Read();");
 
+            var dictionaryTypePrefix = GetDictionaryTypePrefix(typeSymbol);
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
-                builder.Append("        var dictionary = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
+                builder.Append("        var dictionary = new ").Append(dictionaryTypePrefix).Append("<string, ").Append(valueTypeName)
                     .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
                 builder.AppendLine("        var mergeEnabled = options.Schema is global::SharpYaml.YamlSchemaKind.Core or global::SharpYaml.YamlSchemaKind.Extended;");
                 builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
@@ -2733,7 +2734,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
             else
             {
-                builder.Append("        var dictionary = new global::System.Collections.Generic.Dictionary<").Append(keyTypeName).Append(", ").Append(valueTypeName).AppendLine(">();");
+                builder.Append("        var dictionary = new ").Append(dictionaryTypePrefix).Append("<").Append(keyTypeName).Append(", ").Append(valueTypeName).AppendLine(">();");
             }
 
             builder.AppendLine("        if (rootAnchor is not null) { reader.RegisterAnchor(rootAnchor, dictionary); }");
@@ -4106,9 +4107,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("                    var memberAnchor = reader.Anchor;");
             builder.AppendLine("                    reader.Read();");
 
+            var memberDictionaryTypePrefix = GetDictionaryTypePrefix(member.Type);
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
-                builder.Append("                    var dictionary = new global::System.Collections.Generic.Dictionary<string, ").Append(valueTypeName)
+                builder.Append("                    var dictionary = new ").Append(memberDictionaryTypePrefix).Append("<string, ").Append(valueTypeName)
                     .AppendLine(">(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);");
                 builder.AppendLine("                    var dictionaryMergeEnabled = options.Schema is global::SharpYaml.YamlSchemaKind.Core or global::SharpYaml.YamlSchemaKind.Extended;");
                 builder.AppendLine("                    global::System.Collections.Generic.HashSet<string>? dictionaryExplicitKeys = dictionaryMergeEnabled");
@@ -4121,7 +4123,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
             else
             {
-                builder.Append("                    var dictionary = new global::System.Collections.Generic.Dictionary<").Append(keyTypeName).Append(", ").Append(valueTypeName).AppendLine(">();");
+                builder.Append("                    var dictionary = new ").Append(memberDictionaryTypePrefix).Append("<").Append(keyTypeName).Append(", ").Append(valueTypeName).AppendLine(">();");
             }
 
             builder.AppendLine("                    if (memberAnchor is not null) { reader.RegisterAnchor(memberAnchor, dictionary); }");
@@ -5200,6 +5202,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         Dictionary,
         IDictionary,
         IReadOnlyDictionary,
+        OrderedDictionary,
     }
 
     private static bool TryGetDictionaryTypes(ITypeSymbol type, out ITypeSymbol keyType, out ITypeSymbol valueType, out DictionaryKind kind)
@@ -5232,12 +5235,33 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 kind = DictionaryKind.IReadOnlyDictionary;
                 return true;
             }
+
+            if (string.Equals(constructed, "global::System.Collections.Generic.OrderedDictionary<TKey, TValue>", StringComparison.Ordinal))
+            {
+                keyType = named.TypeArguments[0];
+                valueType = named.TypeArguments[1];
+                kind = DictionaryKind.OrderedDictionary;
+                return true;
+            }
         }
 
         keyType = null!;
         valueType = null!;
         kind = default;
         return false;
+    }
+
+    private static string GetDictionaryTypePrefix(ITypeSymbol type)
+    {
+        if (type is INamedTypeSymbol named && named.IsGenericType)
+        {
+            var constructed = named.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            if (string.Equals(constructed, "global::System.Collections.Generic.OrderedDictionary<TKey, TValue>", StringComparison.Ordinal))
+            {
+                return "global::System.Collections.Generic.OrderedDictionary";
+            }
+        }
+        return "global::System.Collections.Generic.Dictionary";
     }
 
     private static bool IsSupportedDictionaryKeyType(ITypeSymbol type)
