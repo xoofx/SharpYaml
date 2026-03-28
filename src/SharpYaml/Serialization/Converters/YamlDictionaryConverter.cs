@@ -109,22 +109,31 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
             return;
         }
 
+        WriteEntries(writer, value, value);
+    }
+
+    internal void WriteEntries(YamlWriter writer, object referenceValue, IEnumerable<KeyValuePair<string, TValue>> entries)
+    {
+        ArgumentGuard.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(referenceValue);
+        ArgumentGuard.ThrowIfNull(entries);
+
         _valueConverter ??= writer.GetConverter(typeof(TValue));
 
         if (writer.ReferenceWriter is not null)
         {
-            if (writer.ReferenceWriter.TryGetAnchor(value, out var existing))
+            if (writer.ReferenceWriter.TryGetAnchor(referenceValue, out var existing))
             {
                 writer.WriteAlias(existing);
                 return;
             }
 
-            var anchor = writer.ReferenceWriter.GetOrAddAnchor(value);
+            var anchor = writer.ReferenceWriter.GetOrAddAnchor(referenceValue);
             writer.WriteAnchor(anchor);
         }
 
         writer.WriteStartMapping();
-        foreach (var pair in value)
+        foreach (var pair in entries)
         {
             var key = writer.ConvertDictionaryKey(pair.Key);
             writer.WritePropertyName(key);
@@ -395,22 +404,31 @@ internal sealed class YamlDictionaryConverter<TKey, TValue> : YamlConverter<Dict
             return;
         }
 
+        WriteEntries(writer, value, value);
+    }
+
+    internal void WriteEntries(YamlWriter writer, object referenceValue, IEnumerable<KeyValuePair<TKey, TValue>> entries)
+    {
+        ArgumentGuard.ThrowIfNull(writer);
+        ArgumentGuard.ThrowIfNull(referenceValue);
+        ArgumentGuard.ThrowIfNull(entries);
+
         _valueConverter ??= writer.GetConverter(typeof(TValue));
 
         if (writer.ReferenceWriter is not null)
         {
-            if (writer.ReferenceWriter.TryGetAnchor(value, out var existing))
+            if (writer.ReferenceWriter.TryGetAnchor(referenceValue, out var existing))
             {
                 writer.WriteAlias(existing);
                 return;
             }
 
-            var anchor = writer.ReferenceWriter.GetOrAddAnchor(value);
+            var anchor = writer.ReferenceWriter.GetOrAddAnchor(referenceValue);
             writer.WriteAnchor(anchor);
         }
 
         writer.WriteStartMapping();
-        foreach (var pair in value)
+        foreach (var pair in entries)
         {
             WriteKey(writer, pair.Key);
             _valueConverter.Write(writer, pair.Value);
@@ -665,20 +683,7 @@ internal sealed class YamlIDictionaryConverter<TKey, TValue> : YamlConverter<IDi
             return;
         }
 
-        if (value is Dictionary<TKey, TValue> dictionary)
-        {
-            _inner.Write(writer, dictionary);
-            return;
-        }
-
-        // Fallback: enumerate entries into a Dictionary so we can reuse duplicate handling and key formatting.
-        var materialized = new Dictionary<TKey, TValue>();
-        foreach (var pair in value)
-        {
-            materialized[pair.Key] = pair.Value;
-        }
-
-        _inner.Write(writer, materialized);
+        _inner.WriteEntries(writer, value, value);
     }
 }
 
@@ -696,37 +701,87 @@ internal sealed class YamlIReadOnlyDictionaryConverter<TKey, TValue> : YamlConve
             return;
         }
 
-        if (value is Dictionary<TKey, TValue> dictionary)
-        {
-            _inner.Write(writer, dictionary);
-            return;
-        }
-
-        var materialized = new Dictionary<TKey, TValue>();
-        foreach (var pair in value)
-        {
-            materialized[pair.Key] = pair.Value;
-        }
-
-        _inner.Write(writer, materialized);
+        _inner.WriteEntries(writer, value, value);
     }
 }
 
 #if NET9_0_OR_GREATER
 internal sealed class YamlOrderedDictionaryConverter<TValue> : YamlConverter<System.Collections.Generic.OrderedDictionary<string, TValue>?>
 {
-    private readonly YamlDictionaryConverter<TValue> _inner = new();
+    private YamlConverter? _valueConverter;
 
     public override System.Collections.Generic.OrderedDictionary<string, TValue>? Read(YamlReader reader)
     {
-        var dict = _inner.Read(reader);
-        if (dict is null) return null;
-        var comparer = reader.Options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        var ordered = new System.Collections.Generic.OrderedDictionary<string, TValue>(dict.Count, comparer);
-        foreach (var pair in dict)
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            ordered[pair.Key] = pair.Value;
+            return (System.Collections.Generic.OrderedDictionary<string, TValue>)rootAliasValue!;
         }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an ordered dictionary unless ReferenceHandling is Preserve.");
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return null;
+        }
+
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        _valueConverter ??= reader.GetConverter(typeof(TValue));
+        var anchor = reader.Anchor;
+        var options = reader.Options;
+        var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var ordered = new System.Collections.Generic.OrderedDictionary<string, TValue>(0, comparer);
+        var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
+        HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
+        if (reader.ReferenceReader is not null && anchor is not null)
+        {
+            reader.ReferenceReader.Register(anchor, ordered);
+        }
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var key = reader.ScalarValue ?? string.Empty;
+            reader.Read();
+
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            {
+                ReadAndApplyMerge(reader, ordered, explicitKeys);
+                continue;
+            }
+
+            explicitKeys?.Add(key);
+
+            var wasSeen = seenKeys is not null && !seenKeys.Add(key);
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
+            {
+                throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
+            }
+
+            if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+            {
+                reader.Skip();
+                continue;
+            }
+
+            var value = _valueConverter.Read(reader, typeof(TValue));
+            ordered[key] = (TValue)value!;
+        }
+
+        reader.Read();
         return ordered;
     }
 
@@ -738,28 +793,198 @@ internal sealed class YamlOrderedDictionaryConverter<TValue> : YamlConverter<Sys
             return;
         }
 
-        var dict = new Dictionary<string, TValue>(value.Count);
+        _valueConverter ??= writer.GetConverter(typeof(TValue));
+
+        if (writer.ReferenceWriter is not null)
+        {
+            if (writer.ReferenceWriter.TryGetAnchor(value, out var existing))
+            {
+                writer.WriteAlias(existing);
+                return;
+            }
+
+            var anchor = writer.ReferenceWriter.GetOrAddAnchor(value);
+            writer.WriteAnchor(anchor);
+        }
+
+        writer.WriteStartMapping();
         foreach (var pair in value)
         {
-            dict[pair.Key] = pair.Value;
+            var key = writer.ConvertDictionaryKey(pair.Key);
+            writer.WritePropertyName(key);
+            _valueConverter.Write(writer, pair.Value);
         }
-        _inner.Write(writer, dict);
+        writer.WriteEndMapping();
+    }
+
+    private void ReadAndApplyMerge(
+        YamlReader reader,
+        System.Collections.Generic.OrderedDictionary<string, TValue> dictionary,
+        HashSet<string>? explicitKeys)
+    {
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartMapping || reader.TokenType == YamlTokenType.Alias)
+        {
+            var merged = Read(reader);
+            if (merged is null)
+            {
+                return;
+            }
+
+            ApplyMergeDictionary(dictionary, merged, explicitKeys);
+            return;
+        }
+
+        if (reader.TokenType == YamlTokenType.StartSequence)
+        {
+            reader.Read();
+            while (reader.TokenType != YamlTokenType.EndSequence)
+            {
+                if (reader.TokenType != YamlTokenType.StartMapping && reader.TokenType != YamlTokenType.Alias)
+                {
+                    throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
+                }
+
+                var merged = Read(reader);
+                if (merged is not null)
+                {
+                    ApplyMergeDictionary(dictionary, merged, explicitKeys);
+                }
+            }
+
+            reader.Read();
+            return;
+        }
+
+        throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
+    }
+
+    private static void ApplyMergeDictionary(
+        System.Collections.Generic.OrderedDictionary<string, TValue> target,
+        System.Collections.Generic.OrderedDictionary<string, TValue> merged,
+        HashSet<string>? explicitKeys)
+    {
+        foreach (var pair in merged)
+        {
+            if (explicitKeys is not null && explicitKeys.Contains(pair.Key))
+            {
+                continue;
+            }
+
+            target[pair.Key] = pair.Value;
+        }
     }
 }
 
 internal sealed class YamlOrderedDictionaryConverter<TKey, TValue> : YamlConverter<System.Collections.Generic.OrderedDictionary<TKey, TValue>?>
 {
-    private readonly YamlDictionaryConverter<TKey, TValue> _inner = new();
+    private YamlConverter? _keyConverter;
+    private YamlConverter? _valueConverter;
 
     public override System.Collections.Generic.OrderedDictionary<TKey, TValue>? Read(YamlReader reader)
     {
-        var dict = _inner.Read(reader);
-        if (dict is null) return null;
-        var ordered = new System.Collections.Generic.OrderedDictionary<TKey, TValue>(dict.Count);
-        foreach (var pair in dict)
+        if (reader.TryReadAlias(out var rootAliasValue))
         {
-            ordered.Add(pair.Key, pair.Value);
+            return (System.Collections.Generic.OrderedDictionary<TKey, TValue>)rootAliasValue!;
         }
+
+        if (reader.TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an ordered dictionary unless ReferenceHandling is Preserve.");
+        }
+
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return null;
+        }
+
+        if (reader.TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(reader);
+        }
+
+        _keyConverter ??= reader.GetConverter(typeof(TKey));
+        _valueConverter ??= reader.GetConverter(typeof(TValue));
+
+        var anchor = reader.Anchor;
+        var options = reader.Options;
+        var ordered = new System.Collections.Generic.OrderedDictionary<TKey, TValue>();
+        if (reader.ReferenceReader is not null && anchor is not null)
+        {
+            reader.ReferenceReader.Register(anchor, ordered);
+        }
+
+        reader.Read();
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            if (reader.TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+            }
+
+            var keyStart = reader.Start;
+            var keyEnd = reader.End;
+            object? rawKey;
+            try
+            {
+                rawKey = _keyConverter.Read(reader, typeof(TKey));
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+
+            if (rawKey is null)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, "Dictionary key cannot be null.");
+            }
+
+            var key = (TKey)rawKey;
+
+            object? rawValue;
+            try
+            {
+                rawValue = _valueConverter.Read(reader, typeof(TValue));
+            }
+            catch (YamlException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+
+            if (ordered.ContainsKey(key))
+            {
+                switch (options.DuplicateKeyHandling)
+                {
+                    case YamlDuplicateKeyHandling.Error:
+                        throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key.ToString() ?? string.Empty);
+                    case YamlDuplicateKeyHandling.FirstWins:
+                        break;
+                    case YamlDuplicateKeyHandling.LastWins:
+                        ordered[key] = (TValue)rawValue!;
+                        break;
+                }
+            }
+            else
+            {
+                ordered.Add(key, (TValue)rawValue!);
+            }
+        }
+
+        reader.Read();
         return ordered;
     }
 
@@ -771,12 +996,130 @@ internal sealed class YamlOrderedDictionaryConverter<TKey, TValue> : YamlConvert
             return;
         }
 
-        var dict = new Dictionary<TKey, TValue>(value.Count);
+        _valueConverter ??= writer.GetConverter(typeof(TValue));
+
+        if (writer.ReferenceWriter is not null)
+        {
+            if (writer.ReferenceWriter.TryGetAnchor(value, out var existing))
+            {
+                writer.WriteAlias(existing);
+                return;
+            }
+
+            var anchor = writer.ReferenceWriter.GetOrAddAnchor(value);
+            writer.WriteAnchor(anchor);
+        }
+
+        writer.WriteStartMapping();
         foreach (var pair in value)
         {
-            dict[pair.Key] = pair.Value;
+            WriteKey(writer, pair.Key);
+            _valueConverter.Write(writer, pair.Value);
         }
-        _inner.Write(writer, dict);
+        writer.WriteEndMapping();
+    }
+
+    private static void WriteKey(YamlWriter writer, TKey key)
+    {
+        if (key is null)
+        {
+            throw new YamlException(Mark.Empty, Mark.Empty, "Dictionary key cannot be null.");
+        }
+
+        if (key is string textKey)
+        {
+            writer.WritePropertyName(writer.ConvertDictionaryKey(textKey));
+            return;
+        }
+
+        writer.WritePropertyName(FormatNonStringKey(key));
+    }
+
+    private static string FormatNonStringKey(TKey key)
+    {
+        if (key is bool boolValue)
+        {
+            return boolValue ? "true" : "false";
+        }
+
+        if (key is double doubleValue)
+        {
+            if (double.IsPositiveInfinity(doubleValue))
+            {
+                return ".inf";
+            }
+
+            if (double.IsNegativeInfinity(doubleValue))
+            {
+                return "-.inf";
+            }
+
+            if (double.IsNaN(doubleValue))
+            {
+                return ".nan";
+            }
+
+            return doubleValue.ToString("R", CultureInfo.InvariantCulture);
+        }
+
+        if (key is float floatValue)
+        {
+            if (float.IsPositiveInfinity(floatValue))
+            {
+                return ".inf";
+            }
+
+            if (float.IsNegativeInfinity(floatValue))
+            {
+                return "-.inf";
+            }
+
+            if (float.IsNaN(floatValue))
+            {
+                return ".nan";
+            }
+
+            return floatValue.ToString("R", CultureInfo.InvariantCulture);
+        }
+
+        if (key is DateTime dateTime)
+        {
+            return dateTime.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        if (key is DateTimeOffset dateTimeOffset)
+        {
+            return dateTimeOffset.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        if (key is Guid guid)
+        {
+            return guid.ToString("D");
+        }
+
+        if (key is TimeSpan timeSpan)
+        {
+            return timeSpan.ToString("c", CultureInfo.InvariantCulture);
+        }
+
+#if NET6_0_OR_GREATER
+        if (key is DateOnly dateOnly)
+        {
+            return dateOnly.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        if (key is TimeOnly timeOnly)
+        {
+            return timeOnly.ToString("O", CultureInfo.InvariantCulture);
+        }
+#endif
+
+        if (key is IFormattable formattable)
+        {
+            return formattable.ToString(format: null, CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+
+        return key.ToString() ?? string.Empty;
     }
 }
 #endif

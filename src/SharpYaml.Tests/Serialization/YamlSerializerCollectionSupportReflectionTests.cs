@@ -61,6 +61,68 @@ public sealed class YamlSerializerCollectionSupportReflectionTests
     }
 
     [TestMethod]
+    public void RoundTrip_IDictionaryNonDictionaryImplementation_ShouldPreserveSharedReferences()
+    {
+        var shared = new SortedDictionary<int, string>
+        {
+            [2] = "two",
+            [1] = "one",
+        };
+
+        var payload = new DictionaryInterfacePayload
+        {
+            Primary = shared,
+            Secondary = shared,
+        };
+
+        var options = new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve };
+        var yaml = YamlSerializer.Serialize(payload, options);
+
+        var anchor = ExtractAnchor(yaml, "Primary: &");
+        StringAssert.Contains(yaml, $"Secondary: *{anchor}");
+
+        var result = YamlSerializer.Deserialize<DictionaryInterfacePayload>(yaml, options);
+
+        Assert.IsNotNull(result);
+        Assert.IsNotNull(result.Primary);
+        Assert.IsNotNull(result.Secondary);
+        Assert.IsTrue(ReferenceEquals(result.Primary, result.Secondary));
+        Assert.AreEqual("one", result.Primary[1]);
+        Assert.AreEqual("two", result.Primary[2]);
+    }
+
+    [TestMethod]
+    public void RoundTrip_IReadOnlyDictionaryNonDictionaryImplementation_ShouldPreserveSharedReferences()
+    {
+        var shared = new SortedDictionary<TestColor, int>
+        {
+            [TestColor.Green] = 2,
+            [TestColor.Red] = 1,
+        };
+
+        var payload = new ReadOnlyDictionaryInterfacePayload
+        {
+            Primary = shared,
+            Secondary = shared,
+        };
+
+        var options = new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve };
+        var yaml = YamlSerializer.Serialize(payload, options);
+
+        var anchor = ExtractAnchor(yaml, "Primary: &");
+        StringAssert.Contains(yaml, $"Secondary: *{anchor}");
+
+        var result = YamlSerializer.Deserialize<ReadOnlyDictionaryInterfacePayload>(yaml, options);
+
+        Assert.IsNotNull(result);
+        Assert.IsNotNull(result.Primary);
+        Assert.IsNotNull(result.Secondary);
+        Assert.IsTrue(ReferenceEquals(result.Primary, result.Secondary));
+        Assert.AreEqual(1, result.Primary[TestColor.Red]);
+        Assert.AreEqual(2, result.Primary[TestColor.Green]);
+    }
+
+    [TestMethod]
     public void Serialize_DictionaryWithGuidKeys_ShouldUseInvariantFormat()
     {
         var id = Guid.Parse("6d0c86e2-1e37-4c33-9c2f-5304a33f2c5e");
@@ -163,5 +225,33 @@ public sealed class YamlSerializerCollectionSupportReflectionTests
         public ImmutableArray<int> Values { get; set; }
 
         public ImmutableArray<int> Other { get; set; }
+    }
+
+    private sealed class DictionaryInterfacePayload
+    {
+        public IDictionary<int, string>? Primary { get; set; }
+
+        public IDictionary<int, string>? Secondary { get; set; }
+    }
+
+    private sealed class ReadOnlyDictionaryInterfacePayload
+    {
+        public IReadOnlyDictionary<TestColor, int>? Primary { get; set; }
+
+        public IReadOnlyDictionary<TestColor, int>? Secondary { get; set; }
+    }
+
+    private static string ExtractAnchor(string yaml, string prefix)
+    {
+        var anchorStart = yaml.IndexOf(prefix, StringComparison.Ordinal);
+        Assert.IsTrue(anchorStart >= 0, $"Expected '{prefix}' in YAML.");
+        anchorStart += prefix.Length;
+
+        var anchorEnd = yaml.IndexOf('\n', anchorStart);
+        Assert.IsTrue(anchorEnd > anchorStart, $"Expected an anchor after '{prefix}'.");
+
+        var anchor = yaml.Substring(anchorStart, anchorEnd - anchorStart).Trim();
+        Assert.AreNotEqual(string.Empty, anchor);
+        return anchor;
     }
 }

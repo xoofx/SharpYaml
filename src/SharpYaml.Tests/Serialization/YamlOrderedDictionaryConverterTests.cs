@@ -19,6 +19,20 @@ internal sealed class OrderedDictionaryObjectModel
     public OrderedDictionary<string, object> Items { get; set; } = new();
 }
 
+internal sealed class OrderedDictionaryReferenceModel
+{
+    public OrderedDictionary<string, int>? Primary { get; set; }
+
+    public OrderedDictionary<string, int>? Secondary { get; set; }
+}
+
+internal sealed class OrderedDictionaryGenericReferenceModel
+{
+    public OrderedDictionary<int, string>? Primary { get; set; }
+
+    public OrderedDictionary<int, string>? Secondary { get; set; }
+}
+
 [YamlSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [YamlSerializable(typeof(OrderedDictionary<string, int>))]
 [YamlSerializable(typeof(OrderedDictionary<string, string>))]
@@ -126,6 +140,70 @@ public sealed class YamlOrderedDictionaryConverterTests
         var originalKeys = new List<string>(original.Keys);
         var resultKeys = new List<string>(result.Keys);
         CollectionAssert.AreEqual(originalKeys, resultKeys);
+    }
+
+    [TestMethod]
+    public void Reflection_RoundTrip_StringKeyOrderedDictionary_ShouldPreserveSharedReferences()
+    {
+        var shared = new OrderedDictionary<string, int>
+        {
+            { "zebra", 1 },
+            { "apple", 2 },
+        };
+
+        var payload = new OrderedDictionaryReferenceModel
+        {
+            Primary = shared,
+            Secondary = shared,
+        };
+
+        var options = new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve };
+        var yaml = YamlSerializer.Serialize(payload, options);
+
+        var anchor = ExtractAnchor(yaml, "Primary: &");
+        StringAssert.Contains(yaml, $"Secondary: *{anchor}");
+
+        var result = YamlSerializer.Deserialize<OrderedDictionaryReferenceModel>(yaml, options);
+
+        Assert.IsNotNull(result);
+        Assert.IsNotNull(result.Primary);
+        Assert.IsNotNull(result.Secondary);
+        Assert.IsTrue(ReferenceEquals(result.Primary, result.Secondary));
+
+        var keys = new List<string>(result.Primary.Keys);
+        CollectionAssert.AreEqual(new[] { "zebra", "apple" }, keys);
+    }
+
+    [TestMethod]
+    public void Reflection_RoundTrip_GenericKeyOrderedDictionary_ShouldPreserveSharedReferences()
+    {
+        var shared = new OrderedDictionary<int, string>
+        {
+            { 3, "three" },
+            { 1, "one" },
+        };
+
+        var payload = new OrderedDictionaryGenericReferenceModel
+        {
+            Primary = shared,
+            Secondary = shared,
+        };
+
+        var options = new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve };
+        var yaml = YamlSerializer.Serialize(payload, options);
+
+        var anchor = ExtractAnchor(yaml, "Primary: &");
+        StringAssert.Contains(yaml, $"Secondary: *{anchor}");
+
+        var result = YamlSerializer.Deserialize<OrderedDictionaryGenericReferenceModel>(yaml, options);
+
+        Assert.IsNotNull(result);
+        Assert.IsNotNull(result.Primary);
+        Assert.IsNotNull(result.Secondary);
+        Assert.IsTrue(ReferenceEquals(result.Primary, result.Secondary));
+
+        var keys = new List<int>(result.Primary.Keys);
+        CollectionAssert.AreEqual(new[] { 3, 1 }, keys);
     }
 
     [TestMethod]
@@ -283,5 +361,19 @@ public sealed class YamlOrderedDictionaryConverterTests
 
         Assert.IsNotNull(result);
         Assert.AreEqual(2, result.Count);
+    }
+
+    private static string ExtractAnchor(string yaml, string prefix)
+    {
+        var anchorStart = yaml.IndexOf(prefix, StringComparison.Ordinal);
+        Assert.IsTrue(anchorStart >= 0, $"Expected '{prefix}' in YAML.");
+        anchorStart += prefix.Length;
+
+        var anchorEnd = yaml.IndexOf('\n', anchorStart);
+        Assert.IsTrue(anchorEnd > anchorStart, $"Expected an anchor after '{prefix}'.");
+
+        var anchor = yaml.Substring(anchorStart, anchorEnd - anchorStart).Trim();
+        Assert.AreNotEqual(string.Empty, anchor);
+        return anchor;
     }
 }
