@@ -52,6 +52,10 @@ public static class YamlThrowHelper
     public static YamlException ThrowUnknownTypeDiscriminator(YamlReader reader, string? discriminatorValue, Type baseType)
         => new(reader.SourceName, reader.Start, reader.End, $"Unknown type discriminator '{discriminatorValue}' for '{baseType}'.");
 
+    /// <summary>Throws an exception for unknown Type Tag.</summary>
+    public static YamlException ThrowUnknownTypeTag(YamlReader reader, string? tag, Type baseType)
+        => new(reader.SourceName, reader.Start, reader.End, $"Unknown type tag '{tag}' for '{baseType}'.");
+
     /// <summary>Throws an exception for abstract Type Without Discriminator.</summary>
     public static YamlException ThrowAbstractTypeWithoutDiscriminator(YamlReader reader, Type type)
         => new(reader.SourceName, reader.Start, reader.End, $"Cannot deserialize abstract type '{type}' without a known derived type discriminator.");
