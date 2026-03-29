@@ -13,3 +13,4 @@ Start here:
 
 - [YamlSerializer and options](overview.md)
 - [JSON attribute interop](json-attributes.md)
+- [Polymorphism](polymorphism.md)

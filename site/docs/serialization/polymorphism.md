@@ -6,6 +6,51 @@ SharpYaml supports polymorphism in a JSON-like way by default: using a discrimin
 
 It also supports YAML tags as an alternative discriminator style.
 
+## Cross-project registration
+
+If the base type and its derived types live in different projects, the base type often cannot reference every concrete implementation. SharpYaml supports that scenario in both serialization modes:
+
+- Reflection: register mappings at runtime with [`YamlPolymorphismOptions.DerivedTypeMappings`](xref:SharpYaml.YamlPolymorphismOptions)
+- Source generation: register mappings on the context with [`YamlDerivedTypeMappingAttribute`](xref:SharpYaml.Serialization.YamlDerivedTypeMappingAttribute)
+
+Both approaches are additive to [`YamlDerivedTypeAttribute`](xref:SharpYaml.Serialization.YamlDerivedTypeAttribute) and [`JsonDerivedTypeAttribute`](xref:System.Text.Json.Serialization.JsonDerivedTypeAttribute). Attribute-based registrations on the base type take precedence when the same discriminator or derived type is declared more than once.
+
+### Reflection mode
+
+```csharp
+using SharpYaml;
+
+var options = new YamlSerializerOptions
+{
+    PolymorphismOptions = new YamlPolymorphismOptions
+    {
+        DerivedTypeMappings =
+        {
+            [typeof(Animal)] = new List<YamlDerivedType>
+            {
+                new(typeof(Dog), "dog") { Tag = "!dog" },
+                new(typeof(Cat), "cat") { Tag = "!cat" },
+            }
+        }
+    }
+};
+```
+
+### Source-generated mode
+
+```csharp
+using SharpYaml.Serialization;
+
+[YamlSerializable(typeof(Zoo))]
+[YamlDerivedTypeMapping(typeof(Animal), typeof(Dog), "dog", Tag = "!dog")]
+[YamlDerivedTypeMapping(typeof(Animal), typeof(Cat), "cat", Tag = "!cat")]
+internal partial class ZooYamlContext : YamlSerializerContext
+{
+}
+```
+
+Types referenced by [`YamlDerivedTypeMappingAttribute`](xref:SharpYaml.Serialization.YamlDerivedTypeMappingAttribute) are automatically included in the generated context, so you do not need a separate `[YamlSerializable]` entry for each mapped derived type unless you want an explicit `YamlTypeInfo<T>` property name.
+
 ## JSON-like discriminator property
 
 Use [`JsonPolymorphicAttribute`](xref:System.Text.Json.Serialization.JsonPolymorphicAttribute) and [`JsonDerivedTypeAttribute`](xref:System.Text.Json.Serialization.JsonDerivedTypeAttribute):

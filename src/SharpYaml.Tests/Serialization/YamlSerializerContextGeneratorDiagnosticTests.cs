@@ -79,6 +79,74 @@ public class YamlSerializerContextGeneratorDiagnosticTests
         StringAssert.Contains(result.GeneratedSource, "NonNullableMock");
     }
 
+    [TestMethod]
+    public void GeneratorReportsErrorForNonAssignableDerivedTypeMapping()
+    {
+        const string source = """
+            using SharpYaml.Serialization;
+
+            public abstract class Animal
+            {
+            }
+
+            public sealed class Rock
+            {
+            }
+
+            [YamlSerializable(typeof(Animal))]
+            [YamlDerivedTypeMapping(typeof(Animal), typeof(Rock), "rock")]
+            internal partial class InvalidMappingContext : YamlSerializerContext
+            {
+            }
+            """;
+
+        var result = RunGenerator(source);
+
+        var diagnostics = result.Diagnostics
+            .Where(static diagnostic => diagnostic.Id == "SHARPYAML020")
+            .ToArray();
+
+        Assert.AreEqual(1, diagnostics.Length);
+        Assert.AreEqual(DiagnosticSeverity.Error, diagnostics[0].Severity);
+        StringAssert.Contains(diagnostics[0].GetMessage(), "Rock");
+        StringAssert.Contains(diagnostics[0].GetMessage(), "Animal");
+    }
+
+    [TestMethod]
+    public void GeneratorWarnsWhenDerivedTypeMappingBaseUsesSerializerDefaults()
+    {
+        const string source = """
+            using SharpYaml.Serialization;
+
+            public abstract class Animal
+            {
+                public string Name { get; set; } = string.Empty;
+            }
+
+            public sealed class Dog : Animal
+            {
+                public int BarkVolume { get; set; }
+            }
+
+            [YamlSerializable(typeof(Animal))]
+            [YamlDerivedTypeMapping(typeof(Animal), typeof(Dog), "dog")]
+            internal partial class MappingContext : YamlSerializerContext
+            {
+            }
+            """;
+
+        var result = RunGenerator(source);
+
+        var diagnostics = result.Diagnostics
+            .Where(static diagnostic => diagnostic.Id == "SHARPYAML021")
+            .ToArray();
+
+        Assert.AreEqual(1, diagnostics.Length);
+        Assert.AreEqual(DiagnosticSeverity.Warning, diagnostics[0].Severity);
+        StringAssert.Contains(diagnostics[0].GetMessage(), "Animal");
+        StringAssert.Contains(result.GeneratedSource, "value is global::Dog");
+    }
+
     private static (Compilation OutputCompilation, Diagnostic[] Diagnostics, string GeneratedSource) RunGenerator(string source)
     {
         var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);

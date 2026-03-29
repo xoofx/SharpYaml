@@ -71,6 +71,22 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor InvalidDerivedTypeMapping = new(
+        id: "SHARPYAML020",
+        title: "Invalid derived type mapping",
+        messageFormat: "Type '{0}' is not assignable to base type '{1}' in [YamlDerivedTypeMapping]",
+        category: "SharpYaml.SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor MissingYamlPolymorphicOnDerivedTypeMappingBase = new(
+        id: "SHARPYAML021",
+        title: "Derived type mapping base type has no polymorphic configuration",
+        messageFormat: "Base type '{0}' in [YamlDerivedTypeMapping] has no [YamlPolymorphic] attribute; serializer-level defaults will be used",
+        category: "SharpYaml.SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     private sealed class SourceGenerationOptionsModel
     {
         public bool? WriteIndented { get; set; }
@@ -128,6 +144,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             string namespaceName,
             string typeName,
             ImmutableArray<SerializableTypeModel> serializableTypes,
+            ImmutableArray<DerivedTypeMappingModel> derivedTypeMappings,
             ImmutableArray<LegacyJsonSerializableUsageModel> legacyJsonSerializableUsages,
             SourceGenerationOptionsModel sourceGenerationOptions,
             bool isValid)
@@ -136,6 +153,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             NamespaceName = namespaceName;
             TypeName = typeName;
             SerializableTypes = serializableTypes;
+            DerivedTypeMappings = derivedTypeMappings;
             LegacyJsonSerializableUsages = legacyJsonSerializableUsages;
             SourceGenerationOptions = sourceGenerationOptions;
             IsValid = isValid;
@@ -145,6 +163,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string NamespaceName { get; }
         public string TypeName { get; }
         public ImmutableArray<SerializableTypeModel> SerializableTypes { get; }
+        public ImmutableArray<DerivedTypeMappingModel> DerivedTypeMappings { get; }
         public ImmutableArray<LegacyJsonSerializableUsageModel> LegacyJsonSerializableUsages { get; }
         public SourceGenerationOptionsModel SourceGenerationOptions { get; }
         public bool IsValid { get; }
@@ -160,6 +179,33 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         public ITypeSymbol TypeSymbol { get; }
         public string? TypeInfoPropertyName { get; }
+    }
+
+    private sealed class DerivedTypeMappingModel
+    {
+        public DerivedTypeMappingModel(
+            ITypeSymbol baseType,
+            ITypeSymbol derivedType,
+            string? discriminator,
+            string? tag,
+            Location? location)
+        {
+            BaseType = baseType;
+            DerivedType = derivedType;
+            Discriminator = discriminator;
+            Tag = tag;
+            Location = location;
+        }
+
+        public ITypeSymbol BaseType { get; }
+
+        public ITypeSymbol DerivedType { get; }
+
+        public string? Discriminator { get; }
+
+        public string? Tag { get; }
+
+        public Location? Location { get; }
     }
 
     private sealed class LegacyJsonSerializableUsageModel
@@ -219,6 +265,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         var serializableTypes = ImmutableArray.CreateBuilder<SerializableTypeModel>();
+        var derivedTypeMappings = ImmutableArray.CreateBuilder<DerivedTypeMappingModel>();
         var legacyJsonSerializableUsages = ImmutableArray.CreateBuilder<LegacyJsonSerializableUsageModel>();
         var jsonSourceGenerationOptions = new SourceGenerationOptionsModel();
         var yamlSourceGenerationOptions = new SourceGenerationOptionsModel();
@@ -233,6 +280,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                         attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
                         serializableType.TypeSymbol));
                 }
+                continue;
+            }
+
+            if (TryCreateDerivedTypeMappingModel(attribute, out var derivedTypeMapping))
+            {
+                derivedTypeMappings.Add(derivedTypeMapping);
                 continue;
             }
 
@@ -267,6 +320,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             namespaceName,
             typeName,
             serializableTypes.ToImmutable(),
+            derivedTypeMappings.ToImmutable(),
             legacyJsonSerializableUsages.ToImmutable(),
             sourceGenerationOptions,
             isValid: isPartial);
@@ -290,7 +344,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 usage.TypeSymbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
         }
 
-        var resolvedTypes = ExpandSerializableTypes(model.SerializableTypes.Select(static item => item.TypeSymbol).ToImmutableArray());
+        var derivedTypeMappings = ValidateDerivedTypeMappings(context, model);
+        var resolvedTypes = ExpandSerializableTypes(
+            model.SerializableTypes.Select(static item => item.TypeSymbol).ToImmutableArray(),
+            derivedTypeMappings);
 
         var indexByType = new Dictionary<ITypeSymbol, int>(resolvedTypes.Length, SymbolEqualityComparer.Default);
         for (var i = 0; i < resolvedTypes.Length; i++)
@@ -406,7 +463,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
         }
 
-        var source = GenerateContextSource(model, resolvedTypes, indexByType);
+        var source = GenerateContextSource(model, derivedTypeMappings, resolvedTypes, indexByType);
         context.AddSource($"{model.TypeName}.g.cs", SourceText.From(source, Encoding.UTF8));
     }
 
@@ -531,7 +588,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return false;
     }
 
-    private static ImmutableArray<ITypeSymbol> ExpandSerializableTypes(ImmutableArray<ITypeSymbol> roots)
+    private static ImmutableArray<ITypeSymbol> ExpandSerializableTypes(
+        ImmutableArray<ITypeSymbol> roots,
+        ImmutableArray<DerivedTypeMappingModel> contextMappings)
     {
         // Always include explicitly declared root types. Additionally include polymorphic derived types
         // so generated polymorphism dispatch can call into their serializers without requiring explicit roots.
@@ -549,6 +608,22 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
         }
 
+        for (var i = 0; i < contextMappings.Length; i++)
+        {
+            var mapping = contextMappings[i];
+            if (seen.Add(mapping.BaseType))
+            {
+                builder.Add(mapping.BaseType);
+                queue.Enqueue(mapping.BaseType);
+            }
+
+            if (seen.Add(mapping.DerivedType))
+            {
+                builder.Add(mapping.DerivedType);
+                queue.Enqueue(mapping.DerivedType);
+            }
+        }
+
         while (queue.Count != 0)
         {
             var type = queue.Dequeue();
@@ -557,7 +632,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 continue;
             }
 
-            foreach (var derived in GetPolymorphicDerivedTypes(named))
+            foreach (var derived in GetPolymorphicDerivedTypes(named, contextMappings))
             {
                 if (seen.Add(derived))
                 {
@@ -570,7 +645,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return builder.ToImmutable();
     }
 
-    private static string GenerateContextSource(ContextModel model, ImmutableArray<ITypeSymbol> types, Dictionary<ITypeSymbol, int> indexByType)
+    private static string GenerateContextSource(
+        ContextModel model,
+        ImmutableArray<DerivedTypeMappingModel> derivedTypeMappings,
+        ImmutableArray<ITypeSymbol> types,
+        Dictionary<ITypeSymbol, int> indexByType)
     {
         var builder = new StringBuilder();
         var propertyNamingPolicy = ResolveJsonNamingPolicy(model.SourceGenerationOptions.PropertyNamingPolicy);
@@ -684,9 +763,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         for (var index = 0; index < types.Length; index++)
         {
             var typeName = types[index].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            EmitWriteValue(builder, index, types[index], typeName, indexByType, propertyNamingPolicy);
+            EmitWriteValue(builder, index, types[index], typeName, derivedTypeMappings, indexByType, propertyNamingPolicy);
             builder.AppendLine();
-            EmitReadValue(builder, index, types[index], typeName, indexByType, propertyNamingPolicy);
+            EmitReadValue(builder, index, types[index], typeName, derivedTypeMappings, indexByType, propertyNamingPolicy);
             builder.AppendLine();
         }
 
@@ -694,7 +773,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
-    private static void EmitWriteValue(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName, Dictionary<ITypeSymbol, int> indexByType, JsonNamingPolicy? propertyNamingPolicy)
+    private static void EmitWriteValue(
+        StringBuilder builder,
+        int index,
+        ITypeSymbol typeSymbol,
+        string typeName,
+        ImmutableArray<DerivedTypeMappingModel> derivedTypeMappings,
+        Dictionary<ITypeSymbol, int> indexByType,
+        JsonNamingPolicy? propertyNamingPolicy)
     {
         var attributeConverterTypeName = GetYamlConverterAttributeTypeName((ISymbol)typeSymbol);
 
@@ -1030,7 +1116,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("        InvokeOnSerializing();");
             }
 
-            if (named.TypeKind == TypeKind.Class && TryGetPolymorphismInfo(named, out var polymorphism) && polymorphism.DerivedTypes.Length != 0)
+            if (named.TypeKind == TypeKind.Class && TryGetPolymorphismInfo(named, derivedTypeMappings, out var polymorphism) && polymorphism.DerivedTypes.Length != 0)
             {
                 builder.AppendLine();
 
@@ -2495,7 +2581,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        return instance;");
     }
 
-    private static void EmitReadValue(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName, Dictionary<ITypeSymbol, int> indexByType, JsonNamingPolicy? propertyNamingPolicy)
+    private static void EmitReadValue(
+        StringBuilder builder,
+        int index,
+        ITypeSymbol typeSymbol,
+        string typeName,
+        ImmutableArray<DerivedTypeMappingModel> derivedTypeMappings,
+        Dictionary<ITypeSymbol, int> indexByType,
+        JsonNamingPolicy? propertyNamingPolicy)
     {
         var attributeConverterTypeName = GetYamlConverterAttributeTypeName((ISymbol)typeSymbol);
 
@@ -3145,7 +3238,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 .Select(m => CreateMemberModel(m, propertyNamingPolicy))
                 .ToImmutableArray();
 
-            if (named.TypeKind == TypeKind.Class && TryGetPolymorphismInfo(named, out var polymorphism) && polymorphism.DerivedTypes.Length != 0)
+            if (named.TypeKind == TypeKind.Class && TryGetPolymorphismInfo(named, derivedTypeMappings, out var polymorphism) && polymorphism.DerivedTypes.Length != 0)
             {
                 builder.AppendLine("        var rootTag = reader.Tag;");
 
@@ -6131,6 +6224,53 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return true;
     }
 
+    private static bool TryCreateDerivedTypeMappingModel(AttributeData attribute, out DerivedTypeMappingModel model)
+    {
+        model = null!;
+
+        if (!string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlDerivedTypeMappingAttribute", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (attribute.ConstructorArguments.Length < 2 ||
+            attribute.ConstructorArguments[0].Kind != TypedConstantKind.Type ||
+            attribute.ConstructorArguments[0].Value is not ITypeSymbol baseType ||
+            attribute.ConstructorArguments[1].Kind != TypedConstantKind.Type ||
+            attribute.ConstructorArguments[1].Value is not ITypeSymbol derivedType)
+        {
+            return false;
+        }
+
+        string? discriminator = null;
+        if (attribute.ConstructorArguments.Length >= 3)
+        {
+            discriminator = attribute.ConstructorArguments[2].Value switch
+            {
+                string s => s,
+                int i => i.ToString(global::System.Globalization.CultureInfo.InvariantCulture),
+                _ => null,
+            };
+        }
+
+        string? tag = null;
+        foreach (var pair in attribute.NamedArguments)
+        {
+            if (string.Equals(pair.Key, "Tag", StringComparison.Ordinal) && pair.Value.Value is string tagValue)
+            {
+                tag = tagValue;
+            }
+        }
+
+        model = new DerivedTypeMappingModel(
+            baseType,
+            derivedType,
+            discriminator,
+            tag,
+            attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation());
+        return true;
+    }
+
     private static bool IsYamlSerializableAttribute(AttributeData attribute)
         => string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlSerializableAttribute", StringComparison.Ordinal);
 
@@ -6142,6 +6282,89 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static bool IsYamlSourceGenerationOptionsAttribute(AttributeData attribute)
         => string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlSourceGenerationOptionsAttribute", StringComparison.Ordinal);
+
+    private static ImmutableArray<DerivedTypeMappingModel> ValidateDerivedTypeMappings(SourceProductionContext context, ContextModel model)
+    {
+        var builder = ImmutableArray.CreateBuilder<DerivedTypeMappingModel>(model.DerivedTypeMappings.Length);
+        var warnedBaseTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
+        for (var i = 0; i < model.DerivedTypeMappings.Length; i++)
+        {
+            var mapping = model.DerivedTypeMappings[i];
+            var baseType = mapping.BaseType;
+            var derivedType = mapping.DerivedType;
+
+            if (!IsAssignableTo(derivedType, baseType))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidDerivedTypeMapping,
+                    mapping.Location ?? model.ContextSymbol.Locations.FirstOrDefault(),
+                    derivedType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+                    baseType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+                continue;
+            }
+
+            if (warnedBaseTypes.Add(baseType) && !HasYamlPolymorphicConfiguration(baseType))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MissingYamlPolymorphicOnDerivedTypeMappingBase,
+                    mapping.Location ?? model.ContextSymbol.Locations.FirstOrDefault(),
+                    baseType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+            }
+
+            builder.Add(mapping);
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static bool HasYamlPolymorphicConfiguration(ITypeSymbol typeSymbol)
+    {
+        foreach (var attribute in typeSymbol.GetAttributes())
+        {
+            var attributeName = attribute.AttributeClass?.ToDisplayString();
+            if (string.Equals(attributeName, "SharpYaml.Serialization.YamlPolymorphicAttribute", StringComparison.Ordinal) ||
+                string.Equals(attributeName, "SharpYaml.Serialization.YamlDerivedTypeAttribute", StringComparison.Ordinal) ||
+                string.Equals(attributeName, "System.Text.Json.Serialization.JsonPolymorphicAttribute", StringComparison.Ordinal) ||
+                string.Equals(attributeName, "System.Text.Json.Serialization.JsonDerivedTypeAttribute", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsAssignableTo(ITypeSymbol typeSymbol, ITypeSymbol baseType)
+    {
+        if (SymbolEqualityComparer.Default.Equals(typeSymbol, baseType))
+        {
+            return true;
+        }
+
+        if (typeSymbol is not INamedTypeSymbol namedType)
+        {
+            return false;
+        }
+
+        for (var current = namedType.BaseType; current is not null; current = current.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, baseType))
+            {
+                return true;
+            }
+        }
+
+        foreach (var implementedInterface in namedType.AllInterfaces)
+        {
+            if (SymbolEqualityComparer.Default.Equals(implementedInterface, baseType))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static string? GetTypeInfoPropertyNameOverride(AttributeData attribute)
     {
@@ -6157,9 +6380,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static IEnumerable<ITypeSymbol> GetPolymorphicDerivedTypes(INamedTypeSymbol baseType)
+    private static IEnumerable<ITypeSymbol> GetPolymorphicDerivedTypes(
+        INamedTypeSymbol baseType,
+        ImmutableArray<DerivedTypeMappingModel> contextMappings)
     {
-        if (TryGetPolymorphismInfo(baseType, out var info))
+        if (TryGetPolymorphismInfo(baseType, contextMappings, out var info))
         {
             for (var i = 0; i < info.DerivedTypes.Length; i++)
             {
@@ -6211,7 +6436,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public ITypeSymbol? DefaultDerivedType { get; }
     }
 
-    private static bool TryGetPolymorphismInfo(INamedTypeSymbol baseType, out PolymorphismInfoModel info)
+    private static bool TryGetPolymorphismInfo(
+        INamedTypeSymbol baseType,
+        ImmutableArray<DerivedTypeMappingModel> contextMappings,
+        out PolymorphismInfoModel info)
     {
         string? discriminatorPropertyNameOverride = null;
         int? discriminatorStyleOverrideValue = null;
@@ -6220,6 +6448,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         var derivedTypes = ImmutableArray.CreateBuilder<DerivedTypeInfoModel>();
         var seenDerived = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+        var seenDiscriminators = new HashSet<string>(StringComparer.Ordinal);
+        var seenTags = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var attribute in baseType.GetAttributes())
         {
@@ -6308,12 +6538,21 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
             if (seenDerived.Add(derivedType))
             {
-                if (discriminator is null)
+                if (discriminator is null && tag is null)
                 {
                     defaultDerivedType = derivedType;
                 }
 
                 derivedTypes.Add(new DerivedTypeInfoModel(derivedType, discriminator, tag));
+                if (discriminator is not null)
+                {
+                    seenDiscriminators.Add(discriminator);
+                }
+
+                if (tag is not null)
+                {
+                    seenTags.Add(tag);
+                }
             }
         }
 
@@ -6347,14 +6586,66 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 };
             }
 
-            if (seenDerived.Add(derivedType))
+            var isDefaultMapping = discriminator is null;
+            if (CanAddLowerPrecedenceMapping(
+                derivedType,
+                discriminator,
+                tag: null,
+                isDefaultMapping,
+                defaultDerivedType,
+                seenDerived,
+                seenDiscriminators,
+                seenTags))
             {
-                if (discriminator is null)
+                if (isDefaultMapping)
                 {
                     defaultDerivedType ??= derivedType;
                 }
 
                 derivedTypes.Add(new DerivedTypeInfoModel(derivedType, discriminator, tag: null));
+                if (discriminator is not null)
+                {
+                    seenDiscriminators.Add(discriminator);
+                }
+            }
+        }
+
+        for (var i = 0; i < contextMappings.Length; i++)
+        {
+            var mapping = contextMappings[i];
+            if (!SymbolEqualityComparer.Default.Equals(mapping.BaseType, baseType))
+            {
+                continue;
+            }
+
+            var isDefaultMapping = mapping.Discriminator is null && mapping.Tag is null;
+            if (!CanAddLowerPrecedenceMapping(
+                mapping.DerivedType,
+                mapping.Discriminator,
+                mapping.Tag,
+                isDefaultMapping,
+                defaultDerivedType,
+                seenDerived,
+                seenDiscriminators,
+                seenTags))
+            {
+                continue;
+            }
+
+            if (isDefaultMapping)
+            {
+                defaultDerivedType ??= mapping.DerivedType;
+            }
+
+            derivedTypes.Add(new DerivedTypeInfoModel(mapping.DerivedType, mapping.Discriminator, mapping.Tag));
+            if (mapping.Discriminator is not null)
+            {
+                seenDiscriminators.Add(mapping.Discriminator);
+            }
+
+            if (mapping.Tag is not null)
+            {
+                seenTags.Add(mapping.Tag);
             }
         }
 
@@ -6370,6 +6661,41 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             unknownOverrideValue,
             derivedTypes.ToImmutable(),
             defaultDerivedType);
+        return true;
+    }
+
+    private static bool CanAddLowerPrecedenceMapping(
+        ITypeSymbol derivedType,
+        string? discriminator,
+        string? tag,
+        bool isDefaultMapping,
+        ITypeSymbol? defaultDerivedType,
+        HashSet<ITypeSymbol> seenDerived,
+        HashSet<string> seenDiscriminators,
+        HashSet<string> seenTags)
+    {
+        if (seenDerived.Contains(derivedType))
+        {
+            return false;
+        }
+
+        if (isDefaultMapping)
+        {
+            if (defaultDerivedType is not null)
+            {
+                return false;
+            }
+        }
+        else if (discriminator is not null && seenDiscriminators.Contains(discriminator))
+        {
+            return false;
+        }
+
+        if (tag is not null && seenTags.Contains(tag))
+        {
+            return false;
+        }
+
         return true;
     }
 

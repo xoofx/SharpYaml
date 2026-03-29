@@ -80,6 +80,40 @@ var yaml = YamlSerializer.Serialize(config, context.MyConfig);
 var roundTrip = YamlSerializer.Deserialize(yaml, context.MyConfig);
 ```
 
+### Cross-Project Polymorphism
+
+When a base type lives in one assembly and the derived types live in another, you can register mappings where the composition root already references both sides.
+
+Reflection-based serialization can register mappings at runtime:
+
+```csharp
+var options = new YamlSerializerOptions
+{
+    PolymorphismOptions = new YamlPolymorphismOptions
+    {
+        DerivedTypeMappings =
+        {
+            [typeof(Animal)] =
+            [
+                new YamlDerivedType(typeof(Dog), "dog") { Tag = "!dog" },
+                new YamlDerivedType(typeof(Cat), "cat") { Tag = "!cat" },
+            ]
+        }
+    }
+};
+```
+
+Source-generated contexts can register the same relationship at compile time:
+
+```csharp
+[YamlSerializable(typeof(Zoo))]
+[YamlDerivedTypeMapping(typeof(Animal), typeof(Dog), "dog", Tag = "!dog")]
+[YamlDerivedTypeMapping(typeof(Animal), typeof(Cat), "cat", Tag = "!cat")]
+internal partial class ZooYamlContext : YamlSerializerContext { }
+```
+
+Context-level mappings are additive to `[YamlDerivedType]` and `JsonDerivedType` attributes. Attribute-based entries win when the same derived type or discriminator is registered more than once.
+
 ### Reflection Control
 
 Reflection fallback can be disabled globally before first serializer use:

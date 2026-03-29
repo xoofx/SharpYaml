@@ -2037,7 +2037,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
                 if (attribute.Discriminator is null)
                 {
-                    defaultDerivedType = attribute.DerivedType;
+                    if (attribute.Tag is null)
+                    {
+                        defaultDerivedType = attribute.DerivedType;
+                    }
+
                     typeToDerived[attribute.DerivedType] = new DerivedTypeInfo(null, attribute.Tag);
                 }
                 else
@@ -2061,9 +2065,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
                 if (attribute.TypeDiscriminator is null)
                 {
-                    defaultDerivedType ??= attribute.DerivedType;
-                    if (!typeToDerived.ContainsKey(attribute.DerivedType))
+                    if (ShouldAddLowerPrecedenceMapping(
+                        attribute.DerivedType,
+                        discriminator: null,
+                        tag: null,
+                        isDefaultMapping: true,
+                        defaultDerivedType,
+                        discriminatorToType,
+                        tagToType,
+                        typeToDerived))
                     {
+                        defaultDerivedType ??= attribute.DerivedType;
                         typeToDerived.Add(attribute.DerivedType, new DerivedTypeInfo(null, tag: null));
                     }
 
@@ -2076,13 +2088,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     _ => Convert.ToString(attribute.TypeDiscriminator, CultureInfo.InvariantCulture) ?? string.Empty,
                 };
 
-                if (!discriminatorToType.ContainsKey(discriminator))
+                if (ShouldAddLowerPrecedenceMapping(
+                    attribute.DerivedType,
+                    discriminator,
+                    tag: null,
+                    isDefaultMapping: false,
+                    defaultDerivedType,
+                    discriminatorToType,
+                    tagToType,
+                    typeToDerived))
                 {
                     discriminatorToType.Add(discriminator, attribute.DerivedType);
-                }
-
-                if (!typeToDerived.ContainsKey(attribute.DerivedType))
-                {
                     typeToDerived.Add(attribute.DerivedType, new DerivedTypeInfo(discriminator, tag: null));
                 }
             }
@@ -2098,33 +2114,88 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
                     if (entry.Discriminator is null)
                     {
-                        defaultDerivedType ??= entry.DerivedType;
-                        if (!typeToDerived.ContainsKey(entry.DerivedType))
+                        var isDefaultMapping = entry.Tag is null;
+                        if (ShouldAddLowerPrecedenceMapping(
+                            entry.DerivedType,
+                            discriminator: null,
+                            entry.Tag,
+                            isDefaultMapping,
+                            defaultDerivedType,
+                            discriminatorToType,
+                            tagToType,
+                            typeToDerived))
                         {
+                            if (isDefaultMapping)
+                            {
+                                defaultDerivedType ??= entry.DerivedType;
+                            }
+
                             typeToDerived.Add(entry.DerivedType, new DerivedTypeInfo(null, entry.Tag));
+                            if (entry.Tag is not null)
+                            {
+                                tagToType.Add(entry.Tag, entry.DerivedType);
+                            }
                         }
                     }
                     else
                     {
-                        if (!discriminatorToType.ContainsKey(entry.Discriminator))
+                        if (ShouldAddLowerPrecedenceMapping(
+                            entry.DerivedType,
+                            entry.Discriminator,
+                            entry.Tag,
+                            isDefaultMapping: false,
+                            defaultDerivedType,
+                            discriminatorToType,
+                            tagToType,
+                            typeToDerived))
                         {
                             discriminatorToType.Add(entry.Discriminator, entry.DerivedType);
-                        }
-
-                        if (!typeToDerived.ContainsKey(entry.DerivedType))
-                        {
                             typeToDerived.Add(entry.DerivedType, new DerivedTypeInfo(entry.Discriminator, entry.Tag));
+                            if (entry.Tag is not null)
+                            {
+                                tagToType.Add(entry.Tag, entry.DerivedType);
+                            }
                         }
-                    }
-
-                    if (entry.Tag is not null && !tagToType.ContainsKey(entry.Tag))
-                    {
-                        tagToType.Add(entry.Tag, entry.DerivedType);
                     }
                 }
             }
 
             return new PolymorphismModel(discriminatorPropertyName, style, unknownHandling, discriminatorToType, tagToType, typeToDerived, defaultDerivedType);
+        }
+
+        private static bool ShouldAddLowerPrecedenceMapping(
+            Type derivedType,
+            string? discriminator,
+            string? tag,
+            bool isDefaultMapping,
+            Type? defaultDerivedType,
+            Dictionary<string, Type> discriminatorToType,
+            Dictionary<string, Type> tagToType,
+            Dictionary<Type, DerivedTypeInfo> typeToDerived)
+        {
+            if (typeToDerived.ContainsKey(derivedType))
+            {
+                return false;
+            }
+
+            if (isDefaultMapping)
+            {
+                if (defaultDerivedType is not null)
+                {
+                    return false;
+                }
+            }
+            else if (discriminator is not null && discriminatorToType.ContainsKey(discriminator))
+            {
+                return false;
+            }
+
+            if (tag is not null && tagToType.ContainsKey(tag))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         public readonly struct DerivedTypeInfo

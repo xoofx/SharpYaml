@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
@@ -63,6 +64,23 @@ public class YamlRuntimeDerivedTypeTests
     }
 
     private sealed class Square : Shape
+    {
+        public double Side { get; set; }
+    }
+
+    [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+    [JsonDerivedType(typeof(JsonCircle), "circle")]
+    private abstract class JsonShape
+    {
+        public string Color { get; set; } = string.Empty;
+    }
+
+    private sealed class JsonCircle : JsonShape
+    {
+        public double Radius { get; set; }
+    }
+
+    private sealed class JsonSquare : JsonShape
     {
         public double Side { get; set; }
     }
@@ -413,6 +431,58 @@ public class YamlRuntimeDerivedTypeTests
         Assert.IsNotNull(value);
         Assert.IsInstanceOfType<Circle>(value);
         Assert.AreEqual(2.0, ((Circle)value).Radius);
+    }
+
+    [TestMethod]
+    public void ConflictingRuntimeDiscriminatorIsSkippedWhenAttributeAlreadyOwnsIt()
+    {
+        var options = new YamlSerializerOptions
+        {
+            PolymorphismOptions = new YamlPolymorphismOptions
+            {
+                DerivedTypeMappings =
+                {
+                    [typeof(Shape)] = new List<YamlDerivedType>
+                    {
+                        new YamlDerivedType(typeof(Square), "circle"),
+                    }
+                }
+            }
+        };
+
+        var value = YamlSerializer.Deserialize<Shape>("$type: circle\nColor: red\nRadius: 5\n", options);
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<Circle>(value);
+
+        var exception = Assert.Throws<NotSupportedException>(
+            () => YamlSerializer.Serialize<Shape>(new Square { Color = "blue", Side = 3 }, options));
+        StringAssert.Contains(exception.Message, typeof(Square).ToString());
+    }
+
+    [TestMethod]
+    public void JsonAttributeDerivedTypeTakesPrecedenceOverRuntime()
+    {
+        var options = new YamlSerializerOptions
+        {
+            PolymorphismOptions = new YamlPolymorphismOptions
+            {
+                DerivedTypeMappings =
+                {
+                    [typeof(JsonShape)] = new List<YamlDerivedType>
+                    {
+                        new YamlDerivedType(typeof(JsonSquare), "circle"),
+                    }
+                }
+            }
+        };
+
+        var value = YamlSerializer.Deserialize<JsonShape>("kind: circle\nColor: red\nRadius: 5\n", options);
+        Assert.IsNotNull(value);
+        Assert.IsInstanceOfType<JsonCircle>(value);
+
+        var exception = Assert.Throws<NotSupportedException>(
+            () => YamlSerializer.Serialize<JsonShape>(new JsonSquare { Color = "blue", Side = 3 }, options));
+        StringAssert.Contains(exception.Message, typeof(JsonSquare).ToString());
     }
 
     // ---- Integer Discriminator ----
