@@ -1467,7 +1467,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
             if (selectedConstructor is not null &&
                 (selectedConstructor.Parameters.Length != 0 ||
-                 members.Any(static member => member.IsInitOnly) ||
+                 members.Any(static member => member.NeedsObjectInitializer) ||
                  extensionData is { IsInitOnly: true }))
             {
                 EmitReadObjectCoreWithConstructor(builder, index, ctorType, typeName, selectedConstructor, members, extensionData, indexByType, emitLifecycleCallbacks, propertyNamingPolicy);
@@ -1849,9 +1849,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var bufferedMembers = members
             .Where(m => IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol))
             .ToArray();
-        var initOnlyMembers = bufferedMembers.Where(static m => m.IsInitOnly).ToArray();
-        var postCreateBufferedMembers = bufferedMembers.Where(static m => !m.IsInitOnly).ToArray();
-        var useObjectInitializer = initOnlyMembers.Length != 0 || extensionData is { IsInitOnly: true };
+        var initializerMembers = bufferedMembers.Where(static m => m.NeedsObjectInitializer).ToArray();
+        var postCreateBufferedMembers = bufferedMembers.Where(static m => !m.NeedsObjectInitializer).ToArray();
+        var useObjectInitializer = initializerMembers.Length != 0 || extensionData is { IsInitOnly: true };
+        var pureInitOnlyMembers = initializerMembers.Where(static m => m.IsInitOnly && !m.IsRequiredKeyword).ToArray();
+        var requiredKeywordInitMembers = initializerMembers.Where(static m => m.IsRequiredKeyword).ToArray();
+        var needsDefaults = pureInitOnlyMembers.Length != 0 || extensionData is { IsInitOnly: true };
         var initOnlyExtensionDataValueVarName = extensionData is { IsInitOnly: true } ? $"__extensionData{index}" : null;
 
         var bufferedMemberValueVarNames = new Dictionary<ISymbol, string>(bufferedMembers.Length, SymbolEqualityComparer.Default);
@@ -2044,7 +2047,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 member.AttributeConverterTypeName,
                 member.ObjectCreationHandling,
                 member.IsRequired,
-                member.IsInitOnly);
+                member.IsInitOnly,
+                member.IsRequiredKeyword);
 
             builder.Append("                if (!matched && global::System.String.Equals(mergeKey, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
@@ -2181,7 +2185,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 member.AttributeConverterTypeName,
                 member.ObjectCreationHandling,
                 member.IsRequired,
-                member.IsInitOnly);
+                member.IsInitOnly,
+                member.IsRequiredKeyword);
 
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
@@ -2267,55 +2272,37 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         if (useObjectInitializer)
         {
-            builder.Append("        var __defaults").Append(index).Append(" = default(").Append(typeName);
-            if (typeSymbol.IsReferenceType)
+            if (needsDefaults)
             {
-                builder.Append('?');
-            }
-
-            builder.AppendLine(");");
-            if (extensionData is { IsInitOnly: true })
-            {
-                builder.Append("        __defaults").Append(index).Append(" = new ").Append(typeName).Append('(');
-                for (var i = 0; i < parameters.Length; i++)
+                builder.Append("        var __defaults").Append(index).Append(" = default(").Append(typeName);
+                if (typeSymbol.IsReferenceType)
                 {
-                    if (i != 0)
-                    {
-                        builder.Append(", ");
-                    }
-
-                    builder.Append(parameterValueVarNames[i]);
+                    builder.Append('?');
                 }
 
                 builder.AppendLine(");");
             }
-            else
+
+            if (extensionData is { IsInitOnly: true })
+            {
+                EmitDefaultsConstruction(builder, index, typeName, parameters, parameterValueVarNames, requiredKeywordInitMembers, "        ");
+            }
+            else if (pureInitOnlyMembers.Length != 0)
             {
                 builder.Append("        if (");
-                for (var i = 0; i < initOnlyMembers.Length; i++)
+                for (var i = 0; i < pureInitOnlyMembers.Length; i++)
                 {
                     if (i != 0)
                     {
                         builder.Append(" || ");
                     }
 
-                    builder.Append('!').Append(bufferedMemberSeenVarNames[initOnlyMembers[i].Symbol]);
+                    builder.Append('!').Append(bufferedMemberSeenVarNames[pureInitOnlyMembers[i].Symbol]);
                 }
 
                 builder.AppendLine(")");
                 builder.AppendLine("        {");
-                builder.Append("            __defaults").Append(index).Append(" = new ").Append(typeName).Append('(');
-                for (var i = 0; i < parameters.Length; i++)
-                {
-                    if (i != 0)
-                    {
-                        builder.Append(", ");
-                    }
-
-                    builder.Append(parameterValueVarNames[i]);
-                }
-
-                builder.AppendLine(");");
+                EmitDefaultsConstruction(builder, index, typeName, parameters, parameterValueVarNames, requiredKeywordInitMembers, "            ");
                 builder.AppendLine("        }");
             }
 
@@ -2404,19 +2391,31 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         {
             builder.AppendLine(")");
             builder.AppendLine("        {");
-            for (var i = 0; i < initOnlyMembers.Length; i++)
+            for (var i = 0; i < initializerMembers.Length; i++)
             {
-                var member = initOnlyMembers[i];
+                var member = initializerMembers[i];
                 var seenVar = bufferedMemberSeenVarNames[member.Symbol];
                 var valueVar = bufferedMemberValueVarNames[member.Symbol];
 
-                builder.Append("            ").Append(member.Symbol.Name).Append(" = ").Append(seenVar).Append(" ? ").Append(valueVar).Append(" : __defaults").Append(index);
-                if (typeSymbol.IsReferenceType)
+                builder.Append("            ").Append(member.Symbol.Name).Append(" = ").Append(seenVar).Append(" ? ").Append(valueVar);
+                if (member.IsRequiredKeyword)
                 {
-                    builder.Append('!');
+                    // Required-keyword members: if not seen, the required-member validation
+                    // will throw before this value is observed. Use default! as a safe placeholder.
+                    builder.Append(" : default!");
+                }
+                else
+                {
+                    builder.Append(" : __defaults").Append(index);
+                    if (typeSymbol.IsReferenceType)
+                    {
+                        builder.Append('!');
+                    }
+
+                    builder.Append('.').Append(member.Symbol.Name);
                 }
 
-                builder.Append('.').Append(member.Symbol.Name).AppendLine(",");
+                builder.AppendLine(",");
             }
 
             if (extensionData is { IsInitOnly: true } initOnlyExtensionData)
@@ -2579,6 +2578,43 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("        reader.Read();");
         builder.AppendLine("        return instance;");
+    }
+
+    private static void EmitDefaultsConstruction(
+        StringBuilder builder,
+        int index,
+        string typeName,
+        ImmutableArray<IParameterSymbol> parameters,
+        string[] parameterValueVarNames,
+        MemberModel[] requiredKeywordInitMembers,
+        string indent)
+    {
+        builder.Append(indent).Append("__defaults").Append(index).Append(" = new ").Append(typeName).Append('(');
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (i != 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(parameterValueVarNames[i]);
+        }
+
+        if (requiredKeywordInitMembers.Length != 0)
+        {
+            builder.AppendLine(")");
+            builder.Append(indent).AppendLine("{");
+            for (var i = 0; i < requiredKeywordInitMembers.Length; i++)
+            {
+                builder.Append(indent).Append("    ").Append(requiredKeywordInitMembers[i].Symbol.Name).AppendLine(" = default!,");
+            }
+
+            builder.Append(indent).AppendLine("};");
+        }
+        else
+        {
+            builder.AppendLine(");");
+        }
     }
 
     private static void EmitReadValue(
@@ -5662,7 +5698,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             string? attributeConverterTypeName,
             string? objectCreationHandling,
             bool isRequired,
-            bool isInitOnly)
+            bool isInitOnly,
+            bool isRequiredKeyword)
         {
             Symbol = symbol;
             Type = type;
@@ -5675,6 +5712,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             ObjectCreationHandling = objectCreationHandling;
             IsRequired = isRequired;
             IsInitOnly = isInitOnly;
+            IsRequiredKeyword = isRequiredKeyword;
         }
 
         public ISymbol Symbol { get; }
@@ -5688,6 +5726,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string? ObjectCreationHandling { get; }
         public bool IsRequired { get; }
         public bool IsInitOnly { get; }
+        public bool IsRequiredKeyword { get; }
+        public bool NeedsObjectInitializer => IsInitOnly || IsRequiredKeyword;
     }
 
     private enum ExtensionDataKind
@@ -5739,9 +5779,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var ignoreConditionExpression = GetIgnoreConditionExpression(member);
         var converterTypeName = GetYamlConverterAttributeTypeName(member);
         var objectCreationHandling = GetObjectCreationHandling(member);
-        var isRequired = HasAttribute(member, "SharpYaml.Serialization.YamlRequiredAttribute") || HasAttribute(member, "System.Text.Json.Serialization.JsonRequiredAttribute");
+        var isRequiredKeyword = member is IPropertySymbol { IsRequired: true } || member is IFieldSymbol { IsRequired: true };
+        var isRequired = isRequiredKeyword || HasAttribute(member, "SharpYaml.Serialization.YamlRequiredAttribute") || HasAttribute(member, "System.Text.Json.Serialization.JsonRequiredAttribute");
         var isInitOnly = member is IPropertySymbol property && IsInitOnlyProperty(property);
-        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, objectCreationHandling, isRequired, isInitOnly);
+        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, objectCreationHandling, isRequired, isInitOnly, isRequiredKeyword);
     }
 
     private static (string ForRead, string ForWrite) GetSerializedMemberNameExpressions(ISymbol member, JsonNamingPolicy? propertyNamingPolicy)

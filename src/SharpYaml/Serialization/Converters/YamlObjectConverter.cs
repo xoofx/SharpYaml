@@ -2656,6 +2656,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return true;
         }
 
+#if !NETSTANDARD2_0
+        if (member.IsDefined(typeof(System.Runtime.CompilerServices.RequiredMemberAttribute), inherit: false))
+        {
+            return true;
+        }
+#endif
+
         return false;
     }
 
