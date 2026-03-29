@@ -1350,6 +1350,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 targetType = derivedFromTag;
             }
+            else if (polymorphism.DefaultDerivedType is not null)
+            {
+                targetType = polymorphism.DefaultDerivedType;
+            }
+            else if (polymorphism.UnknownDerivedTypeHandling == YamlUnknownDerivedTypeHandling.Fail)
+            {
+                throw YamlThrowHelper.ThrowUnknownTypeTag(reader, rootTag, typeof(T));
+            }
         }
 
         targetType ??= polymorphism.DefaultDerivedType ?? typeof(T);

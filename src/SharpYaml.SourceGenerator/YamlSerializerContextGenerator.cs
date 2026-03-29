@@ -3316,6 +3316,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     builder.Append("                return (").Append(typeName).Append(")ReadValue").Append(derivedIndex).AppendLine("(bufferedReader)!;");
                     builder.AppendLine("            }");
                 }
+
+                // When tag is present but unrecognized, try default type before failing
+                if (polymorphism.DefaultDerivedType is not null && indexByType.TryGetValue(polymorphism.DefaultDerivedType, out var defaultIndexForUnknownTag))
+                {
+                    builder.Append("            return (").Append(typeName).Append(")ReadValue").Append(defaultIndexForUnknownTag).AppendLine("(bufferedReader)!;");
+                }
+                else
+                {
+                    builder.AppendLine("            if (unknownDerivedTypeHandling == global::SharpYaml.YamlUnknownDerivedTypeHandling.Fail)");
+                    builder.AppendLine("            {");
+                    builder.Append("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnknownTypeTag(bufferedReader, rootTag, typeof(").Append(typeName).AppendLine("));");
+                    builder.AppendLine("            }");
+                }
                 builder.AppendLine("        }");
 
                 // Fallback: use default derived type if available
