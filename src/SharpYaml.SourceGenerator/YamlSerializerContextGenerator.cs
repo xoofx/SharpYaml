@@ -407,10 +407,23 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     continue;
                 }
 
+                // Skip if the member itself has [YamlConverter(typeof(...))] — the converter handles serialization.
+                if (GetYamlConverterAttributeTypeName(member) is not null)
+                {
+                    continue;
+                }
+
+                // Skip if the member type is handled by a converter (type-level attribute or context-level converter).
+                if (IsTypeHandledByConverter(memberType, model.SourceGenerationOptions.ConverterTypes, compilation))
+                {
+                    continue;
+                }
+
                 if (TryGetArrayElementType(memberType, out var arrayElementType) ||
                     TryGetSequenceElementType(memberType, out arrayElementType, out _))
                 {
-                    if (IsKnownScalar(arrayElementType) || indexByType.ContainsKey(arrayElementType))
+                    if (IsKnownScalar(arrayElementType) || indexByType.ContainsKey(arrayElementType) ||
+                        IsTypeHandledByConverter(arrayElementType, model.SourceGenerationOptions.ConverterTypes, compilation))
                     {
                         continue;
                     }
@@ -437,7 +450,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                         continue;
                     }
 
-                    if (IsKnownScalar(dictionaryValueType) || indexByType.ContainsKey(dictionaryValueType))
+                    if (IsKnownScalar(dictionaryValueType) || indexByType.ContainsKey(dictionaryValueType) ||
+                        IsTypeHandledByConverter(dictionaryValueType, model.SourceGenerationOptions.ConverterTypes, compilation))
                     {
                         continue;
                     }
@@ -5877,6 +5891,55 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Checks whether the given type is handled by a converter — either via a [YamlConverter] attribute
+    /// on the type itself, or via a context-level YamlConverter&lt;T&gt; registration.
+    /// Nullable&lt;T&gt; value types are unwrapped before checking.
+    /// </summary>
+    private static bool IsTypeHandledByConverter(
+        ITypeSymbol typeToCheck,
+        ImmutableArray<ITypeSymbol> converterTypes,
+        Compilation compilation)
+    {
+        // Unwrap Nullable<T> for value types.
+        var unwrappedType = typeToCheck;
+        if (typeToCheck is INamedTypeSymbol nullable && nullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+        {
+            unwrappedType = nullable.TypeArguments[0];
+        }
+
+        // Check if the type itself has [YamlConverter(typeof(...))].
+        if (GetYamlConverterAttributeTypeName(unwrappedType) is not null)
+        {
+            return true;
+        }
+
+        // Check if a context-level converter handles this type.
+        if (!converterTypes.IsDefaultOrEmpty)
+        {
+            var yamlConverterOfT = compilation.GetTypeByMetadataName("SharpYaml.Serialization.YamlConverter`1");
+            if (yamlConverterOfT is not null)
+            {
+                foreach (var converterType in converterTypes)
+                {
+                    // Walk up the base type chain looking for YamlConverter<T>.
+                    for (var current = converterType as INamedTypeSymbol; current is not null; current = current.BaseType)
+                    {
+                        if (current.IsGenericType &&
+                            SymbolEqualityComparer.Default.Equals(current.OriginalDefinition, yamlConverterOfT) &&
+                            current.TypeArguments.Length == 1 &&
+                            SymbolEqualityComparer.Default.Equals(current.TypeArguments[0], unwrappedType))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private static ImmutableArray<ISymbol> GetSerializableMembers(INamedTypeSymbol type)
