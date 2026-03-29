@@ -56,6 +56,42 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
     /// </remarks>
     public YamlSerializerOptions Options { get; }
 
+    /// <summary>
+    /// Creates a new <see cref="YamlSerializerOptions"/> based on this context's options
+    /// with the specified overrides applied, while preserving the <see cref="YamlSerializerOptions.TypeInfoResolver"/>.
+    /// </summary>
+    /// <param name="configure">A function that applies overrides to a copy of this context's options using the <c>with</c> expression.</param>
+    /// <returns>A new options instance with the configured overrides and this context as the resolver.</returns>
+    /// <remarks>
+    /// <para>
+    /// This is useful when you need per-call option variations (such as a different
+    /// <see cref="YamlSerializerOptions.SourceName"/> for each file) while reusing the
+    /// same source-generated context.
+    /// </para>
+    /// <para>
+    /// The returned options always has <see cref="YamlSerializerOptions.TypeInfoResolver"/> set to this context.
+    /// Any <see cref="YamlSerializerOptions.TypeInfoResolver"/> value set by <paramref name="configure"/> is overwritten.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = context.CreateOptions(o =&gt; o with { SourceName = "config.yaml" });
+    /// var result = YamlSerializer.Deserialize&lt;Config&gt;(yaml, options);
+    /// </code>
+    /// </example>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <see langword="null"/>.</exception>
+    public YamlSerializerOptions CreateOptions(Func<YamlSerializerOptions, YamlSerializerOptions> configure)
+    {
+        ArgumentGuard.ThrowIfNull(configure);
+        var modified = configure(Options);
+        if (ReferenceEquals(modified.TypeInfoResolver, this))
+        {
+            return modified;
+        }
+
+        return modified with { TypeInfoResolver = this };
+    }
+
     /// <inheritdoc />
     public abstract YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options);
 }

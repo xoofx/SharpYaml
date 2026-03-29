@@ -1061,15 +1061,20 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
-    public void GeneratedContextThrowsWhenOptionsInstanceDoesNotMatchContext()
+    public void GeneratedContextAllowsOptionsWithSameResolverButDifferentInstance()
     {
         var context = TestYamlSerializerContext.Default;
         var options = new YamlSerializerOptions
         {
             TypeInfoResolver = context,
+            SourceName = "override.yaml",
         };
 
-        _ = Assert.Throws<InvalidOperationException>(() => YamlSerializer.Serialize(new GeneratedPerson(), options));
+        // Options that reference a context as TypeInfoResolver but are a separate instance
+        // now work correctly — the context resolves type info and the caller's options
+        // are used for runtime behavior (e.g. SourceName).
+        var yaml = YamlSerializer.Serialize(new GeneratedPerson { FirstName = "Alice", Age = 30 }, options);
+        Assert.IsTrue(yaml.Contains("Alice", StringComparison.Ordinal));
     }
 
     [TestMethod]
