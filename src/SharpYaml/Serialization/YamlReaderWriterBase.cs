@@ -556,6 +556,13 @@ public abstract class YamlReaderWriterBase
                 }
             }
 
+#if NET7_0_OR_GREATER
+            if (YamlParsableConverterFactory.Instance.CanConvert(typeToConvert))
+            {
+                return YamlParsableConverterFactory.Instance.CreateConverter(typeToConvert, null!);
+            }
+#endif
+
             var objectConverterType = typeof(YamlObjectConverter<>).MakeGenericType(typeToConvert);
             return (YamlConverter)Activator.CreateInstance(objectConverterType)!;
         }
