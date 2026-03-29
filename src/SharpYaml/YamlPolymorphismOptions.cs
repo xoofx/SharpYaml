@@ -3,6 +3,7 @@
 // // See LICENSE.txt file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 
 namespace SharpYaml;
 
@@ -68,4 +69,21 @@ public sealed class YamlPolymorphismOptions
     private YamlTypeDiscriminatorStyle _discriminatorStyle = YamlTypeDiscriminatorStyle.Property;
     private string _typeDiscriminatorPropertyName = "$type";
     private YamlUnknownDerivedTypeHandling _unknownDerivedTypeHandling = YamlUnknownDerivedTypeHandling.Fail;
+
+    /// <summary>
+    /// Gets runtime-registered derived type mappings, keyed by base type.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Entries registered here are merged with attribute-based registrations
+    /// (<see cref="Serialization.YamlDerivedTypeAttribute"/> and
+    /// <see cref="System.Text.Json.Serialization.JsonDerivedTypeAttribute"/>).
+    /// Attribute-based entries take precedence when the same discriminator or type is registered in both.
+    /// </para>
+    /// <para>
+    /// This enables cross-project polymorphism where the base type and derived types
+    /// live in different assemblies (e.g., clean architecture, plugin systems).
+    /// </para>
+    /// </remarks>
+    public IDictionary<Type, IList<YamlDerivedType>> DerivedTypeMappings { get; } = new Dictionary<Type, IList<YamlDerivedType>>();
 }
