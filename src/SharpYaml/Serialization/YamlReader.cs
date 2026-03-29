@@ -127,6 +127,24 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// </summary>
     public Mark End => _state.End;
 
+    /// <summary>
+    /// Gets the most recent mapping key encountered by dictionary and object converters.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This property is set by built-in dictionary and object converters immediately before
+    /// deserializing each value. Custom <see cref="YamlConverter{T}"/> implementations and
+    /// <see cref="YamlConverterFactory"/> instances can read this property to perform
+    /// context-dependent transformations — for example, replacing a <c>${KEY}</c> placeholder
+    /// with the actual dictionary key name.
+    /// </para>
+    /// <para>
+    /// For nested structures, this reflects the innermost (most recent) key. Source-generated
+    /// converters can also set this property to maintain consistency.
+    /// </para>
+    /// </remarks>
+    public string? CurrentKey { get; set; }
+
     internal YamlReferenceReader? ReferenceReader => _state.ReferenceReader;
 
     /// <summary>

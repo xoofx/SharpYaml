@@ -240,7 +240,10 @@ internal static class YamlDictionaryConverterHelper
                 continue;
             }
 
+            var previousKey = reader.CurrentKey;
+            reader.CurrentKey = key;
             var value = valueConverter.Read(reader, typeof(TValue));
+            reader.CurrentKey = previousKey;
             dictionary[key] = (TValue)value!;
         }
 
@@ -317,6 +320,8 @@ internal static class YamlDictionaryConverterHelper
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, "Dictionary key cannot be null.");
             }
 
+            var previousKey = reader.CurrentKey;
+            reader.CurrentKey = rawKey.ToString();
             object? rawValue;
             try
             {
@@ -329,6 +334,10 @@ internal static class YamlDictionaryConverterHelper
             catch (Exception exception)
             {
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
+            }
+            finally
+            {
+                reader.CurrentKey = previousKey;
             }
 
             var key = (TKey)rawKey;

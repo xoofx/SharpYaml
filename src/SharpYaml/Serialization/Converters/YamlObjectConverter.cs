@@ -252,6 +252,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+            reader.CurrentKey = key;
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
@@ -384,6 +385,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+            reader.CurrentKey = key;
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
@@ -508,6 +510,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+            reader.CurrentKey = key;
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
@@ -830,6 +833,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+            reader.CurrentKey = key;
 
             if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
             {
@@ -930,6 +934,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+            reader.CurrentKey = key;
 
             if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
             {
@@ -1195,6 +1200,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
             reader.Read();
+            reader.CurrentKey = key;
 
             if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
             {
