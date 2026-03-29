@@ -14,7 +14,9 @@ public sealed class YamlDerivedTypeAttribute : YamlAttribute
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlDerivedTypeAttribute"/> class
-    /// with no discriminator, marking this derived type as the default when no discriminator matches.
+    /// with no discriminator. When <see cref="Tag"/> is also <see langword="null"/>, this derived type
+    /// becomes the default when no discriminator or tag matches. When <see cref="Tag"/> is set, this entry
+    /// participates only in tag-based dispatch and does not become the default.
     /// </summary>
     /// <param name="derivedType">The derived CLR type.</param>
     /// <exception cref="ArgumentNullException"><paramref name="derivedType"/> is <see langword="null"/>.</exception>
