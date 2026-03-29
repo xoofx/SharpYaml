@@ -1984,7 +1984,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var yamlDerived = type.GetCustomAttributes(typeof(YamlDerivedTypeAttribute), inherit: false);
             var jsonDerived = type.GetCustomAttributes(typeof(JsonDerivedTypeAttribute), inherit: false);
 
-            if (yamlDerived.Length == 0 && jsonDerived.Length == 0)
+            var hasRuntimeMappings = options.PolymorphismOptions.DerivedTypeMappings.TryGetValue(type, out var runtimeDerived)
+                                     && runtimeDerived is { Count: > 0 };
+
+            if (yamlDerived.Length == 0 && jsonDerived.Length == 0 && !hasRuntimeMappings)
             {
                 return null;
             }
@@ -2081,6 +2084,43 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 if (!typeToDerived.ContainsKey(attribute.DerivedType))
                 {
                     typeToDerived.Add(attribute.DerivedType, new DerivedTypeInfo(discriminator, tag: null));
+                }
+            }
+
+            if (hasRuntimeMappings)
+            {
+                foreach (var entry in runtimeDerived!)
+                {
+                    if (!type.IsAssignableFrom(entry.DerivedType))
+                    {
+                        throw new InvalidOperationException($"Derived type '{entry.DerivedType}' is not assignable to '{type}'.");
+                    }
+
+                    if (entry.Discriminator is null)
+                    {
+                        defaultDerivedType ??= entry.DerivedType;
+                        if (!typeToDerived.ContainsKey(entry.DerivedType))
+                        {
+                            typeToDerived.Add(entry.DerivedType, new DerivedTypeInfo(null, entry.Tag));
+                        }
+                    }
+                    else
+                    {
+                        if (!discriminatorToType.ContainsKey(entry.Discriminator))
+                        {
+                            discriminatorToType.Add(entry.Discriminator, entry.DerivedType);
+                        }
+
+                        if (!typeToDerived.ContainsKey(entry.DerivedType))
+                        {
+                            typeToDerived.Add(entry.DerivedType, new DerivedTypeInfo(entry.Discriminator, entry.Tag));
+                        }
+                    }
+
+                    if (entry.Tag is not null && !tagToType.ContainsKey(entry.Tag))
+                    {
+                        tagToType.Add(entry.Tag, entry.DerivedType);
+                    }
                 }
             }
 
