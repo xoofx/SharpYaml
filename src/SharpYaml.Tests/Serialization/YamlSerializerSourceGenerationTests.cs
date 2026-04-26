@@ -507,6 +507,8 @@ internal sealed class GeneratedInternalJsonCtorModel
     public int Age { get; }
 }
 
+internal sealed record GeneratedFunctionDto(string Name, string? Description, string Abbreviation);
+
 internal sealed class GeneratedPopulateChild
 {
     public int Existing { get; set; }
@@ -632,6 +634,7 @@ internal partial class TestYamlSerializerContext : YamlSerializerContext
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
 [YamlSerializable(typeof(GeneratedWithDefaultOptions))]
+[YamlSerializable(typeof(GeneratedFunctionDto))]
 internal partial class TestYamlSerializerContextWithOptions : YamlSerializerContext
 {
     public TestYamlSerializerContextWithOptions()
@@ -753,6 +756,24 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsNotNull(model);
         Assert.AreEqual("Ada", model.Name);
         Assert.AreEqual(38, model.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_ParameterizedConstructorStringParameterReadsYamlNullAsNull()
+    {
+        var context = TestYamlSerializerContextWithOptions.Default;
+        var yaml = """
+            name: My Function
+            description: null
+            abbreviation: MF
+            """;
+
+        var model = YamlSerializer.Deserialize(yaml, context.GeneratedFunctionDto);
+
+        Assert.IsNotNull(model);
+        Assert.AreEqual("My Function", model.Name);
+        Assert.IsNull(model.Description);
+        Assert.AreEqual("MF", model.Abbreviation);
     }
 
     [TestMethod]

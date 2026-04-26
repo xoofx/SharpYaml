@@ -5518,12 +5518,35 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var innerIndent = indent + "    ";
         if (IsKnownScalar(typeSymbol))
         {
+            var scalarType = typeSymbol;
+            var acceptsNull = !typeSymbol.IsValueType;
+            if (typeSymbol is INamedTypeSymbol nullableType && nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+            {
+                scalarType = nullableType.TypeArguments[0];
+                acceptsNull = true;
+            }
+
             builder.Append(innerIndent).AppendLine("if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.Scalar)");
             builder.Append(innerIndent).AppendLine("{");
             builder.Append(innerIndent).AppendLine("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalar(reader);");
             builder.Append(innerIndent).AppendLine("}");
-            EmitReadScalarAssignment(builder, typeSymbol, valueVarName, indent: innerIndent);
-            builder.Append(innerIndent).AppendLine("reader.Read();");
+            if (acceptsNull)
+            {
+                builder.Append(innerIndent).AppendLine("if (global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
+                builder.Append(innerIndent).AppendLine("{");
+                builder.Append(innerIndent).AppendLine("    reader.Read();");
+                builder.Append(innerIndent).AppendLine("}");
+                builder.Append(innerIndent).AppendLine("else");
+                builder.Append(innerIndent).AppendLine("{");
+                EmitReadScalarAssignment(builder, scalarType, valueVarName, indent: innerIndent + "    ");
+                builder.Append(innerIndent).AppendLine("    reader.Read();");
+                builder.Append(innerIndent).AppendLine("}");
+            }
+            else
+            {
+                EmitReadScalarAssignment(builder, scalarType, valueVarName, indent: innerIndent);
+                builder.Append(innerIndent).AppendLine("reader.Read();");
+            }
             builder.Append(indent).AppendLine("}");
             return;
         }
