@@ -1313,6 +1313,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             writer.WritePropertyName(member.Name);
             var converter = member.Converter ??= writer.GetConverter(member.MemberType);
+            using var styleScope = writer.PushBlockSequenceItemStyle(member.BlockSequenceMappingStyle, member.BlockSequenceSequenceStyle);
             converter.Write(writer, memberValue);
         }
 
@@ -1426,6 +1427,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             writer.WritePropertyName(member.Name);
             var converter = member.Converter ??= writer.GetConverter(member.MemberType);
+            using var styleScope = writer.PushBlockSequenceItemStyle(member.BlockSequenceMappingStyle, member.BlockSequenceSequenceStyle);
             converter.Write(writer, memberValue);
         }
 
@@ -1558,7 +1560,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(property);
                 var token = property.MetadataToken;
 
-                var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property), canWrite, GetObjectCreationHandling(property));
+                var (mappingStyle, sequenceStyle) = GetBlockSequenceItemStyles(property);
+                var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property), canWrite, GetObjectCreationHandling(property), mappingStyle, sequenceStyle);
                 member.Converter = CreateConverterFromAttribute(property, property.PropertyType, options);
                 members.Add(member);
                 if (member.IsRequired)
@@ -1607,7 +1610,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var order = GetMemberOrder(field);
                 var token = field.MetadataToken;
 
-                var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field), canWrite: !field.IsInitOnly, GetObjectCreationHandling(field));
+                var (mappingStyle, sequenceStyle) = GetBlockSequenceItemStyles(field);
+                var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field), canWrite: !field.IsInitOnly, GetObjectCreationHandling(field), mappingStyle, sequenceStyle);
                 member.Converter = CreateConverterFromAttribute(field, field.FieldType, options);
                 members.Add(member);
                 if (member.IsRequired)
@@ -2225,7 +2229,18 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         private readonly PropertyInfo? _property;
         private readonly FieldInfo? _field;
 
-        public Member(string name, int order, int declarationOrder, Type memberType, PropertyInfo property, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite, JsonObjectCreationHandling? objectCreationHandling)
+        public Member(
+            string name,
+            int order,
+            int declarationOrder,
+            Type memberType,
+            PropertyInfo property,
+            YamlIgnoreCondition? ignoreCondition,
+            bool isRequired,
+            bool canWrite,
+            JsonObjectCreationHandling? objectCreationHandling,
+            YamlSequenceItemStyle blockSequenceMappingStyle = YamlSequenceItemStyle.Default,
+            YamlSequenceItemStyle blockSequenceSequenceStyle = YamlSequenceItemStyle.Default)
         {
             ClrName = property.Name;
             Name = name;
@@ -2238,9 +2253,22 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             IsRequired = isRequired;
             CanWrite = canWrite;
             ObjectCreationHandling = objectCreationHandling;
+            BlockSequenceMappingStyle = blockSequenceMappingStyle;
+            BlockSequenceSequenceStyle = blockSequenceSequenceStyle;
         }
 
-        public Member(string name, int order, int declarationOrder, Type memberType, FieldInfo field, YamlIgnoreCondition? ignoreCondition, bool isRequired, bool canWrite, JsonObjectCreationHandling? objectCreationHandling)
+        public Member(
+            string name,
+            int order,
+            int declarationOrder,
+            Type memberType,
+            FieldInfo field,
+            YamlIgnoreCondition? ignoreCondition,
+            bool isRequired,
+            bool canWrite,
+            JsonObjectCreationHandling? objectCreationHandling,
+            YamlSequenceItemStyle blockSequenceMappingStyle = YamlSequenceItemStyle.Default,
+            YamlSequenceItemStyle blockSequenceSequenceStyle = YamlSequenceItemStyle.Default)
         {
             ClrName = field.Name;
             Name = name;
@@ -2253,6 +2281,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             IsRequired = isRequired;
             CanWrite = canWrite;
             ObjectCreationHandling = objectCreationHandling;
+            BlockSequenceMappingStyle = blockSequenceMappingStyle;
+            BlockSequenceSequenceStyle = blockSequenceSequenceStyle;
         }
 
         public string ClrName { get; }
@@ -2270,6 +2300,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public bool CanWrite { get; }
 
         public JsonObjectCreationHandling? ObjectCreationHandling { get; }
+
+        public YamlSequenceItemStyle BlockSequenceMappingStyle { get; }
+
+        public YamlSequenceItemStyle BlockSequenceSequenceStyle { get; }
 
         public YamlIgnoreCondition? IgnoreCondition { get; }
 
@@ -2703,6 +2737,20 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
     {
         ArgumentGuard.ThrowIfNull(member);
         return member.GetCustomAttribute<JsonObjectCreationHandlingAttribute>(inherit: true)?.Handling;
+    }
+
+    private static (YamlSequenceItemStyle MappingStyle, YamlSequenceItemStyle SequenceStyle) GetBlockSequenceItemStyles(MemberInfo member)
+    {
+        ArgumentGuard.ThrowIfNull(member);
+        var attribute = member.GetCustomAttribute<YamlBlockSequenceItemStyleAttribute>(inherit: true);
+        if (attribute is null)
+        {
+            return (YamlSequenceItemStyle.Default, YamlSequenceItemStyle.Default);
+        }
+
+        YamlSerializerOptions.ValidateSequenceItemStyle(attribute.MappingStyle, nameof(YamlBlockSequenceItemStyleAttribute.MappingStyle));
+        YamlSerializerOptions.ValidateSequenceItemStyle(attribute.SequenceStyle, nameof(YamlBlockSequenceItemStyleAttribute.SequenceStyle));
+        return (attribute.MappingStyle, attribute.SequenceStyle);
     }
 
     private static YamlConverter? CreateConverterFromAttribute(MemberInfo member, Type memberType, YamlSerializerOptions options)

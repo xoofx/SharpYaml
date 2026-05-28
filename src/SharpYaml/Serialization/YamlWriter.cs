@@ -25,6 +25,8 @@ public sealed class YamlWriter : YamlReaderWriterBase
     private string? _pendingTag;
     private bool _hasWrittenChar;
     private char _lastWrittenChar;
+    private YamlSequenceItemStyle _blockSequenceMappingStyle;
+    private YamlSequenceItemStyle _blockSequenceSequenceStyle;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlWriter"/> class.
@@ -38,6 +40,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(writer);
         _writer = writer;
         _referenceWriter = Options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
+        InitializeFormattingState();
     }
 
     /// <summary>
@@ -52,11 +55,38 @@ public sealed class YamlWriter : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(stringBuilder);
         _stringBuilder = stringBuilder;
         _referenceWriter = Options.ReferenceHandling == YamlReferenceHandling.Preserve ? new YamlReferenceWriter() : null;
+        InitializeFormattingState();
     }
 
     internal YamlReferenceWriter? ReferenceWriter => _referenceWriter;
 
     internal bool EndsWithNewLine => _hasWrittenChar && _lastWrittenChar == '\n';
+
+    /// <summary>
+    /// Temporarily overrides how nested block collections are emitted when they appear as items in block sequences.
+    /// </summary>
+    /// <param name="mappingStyle">The mapping style override, or <see cref="YamlSequenceItemStyle.Default"/> to keep the current mapping style.</param>
+    /// <param name="sequenceStyle">The sequence style override, or <see cref="YamlSequenceItemStyle.Default"/> to keep the current sequence style.</param>
+    /// <returns>A scope that restores the previous styles when disposed.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="mappingStyle"/> or <paramref name="sequenceStyle"/> is not a defined <see cref="YamlSequenceItemStyle"/>.</exception>
+    public BlockSequenceItemStyleScope PushBlockSequenceItemStyle(YamlSequenceItemStyle mappingStyle, YamlSequenceItemStyle sequenceStyle)
+    {
+        YamlSerializerOptions.ValidateSequenceItemStyle(mappingStyle, nameof(mappingStyle));
+        YamlSerializerOptions.ValidateSequenceItemStyle(sequenceStyle, nameof(sequenceStyle));
+
+        var scope = new BlockSequenceItemStyleScope(this, _blockSequenceMappingStyle, _blockSequenceSequenceStyle);
+        if (mappingStyle != YamlSequenceItemStyle.Default)
+        {
+            _blockSequenceMappingStyle = mappingStyle;
+        }
+
+        if (sequenceStyle != YamlSequenceItemStyle.Default)
+        {
+            _blockSequenceSequenceStyle = sequenceStyle;
+        }
+
+        return scope;
+    }
 
     /// <summary>
     /// Attempts to preserve object references by writing an alias when <paramref name="value"/> was previously
@@ -203,14 +233,17 @@ public sealed class YamlWriter : YamlReaderWriterBase
             throw new InvalidOperationException("A property name cannot be written when a value is expected.");
         }
 
-        EnsureContainerStarted(ref frame);
+        var startedCompact = EnsureContainerStarted(ref frame);
 
         if (frame.HasContent)
         {
             WriteNewLine();
         }
 
-        WriteIndent();
+        if (!startedCompact)
+        {
+            WriteIndent();
+        }
         WriteScalarCore(name, isKey: true);
         Write(':');
 
@@ -466,7 +499,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         }
 
         ref var frame = ref _frames[_depth - 1];
-        EnsureContainerStarted(ref frame);
+        var startedCompact = EnsureContainerStarted(ref frame);
 
         if (frame.Kind == ContainerKind.Mapping)
         {
@@ -484,7 +517,10 @@ public sealed class YamlWriter : YamlReaderWriterBase
             WriteNewLine();
         }
 
-        WriteIndent();
+        if (!startedCompact)
+        {
+            WriteIndent();
+        }
         Write("- ");
         frame.HasContent = true;
     }
@@ -497,7 +533,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         }
 
         ref var frame = ref _frames[_depth - 1];
-        EnsureContainerStarted(ref frame);
+        var startedCompact = EnsureContainerStarted(ref frame);
 
         if (frame.Kind == ContainerKind.Mapping)
         {
@@ -515,7 +551,10 @@ public sealed class YamlWriter : YamlReaderWriterBase
             WriteNewLine();
         }
 
-        WriteIndent();
+        if (!startedCompact)
+        {
+            WriteIndent();
+        }
         Write("- ");
         frame.HasContent = true;
     }
@@ -560,15 +599,23 @@ public sealed class YamlWriter : YamlReaderWriterBase
         }
     }
 
-    private void EnsureContainerStarted(ref ContainerFrame frame)
+    private bool EnsureContainerStarted(ref ContainerFrame frame)
     {
         if (frame.PendingStart == PendingStartKind.None)
         {
-            return;
+            return false;
         }
 
+        var pendingStart = frame.PendingStart;
         frame.PendingStart = PendingStartKind.None;
+        if (pendingStart == PendingStartKind.SequenceItemCompact)
+        {
+            Write(' ');
+            return true;
+        }
+
         WriteNewLine();
+        return false;
     }
 
     private void CompleteValueAfterScalar()
@@ -624,7 +671,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         else
         {
             ref var parent = ref _frames[_depth - 1];
-            EnsureContainerStarted(ref parent);
+            var parentStartedCompact = EnsureContainerStarted(ref parent);
 
             if (parent.Kind == ContainerKind.Mapping)
             {
@@ -646,14 +693,19 @@ public sealed class YamlWriter : YamlReaderWriterBase
                     WriteNewLine();
                 }
 
-                WriteIndent();
+                if (!parentStartedCompact)
+                {
+                    WriteIndent();
+                }
                 Write('-');
                 if (_pendingAnchor is not null || _pendingTag is not null)
                 {
                     WriteNodeProperties(writeLeadingSpace: true, writeTrailingSpace: false);
                 }
                 parent.HasContent = true;
-                pendingStart = PendingStartKind.SequenceItem;
+                pendingStart = ShouldCompactSequenceItem(kind)
+                    ? PendingStartKind.SequenceItemCompact
+                    : PendingStartKind.SequenceItem;
             }
         }
 
@@ -720,6 +772,31 @@ public sealed class YamlWriter : YamlReaderWriterBase
     {
         Write('\n');
     }
+
+    private void InitializeFormattingState()
+    {
+        _blockSequenceMappingStyle = ResolveOptionStyle(Options.BlockSequenceMappingStyle, YamlSequenceItemStyle.Compact);
+        _blockSequenceSequenceStyle = ResolveOptionStyle(Options.BlockSequenceSequenceStyle, YamlSequenceItemStyle.Expanded);
+    }
+
+    private bool ShouldCompactSequenceItem(ContainerKind kind)
+    {
+        return kind switch
+        {
+            ContainerKind.Mapping => _blockSequenceMappingStyle == YamlSequenceItemStyle.Compact,
+            ContainerKind.Sequence => _blockSequenceSequenceStyle == YamlSequenceItemStyle.Compact,
+            _ => false,
+        };
+    }
+
+    private void RestoreBlockSequenceItemStyle(YamlSequenceItemStyle mappingStyle, YamlSequenceItemStyle sequenceStyle)
+    {
+        _blockSequenceMappingStyle = mappingStyle;
+        _blockSequenceSequenceStyle = sequenceStyle;
+    }
+
+    private static YamlSequenceItemStyle ResolveOptionStyle(YamlSequenceItemStyle style, YamlSequenceItemStyle fallback)
+        => style == YamlSequenceItemStyle.Default ? fallback : style;
 
     private void WriteFormattableScalar<T>(T value, ReadOnlySpan<char> format, bool plainSafe)
         where T : IFormattable
@@ -1041,7 +1118,33 @@ public sealed class YamlWriter : YamlReaderWriterBase
         None,
         MappingValue,
         SequenceItem,
+        SequenceItemCompact,
         Root,
+    }
+
+    /// <summary>
+    /// Restores the block sequence item styles that were active before a <see cref="PushBlockSequenceItemStyle"/> call.
+    /// </summary>
+    public readonly struct BlockSequenceItemStyleScope : IDisposable
+    {
+        private readonly YamlWriter? _writer;
+        private readonly YamlSequenceItemStyle _mappingStyle;
+        private readonly YamlSequenceItemStyle _sequenceStyle;
+
+        internal BlockSequenceItemStyleScope(YamlWriter writer, YamlSequenceItemStyle mappingStyle, YamlSequenceItemStyle sequenceStyle)
+        {
+            _writer = writer;
+            _mappingStyle = mappingStyle;
+            _sequenceStyle = sequenceStyle;
+        }
+
+        /// <summary>
+        /// Restores the previously active block sequence item styles.
+        /// </summary>
+        public void Dispose()
+        {
+            _writer?.RestoreBlockSequenceItemStyle(_mappingStyle, _sequenceStyle);
+        }
     }
 
     private struct ContainerFrame

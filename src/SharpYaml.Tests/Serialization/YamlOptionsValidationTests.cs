@@ -46,6 +46,13 @@ public sealed class YamlOptionsValidationTests
     }
 
     [TestMethod]
+    public void Options_BlockSequenceItemStyles_MustBeKnownValues()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new YamlSerializerOptions { BlockSequenceMappingStyle = (YamlSequenceItemStyle)123 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => new YamlSerializerOptions { BlockSequenceSequenceStyle = (YamlSequenceItemStyle)123 });
+    }
+
+    [TestMethod]
     public void Options_Converters_CannotBeNullOrContainNull()
     {
         Assert.Throws<ArgumentNullException>(() => new YamlSerializerOptions { Converters = null! });

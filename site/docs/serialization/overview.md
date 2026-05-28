@@ -47,6 +47,7 @@ Common options:
 
 - [`PropertyNamingPolicy`](xref:SharpYaml.YamlSerializerOptions.PropertyNamingPolicy) and [`DictionaryKeyPolicy`](xref:SharpYaml.YamlSerializerOptions.DictionaryKeyPolicy) ([`JsonNamingPolicy`](xref:System.Text.Json.JsonNamingPolicy))
 - [`WriteIndented`](xref:SharpYaml.YamlSerializerOptions.WriteIndented) and [`IndentSize`](xref:SharpYaml.YamlSerializerOptions.IndentSize)
+- [`BlockSequenceMappingStyle`](xref:SharpYaml.YamlSerializerOptions.BlockSequenceMappingStyle) and [`BlockSequenceSequenceStyle`](xref:SharpYaml.YamlSerializerOptions.BlockSequenceSequenceStyle)
 - [`DefaultIgnoreCondition`](xref:SharpYaml.YamlSerializerOptions.DefaultIgnoreCondition)
 - [`PropertyNameCaseInsensitive`](xref:SharpYaml.YamlSerializerOptions.PropertyNameCaseInsensitive)
 - [`PreferredObjectCreationHandling`](xref:SharpYaml.YamlSerializerOptions.PreferredObjectCreationHandling)
@@ -82,6 +83,8 @@ If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCa
 | [`WriteIndented`](xref:SharpYaml.YamlSerializerOptions.WriteIndented) | `true` | Enables indentation. |
 | [`IndentSize`](xref:SharpYaml.YamlSerializerOptions.IndentSize) | `2` | Spaces per indent level when `WriteIndented` is enabled. |
 | [`MappingOrder`](xref:SharpYaml.YamlSerializerOptions.MappingOrder) | [`YamlMappingOrderPolicy.Declaration`](xref:SharpYaml.YamlMappingOrderPolicy.Declaration) | Preserves declaration order by default (diff-friendly in code review). |
+| [`BlockSequenceMappingStyle`](xref:SharpYaml.YamlSerializerOptions.BlockSequenceMappingStyle) | [`YamlSequenceItemStyle.Compact`](xref:SharpYaml.YamlSequenceItemStyle.Compact) | Writes mappings in block sequences as `- key: value` by default. |
+| [`BlockSequenceSequenceStyle`](xref:SharpYaml.YamlSerializerOptions.BlockSequenceSequenceStyle) | [`YamlSequenceItemStyle.Expanded`](xref:SharpYaml.YamlSequenceItemStyle.Expanded) | Controls whether nested sequences in block sequences start on the dash line or the following line. |
 | [`Schema`](xref:SharpYaml.YamlSerializerOptions.Schema) | [`YamlSchemaKind.Core`](xref:SharpYaml.YamlSchemaKind.Core) | Controls scalar resolution rules (YAML 1.2). |
 | [`DuplicateKeyHandling`](xref:SharpYaml.YamlSerializerOptions.DuplicateKeyHandling) | [`YamlDuplicateKeyHandling.Error`](xref:SharpYaml.YamlDuplicateKeyHandling.Error) | Controls behavior when duplicate keys are encountered. |
 | [`ReferenceHandling`](xref:SharpYaml.YamlSerializerOptions.ReferenceHandling) | [`YamlReferenceHandling.None`](xref:SharpYaml.YamlReferenceHandling.None) | Enables anchor/alias preservation when needed. |
@@ -90,6 +93,18 @@ If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCa
 | [`UnsafeAllowDeserializeFromTagTypeName`](xref:SharpYaml.YamlSerializerOptions.UnsafeAllowDeserializeFromTagTypeName) | `false` | Allows tag-based activation by runtime type name (use only with trusted input). |
 | [`TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver) | `null` | Provides metadata (generated or custom) for reflection-free serialization. |
 | [`SourceName`](xref:SharpYaml.YamlSerializerOptions.SourceName) | `null` | Used for error messages (file/path) when throwing [`YamlException`](xref:SharpYaml.YamlException). |
+
+### Block sequence item style
+
+Mappings written as block sequence items use compact style by default:
+
+```yaml
+contexts:
+  - name: default
+    target: localhost
+```
+
+Set `BlockSequenceMappingStyle = YamlSequenceItemStyle.Expanded` to emit the first key on the following line instead. Nested sequences can be controlled separately with `BlockSequenceSequenceStyle`, and member-level overrides are available through [`YamlBlockSequenceItemStyleAttribute`](xref:SharpYaml.Serialization.YamlBlockSequenceItemStyleAttribute).
 
 ## Object creation handling
 

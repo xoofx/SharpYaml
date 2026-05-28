@@ -39,6 +39,7 @@ Use [`YamlSourceGenerationOptionsAttribute`](xref:SharpYaml.Serialization.YamlSo
 ```csharp
 [YamlSourceGenerationOptions(
     WriteIndented = false,
+    BlockSequenceMappingStyle = SharpYaml.YamlSequenceItemStyle.Compact,
     PropertyNamingPolicy = System.Text.Json.JsonKnownNamingPolicy.CamelCase,
     PreferredObjectCreationHandling = System.Text.Json.Serialization.JsonObjectCreationHandling.Populate,
     Converters = new[] { typeof(MyCustomConverter) })]

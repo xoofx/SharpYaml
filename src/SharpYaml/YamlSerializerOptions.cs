@@ -143,6 +143,42 @@ public sealed record YamlSerializerOptions
     public YamlMappingOrderPolicy MappingOrder { get; init; } = YamlMappingOrderPolicy.Declaration;
 
     /// <summary>
+    /// Gets or sets how mappings are emitted when they appear as items in block sequences.
+    /// </summary>
+    /// <remarks>
+    /// The default is <see cref="YamlSequenceItemStyle.Compact"/>, which emits the first mapping key on the same
+    /// line as the sequence dash when possible.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Value is not a defined <see cref="YamlSequenceItemStyle"/>.</exception>
+    public YamlSequenceItemStyle BlockSequenceMappingStyle
+    {
+        get;
+        init
+        {
+            ValidateSequenceItemStyle(value, nameof(value));
+            field = value;
+        }
+    } = YamlSequenceItemStyle.Compact;
+
+    /// <summary>
+    /// Gets or sets how nested sequences are emitted when they appear as items in block sequences.
+    /// </summary>
+    /// <remarks>
+    /// The default is <see cref="YamlSequenceItemStyle.Expanded"/>, which keeps nested sequence items on lines
+    /// following the parent sequence dash.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Value is not a defined <see cref="YamlSequenceItemStyle"/>.</exception>
+    public YamlSequenceItemStyle BlockSequenceSequenceStyle
+    {
+        get;
+        init
+        {
+            ValidateSequenceItemStyle(value, nameof(value));
+            field = value;
+        }
+    } = YamlSequenceItemStyle.Expanded;
+
+    /// <summary>
     /// Gets or sets the schema used for scalar resolution.
     /// </summary>
     public YamlSchemaKind Schema { get; init; } = YamlSchemaKind.Core;
@@ -217,4 +253,12 @@ public sealed record YamlSerializerOptions
     public IYamlTypeInfoResolver? TypeInfoResolver { get; init; }
 
     internal int EffectiveMaxDepth => YamlDepthHelper.GetEffectiveMaxDepth(MaxDepth);
+
+    internal static void ValidateSequenceItemStyle(YamlSequenceItemStyle value, string paramName)
+    {
+        if (value is not (YamlSequenceItemStyle.Default or YamlSequenceItemStyle.Expanded or YamlSequenceItemStyle.Compact))
+        {
+            throw new ArgumentOutOfRangeException(paramName, value, "The YAML sequence item style is not valid.");
+        }
+    }
 }

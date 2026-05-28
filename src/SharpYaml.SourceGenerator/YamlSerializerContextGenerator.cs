@@ -96,6 +96,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string? PropertyNamingPolicy { get; set; }
         public string? DictionaryKeyPolicy { get; set; }
         public string? MappingOrder { get; set; }
+        public string? BlockSequenceMappingStyle { get; set; }
+        public string? BlockSequenceSequenceStyle { get; set; }
         public string? Schema { get; set; }
         public bool? UseSchema { get; set; }
         public string? UnmappedMemberHandling { get; set; }
@@ -120,6 +122,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             if (!string.IsNullOrEmpty(other.PropertyNamingPolicy)) PropertyNamingPolicy = other.PropertyNamingPolicy;
             if (!string.IsNullOrEmpty(other.DictionaryKeyPolicy)) DictionaryKeyPolicy = other.DictionaryKeyPolicy;
             if (!string.IsNullOrEmpty(other.MappingOrder)) MappingOrder = other.MappingOrder;
+            if (!string.IsNullOrEmpty(other.BlockSequenceMappingStyle)) BlockSequenceMappingStyle = other.BlockSequenceMappingStyle;
+            if (!string.IsNullOrEmpty(other.BlockSequenceSequenceStyle)) BlockSequenceSequenceStyle = other.BlockSequenceSequenceStyle;
             if (!string.IsNullOrEmpty(other.Schema)) Schema = other.Schema;
             if (other.UseSchema.HasValue) UseSchema = other.UseSchema;
             if (!string.IsNullOrEmpty(other.UnmappedMemberHandling)) UnmappedMemberHandling = other.UnmappedMemberHandling;
@@ -2073,6 +2077,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 member.IgnoreConditionExpression,
                 member.AttributeConverterTypeName,
                 member.ObjectCreationHandling,
+                member.BlockSequenceMappingStyle,
+                member.BlockSequenceSequenceStyle,
                 member.IsRequired,
                 member.IsInitOnly,
                 member.IsRequiredKeyword);
@@ -2211,6 +2217,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 member.IgnoreConditionExpression,
                 member.AttributeConverterTypeName,
                 member.ObjectCreationHandling,
+                member.BlockSequenceMappingStyle,
+                member.BlockSequenceSequenceStyle,
                 member.IsRequired,
                 member.IsInitOnly,
                 member.IsRequiredKeyword);
@@ -3681,6 +3689,31 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     }
 
     private static void EmitWriteMemberValueWithCustomConverter(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType, string valueExpression, string indent)
+    {
+        if (member.BlockSequenceMappingStyle is not null || member.BlockSequenceSequenceStyle is not null)
+        {
+            var mappingStyle = member.BlockSequenceMappingStyle is null
+                ? "global::SharpYaml.YamlSequenceItemStyle.Default"
+                : "global::SharpYaml.YamlSequenceItemStyle." + member.BlockSequenceMappingStyle;
+            var sequenceStyle = member.BlockSequenceSequenceStyle is null
+                ? "global::SharpYaml.YamlSequenceItemStyle.Default"
+                : "global::SharpYaml.YamlSequenceItemStyle." + member.BlockSequenceSequenceStyle;
+
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).Append("    using var blockSequenceItemStyleScope = writer.PushBlockSequenceItemStyle(")
+                .Append(mappingStyle)
+                .Append(", ")
+                .Append(sequenceStyle)
+                .AppendLine(");");
+            EmitWriteMemberValueWithCustomConverterCore(builder, member, indexByType, valueExpression, indent + "    ");
+            builder.Append(indent).AppendLine("}");
+            return;
+        }
+
+        EmitWriteMemberValueWithCustomConverterCore(builder, member, indexByType, valueExpression, indent);
+    }
+
+    private static void EmitWriteMemberValueWithCustomConverterCore(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType, string valueExpression, string indent)
     {
         var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         if (member.AttributeConverterTypeName is not null)
@@ -5810,6 +5843,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             string ignoreConditionExpression,
             string? attributeConverterTypeName,
             string? objectCreationHandling,
+            string? blockSequenceMappingStyle,
+            string? blockSequenceSequenceStyle,
             bool isRequired,
             bool isInitOnly,
             bool isRequiredKeyword)
@@ -5823,6 +5858,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             IgnoreConditionExpression = ignoreConditionExpression;
             AttributeConverterTypeName = attributeConverterTypeName;
             ObjectCreationHandling = objectCreationHandling;
+            BlockSequenceMappingStyle = blockSequenceMappingStyle;
+            BlockSequenceSequenceStyle = blockSequenceSequenceStyle;
             IsRequired = isRequired;
             IsInitOnly = isInitOnly;
             IsRequiredKeyword = isRequiredKeyword;
@@ -5837,6 +5874,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string IgnoreConditionExpression { get; }
         public string? AttributeConverterTypeName { get; }
         public string? ObjectCreationHandling { get; }
+        public string? BlockSequenceMappingStyle { get; }
+        public string? BlockSequenceSequenceStyle { get; }
         public bool IsRequired { get; }
         public bool IsInitOnly { get; }
         public bool IsRequiredKeyword { get; }
@@ -5892,10 +5931,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var ignoreConditionExpression = GetIgnoreConditionExpression(member);
         var converterTypeName = GetYamlConverterAttributeTypeName(member);
         var objectCreationHandling = GetObjectCreationHandling(member);
+        var (blockSequenceMappingStyle, blockSequenceSequenceStyle) = GetBlockSequenceItemStyles(member);
         var isRequiredKeyword = member is IPropertySymbol { IsRequired: true } || member is IFieldSymbol { IsRequired: true };
         var isRequired = isRequiredKeyword || HasAttribute(member, "SharpYaml.Serialization.YamlRequiredAttribute") || HasAttribute(member, "System.Text.Json.Serialization.JsonRequiredAttribute");
         var isInitOnly = member is IPropertySymbol property && IsInitOnlyProperty(property);
-        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, objectCreationHandling, isRequired, isInitOnly, isRequiredKeyword);
+        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, objectCreationHandling, blockSequenceMappingStyle, blockSequenceSequenceStyle, isRequired, isInitOnly, isRequiredKeyword);
     }
 
     private static (string ForRead, string ForWrite) GetSerializedMemberNameExpressions(ISymbol member, JsonNamingPolicy? propertyNamingPolicy)
@@ -7116,6 +7156,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 case "MappingOrder":
                     model.MappingOrder = NormalizeEnumName(argument.Value.ToCSharpString());
                     break;
+                case "BlockSequenceMappingStyle":
+                    model.BlockSequenceMappingStyle = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
+                case "BlockSequenceSequenceStyle":
+                    model.BlockSequenceSequenceStyle = NormalizeEnumName(argument.Value.ToCSharpString());
+                    break;
                 case "Schema":
                     model.Schema = NormalizeEnumName(argument.Value.ToCSharpString());
                     break;
@@ -7271,6 +7317,40 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return null;
     }
 
+    private static (string? MappingStyle, string? SequenceStyle) GetBlockSequenceItemStyles(ISymbol member)
+    {
+        foreach (var attribute in member.GetAttributes())
+        {
+            if (!string.Equals(attribute.AttributeClass?.ToDisplayString(), "SharpYaml.Serialization.YamlBlockSequenceItemStyleAttribute", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            string? mappingStyle = null;
+            string? sequenceStyle = null;
+            if (attribute.ConstructorArguments.Length == 1)
+            {
+                mappingStyle = NormalizeEnumName(attribute.ConstructorArguments[0].ToCSharpString());
+            }
+
+            foreach (var argument in attribute.NamedArguments)
+            {
+                if (string.Equals(argument.Key, "MappingStyle", StringComparison.Ordinal))
+                {
+                    mappingStyle = NormalizeEnumName(argument.Value.ToCSharpString());
+                }
+                else if (string.Equals(argument.Key, "SequenceStyle", StringComparison.Ordinal))
+                {
+                    sequenceStyle = NormalizeEnumName(argument.Value.ToCSharpString());
+                }
+            }
+
+            return (mappingStyle, sequenceStyle);
+        }
+
+        return (null, null);
+    }
+
     private static string? TryGetJsonObjectCreationHandlingOverride(INamedTypeSymbol typeSymbol)
     {
         foreach (var attribute in typeSymbol.GetAttributes())
@@ -7352,6 +7432,20 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         {
             builder.Append("            MappingOrder = global::SharpYaml.YamlMappingOrderPolicy.")
                 .Append(options.MappingOrder)
+                .AppendLine(",");
+        }
+
+        if (!string.IsNullOrEmpty(options.BlockSequenceMappingStyle))
+        {
+            builder.Append("            BlockSequenceMappingStyle = global::SharpYaml.YamlSequenceItemStyle.")
+                .Append(options.BlockSequenceMappingStyle)
+                .AppendLine(",");
+        }
+
+        if (!string.IsNullOrEmpty(options.BlockSequenceSequenceStyle))
+        {
+            builder.Append("            BlockSequenceSequenceStyle = global::SharpYaml.YamlSequenceItemStyle.")
+                .Append(options.BlockSequenceSequenceStyle)
                 .AppendLine(",");
         }
 

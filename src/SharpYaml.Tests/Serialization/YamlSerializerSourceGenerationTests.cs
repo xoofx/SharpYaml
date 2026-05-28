@@ -642,6 +642,8 @@ internal partial class TestYamlSerializerContext : YamlSerializerContext
     WriteIndented = false,
     PropertyNameCaseInsensitive = true,
     DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingNull,
+    BlockSequenceMappingStyle = YamlSequenceItemStyle.Expanded,
+    BlockSequenceSequenceStyle = YamlSequenceItemStyle.Compact,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase)]
 [YamlSerializable(typeof(GeneratedWithDefaultOptions))]
@@ -1123,6 +1125,8 @@ public class YamlSerializerSourceGenerationTests
         Assert.IsFalse(options.WriteIndented);
         Assert.IsTrue(options.PropertyNameCaseInsensitive);
         Assert.AreEqual(YamlIgnoreCondition.WhenWritingNull, options.DefaultIgnoreCondition);
+        Assert.AreEqual(YamlSequenceItemStyle.Expanded, options.BlockSequenceMappingStyle);
+        Assert.AreEqual(YamlSequenceItemStyle.Compact, options.BlockSequenceSequenceStyle);
         Assert.AreSame(JsonNamingPolicy.CamelCase, options.PropertyNamingPolicy);
         Assert.AreSame(JsonNamingPolicy.CamelCase, options.DictionaryKeyPolicy);
         Assert.AreEqual(JsonUnmappedMemberHandling.Skip, options.UnmappedMemberHandling);

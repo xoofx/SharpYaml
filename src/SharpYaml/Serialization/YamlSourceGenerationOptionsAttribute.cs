@@ -70,6 +70,16 @@ public sealed class YamlSourceGenerationOptionsAttribute : YamlAttribute
     public YamlMappingOrderPolicy MappingOrder { get; set; }
 
     /// <summary>
+    /// Gets or sets how mappings are emitted when they appear as items in block sequences.
+    /// </summary>
+    public YamlSequenceItemStyle BlockSequenceMappingStyle { get; set; }
+
+    /// <summary>
+    /// Gets or sets how nested sequences are emitted when they appear as items in block sequences.
+    /// </summary>
+    public YamlSequenceItemStyle BlockSequenceSequenceStyle { get; set; }
+
+    /// <summary>
     /// Gets or sets the schema used for scalar resolution.
     /// </summary>
     public YamlSchemaKind Schema { get; set; }
