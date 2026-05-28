@@ -6,6 +6,7 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharpYaml.Model;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization;
@@ -523,6 +524,13 @@ internal sealed class GeneratedPopulateContainer
     public List<int> Numbers { get; } = [1, 2];
 }
 
+internal sealed class GeneratedYamlNodePayload
+{
+    public string Name { get; set; } = string.Empty;
+
+    public YamlNode? Content { get; set; }
+}
+
 [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
 internal sealed class GeneratedPopulateViaTypeAttributeContainer
 {
@@ -615,6 +623,9 @@ internal sealed class GeneratedReadOnlyPopulateStructContainer
 [YamlSerializable(typeof(GeneratedPopulateStructChild))]
 [YamlSerializable(typeof(GeneratedPopulateStructContainer))]
 [YamlSerializable(typeof(GeneratedReadOnlyPopulateStructContainer))]
+[YamlSerializable(typeof(YamlValue))]
+[YamlSerializable(typeof(YamlNode))]
+[YamlSerializable(typeof(GeneratedYamlNodePayload))]
 internal partial class TestYamlSerializerContext : YamlSerializerContext
 {
     public TestYamlSerializerContext()
@@ -686,6 +697,55 @@ internal partial class TestYamlSerializerContextWithCustomPropertyNames : YamlSe
 [TestClass]
 public class YamlSerializerSourceGenerationTests
 {
+    [TestMethod]
+    public void GeneratedContext_YamlNodeRoot_UsesModelConverter()
+    {
+        var node = new YamlValue("abc");
+
+        var generated = YamlSerializer.Serialize(node, TestYamlSerializerContext.Default.YamlValue);
+        var reflection = YamlSerializer.Serialize(node);
+
+        Assert.AreEqual(reflection, generated);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_YamlNodeRoot_DeserializesDynamicContent()
+    {
+        var yaml = "items:\n- one\n- two\n";
+
+        var node = YamlSerializer.Deserialize(yaml, TestYamlSerializerContext.Default.YamlNode);
+
+        Assert.IsInstanceOfType(node, typeof(YamlMapping));
+        var mapping = (YamlMapping)node!;
+        Assert.IsInstanceOfType(mapping["items"], typeof(YamlSequence));
+    }
+
+    [TestMethod]
+    public void GeneratedContext_YamlNodeMember_RoundTripsDynamicContent()
+    {
+        var yaml = """
+            Name: dynamic
+            Content:
+              script: |
+                echo hello
+              values:
+              - 1
+              - true
+            """;
+
+        var payload = YamlSerializer.Deserialize(yaml, TestYamlSerializerContext.Default.GeneratedYamlNodePayload);
+
+        Assert.IsNotNull(payload);
+        Assert.AreEqual("dynamic", payload.Name);
+        Assert.IsInstanceOfType(payload.Content, typeof(YamlMapping));
+
+        var serialized = YamlSerializer.Serialize(payload, TestYamlSerializerContext.Default.GeneratedYamlNodePayload);
+
+        StringAssert.Contains(serialized, "Content:");
+        StringAssert.Contains(serialized, "script:");
+        StringAssert.Contains(serialized, "values:");
+    }
+
     [TestMethod]
     public void GeneratedContext_MergeKey_AppliesToDictionaryStringKey()
     {

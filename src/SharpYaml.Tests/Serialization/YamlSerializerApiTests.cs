@@ -4,6 +4,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharpYaml.Model;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization;
@@ -23,6 +24,13 @@ public class YamlSerializerApiTests
         public string Zeta { get; set; } = string.Empty;
 
         public string Alpha { get; set; } = string.Empty;
+    }
+
+    private sealed class YamlNodePayload
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public YamlNode? Content { get; set; }
     }
 
     private sealed class StringTypeInfo : YamlTypeInfo<string>
@@ -133,6 +141,41 @@ public class YamlSerializerApiTests
         Assert.IsNotNull(roundTrip);
         Assert.AreEqual("Ada", roundTrip.FirstName);
         Assert.AreEqual(37, roundTrip.Age);
+    }
+
+    [TestMethod]
+    public void ReflectionContext_YamlNodeRoot_DeserializesDynamicContent()
+    {
+        var yaml = "items:\n- one\n- two\n";
+
+        var node = YamlSerializer.Deserialize<YamlNode>(yaml);
+
+        Assert.IsInstanceOfType(node, typeof(YamlMapping));
+        var mapping = (YamlMapping)node!;
+        Assert.IsInstanceOfType(mapping["items"], typeof(YamlSequence));
+    }
+
+    [TestMethod]
+    public void ReflectionContext_YamlNodeMember_RoundTripsDynamicContent()
+    {
+        var yaml = """
+            Name: dynamic
+            Content:
+              values:
+              - one
+              - two
+            """;
+
+        var payload = YamlSerializer.Deserialize<YamlNodePayload>(yaml);
+
+        Assert.IsNotNull(payload);
+        Assert.AreEqual("dynamic", payload.Name);
+        Assert.IsInstanceOfType(payload.Content, typeof(YamlMapping));
+
+        var serialized = YamlSerializer.Serialize(payload);
+
+        StringAssert.Contains(serialized, "Content:");
+        StringAssert.Contains(serialized, "values:");
     }
 
     [TestMethod]
