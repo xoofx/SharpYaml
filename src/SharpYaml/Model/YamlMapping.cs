@@ -29,7 +29,7 @@ public class YamlMapping : YamlContainer, IDictionary<YamlElement, YamlElement?>
         _contents = new Dictionary<YamlElement, YamlElement?>();
     }
 
-    YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement?> contents, YamlNodeTracker? tracker)
+    internal YamlMapping(MappingStart mappingStart, MappingEnd mappingEnd, List<YamlElement> keys, Dictionary<YamlElement, YamlElement?> contents, YamlNodeTracker? tracker)
     {
         if (tracker == null)
         {

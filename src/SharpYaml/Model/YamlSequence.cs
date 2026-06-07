@@ -23,7 +23,7 @@ public class YamlSequence : YamlContainer, IList<YamlElement>
         _contents = new List<YamlElement>();
     }
 
-    YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents, YamlNodeTracker? tracker)
+    internal YamlSequence(SequenceStart sequenceStart, SequenceEnd sequenceEnd, List<YamlElement> contents, YamlNodeTracker? tracker)
     {
         if (tracker == null)
             _contents = contents;

@@ -156,6 +156,20 @@ public class YamlSerializerApiTests
     }
 
     [TestMethod]
+    public void ReflectionContext_YamlNodeRoot_PreservesOriginalNodeLocations()
+    {
+        var yaml = "foo: bar\n\nbaz:\n  bla: bloo\nseq:\n\n- item\n";
+
+        var root = YamlSerializer.Deserialize<YamlMapping>(yaml)!;
+
+        var baz = (YamlMapping)root["baz"]!;
+        Assert.AreEqual(3, baz.MappingStart.Start.Line);
+
+        var sequence = (YamlSequence)root["seq"]!;
+        Assert.AreEqual(6, sequence.SequenceStart.Start.Line);
+    }
+
+    [TestMethod]
     public void ReflectionContext_YamlNodeMember_RoundTripsDynamicContent()
     {
         var yaml = """
@@ -176,6 +190,25 @@ public class YamlSerializerApiTests
 
         StringAssert.Contains(serialized, "Content:");
         StringAssert.Contains(serialized, "values:");
+    }
+
+    [TestMethod]
+    public void ReflectionContext_YamlNodeMember_PreservesOriginalNodeLocations()
+    {
+        var yaml = """
+            Name: dynamic
+            Content:
+              foo: bar
+
+              baz:
+                bla: bloo
+            """;
+
+        var payload = YamlSerializer.Deserialize<YamlNodePayload>(yaml)!;
+
+        var content = (YamlMapping)payload.Content!;
+        var baz = (YamlMapping)content["baz"]!;
+        Assert.AreEqual(5, baz.MappingStart.Start.Line);
     }
 
     [TestMethod]

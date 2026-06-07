@@ -15,7 +15,7 @@ public class YamlValue : YamlElement
 {
     private Scalar _scalar;
 
-    YamlValue(Scalar scalar, YamlNodeTracker? tracker)
+    internal YamlValue(Scalar scalar, YamlNodeTracker? tracker)
     {
         Tracker = tracker;
 
