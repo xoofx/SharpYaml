@@ -31,6 +31,52 @@ internal sealed class GeneratedWithDefaultOptions
     public string? Optional { get; set; }
 }
 
+internal sealed class GeneratedYamlIgnoreConditions
+{
+    public int Keep { get; set; }
+
+    [YamlIgnore]
+    public int Always { get; set; }
+
+    [YamlIgnore(Condition = YamlIgnoreCondition.Never)]
+    public int Never { get; set; }
+
+    [YamlIgnore(Condition = YamlIgnoreCondition.WhenWritingDefault)]
+    public int Default { get; set; }
+
+    [YamlIgnore(Condition = YamlIgnoreCondition.WhenWritingNull)]
+    public string? Null { get; set; }
+
+    [YamlIgnore(Condition = YamlIgnoreCondition.WhenWriting)]
+    public int WriteOnly { get; set; }
+
+    [YamlIgnore(Condition = YamlIgnoreCondition.WhenReading)]
+    public int ReadOnly { get; set; }
+}
+
+internal sealed class GeneratedJsonIgnoreConditions
+{
+    public int Keep { get; set; }
+
+    [JsonIgnore]
+    public int Always { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public int Never { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int Default { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Null { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWriting)]
+    public int WriteOnly { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenReading)]
+    public int ReadOnly { get; set; }
+}
+
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 internal sealed class GeneratedAttributedUnmappedPayload
 {
@@ -601,6 +647,8 @@ internal sealed class GeneratedReadOnlyPopulateStructContainer
 [YamlSerializable(typeof(GeneratedJsonFallbackZoo))]
 [YamlSerializable(typeof(GeneratedLifecycleCallbacks))]
 [YamlSerializable(typeof(GeneratedRequiredPayload))]
+[YamlSerializable(typeof(GeneratedYamlIgnoreConditions))]
+[YamlSerializable(typeof(GeneratedJsonIgnoreConditions))]
 [YamlSerializable(typeof(GeneratedYamlRequiredInitOnlyPayload))]
 [YamlSerializable(typeof(GeneratedJsonRequiredInitOnlyPayload))]
 [YamlSerializable(typeof(GeneratedOptionalInitOnlyPayload))]
@@ -1877,6 +1925,64 @@ public class YamlSerializerSourceGenerationTests
 
         var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Other: 1", typeInfo));
         StringAssert.Contains(exception.Message, "RequiredValue");
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsYamlIgnoreCondition()
+    {
+        var context = new TestYamlSerializerContext(new YamlSerializerOptions { DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingDefault });
+        var typeInfo = context.GeneratedYamlIgnoreConditions;
+
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedYamlIgnoreConditions { Keep = 1, Always = 2, Never = 0, Default = 0, Null = null, WriteOnly = 3, ReadOnly = 4 },
+            typeInfo);
+
+        StringAssert.Contains(yaml, "Keep: 1");
+        StringAssert.Contains(yaml, "Never: 0");
+        StringAssert.Contains(yaml, "ReadOnly: 4");
+        Assert.IsFalse(yaml.Contains("Always:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Default:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Null:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("WriteOnly:", StringComparison.Ordinal));
+
+        var deserialized = YamlSerializer.Deserialize("Keep: 10\nAlways: 20\nNever: 60\nDefault: 30\nNull: hi\nWriteOnly: 40\nReadOnly: 50\n", typeInfo);
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(10, deserialized.Keep);
+        Assert.AreEqual(0, deserialized.Always);
+        Assert.AreEqual(60, deserialized.Never);
+        Assert.AreEqual(30, deserialized.Default);
+        Assert.AreEqual("hi", deserialized.Null);
+        Assert.AreEqual(40, deserialized.WriteOnly);
+        Assert.AreEqual(0, deserialized.ReadOnly);
+    }
+
+    [TestMethod]
+    public void GeneratedContextHonorsJsonIgnoreCondition()
+    {
+        var context = new TestYamlSerializerContext(new YamlSerializerOptions { DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingDefault });
+        var typeInfo = context.GeneratedJsonIgnoreConditions;
+
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedJsonIgnoreConditions { Keep = 1, Always = 2, Never = 0, Default = 0, Null = null, WriteOnly = 3, ReadOnly = 4 },
+            typeInfo);
+
+        StringAssert.Contains(yaml, "Keep: 1");
+        StringAssert.Contains(yaml, "Never: 0");
+        StringAssert.Contains(yaml, "ReadOnly: 4");
+        Assert.IsFalse(yaml.Contains("Always:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Default:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Null:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("WriteOnly:", StringComparison.Ordinal));
+
+        var deserialized = YamlSerializer.Deserialize("Keep: 10\nAlways: 20\nNever: 60\nDefault: 30\nNull: hi\nWriteOnly: 40\nReadOnly: 50\n", typeInfo);
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(10, deserialized.Keep);
+        Assert.AreEqual(0, deserialized.Always);
+        Assert.AreEqual(60, deserialized.Never);
+        Assert.AreEqual(30, deserialized.Default);
+        Assert.AreEqual("hi", deserialized.Null);
+        Assert.AreEqual(40, deserialized.WriteOnly);
+        Assert.AreEqual(0, deserialized.ReadOnly);
     }
 
     [TestMethod]

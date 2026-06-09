@@ -10,7 +10,7 @@ SharpYaml provides YAML-focused attributes in `SharpYaml.Serialization`. These c
 | --- | --- | --- | --- | --- |
 | [`YamlPropertyNameAttribute`](xref:SharpYaml.Serialization.YamlPropertyNameAttribute) | Member | Yes | Yes | Overrides the serialized property name. |
 | [`YamlPropertyOrderAttribute`](xref:SharpYaml.Serialization.YamlPropertyOrderAttribute) | Member | Yes | Yes | Controls ordering within a mapping. |
-| [`YamlIgnoreAttribute`](xref:SharpYaml.Serialization.YamlIgnoreAttribute) | Member | Yes | Yes | Ignores a member for serialization/deserialization. |
+| [`YamlIgnoreAttribute`](xref:SharpYaml.Serialization.YamlIgnoreAttribute) | Member | Yes | Yes | Ignores a member according to its `Condition` (`Always`, `Never`, `WhenWritingDefault`, `WhenWritingNull`, `WhenWriting`, or `WhenReading`). |
 | [`YamlIncludeAttribute`](xref:SharpYaml.Serialization.YamlIncludeAttribute) | Member | Yes | Yes | Includes a non-public member when supported. |
 | [`YamlRequiredAttribute`](xref:SharpYaml.Serialization.YamlRequiredAttribute) | Member | Yes | Yes | Missing required members throw [`YamlException`](xref:SharpYaml.YamlException). |
 | [`YamlExtensionDataAttribute`](xref:SharpYaml.Serialization.YamlExtensionDataAttribute) | Member | Yes | Yes | Captures extra keys into a dictionary or [`YamlMapping`](xref:SharpYaml.Model.YamlMapping). |

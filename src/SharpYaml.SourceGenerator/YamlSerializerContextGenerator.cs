@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -1250,7 +1250,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append("        var ").Append(memberValueVar).Append(" = ").Append(member.AccessExpression).AppendLine(";");
             builder.Append("        var ").Append(ignoreVar).Append(" = ").Append(member.IgnoreConditionExpression).AppendLine(";");
 
-            builder.Append("        if (").Append(ignoreVar).AppendLine(" == global::SharpYaml.YamlIgnoreCondition.WhenWritingNull)");
+            builder.Append("        if (").Append(ignoreVar).AppendLine(" is global::SharpYaml.YamlIgnoreCondition.Always or global::SharpYaml.YamlIgnoreCondition.WhenWriting)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            // Skip value ignored during serialization.");
+            builder.AppendLine("        }");
+            builder.Append("        else if (").Append(ignoreVar).AppendLine(" == global::SharpYaml.YamlIgnoreCondition.WhenWritingNull)");
             builder.AppendLine("        {");
             if (member.Type.IsReferenceType)
             {
@@ -1594,7 +1598,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
         }
 
-        var requiredMembers = members.Where(static m => m.IsRequired).ToArray();
+        var requiredMembers = members.Where(static m => m.IsRequired && !m.IsIgnoredOnRead).ToArray();
         var readCandidates = members;
         for (var i = 0; i < requiredMembers.Length; i++)
         {
@@ -1681,6 +1685,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine();
             builder.AppendLine("                {");
             builder.AppendLine("                    matched = true;");
+            if (member.IsIgnoredOnRead)
+            {
+                builder.AppendLine("                    reader.Skip();");
+                builder.AppendLine("                    continue;");
+                builder.AppendLine("                }");
+                continue;
+            }
+
             if (member.IsRequired)
             {
                 builder.Append("                    __required").Append(index).Append("_").Append(member.Symbol.Name).AppendLine(" = true;");
@@ -1742,6 +1754,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine();
             builder.AppendLine("            {");
             builder.AppendLine("                matched = true;");
+            if (member.IsIgnoredOnRead)
+            {
+                builder.AppendLine("                reader.Skip();");
+                builder.AppendLine("                continue;");
+                builder.AppendLine("            }");
+                continue;
+            }
+
             if (member.IsRequired)
             {
                 builder.Append("                __required").Append(index).Append("_").Append(member.Symbol.Name).AppendLine(" = true;");
@@ -1868,7 +1888,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             parameterSeenVarNames[i] = $"__ctor{index}_{parameterName}_seen";
         }
 
-        var requiredMembers = members.Where(static m => m.IsRequired).ToArray();
+        var requiredMembers = members.Where(static m => m.IsRequired && !m.IsIgnoredOnRead).ToArray();
+        var readIgnoredMembers = members.Where(static m => m.IsIgnoredOnRead).ToArray();
         var requiredVarBySymbol = new Dictionary<ISymbol, string>(requiredMembers.Length, SymbolEqualityComparer.Default);
         for (var i = 0; i < requiredMembers.Length; i++)
         {
@@ -1878,7 +1899,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         // Buffer writable members that are not constructor-bound. Init-only members are applied in the object initializer
         // when the instance is created, while mutable members are assigned afterwards.
         var bufferedMembers = members
-            .Where(m => IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol))
+            .Where(m => !m.IsIgnoredOnRead && IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol))
             .ToArray();
         var initializerMembers = bufferedMembers.Where(static m => m.NeedsObjectInitializer).ToArray();
         var postCreateBufferedMembers = bufferedMembers.Where(static m => !m.NeedsObjectInitializer).ToArray();
@@ -2024,6 +2045,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("                var matched = false;");
 
+        // Read-ignored members are matched before constructor parameters so they are skipped, not captured as extension data.
+        for (var i = 0; i < readIgnoredMembers.Length; i++)
+        {
+            var member = readIgnoredMembers[i];
+            builder.Append("                if (!matched && global::System.String.Equals(mergeKey, ").Append(member.SerializedNameExpressionForRead)
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("                {");
+            builder.AppendLine("                    matched = true;");
+            builder.AppendLine("                    reader.Skip();");
+            builder.AppendLine("                }");
+        }
+
         // Constructor parameters first.
         for (var i = 0; i < parameters.Length; i++)
         {
@@ -2080,6 +2114,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 member.BlockSequenceMappingStyle,
                 member.BlockSequenceSequenceStyle,
                 member.IsRequired,
+                member.IsIgnoredOnRead,
                 member.IsInitOnly,
                 member.IsRequiredKeyword);
 
@@ -2163,6 +2198,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("            var matched = false;");
 
+        // Read-ignored members are matched before constructor parameters so they are skipped, not captured as extension data.
+        for (var i = 0; i < readIgnoredMembers.Length; i++)
+        {
+            var member = readIgnoredMembers[i];
+            builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
+                .Append(", options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal))");
+            builder.AppendLine();
+            builder.AppendLine("            {");
+            builder.AppendLine("                matched = true;");
+            builder.AppendLine("                reader.Skip();");
+            builder.AppendLine("            }");
+        }
+
         // Constructor parameters first.
         for (var i = 0; i < parameters.Length; i++)
         {
@@ -2220,6 +2268,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 member.BlockSequenceMappingStyle,
                 member.BlockSequenceSequenceStyle,
                 member.IsRequired,
+                member.IsIgnoredOnRead,
                 member.IsInitOnly,
                 member.IsRequiredKeyword);
 
@@ -5846,6 +5895,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             string? blockSequenceMappingStyle,
             string? blockSequenceSequenceStyle,
             bool isRequired,
+            bool isIgnoredOnRead,
             bool isInitOnly,
             bool isRequiredKeyword)
         {
@@ -5861,6 +5911,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             BlockSequenceMappingStyle = blockSequenceMappingStyle;
             BlockSequenceSequenceStyle = blockSequenceSequenceStyle;
             IsRequired = isRequired;
+            IsIgnoredOnRead = isIgnoredOnRead;
             IsInitOnly = isInitOnly;
             IsRequiredKeyword = isRequiredKeyword;
         }
@@ -5877,6 +5928,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public string? BlockSequenceMappingStyle { get; }
         public string? BlockSequenceSequenceStyle { get; }
         public bool IsRequired { get; }
+        public bool IsIgnoredOnRead { get; }
         public bool IsInitOnly { get; }
         public bool IsRequiredKeyword { get; }
         public bool NeedsObjectInitializer => IsInitOnly || IsRequiredKeyword;
@@ -5934,8 +5986,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var (blockSequenceMappingStyle, blockSequenceSequenceStyle) = GetBlockSequenceItemStyles(member);
         var isRequiredKeyword = member is IPropertySymbol { IsRequired: true } || member is IFieldSymbol { IsRequired: true };
         var isRequired = isRequiredKeyword || HasAttribute(member, "SharpYaml.Serialization.YamlRequiredAttribute") || HasAttribute(member, "System.Text.Json.Serialization.JsonRequiredAttribute");
+        var isIgnoredOnRead = TryGetIgnoreCondition(member, out var ignoreCondition) && ignoreCondition == IgnoreWhenReading;
         var isInitOnly = member is IPropertySymbol property && IsInitOnlyProperty(property);
-        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, objectCreationHandling, blockSequenceMappingStyle, blockSequenceSequenceStyle, isRequired, isInitOnly, isRequiredKeyword);
+        return new MemberModel(member, type, nameForRead, nameForWrite, accessExpression, assign, ignoreConditionExpression, converterTypeName, objectCreationHandling, blockSequenceMappingStyle, blockSequenceSequenceStyle, isRequired, isIgnoredOnRead, isInitOnly, isRequiredKeyword);
     }
 
     private static (string ForRead, string ForWrite) GetSerializedMemberNameExpressions(ISymbol member, JsonNamingPolicy? propertyNamingPolicy)
@@ -6005,41 +6058,28 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return property.GetValue(null) as JsonNamingPolicy;
     }
 
+    private const int IgnoreNever = 0;
+    private const int IgnoreWhenWritingNull = 1;
+    private const int IgnoreWhenWritingDefault = 2;
+    private const int IgnoreAlways = 3;
+    private const int IgnoreWhenWriting = 4;
+    private const int IgnoreWhenReading = 5;
+
     private static string GetIgnoreConditionExpression(ISymbol member)
     {
-        // Member-level ignore overrides options default. YAML ignore is treated as Always (handled by member filtering).
-        foreach (var attribute in member.GetAttributes())
+        if (!TryGetIgnoreCondition(member, out var condition))
         {
-            if (attribute.AttributeClass is null)
-            {
-                continue;
-            }
-
-            if (!string.Equals(attribute.AttributeClass.ToDisplayString(), "System.Text.Json.Serialization.JsonIgnoreAttribute", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            foreach (var pair in attribute.NamedArguments)
-            {
-                if (!string.Equals(pair.Key, "Condition", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (pair.Value.Value is int conditionValue)
-                {
-                    return conditionValue switch
-                    {
-                        1 => "global::SharpYaml.YamlIgnoreCondition.WhenWritingNull",
-                        2 => "global::SharpYaml.YamlIgnoreCondition.WhenWritingDefault",
-                        _ => "global::SharpYaml.YamlIgnoreCondition.Never",
-                    };
-                }
-            }
+            return "options.DefaultIgnoreCondition";
         }
 
-        return "options.DefaultIgnoreCondition";
+        return condition switch
+        {
+            IgnoreWhenWritingDefault => "global::SharpYaml.YamlIgnoreCondition.WhenWritingDefault",
+            IgnoreWhenWritingNull => "global::SharpYaml.YamlIgnoreCondition.WhenWritingNull",
+            IgnoreWhenWriting => "global::SharpYaml.YamlIgnoreCondition.WhenWriting",
+            IgnoreWhenReading => "global::SharpYaml.YamlIgnoreCondition.WhenReading",
+            _ => "global::SharpYaml.YamlIgnoreCondition.Never",
+        };
     }
 
     private static string? GetYamlConverterAttributeTypeName(ISymbol member)
@@ -6167,7 +6207,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                         continue;
                     }
 
-                    if (HasAttribute(property, "SharpYaml.Serialization.YamlIgnoreAttribute") || HasJsonIgnoreAlways(property))
+                    if (IsIgnoredAlways(property))
                     {
                         continue;
                     }
@@ -6192,7 +6232,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                         continue;
                     }
 
-                    if (HasAttribute(field, "SharpYaml.Serialization.YamlIgnoreAttribute") || HasJsonIgnoreAlways(field))
+                    if (IsIgnoredAlways(field))
                     {
                         continue;
                     }
@@ -6412,8 +6452,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return false;
     }
 
-    private static bool HasJsonIgnoreAlways(ISymbol symbol)
+    private static bool IsIgnoredAlways(ISymbol symbol)
+        => TryGetIgnoreCondition(symbol, out var condition) && condition == IgnoreAlways;
+
+    private static bool TryGetIgnoreCondition(ISymbol symbol, out int condition)
     {
+        condition = IgnoreNever;
+
         foreach (var attribute in symbol.GetAttributes())
         {
             if (attribute.AttributeClass is null)
@@ -6421,10 +6466,15 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (!string.Equals(attribute.AttributeClass.ToDisplayString(), "System.Text.Json.Serialization.JsonIgnoreAttribute", StringComparison.Ordinal))
+            var attributeName = attribute.AttributeClass.ToDisplayString();
+            var isYamlIgnore = string.Equals(attributeName, "SharpYaml.Serialization.YamlIgnoreAttribute", StringComparison.Ordinal);
+            var isJsonIgnore = string.Equals(attributeName, "System.Text.Json.Serialization.JsonIgnoreAttribute", StringComparison.Ordinal);
+            if (!isYamlIgnore && !isJsonIgnore)
             {
                 continue;
             }
+
+            condition = IgnoreAlways;
 
             foreach (var pair in attribute.NamedArguments)
             {
@@ -6433,15 +6483,31 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     continue;
                 }
 
-                if (pair.Value.Value is int conditionValue && conditionValue == 0 /* JsonIgnoreCondition.Always */)
+                if (pair.Value.Value is not null)
                 {
-                    return true;
+                    var conditionValue = Convert.ToInt32(pair.Value.Value);
+                    condition = isJsonIgnore ? MapJsonIgnoreConditionValue(conditionValue) : conditionValue;
+                    break;
                 }
             }
+
+            return true;
         }
 
         return false;
     }
+
+    private static int MapJsonIgnoreConditionValue(int condition)
+        => condition switch
+        {
+            0 => IgnoreNever,
+            1 => IgnoreAlways,
+            2 => IgnoreWhenWritingDefault,
+            3 => IgnoreWhenWritingNull,
+            4 => IgnoreWhenWriting,
+            5 => IgnoreWhenReading,
+            _ => IgnoreNever,
+        };
 
     private static bool DerivesFromYamlSerializerContext(INamedTypeSymbol symbol)
     {

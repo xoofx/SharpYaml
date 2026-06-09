@@ -284,6 +284,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
+            if (member.ShouldIgnoreOnRead)
+            {
+                reader.Skip();
+                continue;
+            }
+
             if (requiredSeen is not null && member.RequiredIndex >= 0)
             {
                 requiredSeen[member.RequiredIndex] = true;
@@ -417,6 +423,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
+            if (member.ShouldIgnoreOnRead)
+            {
+                reader.Skip();
+                continue;
+            }
+
             if (requiredSeen is not null && member.RequiredIndex >= 0)
             {
                 requiredSeen[member.RequiredIndex] = true;
@@ -524,6 +536,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
 
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+            {
+                reader.Skip();
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var ignoredMember) && ignoredMember.ShouldIgnoreOnRead)
             {
                 reader.Skip();
                 continue;
@@ -796,7 +814,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                         continue;
                     }
 
-                    if (contract.TryGetMember(pair.Key, out var member) && member.CanWrite)
+                    if (contract.TryGetMember(pair.Key, out var member) && member.CanWrite && !member.ShouldIgnoreOnRead)
                     {
                         member.SetValue(instance, pair.Value);
                     }
@@ -845,6 +863,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (contract.TryGetMember(key, out var member))
             {
+                if (member.ShouldIgnoreOnRead)
+                {
+                    reader.Skip();
+                    continue;
+                }
+
                 if (requiredSeen is not null && member.RequiredIndex >= 0)
                 {
                     requiredSeen[member.RequiredIndex] = true;
@@ -945,6 +969,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (contract.TryGetMember(key, out var member))
             {
+                if (member.ShouldIgnoreOnRead)
+                {
+                    reader.Skip();
+                    continue;
+                }
+
                 if (requiredSeen is not null && member.RequiredIndex >= 0)
                 {
                     requiredSeen[member.RequiredIndex] = true;
@@ -1203,6 +1233,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
 
             if (explicitKeys.Contains(key))
+            {
+                reader.Skip();
+                continue;
+            }
+
+            if (contract.TryGetMember(key, out var ignoredMember) && ignoredMember.ShouldIgnoreOnRead)
             {
                 reader.Skip();
                 continue;
@@ -1526,7 +1562,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                         throw new NotSupportedException($"Type '{type}' defines multiple extension data members.");
                     }
 
-                    if (IsIgnored(property, out _))
+                    if (GetIgnoreCondition(property) is not null and not YamlIgnoreCondition.Never)
                     {
                         throw new NotSupportedException($"Extension data member '{property.Name}' on '{type}' cannot be ignored.");
                     }
@@ -1551,7 +1587,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     continue;
                 }
 
-                if (IsIgnored(property, out var ignoreCondition))
+                var ignoreCondition = GetIgnoreCondition(property);
+                if (ignoreCondition == YamlIgnoreCondition.Always)
                 {
                     continue;
                 }
@@ -1564,7 +1601,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var member = new Member(name, order, token, property.PropertyType, property, ignoreCondition, IsRequired(property), canWrite, GetObjectCreationHandling(property), mappingStyle, sequenceStyle);
                 member.Converter = CreateConverterFromAttribute(property, property.PropertyType, options);
                 members.Add(member);
-                if (member.IsRequired)
+                if (member.IsRequired && !member.ShouldIgnoreOnRead)
                 {
                     requiredMembers.Add(member);
                 }
@@ -1579,7 +1616,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                         throw new NotSupportedException($"Type '{type}' defines multiple extension data members.");
                     }
 
-                    if (IsIgnored(field, out _))
+                    if (GetIgnoreCondition(field) is not null and not YamlIgnoreCondition.Never)
                     {
                         throw new NotSupportedException($"Extension data member '{field.Name}' on '{type}' cannot be ignored.");
                     }
@@ -1601,7 +1638,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                     continue;
                 }
 
-                if (IsIgnored(field, out var ignoreCondition))
+                var ignoreCondition = GetIgnoreCondition(field);
+                if (ignoreCondition == YamlIgnoreCondition.Always)
                 {
                     continue;
                 }
@@ -1614,7 +1652,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 var member = new Member(name, order, token, field.FieldType, field, ignoreCondition, IsRequired(field), canWrite: !field.IsInitOnly, GetObjectCreationHandling(field), mappingStyle, sequenceStyle);
                 member.Converter = CreateConverterFromAttribute(field, field.FieldType, options);
                 members.Add(member);
-                if (member.IsRequired)
+                if (member.IsRequired && !member.ShouldIgnoreOnRead)
                 {
                     requiredMembers.Add(member);
                 }
@@ -2299,6 +2337,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public bool CanWrite { get; }
 
+        public bool ShouldIgnoreOnRead => IgnoreCondition == YamlIgnoreCondition.WhenReading;
+
         public JsonObjectCreationHandling? ObjectCreationHandling { get; }
 
         public YamlSequenceItemStyle BlockSequenceMappingStyle { get; }
@@ -2350,7 +2390,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             switch (ignoreCondition)
             {
                 case YamlIgnoreCondition.Never:
+                case YamlIgnoreCondition.WhenReading:
                     return false;
+
+                case YamlIgnoreCondition.Always:
+                case YamlIgnoreCondition.WhenWriting:
+                    return true;
 
                 case YamlIgnoreCondition.WhenWritingNull:
                     return value is null;
@@ -2648,34 +2693,30 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         converter.Write(writer, value);
     }
 
-    private static bool IsIgnored(MemberInfo member, out YamlIgnoreCondition? ignoreCondition)
+    private static YamlIgnoreCondition? GetIgnoreCondition(MemberInfo member)
     {
-        ignoreCondition = null;
-
-        if (member.IsDefined(typeof(YamlIgnoreAttribute), inherit: true))
+        var yamlIgnore = member.GetCustomAttribute<YamlIgnoreAttribute>(inherit: true);
+        if (yamlIgnore is not null)
         {
-            ignoreCondition = YamlIgnoreCondition.WhenWritingDefault;
-            return true;
+            return yamlIgnore.Condition;
         }
 
         var jsonIgnore = member.GetCustomAttribute<JsonIgnoreAttribute>(inherit: true);
-        if (jsonIgnore is not null)
+        if (jsonIgnore is null)
         {
-            if (jsonIgnore.Condition == JsonIgnoreCondition.Always)
-            {
-                ignoreCondition = YamlIgnoreCondition.WhenWritingDefault;
-                return true;
-            }
-
-            ignoreCondition = jsonIgnore.Condition switch
-            {
-                JsonIgnoreCondition.WhenWritingNull => YamlIgnoreCondition.WhenWritingNull,
-                JsonIgnoreCondition.WhenWritingDefault => YamlIgnoreCondition.WhenWritingDefault,
-                _ => null,
-            };
+            return null;
         }
 
-        return false;
+        return (int)jsonIgnore.Condition switch
+        {
+            0 => YamlIgnoreCondition.Never,
+            1 => YamlIgnoreCondition.Always,
+            2 => YamlIgnoreCondition.WhenWritingDefault,
+            3 => YamlIgnoreCondition.WhenWritingNull,
+            4 => YamlIgnoreCondition.WhenWriting,
+            5 => YamlIgnoreCondition.WhenReading,
+            _ => null,
+        };
     }
 
     private static bool IsRequired(MemberInfo member)

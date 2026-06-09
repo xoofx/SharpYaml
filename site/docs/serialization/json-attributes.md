@@ -11,7 +11,7 @@ Member-level attributes:
 | Attribute | Reflection | Source generated | Notes |
 | --- | --- | --- |
 | [`JsonPropertyNameAttribute`](xref:System.Text.Json.Serialization.JsonPropertyNameAttribute) | Yes | Yes | Overrides the serialized name. |
-| [`JsonIgnoreAttribute`](xref:System.Text.Json.Serialization.JsonIgnoreAttribute) | Yes | Yes | Supports `Always`, `Never`, `WhenWritingNull`, `WhenWritingDefault`. |
+| [`JsonIgnoreAttribute`](xref:System.Text.Json.Serialization.JsonIgnoreAttribute) | Yes | Yes | Supports `Always`, `Never`, `WhenWritingDefault`, `WhenWritingNull`, `WhenWriting`, and `WhenReading`. |
 | [`JsonIncludeAttribute`](xref:System.Text.Json.Serialization.JsonIncludeAttribute) | Yes | Yes | Enables non-public members in supported scenarios. |
 | [`JsonPropertyOrderAttribute`](xref:System.Text.Json.Serialization.JsonPropertyOrderAttribute) | Yes | Yes | Controls member ordering within mappings. |
 | [`JsonRequiredAttribute`](xref:System.Text.Json.Serialization.JsonRequiredAttribute) | Yes | Yes | Missing required members throw [`YamlException`](xref:SharpYaml.YamlException). |

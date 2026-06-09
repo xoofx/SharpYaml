@@ -43,6 +43,52 @@ public sealed class YamlObjectConverterContractTests
         public int Count { get; set; }
     }
 
+    private sealed class YamlIgnoreConditionModel
+    {
+        public int Keep { get; set; }
+
+        [YamlIgnore]
+        public int Always { get; set; }
+
+        [YamlIgnore(Condition = YamlIgnoreCondition.Never)]
+        public int Never { get; set; }
+
+        [YamlIgnore(Condition = YamlIgnoreCondition.WhenWritingDefault)]
+        public int Default { get; set; }
+
+        [YamlIgnore(Condition = YamlIgnoreCondition.WhenWritingNull)]
+        public string? Null { get; set; }
+
+        [YamlIgnore(Condition = YamlIgnoreCondition.WhenWriting)]
+        public int WriteOnly { get; set; }
+
+        [YamlIgnore(Condition = YamlIgnoreCondition.WhenReading)]
+        public int ReadOnly { get; set; }
+    }
+
+    private sealed class JsonIgnoreConditionModel
+    {
+        public int Keep { get; set; }
+
+        [JsonIgnore]
+        public int Always { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+        public int Never { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public int Default { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Null { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWriting)]
+        public int WriteOnly { get; set; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenReading)]
+        public int ReadOnly { get; set; }
+    }
+
     private sealed class Person
     {
         public string FirstName { get; set; } = string.Empty;
@@ -125,6 +171,58 @@ public sealed class YamlObjectConverterContractTests
 
         var yaml2 = YamlSerializer.Serialize(new DefaultIgnoredModel { Count = 2 });
         StringAssert.Contains(yaml2, "Count: 2");
+    }
+
+    [TestMethod]
+    public void YamlIgnoreCondition_MatchesJsonIgnoreBehavior()
+    {
+        var yaml = YamlSerializer.Serialize(
+            new YamlIgnoreConditionModel { Keep = 1, Always = 2, Never = 0, Default = 0, Null = null, WriteOnly = 3, ReadOnly = 4 },
+            new YamlSerializerOptions { DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingDefault });
+
+        StringAssert.Contains(yaml, "Keep: 1");
+        StringAssert.Contains(yaml, "Never: 0");
+        StringAssert.Contains(yaml, "ReadOnly: 4");
+        Assert.IsFalse(yaml.Contains("Always:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Default:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Null:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("WriteOnly:", StringComparison.Ordinal));
+
+        var deserialized = YamlSerializer.Deserialize<YamlIgnoreConditionModel>("Keep: 10\nAlways: 20\nNever: 60\nDefault: 30\nNull: hi\nWriteOnly: 40\nReadOnly: 50\n");
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(10, deserialized.Keep);
+        Assert.AreEqual(0, deserialized.Always);
+        Assert.AreEqual(60, deserialized.Never);
+        Assert.AreEqual(30, deserialized.Default);
+        Assert.AreEqual("hi", deserialized.Null);
+        Assert.AreEqual(40, deserialized.WriteOnly);
+        Assert.AreEqual(0, deserialized.ReadOnly);
+    }
+
+    [TestMethod]
+    public void JsonIgnoreCondition_AllConditionsAreHonored()
+    {
+        var yaml = YamlSerializer.Serialize(
+            new JsonIgnoreConditionModel { Keep = 1, Always = 2, Never = 0, Default = 0, Null = null, WriteOnly = 3, ReadOnly = 4 },
+            new YamlSerializerOptions { DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingDefault });
+
+        StringAssert.Contains(yaml, "Keep: 1");
+        StringAssert.Contains(yaml, "Never: 0");
+        StringAssert.Contains(yaml, "ReadOnly: 4");
+        Assert.IsFalse(yaml.Contains("Always:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Default:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("Null:", StringComparison.Ordinal));
+        Assert.IsFalse(yaml.Contains("WriteOnly:", StringComparison.Ordinal));
+
+        var deserialized = YamlSerializer.Deserialize<JsonIgnoreConditionModel>("Keep: 10\nAlways: 20\nNever: 60\nDefault: 30\nNull: hi\nWriteOnly: 40\nReadOnly: 50\n");
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(10, deserialized.Keep);
+        Assert.AreEqual(0, deserialized.Always);
+        Assert.AreEqual(60, deserialized.Never);
+        Assert.AreEqual(30, deserialized.Default);
+        Assert.AreEqual("hi", deserialized.Null);
+        Assert.AreEqual(40, deserialized.WriteOnly);
+        Assert.AreEqual(0, deserialized.ReadOnly);
     }
 
     [TestMethod]
