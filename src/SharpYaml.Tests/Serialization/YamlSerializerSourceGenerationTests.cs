@@ -3,11 +3,15 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Model;
 using SharpYaml.Serialization;
+using SharpYaml.SourceGeneration;
 
 namespace SharpYaml.Tests.Serialization;
 
@@ -747,6 +751,148 @@ internal partial class TestYamlSerializerContextWithCustomPropertyNames : YamlSe
 [TestClass]
 public class YamlSerializerSourceGenerationTests
 {
+    [TestMethod]
+    public void GeneratedSource_ResolvesAttributeDrivenBranchesAtBuildTime()
+    {
+        const string source = """
+            #nullable enable
+
+            using System.Collections.Generic;
+            using System.Text.Json.Serialization;
+            using SharpYaml;
+            using SharpYaml.Model;
+            using SharpYaml.Serialization;
+
+            namespace SharpYaml.GeneratedSourceProbe;
+
+            [YamlPolymorphic]
+            [YamlDerivedType(typeof(StaticAttributeDerived), "derived", Tag = "!derived")]
+            internal class StaticAttributeBase
+            {
+                [YamlIgnore(Condition = YamlIgnoreCondition.Never)]
+                public StaticAttributeChild Child { get; } = new();
+
+                [YamlIgnore(Condition = YamlIgnoreCondition.WhenWritingDefault)]
+                public int DefaultValue { get; set; }
+
+                public string? Optional { get; set; }
+
+                public Dictionary<string, int>? Map { get; set; }
+
+                [YamlIgnore(Condition = YamlIgnoreCondition.WhenWriting)]
+                public int WriteOnly { get; set; }
+            }
+
+            internal sealed class StaticAttributeDerived : StaticAttributeBase
+            {
+                [YamlIgnore(Condition = YamlIgnoreCondition.Never)]
+                public int Extra { get; set; }
+            }
+
+            internal sealed class StaticAttributeChild
+            {
+                [YamlIgnore(Condition = YamlIgnoreCondition.Never)]
+                public int Value { get; set; }
+            }
+
+            internal sealed class StaticDictionaryMember
+            {
+                public Dictionary<string, int>? Values { get; set; }
+            }
+
+            internal sealed class StaticExtensionDictionary
+            {
+                [YamlExtensionData]
+                public Dictionary<string, object>? Extra { get; set; }
+            }
+
+            internal sealed class StaticExtensionMapping
+            {
+                [YamlExtensionData]
+                public YamlMapping? Extra { get; set; }
+            }
+
+            [YamlSourceGenerationOptions(
+                PropertyNameCaseInsensitive = true,
+                DefaultIgnoreCondition = YamlIgnoreCondition.WhenWritingNull,
+                MappingOrder = YamlMappingOrderPolicy.Sorted,
+                Schema = YamlSchemaKind.Core,
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+                PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate,
+                DuplicateKeyHandling = YamlDuplicateKeyHandling.LastWins,
+                DiscriminatorStyle = YamlTypeDiscriminatorStyle.Tag,
+                TypeDiscriminatorPropertyName = "$kind",
+                UnknownDerivedTypeHandling = YamlUnknownDerivedTypeHandling.FallBackToBase)]
+            [YamlSerializable(typeof(StaticAttributeBase))]
+            [YamlSerializable(typeof(StaticAttributeChild))]
+            [YamlSerializable(typeof(StaticDictionaryMember))]
+            [YamlSerializable(typeof(StaticExtensionDictionary))]
+            [YamlSerializable(typeof(StaticExtensionMapping))]
+            [YamlSerializable(typeof(Dictionary<string, int>))]
+            internal partial class StaticAttributeContext : YamlSerializerContext
+            {
+            }
+            """;
+
+        var generatedSource = GenerateSourceFor(source, "StaticAttributeContext.g.cs");
+
+        AssertGeneratedSourceDoesNotContain(generatedSource, "__ignore");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.DefaultIgnoreCondition");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "var discriminatorStyle =");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "if (discriminatorStyle");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "unknownDerivedTypeHandling");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.PolymorphismOptions");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.PropertyNameCaseInsensitive");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.Schema is");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.MappingOrder");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.UnmappedMemberHandling");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.PreferredObjectCreationHandling");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "options.DuplicateKeyHandling");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "if (options.");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "switch (options.");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "extensionData is not global::SharpYaml.Model.YamlMapping");
+    }
+
+    private static string GenerateSourceFor(string source, string hintName)
+    {
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
+        var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
+        var trustedPlatformAssemblies = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? string.Empty)
+            .Split(System.IO.Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+        var references = trustedPlatformAssemblies
+            .Concat(new[] { typeof(YamlSerializerContext).Assembly.Location })
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(static path => MetadataReference.CreateFromFile(path));
+        var compilation = CSharpCompilation.Create(
+            "SharpYaml.GeneratedSourceProbe",
+            new[] { syntaxTree },
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new YamlSerializerContextGenerator()).WithUpdatedParseOptions(parseOptions);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
+
+        var errors = generatorDiagnostics
+            .Concat(outputCompilation.GetDiagnostics())
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ToArray();
+        if (errors.Length != 0)
+        {
+            Assert.Fail(string.Join(Environment.NewLine, errors.Select(static diagnostic => diagnostic.ToString())));
+        }
+
+        var generatedSource = driver.GetRunResult()
+            .Results
+            .SelectMany(static result => result.GeneratedSources)
+            .SingleOrDefault(source => string.Equals(source.HintName, hintName, StringComparison.Ordinal));
+
+        Assert.AreNotEqual(default, generatedSource, $"Expected generated source '{hintName}'.");
+        return generatedSource.SourceText.ToString();
+    }
+
+    private static void AssertGeneratedSourceDoesNotContain(string generatedSource, string text)
+        => Assert.IsFalse(generatedSource.Contains(text, StringComparison.Ordinal), $"Generated source should not contain '{text}'.");
+
     [TestMethod]
     public void GeneratedContext_YamlNodeRoot_UsesModelConverter()
     {
