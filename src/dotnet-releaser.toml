@@ -4,3 +4,7 @@ project = "SharpYaml.sln"
 [github]
 user = "xoofx"
 repo = "SharpYaml"
+branches = ["v2_security_fixes_only"]
+[nuget]
+user = "xoofx"
+trusted_publishing = true

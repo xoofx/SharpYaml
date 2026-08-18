@@ -5,15 +5,16 @@ on:
     paths-ignore:
     - 'doc/**'
     - 'img/**'
-    - 'changelog.md'
-    - 'readme.md'
+    - '*.md'
   pull_request:
 
 jobs:
   build:
-    uses: xoofx/.github/.github/workflows/dotnet.yml@main
-    with:
-      # so the signing happens
-      runs-on: 'windows-latest'
-    secrets:
-      NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+    permissions:
+      id-token: write
+      actions: write
+      contents: write
+    runs-on: 'windows-latest'
+    steps:
+      - name: "Build, Test, Pack and Publish"
+        uses: xoofx/.github/.github/actions/dotnet-releaser-action@main
