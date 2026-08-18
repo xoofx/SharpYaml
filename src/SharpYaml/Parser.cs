@@ -62,12 +62,42 @@ namespace SharpYaml
 {
     public static class Parser
     {
+        /// <summary>
+        /// Creates a parser for the specified YAML input using the default maximum nesting depth.
+        /// </summary>
+        /// <param name="reader">The text reader that provides the YAML input.</param>
+        /// <returns>An <see cref="IParser"/> that reads parsing events from <paramref name="reader"/>.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <c>null</c>.</exception>
         public static IParser CreateParser(TextReader reader)
         {
-            if (reader is StringReader stringReader)
-                return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()));
+            return CreateParser(reader, YamlDepthHelper.DefaultMaxDepth);
+        }
 
-            else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength));
+        /// <summary>
+        /// Creates a parser for the specified YAML input using a configurable maximum nesting depth.
+        /// </summary>
+        /// <param name="reader">The text reader that provides the YAML input.</param>
+        /// <param name="maxDepth">
+        /// The maximum allowed nesting depth for mappings and sequences. A value of <c>0</c> uses the default limit of 64.
+        /// </param>
+        /// <returns>An <see cref="IParser"/> that reads parsing events from <paramref name="reader"/>.</returns>
+        /// <remarks>
+        /// This overload is provided instead of adding an optional parameter to <see cref="CreateParser(TextReader)"/>
+        /// so that callers compiled against earlier versions keep binary compatibility.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="reader"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxDepth"/> is less than 0.</exception>
+        public static IParser CreateParser(TextReader reader, int maxDepth)
+        {
+            if (reader == null)
+                throw new ArgumentNullException("reader");
+
+            var effectiveMaxDepth = YamlDepthHelper.GetEffectiveMaxDepth(maxDepth, nameof(maxDepth));
+
+            if (reader is StringReader stringReader)
+                return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()), effectiveMaxDepth);
+
+            else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength), effectiveMaxDepth);
         }
     }
 
@@ -81,6 +111,8 @@ namespace SharpYaml
         private ParserState state;
 
         private readonly Scanner<TBuffer> scanner;
+        private readonly int maxDepth;
+        private int currentDepth;
         private Token? currentToken;
 
         private Token GetCurrentToken()
@@ -100,7 +132,27 @@ namespace SharpYaml
         /// </summary>
         /// <param name="buffer">The input where the YAML stream is to be read.</param>
         public Parser(TBuffer buffer)
+            : this(buffer, YamlDepthHelper.DefaultMaxDepth)
         {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="IParser"/> class.
+        /// </summary>
+        /// <param name="buffer">The input where the YAML stream is to be read.</param>
+        /// <param name="maxDepth">The maximum allowed nesting depth for mappings and sequences.</param>
+        /// <remarks>
+        /// This overload is provided instead of adding an optional parameter to <see cref="Parser{TBuffer}(TBuffer)"/>
+        /// so that callers compiled against earlier versions keep binary compatibility.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxDepth"/> is less than 0.</exception>
+        public Parser(TBuffer buffer, int maxDepth)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException("buffer");
+
+            this.maxDepth = YamlDepthHelper.GetEffectiveMaxDepth(maxDepth, nameof(maxDepth));
             scanner = new Scanner<TBuffer>(buffer);
         }
 
@@ -125,7 +177,25 @@ namespace SharpYaml
             {
                 // Generate the next event.
                 Current = StateMachine();
+                EnforceMaxDepth(Current);
                 return true;
+            }
+        }
+
+        private void EnforceMaxDepth(Event current)
+        {
+            if (current is Events.SequenceStart || current is Events.MappingStart)
+            {
+                if (currentDepth >= maxDepth)
+                {
+                    throw YamlDepthHelper.CreateMaxDepthExceededException(maxDepth, current.Start, current.End);
+                }
+
+                currentDepth++;
+            }
+            else if (current is Events.SequenceEnd || current is Events.MappingEnd)
+            {
+                currentDepth--;
             }
         }
 

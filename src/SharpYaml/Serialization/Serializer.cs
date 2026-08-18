@@ -308,7 +308,7 @@ namespace SharpYaml.Serialization
         {
             if (reader == null)
                 throw new ArgumentNullException("reader");
-            return Deserialize(new EventReader(Parser.CreateParser(reader)), expectedType, existingObject, contextSettings);
+            return Deserialize(new EventReader(Parser.CreateParser(reader, Settings.MaxDepth)), expectedType, existingObject, contextSettings);
         }
 
         /// <summary>
@@ -325,7 +325,7 @@ namespace SharpYaml.Serialization
         {
             if (reader == null)
                 throw new ArgumentNullException("reader");
-            return Deserialize(new EventReader(Parser.CreateParser(reader)), expectedType, existingObject, contextSettings, out context);
+            return Deserialize(new EventReader(Parser.CreateParser(reader, Settings.MaxDepth)), expectedType, existingObject, contextSettings, out context);
         }
 
         /// <summary>
@@ -588,7 +588,12 @@ namespace SharpYaml.Serialization
             {
                 writer = new JsonEventEmitter(writer);
             }
-            return Settings.EmitAlias ? new AnchorEventEmitter(writer) : writer;
+            if (Settings.EmitAlias)
+            {
+                writer = new AnchorEventEmitter(writer);
+            }
+
+            return new DepthLimitingEventEmitter(writer, Settings.MaxDepth);
         }
     }
 }

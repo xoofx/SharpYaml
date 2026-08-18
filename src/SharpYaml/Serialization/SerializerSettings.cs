@@ -64,6 +64,7 @@ namespace SharpYaml.Serialization
         private IAttributeRegistry attributeRegistry;
         private IObjectFactory objectFactory;
         private int preferredIndent;
+        private int maxDepth;
         private string specialCollectionMember;
         private IObjectSerializerBackend objectSerializerBackend;
         private IMemberNamingConvention _namingConvention;
@@ -81,6 +82,7 @@ namespace SharpYaml.Serialization
         public SerializerSettings(IYamlSchema? schema)
         {
             PreferredIndent = 2;
+            MaxDepth = YamlDepthHelper.DefaultMaxDepth;
             IndentLess = false;
             EmitAlias = true;
             ResetAlias = false;
@@ -116,6 +118,22 @@ namespace SharpYaml.Serialization
                 if (value < 1)
                     throw new ArgumentOutOfRangeException("value", "Expecting value > 0");
                 preferredIndent = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum allowed nesting depth for mappings and sequences.
+        /// A value of <c>0</c> uses the default limit of 64.
+        /// </summary>
+        /// <value>The maximum allowed nesting depth for mappings and sequences.</value>
+        /// <exception cref="System.ArgumentOutOfRangeException">Value is less than 0.</exception>
+        public int MaxDepth
+        {
+            get { return maxDepth; }
+            set
+            {
+                YamlDepthHelper.ValidateMaxDepth(value, "value");
+                maxDepth = value;
             }
         }
 
