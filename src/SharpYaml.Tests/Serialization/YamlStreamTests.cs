@@ -206,7 +206,7 @@ namespace SharpYaml.Tests.Serialization
         public void AllAliasesMustBeResolved()
         {
             var original = new YamlStream();
-            Assert.Throws<AnchorNotFoundException>(() => original.Load(YamlFile("invalid-reference.yaml")));
+            NUnitCompat.AssertThrows<AnchorNotFoundException>(() => original.Load(YamlFile("invalid-reference.yaml")));
         }
 
         private void RoundtripTest(string yamlFileName)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -20,7 +20,7 @@ namespace SharpYaml.Tests
             var yaml = CreateDeepFlowSequenceYaml(DefaultMaxDepth + 1);
             var parser = Parser.CreateParser(new StringReader(yaml));
 
-            var exception = Assert.Throws<YamlException>(() => Drain(parser));
+            var exception = NUnitCompat.AssertThrows<YamlException>(() => Drain(parser));
             StringAssert.Contains("maximum nesting depth", exception.Message);
         }
 
@@ -39,7 +39,7 @@ namespace SharpYaml.Tests
         [Test]
         public void Parser_MaxDepth_CannotBeNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => Parser.CreateParser(new StringReader("0"), -1));
+            NUnitCompat.AssertThrows<ArgumentOutOfRangeException>(() => Parser.CreateParser(new StringReader("0"), -1));
         }
 
         [Test]
@@ -47,7 +47,7 @@ namespace SharpYaml.Tests
         {
             var yaml = CreateDeepFlowMappingYaml(DefaultMaxDepth + 1);
 
-            var exception = Assert.Throws<YamlException>(() => ModelYamlStream.Load(new StringReader(yaml)));
+            var exception = NUnitCompat.AssertThrows<YamlException>(() => ModelYamlStream.Load(new StringReader(yaml)));
             StringAssert.Contains("maximum nesting depth", exception.Message);
         }
 
@@ -57,7 +57,7 @@ namespace SharpYaml.Tests
             var yaml = CreateDeepFlowSequenceYaml(DefaultMaxDepth + 1);
             var serializer = new Serializer();
 
-            var exception = Assert.Throws<YamlException>(() => serializer.Deserialize(yaml));
+            var exception = NUnitCompat.AssertThrows<YamlException>(() => serializer.Deserialize(yaml));
             StringAssert.Contains("maximum nesting depth", exception.Message);
         }
 
@@ -76,7 +76,7 @@ namespace SharpYaml.Tests
         [Test]
         public void SerializerSettings_MaxDepth_CannotBeNegative()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => new SerializerSettings { MaxDepth = -1 });
+            NUnitCompat.AssertThrows<ArgumentOutOfRangeException>(() => new SerializerSettings { MaxDepth = -1 });
         }
 
         [Test]
@@ -85,7 +85,7 @@ namespace SharpYaml.Tests
             var value = CreateNestedList(DefaultMaxDepth + 1);
             var serializer = new Serializer();
 
-            var exception = Assert.Throws<YamlException>(() => serializer.Serialize(value));
+            var exception = NUnitCompat.AssertThrows<YamlException>(() => serializer.Serialize(value));
             StringAssert.Contains("maximum nesting depth", exception.Message);
         }
 

@@ -195,7 +195,7 @@ namespace SharpYaml.Tests.Serialization
         {
             var serializer = new Serializer();
 
-            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object)));
+            NUnitCompat.AssertThrows<YamlException>(() => serializer.Deserialize(YamlFile("explicitType.yaml"), typeof(object)));
         }
 
         [Test]
@@ -228,7 +228,7 @@ namespace SharpYaml.Tests.Serialization
         public void DeserializeUnregisterdExplicitDictionary()
         {
             var serializer = new Serializer();
-            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("dictionaryExplicit.yaml")));
+            NUnitCompat.AssertThrows<YamlException>(() => serializer.Deserialize(YamlFile("dictionaryExplicit.yaml")));
         }
 
         [Test]
@@ -278,7 +278,7 @@ namespace SharpYaml.Tests.Serialization
         public void DeserializeUnregisterdExplicitList()
         {
             var serializer = new Serializer();
-            Assert.Throws<YamlException>(() => serializer.Deserialize(YamlFile("listExplicit.yaml")));
+            NUnitCompat.AssertThrows<YamlException>(() => serializer.Deserialize(YamlFile("listExplicit.yaml")));
         }
 
         [Test]
@@ -575,7 +575,7 @@ namespace SharpYaml.Tests.Serialization
 
             var copy = (ContainsIgnore)serializer.Deserialize(new StringReader(buffer.ToString()), typeof(ContainsIgnore));
 
-            Assert.Throws<NotImplementedException>(() =>
+            NUnitCompat.AssertThrows<NotImplementedException>(() =>
             {
                 if (copy.IgnoreMe == null)
                 {
@@ -1012,7 +1012,7 @@ Dog:
         {
             var serializer = new Serializer();
 
-            Assert.Throws<AnchorNotFoundException>(() =>
+            NUnitCompat.AssertThrows<AnchorNotFoundException>(() =>
                 serializer.Deserialize<X>(YamlText(@"
 					Nothing: *forward
 					MyString: ForwardReference

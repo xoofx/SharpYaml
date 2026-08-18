@@ -178,7 +178,7 @@ Value: World!
             serializer.Deserialize(text);
 
             text = serializer.Serialize(data);
-            Assert.Throws<AnchorNotFoundException>(() => serializer.Deserialize(text));
+            NUnitCompat.AssertThrows<AnchorNotFoundException>(() => serializer.Deserialize(text));
         }
 
         private static readonly object[] s_serializerSettingsReuseSuccess =
@@ -701,7 +701,7 @@ Value: 0
         //{
         //    var serializer = new Serializer();
         //    var text = serializer.Serialize(new ClassWithMemberIEnumerable(), typeof (ClassWithMemberIEnumerable));
-        //    Assert.Throws<YamlException>(() => serializer.Deserialize(text, typeof(ClassWithMemberIEnumerable)));
+        //    NUnitCompat.AssertThrows<YamlException>(() => serializer.Deserialize(text, typeof(ClassWithMemberIEnumerable)));
         //    var value = serializer.Deserialize(text);
 
         //    Assert.True(value is IDictionary<object, object>);
