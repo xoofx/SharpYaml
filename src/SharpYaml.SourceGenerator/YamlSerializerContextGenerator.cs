@@ -2226,7 +2226,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        var instanceAnchor = reader.Anchor;");
         }
 
-        if (typeSymbol is INamedTypeSymbol ctorType && ctorType.TypeKind == TypeKind.Class && !ctorType.IsAbstract)
+        if (typeSymbol is INamedTypeSymbol ctorType &&
+            ctorType.TypeKind is TypeKind.Class or TypeKind.Struct &&
+            !ctorType.IsAbstract)
         {
             if (!TrySelectDeserializationConstructor(ctorType, out var selectedConstructor, out var constructorError))
             {
@@ -3291,7 +3293,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        };");
         }
 
-        builder.AppendLine("        if (instanceAnchor is not null) { reader.RegisterAnchor(instanceAnchor, instance); }");
+        if (typeSymbol.IsReferenceType)
+        {
+            builder.AppendLine("        if (instanceAnchor is not null) { reader.RegisterAnchor(instanceAnchor, instance); }");
+        }
 
         if (emitLifecycleCallbacks)
         {

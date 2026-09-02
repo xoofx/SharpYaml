@@ -201,10 +201,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return ReadObjectCoreWithConstructor(reader, contract);
         }
 
-        T instance;
+        object instance;
         try
         {
-            instance = (T)contract.CreateInstance();
+            instance = contract.CreateInstance();
         }
         catch (YamlException)
         {
@@ -217,7 +217,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         if (reader.ReferenceReader is not null && reader.Anchor is not null)
         {
-            reader.ReferenceReader.Register(reader.Anchor, instance!);
+            reader.ReferenceReader.Register(reader.Anchor, instance);
         }
 
         if (instance is IYamlOnDeserializing onDeserializing)
@@ -258,7 +258,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                ReadAndApplyMergeToInstance(reader, instance!, contract, explicitKeys!, requiredSeen);
+                ReadAndApplyMergeToInstance(reader, instance, contract, explicitKeys!, requiredSeen);
                 continue;
             }
 
@@ -274,7 +274,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
                 try
                 {
-                    ReadExtensionData(reader, instance!, contract.ExtensionData, key);
+                    ReadExtensionData(reader, instance, contract.ExtensionData, key);
                 }
                 catch (YamlException)
                 {
@@ -310,7 +310,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 continue;
             }
 
-            ReadAndApplyMemberValue(reader, instance!, contract, member, key, keyStart, keyEnd);
+            ReadAndApplyMemberValue(reader, instance, contract, member, key, keyStart, keyEnd);
         }
 
         if (requiredSeen is not null)
@@ -349,7 +349,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             }
         }
 
-        return instance;
+        return (T)instance;
     }
 
     private static void PopulateObjectCore(YamlReader reader, Contract contract, object instance)
