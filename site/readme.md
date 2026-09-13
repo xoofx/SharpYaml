@@ -14,8 +14,8 @@ og_type: website
     </p>
     <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
       <a href="{{site.basepath}}/docs/getting-started/" class="btn btn-primary btn-lg"><i class="bi bi-rocket-takeoff"></i> Get started</a>
-      <a href="{{site.basepath}}/docs/serialization/overview/" class="btn btn-outline-secondary btn-lg"><i class="bi bi-braces"></i> Serialization</a>
-      <a href="{{site.basepath}}/docs/low-level/readme/" class="btn btn-outline-secondary btn-lg"><i class="bi bi-diagram-3"></i> Low-level APIs</a>
+      <a href="{{site.basepath}}/docs/serialization/" class="btn btn-outline-secondary btn-lg"><i class="bi bi-braces"></i> Serialization</a>
+      <a href="{{site.basepath}}/docs/low-level/" class="btn btn-outline-secondary btn-lg"><i class="bi bi-diagram-3"></i> Low-level APIs</a>
       <a href="https://github.com/xoofx/SharpYaml" class="btn btn-info btn-lg"><i class="bi bi-github"></i> GitHub</a>
     </div>
     <div class="mt-4 text-start mx-auto" style="max-width: 48rem;">
