@@ -5636,7 +5636,29 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.Append(indent).AppendLine("}");
         builder.Append(indent).AppendLine("else");
         builder.Append(indent).AppendLine("{");
-        builder.Append(indent).Append("    var memberConverter = reader.GetConverter(typeof(").Append(memberTypeName).AppendLine("));");
+        // Populate mutable sequences with the same generated element readers as Replace.
+        // Runtime collection converters resolve elements through reflection, which loses
+        // nested object constructors when trimming/NativeAOT is enabled.
+        var generatedSequence = TryGetSequenceElementType(member.Type, out var elementType, out var sequenceKind)
+            && (sequenceKind is SequenceKind.List or SequenceKind.Set or SequenceKind.MutableCollection
+                || member.Type is INamedTypeSymbol namedSequence && namedSequence.ConstructedFrom.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                    is "global::System.Collections.Generic.IList<T>" or "global::System.Collections.Generic.ICollection<T>")
+            && member.AttributeConverterTypeName is null
+            && GetYamlConverterAttributeTypeName(member.Type) is null
+            && !TryGetStaticOptionsConverterType(sourceGenerationOptions, member.Type, out _, out _);
+        if (generatedSequence)
+        {
+            builder.Append(indent).Append("    if (!runtimeConverters.TryGetConverter(typeof(").Append(memberTypeName).AppendLine("), out var memberConverter))");
+            builder.Append(indent).AppendLine("    {");
+            EmitPopulateSequenceMember(builder, member, elementType, memberTypeName, indexByType, readOnlyFallbackStatement, canAssign, indent + "        ", sourceGenerationOptions);
+            builder.Append(indent).AppendLine("    }");
+            builder.Append(indent).AppendLine("    else");
+            builder.Append(indent).AppendLine("    {");
+        }
+        else
+        {
+            builder.Append(indent).Append("    var memberConverter = reader.GetConverter(typeof(").Append(memberTypeName).AppendLine("));");
+        }
         if (!canPopulateValueType)
         {
             if (explicitPopulate)
@@ -5654,7 +5676,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
-        builder.Append(indent).Append("    var canPopulateMember = memberConverter.CanPopulate(typeof(").Append(memberTypeName).AppendLine("));");
+        builder.Append(indent).Append("    var canPopulateMember = memberConverter!.CanPopulate(typeof(").Append(memberTypeName).AppendLine("));");
         builder.Append(indent).AppendLine("    if (!canPopulateMember)");
         builder.Append(indent).AppendLine("    {");
         if (explicitPopulate)
@@ -5709,6 +5731,53 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.Append(indent).AppendLine("    }");
+        if (generatedSequence)
+        {
+            builder.Append(indent).AppendLine("    }");
+        }
+        builder.Append(indent).AppendLine("}");
+    }
+
+    private static void EmitPopulateSequenceMember(
+        StringBuilder builder, MemberModel member, ITypeSymbol elementType, string memberTypeName,
+        Dictionary<ITypeSymbol, int> indexByType, string readOnlyFallbackStatement, bool canAssign,
+        string indent, SourceGenerationOptionsModel sourceGenerationOptions)
+    {
+        builder.Append(indent).Append("var currentValue = instance.").Append(member.Symbol.Name).AppendLine(";");
+        builder.Append(indent).AppendLine("if (currentValue is null)");
+        builder.Append(indent).AppendLine("{");
+        if (canAssign)
+        {
+            EmitReadMemberValueWithCustomConverter(builder, member, indexByType, sourceGenerationOptions);
+        }
+        else
+        {
+            builder.Append(indent).Append("    ").Append(readOnlyFallbackStatement).AppendLine();
+        }
+        builder.Append(indent).AppendLine("}");
+        builder.Append(indent).AppendLine("else if (reader.TryReadAlias(out var populatedAlias))");
+        builder.Append(indent).AppendLine("{");
+        if (canAssign)
+        {
+            builder.Append(indent).Append("    ").Append(member.AssignExpression("(" + memberTypeName + ")populatedAlias!")).AppendLine(";");
+        }
+        builder.Append(indent).AppendLine("}");
+        builder.Append(indent).AppendLine("else");
+        builder.Append(indent).AppendLine("{");
+        builder.Append(indent).AppendLine("    if (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.StartSequence)");
+        builder.Append(indent).AppendLine("    {");
+        builder.Append(indent).AppendLine("        throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedSequence(reader);");
+        builder.Append(indent).AppendLine("    }");
+        builder.Append(indent).AppendLine("    if (reader.Anchor is not null) { reader.RegisterAnchor(reader.Anchor, currentValue); }");
+        builder.Append(indent).Append("    var collection = (global::System.Collections.Generic.ICollection<")
+            .Append(elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).AppendLine(">)currentValue;");
+        builder.Append(indent).AppendLine("    reader.Read();");
+        builder.Append(indent).AppendLine("    while (reader.TokenType != global::SharpYaml.Serialization.YamlTokenType.EndSequence)");
+        builder.Append(indent).AppendLine("    {");
+        EmitReadKnownType(builder, sourceGenerationOptions, elementType, indexByType, "element", indent + "        ");
+        builder.Append(indent).AppendLine("        collection.Add(element);");
+        builder.Append(indent).AppendLine("    }");
+        builder.Append(indent).AppendLine("    reader.Read();");
         builder.Append(indent).AppendLine("}");
     }
 

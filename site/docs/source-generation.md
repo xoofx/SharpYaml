@@ -57,6 +57,34 @@ internal partial class MyYamlContext : YamlSerializerContext
 
 `PreferredObjectCreationHandling` works the same way as [`YamlSerializerOptions.PreferredObjectCreationHandling`](xref:SharpYaml.YamlSerializerOptions.PreferredObjectCreationHandling): `Replace` is the default, and `Populate` reuses existing mutable members when possible.
 
+For mutable sequences (`List<T>`, `IList<T>`, `ICollection<T>`, sets, and supported mutable
+collection classes), generated population appends to the existing collection and uses generated
+metadata for its elements. This includes getter-only collections of nested objects under
+NativeAOT:
+
+```csharp
+[JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+public class RootConfig
+{
+    public IList<ItemConfig> Items { get; } = new List<ItemConfig>();
+}
+
+public class ItemConfig
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+[YamlSerializable(typeof(RootConfig))]
+internal partial class ConfigContext : YamlSerializerContext { }
+
+// ItemConfig is discovered transitively; no separate root registration is needed.
+// YamlSerializer.Deserialize(yaml, ConfigContext.Default.RootConfig);
+```
+
+These attributes require `using System.Text.Json.Serialization;` in addition to
+`using SharpYaml.Serialization;`. Custom converters that replace collection handling must
+implement population themselves; converters for element types are still honored.
+
 ## Use generated metadata
 
 Use the generated [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) properties (recommended):
