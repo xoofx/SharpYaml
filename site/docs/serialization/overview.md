@@ -71,6 +71,32 @@ This matches the default behavior of [`JsonSerializer`](xref:System.Text.Json.Js
 
 If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCase`.
 
+### References are not source preservation
+
+`ReferenceHandling` preserves **CLR object identity**, not the original YAML spelling or structure.
+In particular, YAML merge keys (`<<: *defaults`) are expanded during deserialization. A mapping
+that merges defaults and adds or overrides entries is a distinct object, not an alias of the
+defaults mapping. Serializing it writes its resulting entries, even with `Preserve` or
+`PreserveMinimal`. Original anchor names, comments, scalar spellings (such as hexadecimal
+numbers), and formatting are not retained by object mapping.
+
+For example, in a Docker Compose file, `environment: { <<: *common-environment, EXTRA: value }`
+becomes an environment dictionary containing both the defaults and `EXTRA`. Reference handling
+cannot infer which entries originally came from a merge.
+
+For an unchanged, lossless round trip, use the [syntax layer](../low-level/syntax.md):
+
+```csharp
+using SharpYaml.Syntax;
+
+var tree = YamlSyntaxTree.Parse(File.ReadAllText("compose.yaml"));
+File.WriteAllText("compose-copy.yaml", tree.ToFullString());
+```
+
+For event-level transformations that retain anchors, aliases, and merge keys but may reformat
+the output and discard comments, use the parser and emitter directly. The mutable model layer
+is not a lossless alternative: it currently materializes aliases as copies.
+
 ### Option reference
 
 | Option | Default | Meaning |

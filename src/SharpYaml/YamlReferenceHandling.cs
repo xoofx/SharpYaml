@@ -7,6 +7,11 @@ namespace SharpYaml;
 /// <summary>
 /// Defines how object references are represented in YAML.
 /// </summary>
+/// <remarks>
+/// Reference preservation tracks CLR object identity, not original YAML source syntax.
+/// Deserialization expands merge keys; serializing the result does not reconstruct merge keys
+/// or original anchor names. Use <see cref="Syntax.YamlSyntaxTree"/> to preserve source text.
+/// </remarks>
 public enum YamlReferenceHandling
 {
     /// <summary>

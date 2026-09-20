@@ -2,12 +2,48 @@
 
 using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharpYaml.Syntax;
 
 namespace SharpYaml.Tests.Serialization;
 
 [TestClass]
 public sealed class YamlMergeKeyTests
 {
+    [TestMethod]
+    public void RoundTrip_NestedMerge_PreservesDataButNotMergeSyntax()
+    {
+        const string yaml = """
+            x-common-environment:
+              environment: &common-environment
+                MODE: production
+                LIMIT: 70
+            services:
+              app:
+                environment:
+                  <<: *common-environment
+                  LIMIT: 90
+                  EXTRA: enabled
+            """;
+        var options = new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve };
+        var root = (Dictionary<string, object?>)YamlSerializer.Deserialize<object>(yaml, options)!;
+        var common = (Dictionary<string, object?>)((Dictionary<string, object?>)root["x-common-environment"]!)["environment"]!;
+        var services = (Dictionary<string, object?>)root["services"]!;
+        var environment = (Dictionary<string, object?>)((Dictionary<string, object?>)services["app"]!)["environment"]!;
+
+        Assert.AreNotSame(common, environment);
+        Assert.AreEqual("production", environment["MODE"]);
+        Assert.AreEqual(90L, environment["LIMIT"]);
+        Assert.AreEqual(70L, common["LIMIT"]);
+        Assert.AreEqual("enabled", environment["EXTRA"]);
+        Assert.IsFalse(environment.ContainsKey("<<"));
+        var output = YamlSerializer.Serialize(root, options);
+        Assert.IsFalse(output.Contains("<<:"));
+        StringAssert.Contains(output, "MODE: production");
+
+        // Source preservation is a syntax-layer operation, not CLR reference handling.
+        Assert.AreEqual(yaml, YamlSyntaxTree.Parse(yaml).ToFullString());
+    }
+
     [TestMethod]
     public void Deserialize_Object_ShouldApplyMergeKey()
     {
