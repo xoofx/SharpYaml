@@ -4509,7 +4509,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         if (member.Type.SpecialType == SpecialType.System_String)
         {
-            builder.Append(indent).Append("writer.WriteScalar(").Append(valueExpression).AppendLine(");");
+            builder.Append(indent).Append("writer.WriteString(").Append(valueExpression).AppendLine(");");
             return;
         }
 

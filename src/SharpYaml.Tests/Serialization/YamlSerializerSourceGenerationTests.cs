@@ -29,6 +29,13 @@ internal sealed class GeneratedContainer
     public GeneratedPerson? Person { get; set; }
 }
 
+internal sealed class GeneratedStringMembers
+{
+    public string Text { get; set; } = string.Empty;
+
+    public string? NullableText { get; set; }
+}
+
 internal sealed class GeneratedTransitiveConfig
 {
     public GeneratedTransitiveBar? Foo { get; set; }
@@ -765,6 +772,7 @@ internal sealed class GeneratedReadOnlyPopulateStructContainer
 }
 
 [YamlSerializable(typeof(GeneratedPerson))]
+[YamlSerializable(typeof(GeneratedStringMembers))]
 [YamlSerializable(typeof(GeneratedContainer))]
 [YamlSerializable(typeof(GeneratedPrimitives))]
 [YamlSerializable(typeof(GeneratedWellKnownScalars))]
@@ -1617,6 +1625,62 @@ public class YamlSerializerSourceGenerationTests
         // are used for runtime behavior (e.g. SourceName).
         var yaml = YamlSerializer.Serialize(new GeneratedPerson { FirstName = "Alice", Age = 30 }, options);
         Assert.IsTrue(yaml.Contains("Alice", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void GeneratedContext_StringMembers_PreserveAmbiguousStrings()
+    {
+        var context = TestYamlSerializerContext.Default;
+        foreach (var text in new[] { "null", "Null", "NULL", "~", "true", "123", "1.5", ".nan", "<<" })
+        {
+            var value = new GeneratedStringMembers { Text = text, NullableText = text };
+            var yaml = YamlSerializer.Serialize(value, context.GeneratedStringMembers);
+            var roundTrip = YamlSerializer.Deserialize(yaml, context.GeneratedStringMembers);
+
+            Assert.IsNotNull(roundTrip);
+            Assert.AreEqual(text, roundTrip.Text, $"String member did not round-trip: {text}");
+            Assert.AreEqual(text, roundTrip.NullableText, $"Nullable string member did not round-trip: {text}");
+            StringAssert.Contains(yaml, $"Text: \"{text}\"");
+            Assert.AreEqual(YamlSerializer.Serialize(value), yaml);
+        }
+    }
+
+    [TestMethod]
+    public void GeneratedContext_StringMembers_PreserveEmptyStringsAndNull()
+    {
+        var context = TestYamlSerializerContext.Default;
+        foreach (var text in new string?[] { string.Empty, "hello", null })
+        {
+            var value = new GeneratedStringMembers { Text = text ?? string.Empty, NullableText = text };
+            var yaml = YamlSerializer.Serialize(value, context.GeneratedStringMembers);
+            var roundTrip = YamlSerializer.Deserialize(yaml, context.GeneratedStringMembers);
+
+            Assert.IsNotNull(roundTrip);
+            Assert.AreEqual(value.Text, roundTrip.Text);
+            Assert.AreEqual(text, roundTrip.NullableText);
+            Assert.AreEqual(YamlSerializer.Serialize(value), yaml);
+        }
+    }
+
+    [TestMethod]
+    public void GeneratedContext_StringMembers_HonorDisabledAmbiguousScalarQuoting()
+    {
+        var options = new YamlSerializerOptions
+        {
+            ScalarStylePreferences = new YamlScalarStylePreferences
+            {
+                PreferQuotedForAmbiguousScalars = false,
+            },
+        };
+        var context = new TestYamlSerializerContext(options);
+        foreach (var text in new[] { "null", "~", "true", "123" })
+        {
+            var value = new GeneratedStringMembers { Text = text, NullableText = text };
+            var yaml = YamlSerializer.Serialize(value, context.GeneratedStringMembers);
+
+            StringAssert.Contains(yaml, $"Text: {text}");
+            Assert.AreEqual(YamlSerializer.Serialize(value, options), yaml);
+        }
     }
 
     [TestMethod]
