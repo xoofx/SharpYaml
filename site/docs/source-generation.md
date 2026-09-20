@@ -82,6 +82,12 @@ var roundTrip = YamlSerializer.Deserialize(yaml, typeof(MyConfig), MyYamlContext
 
 Prefer the overloads that accept a [`YamlSerializerContext`](xref:SharpYaml.Serialization.YamlSerializerContext) or a [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) directly. This avoids reflection and works well with trimming and NativeAOT.
 
+Generated string members use the same scalar quoting rules as reflection-based serialization.
+By default, ambiguous strings such as `"null"`, `"true"`, and `"123"` are quoted to preserve their
+string values on round-trip; actual null references are written as YAML nulls. Setting
+`ScalarStylePreferences.PreferQuotedForAmbiguousScalars = false` disables this protection,
+so a string such as `"null"` can deserialize as a null reference.
+
 ## Runtime converters with generated contexts
 
 Converters declared in [`YamlSourceGenerationOptionsAttribute.Converters`](xref:SharpYaml.Serialization.YamlSourceGenerationOptionsAttribute.Converters) are resolved by the source generator at build time. If you need to provide runtime converter instances, create options whose [`TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver) is the generated context:
