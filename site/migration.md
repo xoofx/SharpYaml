@@ -102,6 +102,7 @@ var model = YamlSerializer.Deserialize(yaml, context.MyType);
 ## Low-Level Roundtrip vs Object Mapping
 
 - Use the syntax APIs (for example [`YamlSyntaxTree`](xref:SharpYaml.Syntax.YamlSyntaxTree)) for lossless roundtrip and source span tooling.
+- Use `YamlSyntaxTree.WithTextChange` for immutable source-range edits that preserve surrounding comments and formatting; see [syntax editing](docs/low-level/syntax-tree.md#edit-a-value-without-losing-comments). The syntax API is not a mutable semantic node tree.
 - [`YamlSerializer`](xref:SharpYaml.YamlSerializer) maps to .NET objects and does not preserve formatting/comments.
 
 ## SerializerSettings Migration

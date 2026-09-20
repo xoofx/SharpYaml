@@ -84,7 +84,7 @@ For example, in a Docker Compose file, `environment: { <<: *common-environment, 
 becomes an environment dictionary containing both the defaults and `EXTRA`. Reference handling
 cannot infer which entries originally came from a merge.
 
-For an unchanged, lossless round trip, use the [syntax layer](../low-level/syntax.md):
+For an unchanged, lossless round trip, use the [syntax layer](../low-level/syntax-tree.md):
 
 ```csharp
 using SharpYaml.Syntax;
@@ -92,6 +92,9 @@ using SharpYaml.Syntax;
 var tree = YamlSyntaxTree.Parse(File.ReadAllText("compose.yaml"));
 File.WriteAllText("compose-copy.yaml", tree.ToFullString());
 ```
+
+To modify selected source ranges while keeping merges and surrounding comments intact, use
+[`YamlSyntaxTree.WithTextChange`](xref:SharpYaml.Syntax.YamlSyntaxTree.WithTextChange(System.Int32,System.Int32,System.String)).
 
 For event-level transformations that retain anchors, aliases, and merge keys but may reformat
 the output and discard comments, use the parser and emitter directly. The mutable model layer

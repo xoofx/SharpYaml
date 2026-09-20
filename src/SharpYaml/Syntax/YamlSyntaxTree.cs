@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using SharpYaml.Tokens;
 
 namespace SharpYaml.Syntax;
@@ -14,6 +15,8 @@ namespace SharpYaml.Syntax;
 /// </summary>
 public sealed class YamlSyntaxTree
 {
+    private readonly bool _includeTrivia;
+
     private sealed class RootSyntaxNode : YamlSyntaxNode
     {
         public RootSyntaxNode(YamlSourceSpan span, YamlSourceSpan fullSpan)
@@ -22,11 +25,12 @@ public sealed class YamlSyntaxTree
         }
     }
 
-    private YamlSyntaxTree(string text, YamlSyntaxNode root, IReadOnlyList<YamlSyntaxToken> tokens)
+    private YamlSyntaxTree(string text, YamlSyntaxNode root, IReadOnlyList<YamlSyntaxToken> tokens, bool includeTrivia)
     {
         Text = text;
         Root = root;
         Tokens = tokens;
+        _includeTrivia = includeTrivia;
     }
 
     /// <summary>
@@ -80,7 +84,44 @@ public sealed class YamlSyntaxTree
         var endMark = CreateMark(yaml, yaml.Length);
         var fullSpan = new YamlSourceSpan(new Mark(0, 0, 0), endMark);
         var span = BuildNodeSpan(tokens, fullSpan);
-        return new YamlSyntaxTree(yaml, new RootSyntaxNode(span, fullSpan), tokens);
+        return new YamlSyntaxTree(yaml, new RootSyntaxNode(span, fullSpan), tokens, options.IncludeTrivia);
+    }
+
+    /// <summary>
+    /// Replaces a source range and returns a newly parsed syntax tree, preserving all text outside the range.
+    /// </summary>
+    /// <param name="start">The zero-based UTF-16 character index at which to apply the change.</param>
+    /// <param name="length">The number of characters to replace. Use zero to insert text.</param>
+    /// <param name="newText">The replacement YAML source text. Use an empty string to delete text.</param>
+    /// <returns>A new syntax tree with updated tokens and spans, using the same trivia option.</returns>
+    /// <remarks>
+    /// The original tree is unchanged. Replacement text is raw YAML, not a CLR scalar value;
+    /// callers must supply any required quoting, escaping, and indentation. The complete result
+    /// is reparsed and validated. For successive edits, use offsets from the latest tree.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="newText"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="start"/> or <paramref name="length"/> is negative, or the range extends beyond <see cref="Text"/>.
+    /// </exception>
+    /// <exception cref="YamlException">The resulting YAML content is invalid.</exception>
+    public YamlSyntaxTree WithTextChange(int start, int length, string newText)
+    {
+        ArgumentGuard.ThrowIfNull(newText);
+        if (start < 0 || start > Text.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(start), "The start index must be within the source text.");
+        }
+
+        if (length < 0 || length > Text.Length - start)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length), "The range must be within the source text.");
+        }
+
+        var builder = new StringBuilder();
+        builder.Append(Text, 0, start);
+        builder.Append(newText);
+        builder.Append(Text, start + length, Text.Length - start - length);
+        return Parse(builder.ToString(), new YamlSyntaxOptions { IncludeTrivia = _includeTrivia });
     }
 
     /// <summary>
