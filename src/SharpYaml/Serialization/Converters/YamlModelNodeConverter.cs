@@ -64,15 +64,22 @@ internal sealed class YamlModelNodeConverter : YamlConverter
         WriteNode(writer, node);
     }
 
-    private static YamlElement? ReadNode(YamlReader reader, Dictionary<string, YamlElement> anchors)
+    /// <summary>
+    /// Reads the current node for unmapped member reporting. Aliases to anchors that are not part of the
+    /// reported nodes are represented by their text (for example <c>*name</c>) instead of throwing, because skipping never failed on them.
+    /// </summary>
+    internal static YamlElement? ReadUnmappedNode(YamlReader reader, Dictionary<string, YamlElement> anchors)
+        => ReadNode(reader, anchors, tolerateUnknownAliases: true);
+
+    private static YamlElement? ReadNode(YamlReader reader, Dictionary<string, YamlElement> anchors, bool tolerateUnknownAliases = false)
     {
         switch (reader.CurrentEvent)
         {
             case MappingStart mappingStart:
-                return ReadMapping(reader, mappingStart, anchors);
+                return ReadMapping(reader, mappingStart, anchors, tolerateUnknownAliases);
 
             case SequenceStart sequenceStart:
-                return ReadSequence(reader, sequenceStart, anchors);
+                return ReadSequence(reader, sequenceStart, anchors, tolerateUnknownAliases);
 
             case Scalar scalar:
                 reader.Read();
@@ -84,6 +91,11 @@ internal sealed class YamlModelNodeConverter : YamlConverter
                 reader.Read();
                 if (!anchors.TryGetValue(alias.Value, out var anchored))
                 {
+                    if (tolerateUnknownAliases)
+                    {
+                        return new YamlValue("*" + alias.Value);
+                    }
+
                     throw new YamlException(
                         alias.Start,
                         alias.End,
@@ -101,7 +113,7 @@ internal sealed class YamlModelNodeConverter : YamlConverter
         }
     }
 
-    private static YamlMapping ReadMapping(YamlReader reader, MappingStart mappingStart, Dictionary<string, YamlElement> anchors)
+    private static YamlMapping ReadMapping(YamlReader reader, MappingStart mappingStart, Dictionary<string, YamlElement> anchors, bool tolerateUnknownAliases)
     {
         reader.Read();
 
@@ -114,8 +126,8 @@ internal sealed class YamlModelNodeConverter : YamlConverter
                 throw new YamlException("Unexpected end of mapping while loading YAML model.");
             }
 
-            var key = ReadNode(reader, anchors);
-            var value = ReadNode(reader, anchors);
+            var key = ReadNode(reader, anchors, tolerateUnknownAliases);
+            var value = ReadNode(reader, anchors, tolerateUnknownAliases);
 
             if (key is null || value is null)
             {
@@ -135,7 +147,7 @@ internal sealed class YamlModelNodeConverter : YamlConverter
         return mapping;
     }
 
-    private static YamlSequence ReadSequence(YamlReader reader, SequenceStart sequenceStart, Dictionary<string, YamlElement> anchors)
+    private static YamlSequence ReadSequence(YamlReader reader, SequenceStart sequenceStart, Dictionary<string, YamlElement> anchors, bool tolerateUnknownAliases)
     {
         reader.Read();
 
@@ -147,7 +159,7 @@ internal sealed class YamlModelNodeConverter : YamlConverter
                 throw new YamlException("Unexpected end of sequence while loading YAML model.");
             }
 
-            var item = ReadNode(reader, anchors);
+            var item = ReadNode(reader, anchors, tolerateUnknownAliases);
             if (item is not null)
             {
                 contents.Add(item);

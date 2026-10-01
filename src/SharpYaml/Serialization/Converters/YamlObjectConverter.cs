@@ -268,13 +268,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 if (contract.ExtensionData is null)
                 {
-                    SkipOrThrowUnmappedMember(reader, contract, key);
+                    SkipOrThrowUnmappedMember(reader, contract, key, instance);
                     continue;
                 }
 
                 try
                 {
-                    ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                    ReadExtensionData(reader, instance, contract, key);
                 }
                 catch (YamlException)
                 {
@@ -406,13 +406,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 if (contract.ExtensionData is null)
                 {
-                    SkipOrThrowUnmappedMember(reader, contract, key);
+                    SkipOrThrowUnmappedMember(reader, contract, key, instance);
                     continue;
                 }
 
                 try
                 {
-                    ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                    ReadExtensionData(reader, instance, contract, key);
                 }
                 catch (YamlException)
                 {
@@ -587,7 +587,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 {
                     if (contract.ExtensionData is not null)
                     {
-                        var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                        var extValue = ReadBufferedExtensionDataValue(reader, contract, key);
                         extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
                     }
                     else
@@ -619,12 +619,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (contract.ExtensionData is not null)
             {
-                var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                var extValue = ReadBufferedExtensionDataValue(reader, contract, key);
                 extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
                 continue;
             }
 
-            SkipOrThrowUnmappedMember(reader, contract, key);
+            SkipOrThrowUnmappedMember(reader, contract, key, null);
         }
 
         // Ensure all constructor parameters are satisfied before constructing the instance.
@@ -757,11 +757,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
     private static bool IsMergeKeyEnabled(YamlSerializerOptions options)
         => options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
 
-    private static void SkipOrThrowUnmappedMember(YamlReader reader, Contract contract, string key)
+    private static void SkipOrThrowUnmappedMember(YamlReader reader, Contract contract, string key, object? instance)
     {
         if (contract.UnmappedMemberHandling == JsonUnmappedMemberHandling.Disallow)
         {
             throw YamlThrowHelper.ThrowUnmappedMember(reader, contract.DeclaringType, key);
+        }
+
+        if (reader.IsReportingUnmappedMembers)
+        {
+            reader.ReadUnmappedMember(reader.BeginUnmappedMember(contract.DeclaringType, contract.GetKnownMemberNames(), key, instance));
+            return;
         }
 
         reader.Skip();
@@ -883,11 +889,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (contract.ExtensionData is not null)
             {
-                ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                ReadExtensionData(reader, instance, contract, key);
                 continue;
             }
 
-            SkipOrThrowUnmappedMember(reader, contract, key);
+            SkipOrThrowUnmappedMember(reader, contract, key, instance);
         }
 
         reader.Read();
@@ -989,11 +995,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (contract.ExtensionData is not null)
             {
-                ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                ReadExtensionData(reader, instance, contract, key);
                 continue;
             }
 
-            SkipOrThrowUnmappedMember(reader, contract, key);
+            SkipOrThrowUnmappedMember(reader, contract, key, instance);
         }
 
         reader.Read();
@@ -1020,7 +1026,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 if (contract.ExtensionData is not null)
                 {
-                    ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                    ReadExtensionData(reader, instance, contract, key);
                 }
                 else
                 {
@@ -1113,7 +1119,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         {
             if (contract.ExtensionData is not null)
             {
-                ReadExtensionData(reader, instance, contract.ExtensionData, key);
+                ReadExtensionData(reader, instance, contract, key);
             }
             else
             {
@@ -1284,7 +1290,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 {
                     if (contract.ExtensionData is not null)
                     {
-                        var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                        var extValue = ReadBufferedExtensionDataValue(reader, contract, key);
                         extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
                     }
                     else
@@ -1316,12 +1322,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (contract.ExtensionData is not null)
             {
-                var extValue = ReadExtensionDataValue(reader, contract.ExtensionData);
+                var extValue = ReadBufferedExtensionDataValue(reader, contract, key);
                 extensionEntries!.Add(new BufferedExtensionEntry(key, extValue, keyStart, keyEnd));
                 continue;
             }
 
-            SkipOrThrowUnmappedMember(reader, contract, key);
+            SkipOrThrowUnmappedMember(reader, contract, key, null);
         }
 
         reader.Read();
@@ -1505,6 +1511,22 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         public Type DeclaringType { get; }
+
+        // Contracts are created per reader, so this is computed on demand (only when unmapped members are reported)
+        // instead of being cached in a field.
+        public string[] GetKnownMemberNames()
+        {
+            var names = new List<string>(MembersDeclaration.Length);
+            foreach (var member in MembersDeclaration)
+            {
+                if (!member.ShouldIgnoreOnRead)
+                {
+                    names.Add(member.Name);
+                }
+            }
+
+            return names.ToArray();
+        }
 
         public Func<object> CreateInstance { get; }
 
@@ -2461,15 +2483,31 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public Mark KeyEnd { get; }
     }
 
-    private static void ReadExtensionData(YamlReader reader, object instance, ExtensionDataInfo extensionData, string key)
+    private static void ReadExtensionData(YamlReader reader, object instance, Contract contract, string key)
     {
         ArgumentGuard.ThrowIfNull(reader);
         ArgumentGuard.ThrowIfNull(instance);
-        ArgumentGuard.ThrowIfNull(extensionData);
+        ArgumentGuard.ThrowIfNull(contract);
         ArgumentGuard.ThrowIfNull(key);
 
+        var extensionData = contract.ExtensionData!;
+        var reported = reader.IsReportingUnmappedMembers
+            ? reader.BeginUnmappedMember(contract.DeclaringType, contract.GetKnownMemberNames(), key, instance)
+            : null;
         var value = ReadExtensionDataValue(reader, extensionData);
         AddExtensionDataValue(instance, extensionData, key, value);
+        reader.CompleteExtensionDataMember(reported, value);
+    }
+
+    // Used by the constructor-based paths, where the instance does not exist until all values are buffered.
+    private static object? ReadBufferedExtensionDataValue(YamlReader reader, Contract contract, string key)
+    {
+        var reported = reader.IsReportingUnmappedMembers
+            ? reader.BeginUnmappedMember(contract.DeclaringType, contract.GetKnownMemberNames(), key, null)
+            : null;
+        var value = ReadExtensionDataValue(reader, contract.ExtensionData!);
+        reader.CompleteExtensionDataMember(reported, value);
+        return value;
     }
 
     private static object? ReadExtensionDataValue(YamlReader reader, ExtensionDataInfo extensionData)
