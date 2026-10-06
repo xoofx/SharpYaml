@@ -761,7 +761,14 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
     {
         if (contract.UnmappedMemberHandling == JsonUnmappedMemberHandling.Disallow)
         {
-            throw YamlThrowHelper.ThrowUnmappedMember(reader, contract.DeclaringType, key);
+            // The discriminator of a polymorphic node stays in the buffered YAML: it is not an unmapped member of the derived type.
+            if (!reader.IsDiscriminatorMember(key))
+            {
+                throw YamlThrowHelper.ThrowUnmappedMember(reader, contract.DeclaringType, key);
+            }
+
+            reader.Skip();
+            return;
         }
 
         if (reader.IsReportingUnmappedMembers)

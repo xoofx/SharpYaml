@@ -133,6 +133,75 @@ public sealed class YamlUnmappedMemberTests
 
     [TestMethod]
     [DynamicData(nameof(Modes))]
+    public void Disallow_AcceptsDiscriminatorOfPolymorphicNodes(bool generated)
+    {
+        var options = new YamlSerializerOptions { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+
+        var value = Deserialize<UnmappedZoo>("Pets:\n  - $type: dog\n    Name: a\n    Friend:\n      Name: b\n      $type: dog\n", options, generated)!;
+
+        Assert.IsInstanceOfType<UnmappedDog>(value.Pets[0]);
+        Assert.AreEqual("a", value.Pets[0].Name);
+        Assert.IsInstanceOfType<UnmappedDog>(value.Pets[0].Friend);
+        Assert.AreEqual("b", value.Pets[0].Friend!.Name);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Disallow_AcceptsDiscriminatorMatchedIgnoringCase(bool generated)
+    {
+        var options = new YamlSerializerOptions { PropertyNameCaseInsensitive = true, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+
+        var value = Deserialize<UnmappedZoo>("Pets:\n  - $TYPE: dog\n    name: a\n", options, generated)!;
+
+        Assert.IsInstanceOfType<UnmappedDog>(value.Pets[0]);
+        Assert.AreEqual("a", value.Pets[0].Name);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Disallow_AcceptsDiscriminatorWhenDisallowedByAttribute(bool generated)
+    {
+        var value = Deserialize<UnmappedStrictShape>("$type: circle\nRadius: 2\n", new YamlSerializerOptions(), generated)!;
+
+        Assert.AreEqual(2, ((UnmappedStrictCircle)value).Radius);
+        var exception = Assert.Throws<YamlException>(() => Deserialize<UnmappedStrictShape>("$type: circle\nOops: 1\n", new YamlSerializerOptions(), generated));
+        StringAssert.Contains(exception.Message, "'Oops'");
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Disallow_StillThrowsForOtherMembersOfPolymorphicNodes(bool generated)
+    {
+        var options = new YamlSerializerOptions { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+
+        var exception = Assert.Throws<YamlException>(() => Deserialize<UnmappedZoo>("Pets:\n  - $type: dog\n    Oops: 1\n", options, generated));
+
+        StringAssert.Contains(exception.Message, "'Oops'");
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Disallow_StillThrowsForDiscriminatorKeysThatAreNotTheDiscriminatorOfTheNode(bool generated)
+    {
+        var options = new YamlSerializerOptions { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+
+        // Nested in a polymorphic node, but on a mapping that is not its root.
+        var nested = Assert.Throws<YamlException>(() => Deserialize<UnmappedZoo>("Pets:\n  - $type: dog\n    Collar:\n      $type: x\n      Enabled: true\n", options, generated));
+        StringAssert.Contains(nested.Message, "'$type'");
+        StringAssert.Contains(nested.Message, nameof(UnmappedTls));
+
+        // After a nested mapping of a polymorphic node has been read, its root keys are still recognized.
+        var value = Deserialize<UnmappedZoo>("Pets:\n  - Collar:\n      Enabled: true\n    $type: dog\n", options, generated)!;
+        Assert.IsTrue(((UnmappedDog)value.Pets[0]).Collar!.Enabled);
+
+        // On a type that is not polymorphic.
+        var root = Assert.Throws<YamlException>(() => Deserialize<UnmappedZoo>("$type: zoo\nPets: []\n", options, generated));
+        StringAssert.Contains(root.Message, "'$type'");
+        StringAssert.Contains(root.Message, nameof(UnmappedZoo));
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
     public void Callback_ReportsMembersOfConstructorBoundTypesWithoutInstance(bool generated)
     {
         var members = new List<YamlUnmappedMember>();
@@ -376,6 +445,19 @@ internal abstract class UnmappedAnimal
 internal sealed class UnmappedDog : UnmappedAnimal
 {
     public int BarkVolume { get; set; }
+    public UnmappedTls? Collar { get; set; }
+}
+
+[YamlPolymorphic]
+[YamlDerivedType(typeof(UnmappedStrictCircle), "circle")]
+internal abstract class UnmappedStrictShape
+{
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+internal sealed class UnmappedStrictCircle : UnmappedStrictShape
+{
+    public int Radius { get; set; }
 }
 
 [YamlSerializable(typeof(UnmappedRoot))]
@@ -386,6 +468,7 @@ internal sealed class UnmappedDog : UnmappedAnimal
 [YamlSerializable(typeof(UnmappedConstructorModel))]
 [YamlSerializable(typeof(UnmappedZoo))]
 [YamlSerializable(typeof(UnmappedContainers))]
+[YamlSerializable(typeof(UnmappedStrictShape))]
 internal partial class UnmappedMemberContext : YamlSerializerContext
 {
     public UnmappedMemberContext()

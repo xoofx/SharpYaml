@@ -65,6 +65,7 @@ Both receive [`YamlUnmappedMember`](xref:SharpYaml.Serialization.YamlUnmappedMem
 
 The callback runs for skipped keys and for keys captured by extension data.
 With `UnmappedMemberHandling = Disallow` the first unknown key that is not captured by extension data still throws, and neither delegate runs for it.
+The type discriminator key of a polymorphic node (for example `$type`) is not an unknown key: it is accepted by `Disallow` and not reported.
 
 ### Warn with a suggestion
 

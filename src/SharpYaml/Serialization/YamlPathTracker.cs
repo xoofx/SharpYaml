@@ -32,27 +32,17 @@ internal sealed class YamlPathTracker
     }
 
     private readonly string? _prefix;
-    private readonly string? _discriminatorPropertyName;
     private Frame[] _frames = new Frame[8];
     private int _count;
 
-    public YamlPathTracker(YamlUnmappedMemberSession session, string? prefix, string? discriminatorPropertyName)
+    public YamlPathTracker(YamlUnmappedMemberSession session, string? prefix)
     {
         Session = session;
         _prefix = prefix;
-        _discriminatorPropertyName = discriminatorPropertyName;
     }
 
     /// <summary>Gets the session shared by this tracker's reader and the readers created for buffered nodes.</summary>
     public YamlUnmappedMemberSession Session { get; }
-
-    /// <summary>
-    /// Gets a value indicating whether <paramref name="memberName"/>, read in the root mapping of a buffered polymorphic node,
-    /// is the type discriminator property. The discriminator is consumed by polymorphism rather than unmapped.
-    /// </summary>
-    /// <remarks><paramref name="comparison"/> must match the comparison used to find the discriminator when the node was buffered.</remarks>
-    public bool IsDiscriminatorMember(string memberName, System.StringComparison comparison)
-        => _discriminatorPropertyName is not null && _count == 1 && string.Equals(memberName, _discriminatorPropertyName, comparison);
 
     public void OnToken(YamlTokenType tokenType, string? scalarValue, Mark start)
     {

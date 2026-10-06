@@ -74,6 +74,11 @@ $type: dog
 Name: Rex
 ```
 
+The discriminator key is consumed by polymorphism: it is not an unknown member of the derived type, so it is accepted when
+`UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow` (or `[JsonUnmappedMemberHandling]`) is used. It is matched like the discriminator lookup,
+honoring `PropertyNameCaseInsensitive`. Only the key on the mapping of the polymorphic value itself is exempt; a `$type` key on a nested mapping that is not
+polymorphic is still rejected.
+
 ## YAML tag discriminator
 
 Use [`YamlPolymorphicAttribute`](xref:SharpYaml.Serialization.YamlPolymorphicAttribute) and [`YamlDerivedTypeAttribute`](xref:SharpYaml.Serialization.YamlDerivedTypeAttribute):

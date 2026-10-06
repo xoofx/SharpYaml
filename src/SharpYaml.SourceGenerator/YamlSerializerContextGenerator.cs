@@ -2628,15 +2628,20 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         string? unmappedMemberHandling,
         string indent)
     {
+        // The discriminator of a polymorphic node stays in the buffered YAML: it is not an unmapped member of the derived type.
         if (string.Equals(unmappedMemberHandling, "Disallow", StringComparison.Ordinal))
         {
-            builder.Append(indent).Append("throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnmappedMember(reader, typeof(").Append(typeName).Append("), ").Append(keyExpression).AppendLine(");");
+            builder.Append(indent).Append("if (!reader.IsDiscriminatorMember(").Append(keyExpression).AppendLine("))");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).Append("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnmappedMember(reader, typeof(").Append(typeName).Append("), ").Append(keyExpression).AppendLine(");");
+            builder.Append(indent).AppendLine("}");
+            builder.Append(indent).AppendLine("reader.Skip();");
             return;
         }
 
         if (unmappedMemberHandling is null)
         {
-            builder.Append(indent).AppendLine("if (options.UnmappedMemberHandling == global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)");
+            builder.Append(indent).Append("if (options.UnmappedMemberHandling == global::System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow && !reader.IsDiscriminatorMember(").Append(keyExpression).AppendLine("))");
             builder.Append(indent).AppendLine("{");
             builder.Append(indent).Append("    throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowUnmappedMember(reader, typeof(").Append(typeName).Append("), ").Append(keyExpression).AppendLine(");");
             builder.Append(indent).AppendLine("}");

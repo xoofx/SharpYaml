@@ -29,9 +29,6 @@ internal sealed class YamlUnmappedMemberSession
     /// <summary>The path of the node most recently buffered by the reader; used to seed the path of the re-parse.</summary>
     public string? BufferedPath { get; set; }
 
-    /// <summary>The discriminator property name of the node most recently buffered, which is not an unmapped member of the derived type.</summary>
-    public string? BufferedDiscriminator { get; set; }
-
     public static YamlUnmappedMemberSession? Create(YamlSerializerOptions options)
     {
         var callback = options.UnmappedMemberCallback;

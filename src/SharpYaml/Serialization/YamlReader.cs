@@ -41,8 +41,8 @@ public sealed class YamlReader : YamlReaderWriterBase
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
         var session = YamlUnmappedMemberSession.Create(effectiveOptions);
-        var tracker = session is null ? null : new YamlPathTracker(session, prefix: null, discriminatorPropertyName: null);
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker), effectiveOptions);
+        var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
+        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
     }
 
     /// <summary>
@@ -58,8 +58,8 @@ public sealed class YamlReader : YamlReaderWriterBase
         var parser = SharpYaml.Parser.CreateParser(reader, effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
         var session = YamlUnmappedMemberSession.Create(effectiveOptions);
-        var tracker = session is null ? null : new YamlPathTracker(session, prefix: null, discriminatorPropertyName: null);
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker), effectiveOptions);
+        var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
+        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
     }
 
     /// <summary>
@@ -76,16 +76,37 @@ public sealed class YamlReader : YamlReaderWriterBase
     {
         ArgumentGuard.ThrowIfNull(yaml);
         var session = _state.Tracker?.Session;
-        var tracker = session is null ? null : new YamlPathTracker(session, session.BufferedPath, session.BufferedDiscriminator);
-        return Create(yaml, _state.ReferenceReader, _state.SourceName, Options, tracker);
+        var tracker = session is null ? null : new YamlPathTracker(session, session.BufferedPath);
+        return Create(yaml, _state.ReferenceReader, _state.SourceName, Options, tracker, _state.BufferedDiscriminator);
     }
 
-    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName, YamlSerializerOptions options, YamlPathTracker? tracker)
+    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName, YamlSerializerOptions options, YamlPathTracker? tracker, string? discriminatorPropertyName)
     {
         ArgumentGuard.ThrowIfNull(yaml);
         ArgumentGuard.ThrowIfNull(options);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), options.EffectiveMaxDepth, sourceName);
-        return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName, tracker), options);
+        return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName, tracker, discriminatorPropertyName), options);
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether <paramref name="memberName"/> is the type discriminator key of the polymorphic node this reader
+    /// was created for. Call this while the reader is positioned on the value of the key.
+    /// </summary>
+    /// <param name="memberName">The YAML key.</param>
+    /// <returns>
+    /// <see langword="true"/> when this reader was created by <see cref="CreateReader"/> for a node buffered by
+    /// <see cref="BufferCurrentNodeToStringAndFindDiscriminator"/>, the key belongs to the root mapping of that node and it matches the
+    /// discriminator property name, honoring <see cref="YamlSerializerOptions.PropertyNameCaseInsensitive"/>; otherwise <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// This is intended for converters and generated code: the discriminator is consumed by polymorphism, so it is not an unmapped member
+    /// of the derived type even when <see cref="YamlSerializerOptions.UnmappedMemberHandling"/> disallows unmapped members.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="memberName"/> is <see langword="null"/>.</exception>
+    public bool IsDiscriminatorMember(string memberName)
+    {
+        ArgumentGuard.ThrowIfNull(memberName);
+        return _state.IsDiscriminatorMember(memberName, Options.PropertyNameCaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -119,7 +140,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(knownMemberNames);
         ArgumentGuard.ThrowIfNull(memberName);
 
-        if (tracker.IsDiscriminatorMember(memberName, Options.PropertyNameCaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        if (IsDiscriminatorMember(memberName))
         {
             return null;
         }
@@ -313,11 +334,12 @@ public sealed class YamlReader : YamlReaderWriterBase
 
     private void CaptureBufferedNode(string? discriminatorPropertyName)
     {
+        _state.BufferedDiscriminator = discriminatorPropertyName;
+
         var tracker = _state.Tracker;
         if (tracker is not null)
         {
             tracker.Session.BufferedPath = tracker.GetPath();
-            tracker.Session.BufferedDiscriminator = discriminatorPropertyName;
         }
     }
 
@@ -444,10 +466,13 @@ public sealed class YamlReader : YamlReaderWriterBase
     internal sealed class YamlReaderState
     {
         private readonly IParser _parser;
+        private readonly string? _discriminatorPropertyName;
+        private int _depth;
 
-        public YamlReaderState(IParser parser, YamlReferenceReader? referenceReader, string? sourceName, YamlPathTracker? tracker)
+        public YamlReaderState(IParser parser, YamlReferenceReader? referenceReader, string? sourceName, YamlPathTracker? tracker, string? discriminatorPropertyName)
         {
             _parser = parser;
+            _discriminatorPropertyName = discriminatorPropertyName;
             Tracker = tracker;
             TokenType = YamlTokenType.None;
             ReferenceReader = referenceReader;
@@ -467,11 +492,35 @@ public sealed class YamlReader : YamlReaderWriterBase
         public string? SourceName { get; }
         public YamlPathTracker? Tracker { get; }
 
+        /// <summary>The discriminator property name of the node most recently buffered from this reader; used to seed the reader of the re-parse.</summary>
+        public string? BufferedDiscriminator { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether <paramref name="memberName"/>, read in the root mapping of a buffered polymorphic node,
+        /// is the type discriminator property. The discriminator is consumed by polymorphism rather than unmapped.
+        /// </summary>
+        /// <remarks><paramref name="comparison"/> must match the comparison used to find the discriminator when the node was buffered.</remarks>
+        public bool IsDiscriminatorMember(string memberName, StringComparison comparison)
+            => _discriminatorPropertyName is not null && _depth == 1 && string.Equals(memberName, _discriminatorPropertyName, comparison);
+
         public bool Read()
         {
             if (!ReadCore())
             {
                 return false;
+            }
+
+            if (_discriminatorPropertyName is not null)
+            {
+                // Only the keys of the root mapping can be the discriminator: track how deep the reader is in the buffered node.
+                if (TokenType is YamlTokenType.StartMapping or YamlTokenType.StartSequence)
+                {
+                    _depth++;
+                }
+                else if (TokenType is YamlTokenType.EndMapping or YamlTokenType.EndSequence)
+                {
+                    _depth--;
+                }
             }
 
             Tracker?.OnToken(TokenType, ScalarValue, Start);
