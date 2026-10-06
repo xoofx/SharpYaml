@@ -104,8 +104,7 @@ public sealed record YamlSerializerOptions
     /// <remarks>
     /// The callback runs for keys that are skipped and for keys stored by a <see cref="Serialization.YamlExtensionDataAttribute"/> member
     /// (see <see cref="Serialization.YamlUnmappedMember.IsCapturedByExtensionData"/>), as they are encountered.
-    /// It is not invoked when <see cref="UnmappedMemberHandling"/> is <see cref="JsonUnmappedMemberHandling.Disallow"/>,
-    /// because the first unmapped key throws.
+    /// It is not invoked for a key that throws because <see cref="UnmappedMemberHandling"/> is <see cref="JsonUnmappedMemberHandling.Disallow"/>.
     /// When this property is <see langword="null"/> (the default) unmapped members cost nothing extra.
     /// </remarks>
     public Action<Serialization.YamlUnmappedMember>? UnmappedMemberCallback { get; init; }

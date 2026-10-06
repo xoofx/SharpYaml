@@ -64,7 +64,7 @@ Both receive [`YamlUnmappedMember`](xref:SharpYaml.Serialization.YamlUnmappedMem
 | `IsCapturedByExtensionData` | `true` when a `[YamlExtensionData]` member stored the key as well |
 
 The callback runs for skipped keys and for keys captured by extension data.
-With `UnmappedMemberHandling = Disallow` the first unknown key still throws, and neither delegate runs.
+With `UnmappedMemberHandling = Disallow` the first unknown key that is not captured by extension data still throws, and neither delegate runs for it.
 
 ### Warn with a suggestion
 
@@ -116,5 +116,6 @@ var options = new YamlSerializerOptions
 - When neither delegate is set there is no extra work apart from a null check where unknown keys are handled.
 - Source-generated contexts are supported through the same options (`context.CreateOptions(o => o with { ... })`).
 - Inside polymorphic nodes the `Path` is complete, but `KeyStart`/`ValueStart` are relative to the buffered node.
+- The type discriminator key of a polymorphic node (for example `$type`) is not reported.
 - Aliases inside an unknown value that refer to anchors outside of it are represented as a `*name` value.
 - The finalizer is invoked by the `YamlSerializer.Deserialize`/`TryDeserialize` methods, not when using `YamlReader` directly.
