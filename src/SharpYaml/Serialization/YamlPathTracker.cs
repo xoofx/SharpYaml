@@ -50,8 +50,9 @@ internal sealed class YamlPathTracker
     /// Gets a value indicating whether <paramref name="memberName"/>, read in the root mapping of a buffered polymorphic node,
     /// is the type discriminator property. The discriminator is consumed by polymorphism rather than unmapped.
     /// </summary>
-    public bool IsDiscriminatorMember(string memberName)
-        => _discriminatorPropertyName is not null && _count == 1 && string.Equals(memberName, _discriminatorPropertyName, System.StringComparison.Ordinal);
+    /// <remarks><paramref name="comparison"/> must match the comparison used to find the discriminator when the node was buffered.</remarks>
+    public bool IsDiscriminatorMember(string memberName, System.StringComparison comparison)
+        => _discriminatorPropertyName is not null && _count == 1 && string.Equals(memberName, _discriminatorPropertyName, comparison);
 
     public void OnToken(YamlTokenType tokenType, string? scalarValue, Mark start)
     {

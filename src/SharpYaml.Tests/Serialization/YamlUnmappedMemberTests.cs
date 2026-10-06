@@ -192,6 +192,48 @@ public sealed class YamlUnmappedMemberTests
 
     [TestMethod]
     [DynamicData(nameof(Modes))]
+    public void Callback_DoesNotReportDiscriminatorMatchedIgnoringCase(bool generated)
+    {
+        var members = new List<YamlUnmappedMember>();
+        var options = new YamlSerializerOptions { PropertyNameCaseInsensitive = true, UnmappedMemberCallback = members.Add };
+
+        var value = Deserialize<UnmappedZoo>("Pets:\n  - $TYPE: dog\n    Name: a\n    Oops: 1\n", options, generated)!;
+
+        Assert.IsInstanceOfType<UnmappedDog>(value.Pets[0]);
+        CollectionAssert.AreEqual(new[] { "Oops" }, members.Select(static m => m.Name).ToArray());
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Callback_ReportsPathsThroughNestedPolymorphicNodes(bool generated)
+    {
+        var members = new List<YamlUnmappedMember>();
+        var options = new YamlSerializerOptions { UnmappedMemberCallback = members.Add };
+
+        Deserialize<UnmappedZoo>("Pets:\n  - $type: dog\n    Friend:\n      $type: dog\n      Oops: 1\n    Sub: {$type: x}\nTail: 1\n", options, generated);
+
+        // A '$type' key is only the discriminator on the root mapping of a polymorphic node.
+        CollectionAssert.AreEqual(
+            new[] { "$.Pets[0].Friend.Oops", "$.Pets[0].Sub", "$.Tail" },
+            members.Select(static m => m.Path).ToArray());
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Callback_ReportsPathsThroughNestedSequencesAndDictionaries(bool generated)
+    {
+        var members = new List<YamlUnmappedMember>();
+        var options = new YamlSerializerOptions { UnmappedMemberCallback = members.Add };
+
+        Deserialize<UnmappedContainers>("Matrix:\n  - - Enabled: true\n      Oops: 1\n    - Oops: 2\nMap:\n  a: {Oops: 3}\n  'b c': {Oops: 4}\n", options, generated);
+
+        CollectionAssert.AreEqual(
+            new[] { "$.Matrix[0][0].Oops", "$.Matrix[0][1].Oops", "$.Map.a.Oops", "$.Map['b c'].Oops" },
+            members.Select(static m => m.Path).ToArray());
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
     public void Finalizer_ReceivesAllMembersOnceInDocumentOrder(bool generated)
     {
         var calls = new List<string[]>();
@@ -302,6 +344,12 @@ internal sealed class UnmappedWithMappingExtensionData
     public YamlMapping? Extra { get; set; }
 }
 
+internal sealed class UnmappedContainers
+{
+    public List<List<UnmappedTls>> Matrix { get; set; } = new();
+    public Dictionary<string, UnmappedTls> Map { get; set; } = new();
+}
+
 internal sealed class UnmappedConstructorModel
 {
     public UnmappedConstructorModel(int id)
@@ -322,6 +370,7 @@ internal sealed class UnmappedZoo
 internal abstract class UnmappedAnimal
 {
     public string Name { get; set; } = string.Empty;
+    public UnmappedAnimal? Friend { get; set; }
 }
 
 internal sealed class UnmappedDog : UnmappedAnimal
@@ -336,6 +385,7 @@ internal sealed class UnmappedDog : UnmappedAnimal
 [YamlSerializable(typeof(UnmappedWithMappingExtensionData))]
 [YamlSerializable(typeof(UnmappedConstructorModel))]
 [YamlSerializable(typeof(UnmappedZoo))]
+[YamlSerializable(typeof(UnmappedContainers))]
 internal partial class UnmappedMemberContext : YamlSerializerContext
 {
     public UnmappedMemberContext()

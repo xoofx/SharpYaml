@@ -1483,6 +1483,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
     private sealed class Contract
     {
         private readonly Dictionary<string, Member> _membersByName;
+        private string[]? _knownMemberNames;
 
         public Contract(
             Type declaringType,
@@ -1512,9 +1513,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         public Type DeclaringType { get; }
 
-        // Contracts are created per reader, so this is computed on demand (only when unmapped members are reported)
-        // instead of being cached in a field.
-        public string[] GetKnownMemberNames()
+        // Only needed when unmapped members are reported, so the names are materialized on first use.
+        public string[] GetKnownMemberNames() => _knownMemberNames ??= CreateKnownMemberNames();
+
+        private string[] CreateKnownMemberNames()
         {
             var names = new List<string>(MembersDeclaration.Length);
             foreach (var member in MembersDeclaration)

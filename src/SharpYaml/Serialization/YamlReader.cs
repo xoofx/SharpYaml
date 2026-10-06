@@ -119,7 +119,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(knownMemberNames);
         ArgumentGuard.ThrowIfNull(memberName);
 
-        if (tracker.IsDiscriminatorMember(memberName))
+        if (tracker.IsDiscriminatorMember(memberName, Options.PropertyNameCaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
         {
             return null;
         }
