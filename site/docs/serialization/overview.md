@@ -122,6 +122,8 @@ is not a lossless alternative: it currently materializes aliases as copies.
 | [`UnsafeAllowDeserializeFromTagTypeName`](xref:SharpYaml.YamlSerializerOptions.UnsafeAllowDeserializeFromTagTypeName) | `false` | Allows tag-based activation by runtime type name (use only with trusted input). |
 | [`TypeInfoResolver`](xref:SharpYaml.YamlSerializerOptions.TypeInfoResolver) | `null` | Provides metadata (generated or custom) for reflection-free serialization. |
 | [`SourceName`](xref:SharpYaml.YamlSerializerOptions.SourceName) | `null` | Used for error messages (file/path) when throwing [`YamlException`](xref:SharpYaml.YamlException). |
+| [`UnmappedMemberCallback`](xref:SharpYaml.YamlSerializerOptions.UnmappedMemberCallback) | `null` | Invoked for every unknown key while reading. See [Handling unknown members globally](extension-data.md#handling-unknown-members-globally). |
+| [`UnmappedMembersFinalizer`](xref:SharpYaml.YamlSerializerOptions.UnmappedMembersFinalizer) | `null` | Invoked once per deserialization call with all unknown keys; may throw to fail the call. |
 
 ### Block sequence item style
 

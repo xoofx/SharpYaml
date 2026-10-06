@@ -99,6 +99,27 @@ public sealed record YamlSerializerOptions
     public JsonUnmappedMemberHandling UnmappedMemberHandling { get; init; } = JsonUnmappedMemberHandling.Skip;
 
     /// <summary>
+    /// Gets or sets a callback invoked for every YAML mapping key that could not be mapped to a member during deserialization.
+    /// </summary>
+    /// <remarks>
+    /// The callback runs for keys that are skipped and for keys stored by a <see cref="Serialization.YamlExtensionDataAttribute"/> member
+    /// (see <see cref="Serialization.YamlUnmappedMember.IsCapturedByExtensionData"/>), as they are encountered.
+    /// It is not invoked for a key that throws because <see cref="UnmappedMemberHandling"/> is <see cref="JsonUnmappedMemberHandling.Disallow"/>.
+    /// When this property is <see langword="null"/> (the default) unmapped members cost nothing extra.
+    /// </remarks>
+    public Action<Serialization.YamlUnmappedMember>? UnmappedMemberCallback { get; init; }
+
+    /// <summary>
+    /// Gets or sets a callback invoked once at the end of a <see cref="YamlSerializer"/> deserialization call with every
+    /// unmapped member that was reported, in document order.
+    /// </summary>
+    /// <remarks>
+    /// The callback is only invoked when at least one unmapped member was found, and may throw to fail the deserialization.
+    /// It is invoked by the <c>YamlSerializer.Deserialize</c> and <c>TryDeserialize</c> methods, not by direct <see cref="Serialization.YamlReader"/> usage.
+    /// </remarks>
+    public Action<IReadOnlyList<Serialization.YamlUnmappedMember>>? UnmappedMembersFinalizer { get; init; }
+
+    /// <summary>
     /// Gets or sets the preferred object creation handling for properties and fields during deserialization.
     /// </summary>
     /// <remarks>

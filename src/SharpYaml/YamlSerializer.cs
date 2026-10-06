@@ -1157,7 +1157,9 @@ public static class YamlSerializer
             return null;
         }
 
-        return typeInfo.ReadAsObject(reader);
+        var result = typeInfo.ReadAsObject(reader);
+        reader.CompleteUnmappedMembers();
+        return result;
     }
 
     private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, string yaml)
@@ -1171,7 +1173,9 @@ public static class YamlSerializer
             return default;
         }
 
-        return typeInfo.Read(reader);
+        var result = typeInfo.Read(reader);
+        reader.CompleteUnmappedMembers();
+        return result;
     }
 
     private static object? DeserializeCore(YamlTypeInfo typeInfo, TextReader reader)
@@ -1185,7 +1189,9 @@ public static class YamlSerializer
             return null;
         }
 
-        return typeInfo.ReadAsObject(yamlReader);
+        var result = typeInfo.ReadAsObject(yamlReader);
+        yamlReader.CompleteUnmappedMembers();
+        return result;
     }
 
     private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, TextReader reader)
@@ -1199,7 +1205,9 @@ public static class YamlSerializer
             return default;
         }
 
-        return typeInfo.Read(yamlReader);
+        var result = typeInfo.Read(yamlReader);
+        yamlReader.CompleteUnmappedMembers();
+        return result;
     }
 
     private static StringBuilder AcquireStringBuilder(int minimumCapacity)

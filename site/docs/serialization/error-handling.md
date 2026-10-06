@@ -37,3 +37,8 @@ if (!YamlSerializer.TryDeserialize<MyConfig>(yaml, out var model, options))
 ## Required members
 
 If a required member is missing (for example [`YamlRequiredAttribute`](xref:SharpYaml.Serialization.YamlRequiredAttribute) or [`JsonRequiredAttribute`](xref:System.Text.Json.Serialization.JsonRequiredAttribute)), deserialization throws [`YamlException`](xref:SharpYaml.YamlException).
+
+## Unknown members
+
+By default unknown keys are skipped. Set `UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow` to throw on the first one, or use
+[`UnmappedMemberCallback` and `UnmappedMembersFinalizer`](extension-data.md#handling-unknown-members-globally) to log, suggest corrections or fail with all of them.

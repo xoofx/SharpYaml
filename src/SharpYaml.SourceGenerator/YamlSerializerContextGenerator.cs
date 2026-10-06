@@ -2205,6 +2205,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var mergeEnabledExpression = GetMergeEnabledExpression(sourceGenerationOptions);
         var duplicateKeyHandling = GetDuplicateKeyHandling(sourceGenerationOptions);
 
+        EmitKnownMemberNames(builder, index, members);
+
         builder.Append("    private static ").Append(typeName).Append(typeSymbol.IsReferenceType ? "?" : string.Empty).Append(" ReadObjectCore").Append(index)
             .AppendLine("(global::SharpYaml.Serialization.YamlReader reader, RuntimeCustomConverterCache runtimeConverters)");
         builder.AppendLine("    {");
@@ -2297,6 +2299,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 builder.AppendLine("        void ReadAndStoreExtensionData(string extensionKey)");
                 builder.AppendLine("        {");
+                builder.Append("            var reported = reader.IsReportingUnmappedMembers ? ").Append(GetBeginUnmappedMemberExpression(typeName, index, "extensionKey", "instance")).AppendLine(" : null;");
                 builder.Append("            var container = instance.").Append(extensionData.Symbol.Name).AppendLine(";");
                 builder.AppendLine("            if (container is null)");
                 builder.AppendLine("            {");
@@ -2315,6 +2318,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append("            var converter = reader.GetConverter(typeof(").Append(valueTypeName).AppendLine("));");
                 builder.Append("            var extensionValue = (").Append(valueTypeName).Append(")converter.Read(reader, typeof(").Append(valueTypeName).AppendLine("));");
                 builder.AppendLine("            container[extensionKey] = extensionValue;");
+                builder.AppendLine("            if (reported is not null) { reader.CompleteExtensionDataMember(reported, extensionValue); }");
                 builder.AppendLine("        }");
                 builder.AppendLine();
             }
@@ -2322,6 +2326,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.AppendLine("        void ReadAndStoreExtensionData(string extensionKey)");
                 builder.AppendLine("        {");
+                builder.Append("            var reported = reader.IsReportingUnmappedMembers ? ").Append(GetBeginUnmappedMemberExpression(typeName, index, "extensionKey", "instance")).AppendLine(" : null;");
                 builder.Append("            var mapping = instance.").Append(extensionData.Symbol.Name).AppendLine(";");
                 builder.AppendLine("            if (mapping is null)");
                 builder.AppendLine("            {");
@@ -2345,10 +2350,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("                if (pair.Key is global::SharpYaml.Model.YamlValue keyValue && global::System.String.Equals(keyValue.Value, extensionKey, global::System.StringComparison.Ordinal))");
                 builder.AppendLine("                {");
                 builder.AppendLine("                    list[i] = new global::System.Collections.Generic.KeyValuePair<global::SharpYaml.Model.YamlElement, global::SharpYaml.Model.YamlElement?>(pair.Key, extensionValue);");
+                builder.AppendLine("                    if (reported is not null) { reader.CompleteExtensionDataMember(reported, extensionValue); }");
                 builder.AppendLine("                    return;");
                 builder.AppendLine("                }");
                 builder.AppendLine("            }");
                 builder.AppendLine("            mapping.Add(new global::SharpYaml.Model.YamlValue(extensionKey), extensionValue);");
+                builder.AppendLine("            if (reported is not null) { reader.CompleteExtensionDataMember(reported, extensionValue); }");
                 builder.AppendLine("        }");
                 builder.AppendLine();
             }
@@ -2474,7 +2481,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
-            EmitHandleUnmatchedMember(builder, typeName, "mergeKey", unmappedMemberHandling, indent: "                    ");
+            EmitHandleUnmatchedMember(builder, typeName, index, "mergeKey", "instance", unmappedMemberHandling, indent: "                    ");
         }
         builder.AppendLine("                }");
         builder.AppendLine("            }");
@@ -2540,7 +2547,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
-            EmitHandleUnmatchedMember(builder, typeName, "key", unmappedMemberHandling, indent: "                ");
+            EmitHandleUnmatchedMember(builder, typeName, index, "key", "instance", unmappedMemberHandling, indent: "                ");
         }
         builder.AppendLine("            }");
         builder.AppendLine("        }");
@@ -2591,10 +2598,33 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("    }");
     }
 
+    // The names are only materialized when unmapped member reporting is enabled and a member is reported.
+    private static void EmitKnownMemberNames(StringBuilder builder, int index, ImmutableArray<MemberModel> members)
+    {
+        builder.Append("    private static string[]? s_knownMemberNames").Append(index).AppendLine(";");
+        builder.Append("    private static string[] KnownMemberNames").Append(index).Append(" => s_knownMemberNames").Append(index).AppendLine(" ??= new string[]");
+        builder.AppendLine("    {");
+        foreach (var member in members)
+        {
+            if (!member.IsIgnoredOnRead)
+            {
+                builder.Append("        ").Append(member.SerializedNameExpressionForRead).AppendLine(",");
+            }
+        }
+
+        builder.AppendLine("    };");
+        builder.AppendLine();
+    }
+
+    private static string GetBeginUnmappedMemberExpression(string typeName, int index, string keyExpression, string instanceExpression)
+        => "reader.BeginUnmappedMember(typeof(" + typeName + "), KnownMemberNames" + index + ", " + keyExpression + ", " + instanceExpression + ")";
+
     private static void EmitHandleUnmatchedMember(
         StringBuilder builder,
         string typeName,
+        int index,
         string keyExpression,
+        string instanceExpression,
         string? unmappedMemberHandling,
         string indent)
     {
@@ -2612,7 +2642,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append(indent).AppendLine("}");
         }
 
-        builder.Append(indent).AppendLine("reader.Skip();");
+        builder.Append(indent).AppendLine("if (reader.IsReportingUnmappedMembers)");
+        builder.Append(indent).AppendLine("{");
+        builder.Append(indent).Append("    reader.ReadUnmappedMember(").Append(GetBeginUnmappedMemberExpression(typeName, index, keyExpression, instanceExpression)).AppendLine(");");
+        builder.Append(indent).AppendLine("}");
+        builder.Append(indent).AppendLine("else");
+        builder.Append(indent).AppendLine("{");
+        builder.Append(indent).AppendLine("    reader.Skip();");
+        builder.Append(indent).AppendLine("}");
     }
 
     private static void EmitReadObjectCoreWithConstructor(
@@ -2736,10 +2773,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append("        global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, ").Append(valueTypeName).AppendLine(">>? extensionEntries = null;");
                 builder.AppendLine("        void BufferExtensionData(string extensionKey)");
                 builder.AppendLine("        {");
+                builder.Append("            var reported = reader.IsReportingUnmappedMembers ? ").Append(GetBeginUnmappedMemberExpression(typeName, index, "extensionKey", "null")).AppendLine(" : null;");
                 builder.AppendLine("            extensionEntries ??= new global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, " + valueTypeName + ">>();");
                 builder.Append("            var converter = reader.GetConverter(typeof(").Append(valueTypeName).AppendLine("));");
                 builder.Append("            var extensionValue = (").Append(valueTypeName).Append(")converter.Read(reader, typeof(").Append(valueTypeName).AppendLine("));");
                 builder.AppendLine("            extensionEntries.Add(new global::System.Collections.Generic.KeyValuePair<string, " + valueTypeName + ">(extensionKey, extensionValue));");
+                builder.AppendLine("            if (reported is not null) { reader.CompleteExtensionDataMember(reported, extensionValue); }");
                 builder.AppendLine("        }");
             }
             else
@@ -2747,10 +2786,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("        global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>>? extensionEntries = null;");
                 builder.AppendLine("        void BufferExtensionData(string extensionKey)");
                 builder.AppendLine("        {");
+                builder.Append("            var reported = reader.IsReportingUnmappedMembers ? ").Append(GetBeginUnmappedMemberExpression(typeName, index, "extensionKey", "null")).AppendLine(" : null;");
                 builder.AppendLine("            extensionEntries ??= new global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>>();");
                 builder.AppendLine("            var converter = reader.GetConverter(typeof(global::SharpYaml.Model.YamlElement));");
                 builder.AppendLine("            var extensionValue = (global::SharpYaml.Model.YamlElement?)converter.Read(reader, typeof(global::SharpYaml.Model.YamlElement));");
                 builder.AppendLine("            extensionEntries.Add(new global::System.Collections.Generic.KeyValuePair<string, global::SharpYaml.Model.YamlElement?>(extensionKey, extensionValue));");
+                builder.AppendLine("            if (reported is not null) { reader.CompleteExtensionDataMember(reported, extensionValue); }");
                 builder.AppendLine("        }");
             }
         }
@@ -2958,7 +2999,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
-            EmitHandleUnmatchedMember(builder, typeName, "mergeKey", unmappedMemberHandling, indent: "                    ");
+            EmitHandleUnmatchedMember(builder, typeName, index, "mergeKey", "null", unmappedMemberHandling, indent: "                    ");
         }
         builder.AppendLine("                }");
         builder.AppendLine("            }");
@@ -3108,7 +3149,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
         else
         {
-            EmitHandleUnmatchedMember(builder, typeName, "key", unmappedMemberHandling, indent: "                ");
+            EmitHandleUnmatchedMember(builder, typeName, index, "key", "null", unmappedMemberHandling, indent: "                ");
         }
         builder.AppendLine("            }");
         builder.AppendLine("        }");

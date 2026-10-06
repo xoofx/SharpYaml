@@ -40,7 +40,9 @@ public sealed class YamlReader : YamlReaderWriterBase
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName), effectiveOptions);
+        var session = YamlUnmappedMemberSession.Create(effectiveOptions);
+        var tracker = session is null ? null : new YamlPathTracker(session, prefix: null, discriminatorPropertyName: null);
+        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker), effectiveOptions);
     }
 
     /// <summary>
@@ -55,7 +57,9 @@ public sealed class YamlReader : YamlReaderWriterBase
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(reader, effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName), effectiveOptions);
+        var session = YamlUnmappedMemberSession.Create(effectiveOptions);
+        var tracker = session is null ? null : new YamlPathTracker(session, prefix: null, discriminatorPropertyName: null);
+        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker), effectiveOptions);
     }
 
     /// <summary>
@@ -71,16 +75,94 @@ public sealed class YamlReader : YamlReaderWriterBase
     public YamlReader CreateReader(string yaml)
     {
         ArgumentGuard.ThrowIfNull(yaml);
-        return Create(yaml, _state.ReferenceReader, _state.SourceName, Options);
+        var session = _state.Tracker?.Session;
+        var tracker = session is null ? null : new YamlPathTracker(session, session.BufferedPath, session.BufferedDiscriminator);
+        return Create(yaml, _state.ReferenceReader, _state.SourceName, Options, tracker);
     }
 
-    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName, YamlSerializerOptions options)
+    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName, YamlSerializerOptions options, YamlPathTracker? tracker)
     {
         ArgumentGuard.ThrowIfNull(yaml);
         ArgumentGuard.ThrowIfNull(options);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), options.EffectiveMaxDepth, sourceName);
-        return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName), options);
+        return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName, tracker), options);
     }
+
+    /// <summary>
+    /// Gets a value indicating whether unmapped members are being reported, that is whether
+    /// <see cref="YamlSerializerOptions.UnmappedMemberCallback"/> or <see cref="YamlSerializerOptions.UnmappedMembersFinalizer"/> is set.
+    /// </summary>
+    /// <remarks>This is intended for converters and generated code, which should only call the unmapped member methods when it is <see langword="true"/>.</remarks>
+    public bool IsReportingUnmappedMembers => _state.Tracker is not null;
+
+    /// <summary>
+    /// Starts reporting an unmapped member. Call this while the reader is positioned on the value of the unmapped key.
+    /// </summary>
+    /// <param name="declaringType">The CLR type being deserialized.</param>
+    /// <param name="knownMemberNames">The serialized member names accepted by <paramref name="declaringType"/>.</param>
+    /// <param name="memberName">The unmapped YAML key.</param>
+    /// <param name="instance">The instance being populated, or <see langword="null"/> when it does not exist yet.</param>
+    /// <returns>
+    /// The member to pass to <see cref="ReadUnmappedMember"/> or <see cref="CompleteExtensionDataMember"/>, or <see langword="null"/>
+    /// when <see cref="IsReportingUnmappedMembers"/> is <see langword="false"/> or the key is the type discriminator of a polymorphic node.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="declaringType"/>, <paramref name="knownMemberNames"/>, or <paramref name="memberName"/> is <see langword="null"/>.</exception>
+    public YamlUnmappedMember? BeginUnmappedMember(Type declaringType, string[] knownMemberNames, string memberName, object? instance)
+    {
+        var tracker = _state.Tracker;
+        if (tracker is null)
+        {
+            return null;
+        }
+
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(knownMemberNames);
+        ArgumentGuard.ThrowIfNull(memberName);
+
+        if (tracker.IsDiscriminatorMember(memberName, Options.PropertyNameCaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return new YamlUnmappedMember(SourceName, declaringType, instance, memberName, tracker.GetPath(), tracker.GetCurrentKeyStart(), Start, knownMemberNames);
+    }
+
+    /// <summary>
+    /// Consumes the value of an unmapped member and reports it. When <paramref name="member"/> is <see langword="null"/> this is <see cref="Skip"/>.
+    /// </summary>
+    /// <param name="member">The member returned by <see cref="BeginUnmappedMember"/>.</param>
+    public void ReadUnmappedMember(YamlUnmappedMember? member)
+    {
+        var session = _state.Tracker?.Session;
+        if (member is null || session is null)
+        {
+            Skip();
+            return;
+        }
+
+        var element = Converters.YamlModelNodeConverter.ReadUnmappedNode(this, session.Anchors);
+        member.SetValue(element);
+        session.Report(member);
+    }
+
+    /// <summary>
+    /// Reports an unmapped member whose value was stored in extension data. Does nothing when <paramref name="member"/> is <see langword="null"/>.
+    /// </summary>
+    /// <param name="member">The member returned by <see cref="BeginUnmappedMember"/>, called before the value was read.</param>
+    /// <param name="value">The value that was stored.</param>
+    public void CompleteExtensionDataMember(YamlUnmappedMember? member, object? value)
+    {
+        var session = _state.Tracker?.Session;
+        if (member is null || session is null)
+        {
+            return;
+        }
+
+        member.SetCapturedValue(value);
+        session.Report(member);
+    }
+
+    internal void CompleteUnmappedMembers() => _state.Tracker?.Session.Complete();
 
     /// <summary>
     /// Gets the current token type.
@@ -198,6 +280,7 @@ public sealed class YamlReader : YamlReaderWriterBase
 
         var comparer = reader.Options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         discriminatorValue = null;
+        reader.CaptureBufferedNode(discriminatorPropertyName);
 
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
         var yamlWriter = new YamlWriter(writer, reader.Options);
@@ -218,6 +301,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     public static string BufferCurrentNodeToString(YamlReader reader)
     {
         ArgumentGuard.ThrowIfNull(reader);
+        reader.CaptureBufferedNode(discriminatorPropertyName: null);
 
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
         var yamlWriter = new YamlWriter(writer, reader.Options);
@@ -225,6 +309,16 @@ public sealed class YamlReader : YamlReaderWriterBase
         string? unused = null;
         WriteBufferedNode(reader, yamlWriter, StringComparer.Ordinal, discriminatorPropertyName: string.Empty, isRootMapping: false, ref unused);
         return writer.ToString();
+    }
+
+    private void CaptureBufferedNode(string? discriminatorPropertyName)
+    {
+        var tracker = _state.Tracker;
+        if (tracker is not null)
+        {
+            tracker.Session.BufferedPath = tracker.GetPath();
+            tracker.Session.BufferedDiscriminator = discriminatorPropertyName;
+        }
     }
 
     /// <summary>
@@ -351,9 +445,10 @@ public sealed class YamlReader : YamlReaderWriterBase
     {
         private readonly IParser _parser;
 
-        public YamlReaderState(IParser parser, YamlReferenceReader? referenceReader, string? sourceName)
+        public YamlReaderState(IParser parser, YamlReferenceReader? referenceReader, string? sourceName, YamlPathTracker? tracker)
         {
             _parser = parser;
+            Tracker = tracker;
             TokenType = YamlTokenType.None;
             ReferenceReader = referenceReader;
             SourceName = sourceName;
@@ -370,8 +465,20 @@ public sealed class YamlReader : YamlReaderWriterBase
         public ParsingEvent? CurrentEvent { get; private set; }
         public YamlReferenceReader? ReferenceReader { get; }
         public string? SourceName { get; }
+        public YamlPathTracker? Tracker { get; }
 
         public bool Read()
+        {
+            if (!ReadCore())
+            {
+                return false;
+            }
+
+            Tracker?.OnToken(TokenType, ScalarValue, Start);
+            return true;
+        }
+
+        private bool ReadCore()
         {
             while (_parser.MoveNext())
             {
