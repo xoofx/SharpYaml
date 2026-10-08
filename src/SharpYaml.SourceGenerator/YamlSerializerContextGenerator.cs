@@ -1154,6 +1154,31 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("        private static bool TryResolve(global::SharpYaml.YamlSerializerOptions options, global::System.Type typeToConvert, out global::SharpYaml.Serialization.YamlConverter? converter)");
         builder.AppendLine("        {");
+        builder.AppendLine("            // An exact match (same precedence rule as System.Text.Json: first matching converter wins) always");
+        builder.AppendLine("            // takes priority over the Nullable<T>-unwrapping fallback below, regardless of registration order -");
+        builder.AppendLine("            // otherwise a converter registered for T ahead of one explicitly registered for T? would incorrectly");
+        builder.AppendLine("            // shadow the more specific one for a T? lookup.");
+        builder.AppendLine("            if (TryFindConverter(options, typeToConvert, matchNullableUnderlyingType: false, out converter))");
+        builder.AppendLine("            {");
+        builder.AppendLine("                return true;");
+        builder.AppendLine("            }");
+        builder.AppendLine();
+        builder.AppendLine("            if (global::System.Nullable.GetUnderlyingType(typeToConvert) is not null");
+        builder.AppendLine("                && TryFindConverter(options, typeToConvert, matchNullableUnderlyingType: true, out converter))");
+        builder.AppendLine("            {");
+        builder.AppendLine("                return true;");
+        builder.AppendLine("            }");
+        builder.AppendLine();
+        builder.AppendLine("            converter = null;");
+        builder.AppendLine("            return false;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        // matchNullableUnderlyingType: matches a plain (non-factory) converter against typeToConvert's");
+        builder.AppendLine("        // Nullable<T> underlying type instead of the type itself (see YamlConverter.CanConvertNullable).");
+        builder.AppendLine("        // Factories are skipped in this pass - they already receive typeToConvert as-is and can unwrap it");
+        builder.AppendLine("        // themselves if they choose to support Nullable<T>.");
+        builder.AppendLine("        private static bool TryFindConverter(global::SharpYaml.YamlSerializerOptions options, global::System.Type typeToConvert, bool matchNullableUnderlyingType, out global::SharpYaml.Serialization.YamlConverter? converter)");
+        builder.AppendLine("        {");
         builder.AppendLine("            var converters = options.Converters;");
         builder.AppendLine("            for (var i = 0; i < converters.Count; i++)");
         builder.AppendLine("            {");
@@ -1169,7 +1194,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         builder.AppendLine("                if (candidate is global::SharpYaml.Serialization.YamlConverterFactory factory)");
         builder.AppendLine("                {");
-        builder.AppendLine("                    if (!factory.CanConvert(typeToConvert))");
+        builder.AppendLine("                    if (matchNullableUnderlyingType || !factory.CanConvert(typeToConvert))");
         builder.AppendLine("                    {");
         builder.AppendLine("                        continue;");
         builder.AppendLine("                    }");
@@ -1184,7 +1209,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("                    return true;");
         builder.AppendLine("                }");
         builder.AppendLine();
-        builder.AppendLine("                if (candidate.CanConvert(typeToConvert))");
+        builder.AppendLine("                var matches = matchNullableUnderlyingType ? candidate.CanConvertNullable(typeToConvert) : candidate.CanConvert(typeToConvert);");
+        builder.AppendLine("                if (matches)");
         builder.AppendLine("                {");
         builder.AppendLine("                    converter = candidate;");
         builder.AppendLine("                    return true;");
@@ -1255,7 +1281,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
-        EmitWriteWithRuntimeCustomConverter(builder, typeName, "value", indent: "        ", emitReturn: true, variableSuffix: "Root" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
+        EmitWriteWithRuntimeCustomConverter(builder, typeSymbol, typeName, "value", indent: "        ", emitReturn: true, variableSuffix: "Root" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
 
         if (TryEmitWriteWithStaticOptionsConverter(builder, sourceGenerationOptions, typeSymbol, "value", indent: "        ", emitReturn: true))
         {
@@ -3569,7 +3595,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             return;
         }
 
-        EmitReadWithRuntimeCustomConverter(builder, typeName, "        ", variableSuffix: "Root" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture), convertedValue =>
+        EmitReadWithRuntimeCustomConverter(builder, typeSymbol, typeName, "        ", variableSuffix: "Root" + index.ToString(global::System.Globalization.CultureInfo.InvariantCulture), convertedValue =>
         {
             builder.Append("            return ").Append(convertedValue).AppendLine(";");
         });
@@ -4831,10 +4857,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var runtimeSuffix = GetStableIdentifierSuffix(member.Symbol.Name + ":" + memberTypeName);
         var runtimeConverterName = "runtimeConverter" + runtimeSuffix;
         builder.Append(indent).AppendLine("{");
-        builder.Append(indent).Append("if (runtimeConverters.TryGetConverter(typeof(").Append(memberTypeName).Append("), out var ").Append(runtimeConverterName).AppendLine("))");
-        builder.Append(indent).AppendLine("{");
-        builder.Append(indent).Append("    ").Append(runtimeConverterName).Append(".Write(writer, ").Append(valueExpression).AppendLine(");");
-        builder.Append(indent).AppendLine("}");
+        EmitRuntimeConverterWrite(builder, member.Type, memberTypeName, valueExpression, runtimeConverterName, indent, emitReturn: false);
         builder.Append(indent).AppendLine("else");
         builder.Append(indent).AppendLine("{");
         var innerIndent = indent + "    ";
@@ -5880,11 +5903,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var runtimeConverterName = "runtimeConverter" + runtimeSuffix;
         var runtimeValueName = "runtimeValue" + runtimeSuffix;
         builder.AppendLine("                {");
-        builder.AppendLine("                if (runtimeConverters.TryGetConverter(typeof(" + memberTypeName + "), out var " + runtimeConverterName + "))");
-        builder.AppendLine("                {");
-        builder.AppendLine("                    var " + runtimeValueName + " = " + runtimeConverterName + ".Read(reader, typeof(" + memberTypeName + "));");
-        builder.Append("                    ").Append(member.AssignExpression(runtimeValueName + " is null ? default : (" + memberTypeName + ")" + runtimeValueName)).AppendLine(";");
-        builder.AppendLine("                }");
+        EmitRuntimeConverterRead(builder, member.Type, memberTypeName, runtimeConverterName, runtimeValueName, "                ", assignmentExpression =>
+        {
+            builder.Append("                        ").Append(member.AssignExpression(assignmentExpression)).AppendLine(";");
+        });
         builder.AppendLine("                else");
         builder.AppendLine("                {");
         if (TryEmitReadWithStaticOptionsConverter(builder, sourceGenerationOptions, member.Type, "                    ", convertedValue =>
@@ -6834,6 +6856,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static void EmitWriteWithRuntimeCustomConverter(
         StringBuilder builder,
+        ITypeSymbol typeSymbol,
         string typeName,
         string valueExpression,
         string indent,
@@ -6842,15 +6865,104 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     {
         var runtimeConverterName = "runtimeConverter" + variableSuffix;
         builder.Append(indent).AppendLine("{");
+        EmitRuntimeConverterWrite(builder, typeSymbol, typeName, valueExpression, runtimeConverterName, indent, emitReturn);
+        builder.Append(indent).AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits <c>if (runtimeConverters.TryGetConverter(typeof(typeName), out var runtimeConverterName)) { ... }</c>
+    /// dispatching to the resolved converter's <c>Write</c>.
+    /// </summary>
+    /// <remarks>
+    /// When <paramref name="typeSymbol"/> is <see cref="Nullable{T}"/>, the resolved converter may have matched
+    /// only by having been registered for the underlying, non-nullable type (see
+    /// <see cref="YamlConverter.CanConvertNullable"/>) rather than the nullable type itself. Such a converter's
+    /// sealed <c>Write(YamlWriter, object?)</c> unboxes straight to the non-nullable type, which throws on a
+    /// null value, so null is written directly instead of calling into it in that case. A converter actually
+    /// declared against the nullable type is unaffected and keeps handling null itself, as before.
+    /// </remarks>
+    private static void EmitRuntimeConverterWrite(
+        StringBuilder builder,
+        ITypeSymbol typeSymbol,
+        string typeName,
+        string valueExpression,
+        string runtimeConverterName,
+        string indent,
+        bool emitReturn)
+    {
+        var isNullableType = typeSymbol is INamedTypeSymbol namedType && namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
         builder.Append(indent).Append("if (runtimeConverters.TryGetConverter(typeof(").Append(typeName).Append("), out var ").Append(runtimeConverterName).AppendLine("))");
         builder.Append(indent).AppendLine("{");
-        builder.Append(indent).Append("    ").Append(runtimeConverterName).Append(".Write(writer, ").Append(valueExpression).AppendLine(");");
+        if (isNullableType)
+        {
+            builder.Append(indent).Append("    if (!").Append(valueExpression).Append(".HasValue && !").Append(runtimeConverterName).Append(".CanConvert(typeof(").Append(typeName).AppendLine(")))");
+            builder.Append(indent).AppendLine("    {");
+            builder.Append(indent).AppendLine("        writer.WriteNullValue();");
+            builder.Append(indent).AppendLine("    }");
+            builder.Append(indent).AppendLine("    else");
+            builder.Append(indent).AppendLine("    {");
+            builder.Append(indent).Append("        ").Append(runtimeConverterName).Append(".Write(writer, ").Append(valueExpression).AppendLine(");");
+            builder.Append(indent).AppendLine("    }");
+        }
+        else
+        {
+            builder.Append(indent).Append("    ").Append(runtimeConverterName).Append(".Write(writer, ").Append(valueExpression).AppendLine(");");
+        }
+
         if (emitReturn)
         {
             builder.Append(indent).AppendLine("    return;");
         }
 
         builder.Append(indent).AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits <c>if (runtimeConverters.TryGetConverter(typeof(typeName), out var runtimeConverterName)) { ... }</c>
+    /// dispatching to the resolved converter's <c>Read</c>, assigning the result via <paramref name="emitAssignment"/>.
+    /// </summary>
+    /// <remarks>
+    /// Mirrors <see cref="EmitRuntimeConverterWrite"/>: when <paramref name="typeSymbol"/> is <see cref="Nullable{T}"/>
+    /// and the resolved converter only matched by its underlying, non-nullable type (see
+    /// <see cref="YamlConverter.CanConvertNullable"/>), a null scalar is consumed and assigned as default
+    /// directly rather than calling into the converter's <c>Read</c>, which has no knowledge of null for its
+    /// declared (non-nullable) type. A converter actually declared against the nullable type is unaffected and
+    /// keeps handling null itself, as before.
+    /// </remarks>
+    private static void EmitRuntimeConverterRead(
+        StringBuilder builder,
+        ITypeSymbol typeSymbol,
+        string typeName,
+        string runtimeConverterName,
+        string runtimeValueName,
+        string indent,
+        Action<string> emitAssignment)
+    {
+        var isNullableType = typeSymbol is INamedTypeSymbol namedType && namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+        builder.Append(indent).Append("if (runtimeConverters.TryGetConverter(typeof(").Append(typeName).Append("), out var ").Append(runtimeConverterName).AppendLine("))");
+        builder.Append(indent).AppendLine("{");
+        if (isNullableType)
+        {
+            builder.Append(indent).Append("    if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader) && !")
+                .Append(runtimeConverterName).Append(".CanConvert(typeof(").Append(typeName).AppendLine(")))");
+            builder.Append(indent).AppendLine("    {");
+            // Read() must happen before emitAssignment, since some call sites assign via a `return` statement,
+            // which would make a trailing Read() unreachable.
+            builder.Append(indent).AppendLine("        reader.Read();");
+            emitAssignment("default");
+            builder.Append(indent).AppendLine("    }");
+            builder.Append(indent).AppendLine("    else");
+            builder.Append(indent).AppendLine("    {");
+            builder.Append(indent).Append("        var ").Append(runtimeValueName).Append(" = ").Append(runtimeConverterName).Append(".Read(reader, typeof(").Append(typeName).AppendLine("));");
+            emitAssignment(runtimeValueName + " is null ? default : (" + typeName + ")" + runtimeValueName);
+            builder.Append(indent).AppendLine("    }");
+        }
+        else
+        {
+            builder.Append(indent).Append("    var ").Append(runtimeValueName).Append(" = ").Append(runtimeConverterName).Append(".Read(reader, typeof(").Append(typeName).AppendLine("));");
+            emitAssignment(runtimeValueName + " is null ? default : (" + typeName + ")" + runtimeValueName);
+        }
+
         builder.Append(indent).AppendLine("}");
     }
 
@@ -6872,6 +6984,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static void EmitReadWithRuntimeCustomConverter(
         StringBuilder builder,
+        ITypeSymbol typeSymbol,
         string typeName,
         string indent,
         string variableSuffix,
@@ -6880,11 +6993,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var runtimeConverterName = "runtimeConverter" + variableSuffix;
         var runtimeValueName = "runtimeValue" + variableSuffix;
         builder.Append(indent).AppendLine("{");
-        builder.Append(indent).Append("if (runtimeConverters.TryGetConverter(typeof(").Append(typeName).Append("), out var ").Append(runtimeConverterName).AppendLine("))");
-        builder.Append(indent).AppendLine("{");
-        builder.Append(indent).Append("    var ").Append(runtimeValueName).Append(" = ").Append(runtimeConverterName).Append(".Read(reader, typeof(").Append(typeName).AppendLine("));");
-        emitAssignment(runtimeValueName + " is null ? default : (" + typeName + ")" + runtimeValueName);
-        builder.Append(indent).AppendLine("}");
+        EmitRuntimeConverterRead(builder, typeSymbol, typeName, runtimeConverterName, runtimeValueName, indent, emitAssignment);
         builder.Append(indent).AppendLine("}");
     }
 
@@ -6895,10 +7004,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var innerIndent = indent + "    ";
         var runtimeSuffix = GetStableIdentifierSuffix("write:" + typeName + ":" + valueExpression + ":" + indent.Length.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
         var runtimeConverterName = "runtimeConverter" + runtimeSuffix;
-        builder.Append(innerIndent).Append("if (runtimeConverters.TryGetConverter(typeof(").Append(typeName).Append("), out var ").Append(runtimeConverterName).AppendLine("))");
-        builder.Append(innerIndent).AppendLine("{");
-        builder.Append(innerIndent).Append("    ").Append(runtimeConverterName).Append(".Write(writer, ").Append(valueExpression).AppendLine(");");
-        builder.Append(innerIndent).AppendLine("}");
+        EmitRuntimeConverterWrite(builder, typeSymbol, typeName, valueExpression, runtimeConverterName, innerIndent, emitReturn: false);
         builder.Append(innerIndent).AppendLine("else");
         builder.Append(innerIndent).AppendLine("{");
         var bodyIndent = innerIndent + "    ";
@@ -6954,11 +7060,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var runtimeSuffix = GetStableIdentifierSuffix("read:" + typeName + ":" + valueVarName + ":" + indent.Length.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
         var runtimeConverterName = "runtimeConverter" + runtimeSuffix;
         var runtimeValueName = "runtimeValue" + runtimeSuffix;
-        builder.Append(innerIndent).Append("if (runtimeConverters.TryGetConverter(typeof(").Append(typeName).Append("), out var ").Append(runtimeConverterName).AppendLine("))");
-        builder.Append(innerIndent).AppendLine("{");
-        builder.Append(innerIndent).Append("    var ").Append(runtimeValueName).Append(" = ").Append(runtimeConverterName).Append(".Read(reader, typeof(").Append(typeName).AppendLine("));");
-        builder.Append(innerIndent).Append("    ").Append(valueVarName).Append(" = ").Append(runtimeValueName).Append(" is null ? default : (").Append(typeName).Append(")").Append(runtimeValueName).AppendLine(";");
-        builder.Append(innerIndent).AppendLine("}");
+        EmitRuntimeConverterRead(builder, typeSymbol, typeName, runtimeConverterName, runtimeValueName, innerIndent, assignmentExpression =>
+        {
+            builder.Append(innerIndent).Append("    ").Append(valueVarName).Append(" = ").Append(assignmentExpression).AppendLine(";");
+        });
         builder.Append(innerIndent).AppendLine("else");
         builder.Append(innerIndent).AppendLine("{");
         var bodyIndent = innerIndent + "    ";
