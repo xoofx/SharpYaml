@@ -1176,7 +1176,19 @@ public sealed class Yaml12CoreTests
         var stream = YamlStream.Load(new StringReader(yaml));
         var root = (YamlMapping)stream[0].Contents!;
         var value = ((YamlValue)root["text"]!).Value;
-        Assert.AreEqual("paragraph1\nparagraph2\n", value);
+        Assert.AreEqual("paragraph1\n\nparagraph2\n", value);
+    }
+
+    [TestMethod]
+    public void Parse_BlockScalar_ClipChomping_NoTrailingBreakAtEndOfInput_DoesNotAppendNulCharacter()
+    {
+        // Regression test: when a literal/folded block scalar's last content line ends at end-of-input with
+        // no physical trailing line break at all (clip chomping, no explicit "-"/"+" indicator), the scanner
+        // used to append the end-of-input sentinel character itself ('\0') to the scanned value instead of
+        // treating end-of-input as "no further break to consume".
+        const string yaml = "|\n  line1\n  line2";
+        var value = YamlSerializer.Deserialize<string>(yaml);
+        Assert.AreEqual("line1\nline2", value);
     }
 
     // ───────────────────────────────────────────────────────────────────

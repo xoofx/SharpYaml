@@ -135,8 +135,13 @@ public sealed class EmitterEdgeCaseTests
         StringAssert.Contains(literal, "a");
         StringAssert.Contains(literal, "b");
 
+        // "a" and "b" are separated by a blank line (two breaks), which YAML's fold rule always preserves
+        // literally regardless of style, so this is safe to fold and keeps the requested ">" indicator.
+        // A single break between two non-blank lines ("a\nb\n") would be folded into a space on read-back
+        // and is covered separately by FoldedScalarWithMultipleWordsPreservesLineBreaks, which falls back
+        // to literal style instead.
         var folded = EmitDocument(
-            new Scalar(null, null, "a\nb\n", ScalarStyle.Folded, true, true));
+            new Scalar(null, null, "a\n\nb\n", ScalarStyle.Folded, true, true));
         StringAssert.Contains(folded, ">");
         StringAssert.Contains(folded, "a");
         StringAssert.Contains(folded, "b");
