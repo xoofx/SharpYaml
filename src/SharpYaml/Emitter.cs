@@ -1064,11 +1064,6 @@ public class Emitter : IEmitter
         return character == '\r' || character == '\n' || character == '\x85' || character == '\x2028' || character == '\x2029';
     }
 
-    private static bool IsBlank(char character)
-    {
-        return character == ' ' || character == '\t';
-    }
-
     /// <summary>
     /// Check if the specified character is a space.
     /// </summary>
@@ -1088,8 +1083,17 @@ public class Emitter : IEmitter
 
     private void WriteFoldedScalar(string value)
     {
+        // A single line break between two non-blank lines is folded into a space on read-back; there is no
+        // way to escape that within valid folded-scalar syntax without altering the value (a blank line adds
+        // content, and a more-indented line adds leading whitespace to that line's content). When the value
+        // contains such a break, fall back to literal style, which preserves every break exactly.
+        if (Serialization.YamlWriter.ContainsUnfoldableBreak(value.AsSpan()))
+        {
+            WriteLiteralScalar(value);
+            return;
+        }
+
         bool previous_break = true;
-        bool leading_spaces = true;
 
         WriteIndicator(">", true, false, false);
         WriteBlockScalarHints(value);
@@ -1103,18 +1107,9 @@ public class Emitter : IEmitter
             char character = value[i];
             if (IsBreak(character))
             {
-                if (!previous_break && !leading_spaces && character == '\n')
-                {
-                    int k = 0;
-                    while (i + k < value.Length && IsBreak(value[i + k]))
-                    {
-                        ++k;
-                    }
-                    if (i + k < value.Length && !(IsBlank(value[i + k]) || IsBreak(value[i + k])))
-                    {
-                        WriteBreak();
-                    }
-                }
+                // No lookahead needed here: ContainsUnfoldableBreak already guaranteed that a single break
+                // between two non-blank, non-indented lines (the only case that would otherwise require
+                // special handling) does not occur in this value.
                 WriteBreak();
                 isIndentation = true;
                 previous_break = true;
@@ -1124,7 +1119,6 @@ public class Emitter : IEmitter
                 if (previous_break)
                 {
                     WriteIndent();
-                    leading_spaces = IsBlank(character);
                 }
                 if (!previous_break && character == ' ' && i + 1 < value.Length && value[i + 1] != ' ' && column > bestWidth)
                 {
