@@ -87,6 +87,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         return currentCharacter;
     }
 
+    // Callers must only invoke this when positioned at an actual break (i.e. after checking analyzer.IsBreak(),
+    // not analyzer.IsBreakOrZero()). At end-of-input there is no line break to consume; calling this there
+    // would return the sentinel/zero character, corrupting block/plain scalars that end at EOF with no
+    // trailing newline by appending a stray '\0' to the scanned value. Returns char (not string) to avoid a
+    // per-call string allocation on this hot path - every caller immediately appends the single char to a
+    // StringBuilder.
     private char ReadLine()
     {
         if (analyzer.Check("\r\n\x85")) // CR LF -> LF  --- CR|LF|NEL -> LF
@@ -1383,17 +1389,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             bool trailingBlank = analyzer.IsBlank();
 
-            // Check if we need to fold the leading line break.
+            // Check if we need to fold the leading line break. Folding only ever replaces a single break
+            // between two non-blank lines with a space; if any further (blank-line) breaks accumulated in
+            // trailingBreaks, the leading break must be preserved literally rather than discarded, or a
+            // blank line between two paragraphs would be lost on read-back.
 
-            if (!isLiteral && StartsWith(leadingBreak, '\n') && !leadingBlank && !trailingBlank)
+            if (!isLiteral && StartsWith(leadingBreak, '\n') && !leadingBlank && !trailingBlank && trailingBreaks.Length == 0)
             {
-                // Do we need to join the lines by space?
-
-                if (trailingBreaks.Length == 0)
-                {
-                    value.Append(' ');
-                }
-
+                value.Append(' ');
                 leadingBreak.Length = 0;
             }
             else
@@ -1418,9 +1421,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                 value.Append(ReadCurrentCharacter());
             }
 
-            // Consume the line break.
-
-            leadingBreak.Append(ReadLine());
+            // Consume the line break, if there is one. A block scalar's last content line may end at
+            // end-of-input with no break at all; ReadLine() must not be called in that case (see its summary).
+            if (analyzer.IsBreak())
+            {
+                leadingBreak.Append(ReadLine());
+            }
 
             // Eat the following intendation spaces and line breaks.
 
