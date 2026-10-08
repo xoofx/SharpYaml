@@ -203,7 +203,37 @@ public abstract class YamlReaderWriterBase
             return converter is not null;
         }
 
-        // Search user-provided converters first (same precedence rule as System.Text.Json).
+        // An exact match (same precedence rule as System.Text.Json: first matching converter wins) always
+        // takes priority over the Nullable<T>-unwrapping fallback below, regardless of registration order -
+        // otherwise a converter registered for T ahead of one explicitly registered for T? would incorrectly
+        // shadow the more specific one for a T? lookup.
+        if (TryFindCustomConverter(typeToConvert, matchNullableUnderlyingType: false, out converter)
+            || (Nullable.GetUnderlyingType(typeToConvert) is not null
+                && TryFindCustomConverter(typeToConvert, matchNullableUnderlyingType: true, out converter)))
+        {
+            _customConverterCache[typeToConvert] = converter;
+            return true;
+        }
+
+        converter = null;
+        _customConverterCache[typeToConvert] = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Scans <see cref="YamlSerializerOptions.Converters"/> once for a converter matching <paramref name="typeToConvert"/>.
+    /// </summary>
+    /// <param name="typeToConvert">The CLR type to resolve.</param>
+    /// <param name="matchNullableUnderlyingType">
+    /// When <see langword="true"/>, matches a plain (non-factory) converter against <paramref name="typeToConvert"/>'s
+    /// <see cref="Nullable{T}"/> underlying type instead of the type itself (see <see cref="YamlConverter.CanConvertNullable"/>).
+    /// Factories are skipped in this pass - they already receive <paramref name="typeToConvert"/> as-is and can
+    /// unwrap it themselves if they choose to support <see cref="Nullable{T}"/>.
+    /// </param>
+    /// <param name="converter">When successful, receives the converter instance.</param>
+    /// <returns><see langword="true"/> when a matching converter was found; otherwise <see langword="false"/>.</returns>
+    private bool TryFindCustomConverter(Type typeToConvert, bool matchNullableUnderlyingType, out YamlConverter? converter)
+    {
         for (var i = 0; i < Options.Converters.Count; i++)
         {
             var candidate = Options.Converters[i];
@@ -214,7 +244,7 @@ public abstract class YamlReaderWriterBase
 
             if (candidate is YamlConverterFactory factory)
             {
-                if (!factory.CanConvert(typeToConvert))
+                if (matchNullableUnderlyingType || !factory.CanConvert(typeToConvert))
                 {
                     continue;
                 }
@@ -226,20 +256,18 @@ public abstract class YamlReaderWriterBase
                 }
 
                 converter = created;
-                _customConverterCache[typeToConvert] = converter;
                 return true;
             }
 
-            if (candidate.CanConvert(typeToConvert))
+            var matches = matchNullableUnderlyingType ? candidate.CanConvertNullable(typeToConvert) : candidate.CanConvert(typeToConvert);
+            if (matches)
             {
                 converter = candidate;
-                _customConverterCache[typeToConvert] = converter;
                 return true;
             }
         }
 
         converter = null;
-        _customConverterCache[typeToConvert] = null;
         return false;
     }
 
