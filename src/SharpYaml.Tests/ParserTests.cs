@@ -44,6 +44,8 @@
 // SOFTWARE.
 
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 
@@ -330,6 +332,23 @@ namespace SharpYaml.Tests
                 MappingEnd,
                 DocumentEnd(Implicit),
                 StreamEnd);
+        }
+
+        [TestMethod]
+        public void VerifyNonSpecificTag()
+        {
+            var parser = Parser.CreateParser(new StringReader("- ! 12\n- ! {a: b}\n"));
+            var tags = new List<string?>();
+            while (parser.MoveNext())
+            {
+                if (parser.Current is NodeEvent { Tag: not null } node)
+                {
+                    tags.Add(node.Tag);
+                    Assert.IsTrue(node is Scalar or MappingStart, $"Unexpected tagged event {node}");
+                }
+            }
+
+            CollectionAssert.AreEqual(new[] { "!", "!" }, tags);
         }
 
         private IParser ParserFor(string name)

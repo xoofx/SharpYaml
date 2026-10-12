@@ -2115,9 +2115,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             }
         }
 
-        // Check if the tag is non-empty.
+        // Check if the tag is non-empty. The head counts as content, so that
+        // the non-specific tag '!' is accepted.
 
-        if (tag.Length == 0)
+        if (tag.Length == 0 && string.IsNullOrEmpty(head))
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag, did not find expected tag URI.");
         }
