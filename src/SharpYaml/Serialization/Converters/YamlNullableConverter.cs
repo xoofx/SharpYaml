@@ -18,7 +18,7 @@ internal sealed class YamlNullableConverter<T> : YamlConverter<T?> where T : str
             return null;
         }
 
-        return ((YamlConverter<T>)reader.GetConverter(typeof(T))).Read(reader);
+        return (T?)reader.GetConverter(typeof(T)).Read(reader, typeof(T));
     }
 
     public override void Write(YamlWriter writer, T? value)
@@ -29,6 +29,34 @@ internal sealed class YamlNullableConverter<T> : YamlConverter<T?> where T : str
             return;
         }
 
-        ((YamlConverter<T>)writer.GetConverter(typeof(T))).Write(writer, value.GetValueOrDefault());
+        writer.GetConverter(typeof(T)).Write(writer, value.GetValueOrDefault());
+    }
+}
+
+// Adapt an options converter without constructing a closed generic type at runtime.
+internal sealed class YamlNullableCustomConverter(Type nullableType, Type underlyingType, YamlConverter converter) : YamlConverter
+{
+    public override bool CanConvert(Type typeToConvert) => typeToConvert == nullableType;
+
+    public override object? Read(YamlReader reader, Type typeToConvert)
+    {
+        if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
+        {
+            reader.Read();
+            return null;
+        }
+
+        return converter.Read(reader, underlyingType);
+    }
+
+    public override void Write(YamlWriter writer, object? value)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        converter.Write(writer, value);
     }
 }
