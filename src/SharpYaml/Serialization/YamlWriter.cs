@@ -230,6 +230,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// Writes a mapping key.
     /// </summary>
     /// <param name="name">The key name.</param>
+    /// <exception cref="ArgumentException"><paramref name="name"/> contains an unpaired UTF-16 surrogate.</exception>
     /// <exception cref="InvalidOperationException">The writer is not positioned within a mapping key.</exception>
     public void WritePropertyName(string name)
     {
