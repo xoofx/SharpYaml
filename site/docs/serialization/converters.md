@@ -137,6 +137,56 @@ var options = new YamlSerializerOptions
 
 For most custom scenarios, prefer writing scalars (`writer.WriteScalar(...)`) unless you need to emit complex YAML structures.
 
+### Requesting a scalar style
+
+Use `WriteScalar(value, ScalarStyle)` to select a presentation style in a custom converter:
+
+```csharp
+using SharpYaml;
+using SharpYaml.Serialization;
+
+public sealed class LiteralStringConverter : YamlConverter<string>
+{
+    public override string? Read(YamlReader reader)
+    {
+        var value = reader.ScalarValue;
+        reader.Read();
+        return value;
+    }
+
+    public override void Write(YamlWriter writer, string? value)
+        => writer.WriteScalar(value, ScalarStyle.Literal);
+}
+```
+
+The available styles are `Any` (the usual `WriteScalar` behavior), `Plain`, `SingleQuoted`,
+`DoubleQuoted`, `Literal` (`|`), and `Folded` (`>`). This overload writes **values**, not keys;
+use `WritePropertyName` for mapping keys. A null value always writes plain `null`, regardless
+of the requested style. An undefined enum value throws `ArgumentOutOfRangeException`, even
+when the value is null.
+
+Style requests preserve the scalar text rather than forcing an unsafe representation:
+
+- Plain text that needs quoting falls back to double quotes. Plain style still allows YAML
+  type resolution: for example, `"true"` written plain is a boolean to an untyped reader.
+- Single quotes are doubled within single-quoted scalars. Control characters and line breaks
+  use double quotes and escapes instead.
+- Block styles preserve LF newlines and choose strip (`-`), clip, or keep (`+`) chomping to
+  preserve trailing newlines. Folded style inserts extra blank lines where needed: `"a\nb"`
+  becomes `>-` with an empty physical line between `a` and `b`.
+- Block styles fall back to double quotes for unsafe characters and non-LF line breaks
+  (including CRLF), avoiding YAML newline normalization. An ambiguous initial indentation
+  also falls back when its required indicator cannot fit YAML's single-digit range, 1–9.
+
+Text must contain valid Unicode. Unpaired UTF-16 surrogates throw `ArgumentException` rather
+than producing invalid YAML; valid surrogate pairs (such as emoji) are preserved. As with
+other streaming write failures, output may already have been written when an exception occurs.
+
+An explicit style takes precedence over the global
+[`MultilineStringStyle`](overview.md#multiline-string-style) preference. The low-level
+`Emitter` also supports scalar style requests and uses quoted styles where block scalars
+are not legal, such as flow collections and simple keys.
+
 ## Accessing the current mapping key
 
 [`YamlReader.CurrentKey`](xref:SharpYaml.Serialization.YamlReader.CurrentKey) exposes the most recent mapping key set by built-in dictionary and object converters. Custom converters can use this for context-dependent logic:

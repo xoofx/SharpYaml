@@ -137,6 +137,43 @@ contexts:
 
 Set `BlockSequenceMappingStyle = YamlSequenceItemStyle.Expanded` to emit the first key on the following line instead. Nested sequences can be controlled separately with `BlockSequenceSequenceStyle`, and member-level overrides are available through [`YamlBlockSequenceItemStyleAttribute`](xref:SharpYaml.Serialization.YamlBlockSequenceItemStyleAttribute).
 
+### Multiline string style
+
+By default, multiline strings use double quotes and escaped newlines. To prefer readable
+block scalars for string values, set
+[`YamlScalarStylePreferences.MultilineStringStyle`](xref:SharpYaml.YamlScalarStylePreferences.MultilineStringStyle):
+
+```csharp
+using SharpYaml;
+
+var options = new YamlSerializerOptions
+{
+    ScalarStylePreferences = new YamlScalarStylePreferences
+    {
+        MultilineStringStyle = ScalarStyle.Literal,
+    },
+};
+
+var yaml = YamlSerializer.Serialize(new { Description = "first line\nsecond line\n" }, options);
+```
+
+```yaml
+Description: |
+  first line
+  second line
+```
+
+Supported preferences are `Any` (default), `Literal`, and `Folded`; other values throw
+`ArgumentOutOfRangeException`. The preference applies to `WriteString`, including normal
+reflection-based and source-generated string serialization. It does not change mapping
+keys, single-line strings, `WriteScalar(value)`, or explicit converter style requests.
+
+Both block styles preserve the string's trailing newlines. Folded style adds physical
+blank lines when needed to preserve embedded newlines under YAML's folding rules; it does
+not turn newlines in the CLR string into spaces. Characters that cannot safely use block
+style, including CR and CRLF line endings, fall back to double quotes and escapes. See
+[requesting a scalar style](converters.md#requesting-a-scalar-style) for the full fallback rules.
+
 ## Object creation handling
 
 SharpYaml follows the same default as `System.Text.Json`: member values are replaced unless you opt into population.

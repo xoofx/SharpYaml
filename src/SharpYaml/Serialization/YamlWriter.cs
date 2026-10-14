@@ -230,6 +230,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// Writes a mapping key.
     /// </summary>
     /// <param name="name">The key name.</param>
+    /// <exception cref="ArgumentException"><paramref name="name"/> contains an unpaired UTF-16 surrogate.</exception>
     /// <exception cref="InvalidOperationException">The writer is not positioned within a mapping key.</exception>
     public void WritePropertyName(string name)
     {
@@ -247,10 +248,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
 
         var startedCompact = EnsureContainerStarted(ref frame);
 
-        if (frame.HasContent)
+        if (frame.HasContent && !frame.SuppressNextSeparatorNewline)
         {
             WriteNewLine();
         }
+        frame.SuppressNextSeparatorNewline = false;
 
         if (!startedCompact)
         {
@@ -266,6 +268,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <summary>
     /// Writes a scalar value.
     /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="value"/> contains an unpaired UTF-16 surrogate.</exception>
     public void WriteScalar(string? value)
     {
         WriteValuePrefixForScalar();
@@ -286,6 +289,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// Writes a CLR string value, quoting ambiguous YAML scalars when configured.
     /// </summary>
     /// <param name="value">The string value to write.</param>
+    /// <exception cref="ArgumentException"><paramref name="value"/> contains an unpaired UTF-16 surrogate.</exception>
     public void WriteString(string? value)
     {
         WriteValuePrefixForScalar();
@@ -306,12 +310,89 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// Writes a scalar value from a character span.
     /// </summary>
     /// <param name="value">The scalar text.</param>
+    /// <exception cref="ArgumentException"><paramref name="value"/> contains an unpaired UTF-16 surrogate.</exception>
     public void WriteScalar(ReadOnlySpan<char> value)
     {
         WriteValuePrefixForScalar();
         WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
         WriteScalarCore(value, isKey: false);
         CompleteValueAfterScalar();
+    }
+
+    /// <summary>
+    /// Writes a string scalar using a specific requested <see cref="SharpYaml.ScalarStyle"/>.
+    /// </summary>
+    /// <param name="value">The scalar text, or <see langword="null"/> to write a null scalar.</param>
+    /// <param name="style">The requested scalar style.</param>
+    /// <remarks>
+    /// <para>
+    /// Unlike <see cref="WriteScalar(string?)"/> and <see cref="WriteString(string?)"/>, this overload lets a
+    /// custom <see cref="YamlConverter{T}"/> force a specific scalar style for a value, e.g.
+    /// <see cref="SharpYaml.ScalarStyle.Literal"/> block style for multiline content that should stay
+    /// human-readable on disk:
+    /// <code>
+    /// public override void Write(YamlWriter writer, string value) =>
+    ///     writer.WriteScalar(value, ScalarStyle.Literal);
+    /// </code>
+    /// </para>
+    /// <para>
+    /// When the requested style cannot safely represent <paramref name="value"/> without corrupting it on
+    /// read-back, this method falls back to a style that can:
+    /// <list type="bullet">
+    /// <item><see cref="SharpYaml.ScalarStyle.Plain"/> falls back to <see cref="SharpYaml.ScalarStyle.DoubleQuoted"/>
+    /// when the value is not plain-safe (e.g. contains a line break or a leading/trailing space).</item>
+    /// <item><see cref="SharpYaml.ScalarStyle.SingleQuoted"/> falls back to
+    /// <see cref="SharpYaml.ScalarStyle.DoubleQuoted"/> when the value contains a control character,
+    /// line break, or a character excluded from YAML's printable set (single quotes have no escapes for those).</item>
+    /// <item><see cref="SharpYaml.ScalarStyle.Literal"/> and <see cref="SharpYaml.ScalarStyle.Folded"/> fall back
+    /// to <see cref="SharpYaml.ScalarStyle.DoubleQuoted"/> when the value contains a character that cannot appear
+    /// unescaped in block scalar content (e.g. most control characters), contains line breaks other than
+    /// LF (which YAML may normalize), or requires an indentation indicator larger than nine.</item>
+    /// </list>
+    /// </para>
+    /// <para>Folded style inserts extra physical line breaks where YAML folding would otherwise change
+    /// the value. Null values are always emitted as plain <c>null</c>. Like the other scalar-writing
+    /// methods, this overload writes values, not mapping keys; use <see cref="WritePropertyName"/> for keys.</para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="style"/> is not a defined <see cref="SharpYaml.ScalarStyle"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="value"/> contains an unpaired UTF-16 surrogate.</exception>
+    /// <exception cref="InvalidOperationException">The writer is positioned at a mapping key.</exception>
+    public void WriteScalar(string? value, ScalarStyle style)
+    {
+        if (style is < ScalarStyle.Any or > ScalarStyle.Folded)
+        {
+            throw new ArgumentOutOfRangeException(nameof(style), style, null);
+        }
+
+        if (value is null)
+        {
+            WriteScalar((string?)null);
+            return;
+        }
+
+        switch (style)
+        {
+            case ScalarStyle.Any:
+                WriteScalar(value);
+                return;
+            case ScalarStyle.Plain:
+                WritePlainStyle(value);
+                return;
+            case ScalarStyle.SingleQuoted:
+                WriteSingleQuotedStyle(value);
+                return;
+            case ScalarStyle.DoubleQuoted:
+                WriteDoubleQuotedStyle(value);
+                return;
+            case ScalarStyle.Literal:
+                WriteBlockStyle(value, folded: false);
+                return;
+            case ScalarStyle.Folded:
+                WriteBlockStyle(value, folded: true);
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(style), style, null);
+        }
     }
 
     /// <summary>
@@ -524,10 +605,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        if (frame.HasContent)
+        if (frame.HasContent && !frame.SuppressNextSeparatorNewline)
         {
             WriteNewLine();
         }
+        frame.SuppressNextSeparatorNewline = false;
 
         if (!startedCompact)
         {
@@ -558,10 +640,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        if (frame.HasContent)
+        if (frame.HasContent && !frame.SuppressNextSeparatorNewline)
         {
             WriteNewLine();
         }
+        frame.SuppressNextSeparatorNewline = false;
 
         if (!startedCompact)
         {
@@ -622,6 +705,8 @@ public sealed class YamlWriter : YamlReaderWriterBase
         frame.PendingStart = PendingStartKind.None;
         if (pendingStart == PendingStartKind.SequenceItemCompact)
         {
+            // A compact collection starts after "- ", independently of IndentSize.
+            frame.Indent = _frames[_depth - 2].Indent + 2;
             Write(' ');
             return true;
         }
@@ -652,6 +737,9 @@ public sealed class YamlWriter : YamlReaderWriterBase
         }
 
         ref var frame = ref _frames[_depth - 1];
+        // A trailing block scalar can end several nested containers. Preserve its
+        // separator state until the next sibling at any ancestor level is written.
+        frame.SuppressNextSeparatorNewline = EndsWithNewLine;
         if (frame.Kind == ContainerKind.Mapping)
         {
             frame.ExpectingKey = true;
@@ -700,10 +788,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
             }
             else
             {
-                if (parent.HasContent)
+                if (parent.HasContent && !parent.SuppressNextSeparatorNewline)
                 {
                     WriteNewLine();
                 }
+                parent.SuppressNextSeparatorNewline = false;
 
                 if (!parentStartedCompact)
                 {
@@ -726,7 +815,8 @@ public sealed class YamlWriter : YamlReaderWriterBase
             Array.Resize(ref _frames, _frames.Length * 2);
         }
 
-        _frames[_depth++] = new ContainerFrame(kind, pendingStart);
+        var indent = Options.WriteIndented && _depth > 0 ? _frames[_depth - 1].Indent + Options.IndentSize : 0;
+        _frames[_depth++] = new ContainerFrame(kind, pendingStart) { Indent = indent };
     }
 
     private ContainerFrame PopFrame(ContainerKind expectedKind)
@@ -764,13 +854,14 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        var indentLevel = Math.Max(0, _depth - 1);
-        if (indentLevel == 0)
+        // Keep siblings aligned with the first key/item, including compact collections
+        // whose first content column is determined by "- " rather than IndentSize.
+        var spaces = _frames[_depth - 1].Indent;
+        if (spaces == 0)
         {
             return;
         }
 
-        var spaces = Options.IndentSize * indentLevel;
         if (_indentBuilder.Length != spaces)
         {
             _indentBuilder.Clear();
@@ -887,6 +978,15 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
+        if (!isKey && Options.ScalarStylePreferences.MultilineStringStyle != ScalarStyle.Any && ContainsLineBreak(value))
+        {
+            // The caller (WriteString) already wrote the value prefix/node properties, so use the prefix-less
+            // core writer directly here rather than WriteBlockStyle, which would write them a second time.
+            // value is passed through as a span (no ToString() allocation).
+            WriteBlockStyleCore(value, folded: Options.ScalarStylePreferences.MultilineStringStyle == ScalarStyle.Folded);
+            return;
+        }
+
         if (ShouldQuoteAmbiguousScalar(value))
         {
             Write('"');
@@ -896,6 +996,332 @@ public sealed class YamlWriter : YamlReaderWriterBase
         }
 
         WriteScalarCore(value, isKey);
+    }
+
+    private static bool ContainsLineBreak(ReadOnlySpan<char> value)
+    {
+        foreach (var c in value)
+        {
+            if (c is '\n' or '\r')
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void WritePlainStyle(string value)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+        WritePlainStyleCore(value);
+        CompleteValueAfterScalar();
+    }
+
+    private void WritePlainStyleCore(string value)
+    {
+        if (!IsPlainSafe(value.AsSpan(), isKey: false))
+        {
+            WriteDoubleQuotedStyleCore(value);
+            return;
+        }
+
+        Write(value);
+    }
+
+    private void WriteSingleQuotedStyle(string value)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+        WriteSingleQuotedStyleCore(value);
+        CompleteValueAfterScalar();
+    }
+
+    private void WriteSingleQuotedStyleCore(string value)
+    {
+        if (!IsSingleQuotedSafe(value))
+        {
+            WriteDoubleQuotedStyleCore(value);
+            return;
+        }
+
+        Write('\'');
+        foreach (var c in value)
+        {
+            if (c == '\'')
+            {
+                Write("''");
+            }
+            else
+            {
+                Write(c);
+            }
+        }
+        Write('\'');
+    }
+
+    private static bool IsSingleQuotedSafe(string value)
+    {
+        // Single-quoted scalars have no escape mechanism besides doubling an embedded quote, so any other
+        // control character (including line breaks, which would need YAML's line-folding rules to round-trip
+        // correctly) is not safely representable here.
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (char.IsHighSurrogate(c) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+            {
+                i++;
+                continue;
+            }
+
+            if (char.IsControl(c) || char.IsSurrogate(c) || c is '\u2028' or '\u2029' or '\uFFFE' or '\uFFFF')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void WriteDoubleQuotedStyle(string value)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+        WriteDoubleQuotedStyleCore(value);
+        CompleteValueAfterScalar();
+    }
+
+    private void WriteDoubleQuotedStyleCore(ReadOnlySpan<char> value)
+    {
+        Write('"');
+        WriteEscaped(value);
+        Write('"');
+    }
+
+    private void WriteBlockStyle(string value, bool folded)
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+        WriteBlockStyleCore(value, folded);
+        CompleteValueAfterScalar();
+    }
+
+    private void WriteBlockStyleCore(ReadOnlySpan<char> value, bool folded)
+    {
+        if (!IsBlockScalarSafe(value))
+        {
+            WriteDoubleQuotedStyleCore(value);
+            return;
+        }
+
+        var trailingBreaks = CountTrailingBreaks(value, out var trailingBreakLength);
+        var meaningful = value[..^trailingBreakLength];
+
+        var parentIndent = _depth == 0 ? 0 : _frames[_depth - 1].Indent;
+        var contentIndentSpaces = parentIndent + Options.IndentSize;
+        var needsIndentIndicator = meaningful.Length == 0 || meaningful[0] is ' ' or '\n' or '\r';
+        var indentIndicatorDigit = '\0';
+        if (needsIndentIndicator && !TryGetIndentIndicatorDigit(contentIndentSpaces, out indentIndicatorDigit))
+        {
+            // The YAML indentation indicator is a single digit (1-9) giving the indentation *increment*
+            // relative to the parent block's indent, not an absolute column; it cannot represent every
+            // IndentSize/depth combination (e.g. a sufficiently large IndentSize). Double-quoted style has
+            // no such limitation, so fall back to it rather than emit an indicator that would desync the
+            // reader's expected indentation from what was actually written.
+            WriteDoubleQuotedStyleCore(value);
+            return;
+        }
+
+        Write(folded ? '>' : '|');
+        if (needsIndentIndicator)
+        {
+            Write(indentIndicatorDigit);
+        }
+
+        var chompIndicator = trailingBreaks switch
+        {
+            0 => '-',
+            1 when meaningful.Length > 0 => (char?)null,
+            _ => '+',
+        };
+        if (chompIndicator is char c)
+        {
+            Write(c);
+        }
+
+        WriteNewLine();
+        WriteBlockScalarBody(meaningful, contentIndentSpaces, folded);
+
+        // Every trailing break mandated by the chomping rule (0 for strip, 1 for clip, N for keep) must be
+        // written explicitly: this value may be the last thing in the document (or the last value in its
+        // container), in which case nothing else will ever write a newline on its behalf.
+        for (var i = 0; i < trailingBreaks; i++)
+        {
+            WriteNewLine();
+        }
+
+        if (trailingBreaks > 0 && _depth > 0)
+        {
+            // The newline(s) just written already provide the separator a following sibling would
+            // otherwise add on its own; suppress that one redundant separator so a chomped block scalar
+            // isn't followed by a stray blank line.
+            _frames[_depth - 1].SuppressNextSeparatorNewline = true;
+        }
+    }
+
+    /// <summary>
+    /// Computes the block scalar indentation indicator digit for <paramref name="contentIndentSpaces"/> (the
+    /// absolute column at which this scalar's content is indented), returning <see langword="false"/> when
+    /// it cannot be represented.
+    /// </summary>
+    /// <remarks>
+    /// The scanner interprets this digit as an <em>increment</em> added to the
+    /// parent block's already-established indent, not as an absolute column. Content is indented one
+    /// <see cref="YamlSerializerOptions.IndentSize"/> step beyond the actual parent indentation, including
+    /// the fixed two-column offset of a compact sequence item.
+    /// At the document root there is no parent indent to add to, so the increment written must be the full
+    /// absolute value instead. Per the YAML spec the indicator is always exactly one digit (1-9).
+    /// </remarks>
+    private bool TryGetIndentIndicatorDigit(int contentIndentSpaces, out char digit)
+    {
+        var increment = _depth > 0 ? Options.IndentSize : contentIndentSpaces;
+        if (increment is < 1 or > 9)
+        {
+            digit = '\0';
+            return false;
+        }
+
+        digit = (char)('0' + increment);
+        return true;
+    }
+
+    private void WriteBlockScalarBody(ReadOnlySpan<char> content, int indentSpaces, bool folded)
+    {
+        var pos = 0;
+        var first = true;
+        while (true)
+        {
+            var lineEnd = pos;
+            while (lineEnd < content.Length && content[lineEnd] is not ('\n' or '\r'))
+            {
+                lineEnd++;
+            }
+
+            if (!first)
+            {
+                WriteNewLine();
+            }
+            first = false;
+
+            var line = content[pos..lineEnd];
+            if (line.Length > 0)
+            {
+                WriteBlockIndent(indentSpaces);
+                Write(line);
+            }
+
+            if (lineEnd >= content.Length)
+            {
+                return;
+            }
+
+            if (folded && line.Length > 0 && line[0] is not (' ' or '\t'))
+            {
+                var nextContent = lineEnd;
+                while (nextContent < content.Length && content[nextContent] == '\n')
+                {
+                    nextContent++;
+                }
+                if (nextContent < content.Length && content[nextContent] is not (' ' or '\t'))
+                {
+                    // YAML folds a single break to a space and discards the first break
+                    // of a longer run between ordinary (not more-indented) text lines.
+                    WriteNewLine();
+                }
+            }
+
+            pos = lineEnd + 1;
+        }
+    }
+
+    private void WriteBlockIndent(int spaces)
+    {
+        if (spaces <= 0)
+        {
+            return;
+        }
+
+        if (_indentBuilder.Length != spaces)
+        {
+            _indentBuilder.Clear();
+            _indentBuilder.Append(' ', spaces);
+        }
+
+        Write(_indentBuilder);
+    }
+
+    /// <summary>
+    /// Counts the trailing line breaks in <paramref name="value"/> (a <c>\r\n</c> pair counts as a single
+    /// break) and reports the total character length they occupy.
+    /// </summary>
+    private static int CountTrailingBreaks(ReadOnlySpan<char> value, out int charLength)
+    {
+        var count = 0;
+        var i = value.Length;
+        charLength = 0;
+        while (i > 0)
+        {
+            if (value[i - 1] == '\n')
+            {
+                if (i >= 2 && value[i - 2] == '\r')
+                {
+                    i -= 2;
+                    charLength += 2;
+                }
+                else
+                {
+                    i -= 1;
+                    charLength += 1;
+                }
+                count++;
+                continue;
+            }
+
+            if (value[i - 1] == '\r')
+            {
+                i -= 1;
+                charLength += 1;
+                count++;
+                continue;
+            }
+
+            break;
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when every character of <paramref name="value"/> can appear unescaped
+    /// in literal/folded block scalar content (printable characters and line breaks).
+    /// </summary>
+    private static bool IsBlockScalarSafe(ReadOnlySpan<char> value)
+    {
+        foreach (var c in value)
+        {
+            if (c == '\n')
+            {
+                continue;
+            }
+
+            if (c is '\r' or '\u0085' or '\u2028' or '\u2029' || !Emitter.IsPrintable(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private bool ShouldQuoteAmbiguousScalar(ReadOnlySpan<char> value)
@@ -929,17 +1355,30 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return false;
         }
 
+        // These are document delimiters at the root, not scalar text.
+        if (value.Length >= 3 && (value[..3].SequenceEqual("---".AsSpan()) || value[..3].SequenceEqual("...".AsSpan()))
+            && (value.Length == 3 || char.IsWhiteSpace(value[3])))
+        {
+            return false;
+        }
+
         // Disallow YAML special characters and common ambiguities.
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
-            if (c is '\n' or '\r' or '\t')
+            if (c is '\n' or '\r' or '\t' or '\u2028' or '\u2029')
             {
                 return false;
             }
 
             // Control characters (including NUL) must be quoted and escaped.
-            if (char.IsControl(c))
+            if (char.IsHighSurrogate(c) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+            {
+                i++;
+                continue;
+            }
+
+            if (char.IsControl(c) || char.IsSurrogate(c) || c is '\uFFFE' or '\uFFFF')
             {
                 return false;
             }
@@ -963,6 +1402,18 @@ public sealed class YamlWriter : YamlReaderWriterBase
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
+            if (char.IsSurrogate(c))
+            {
+                if (!char.IsHighSurrogate(c) || i + 1 >= value.Length || !char.IsLowSurrogate(value[i + 1]))
+                {
+                    throw new ArgumentException("Scalar text must contain valid Unicode; an unpaired UTF-16 surrogate was found.", nameof(value));
+                }
+
+                Write(c);
+                Write(value[++i]);
+                continue;
+            }
+
             switch (c)
             {
                 case '\\':
@@ -981,7 +1432,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
                     Write("\\t");
                     break;
                 default:
-                    if (char.IsControl(c))
+                    if (char.IsControl(c) || c is '\u2028' or '\u2029' or '\uFFFE' or '\uFFFF')
                     {
                         Write("\\u");
                         Write(((int)c).ToString("X4", CultureInfo.InvariantCulture));
@@ -1168,5 +1619,13 @@ public sealed class YamlWriter : YamlReaderWriterBase
         public bool HasContent;
         public bool ExpectingKey;
         public PendingStartKind PendingStart;
+        public int Indent;
+
+        /// <summary>
+        /// Set when the value just written already ended with its own physical trailing newline(s) (a
+        /// clip/keep-chomped block scalar). Consumed exactly once by the next sibling's separator check so a
+        /// block scalar's own chomped newline isn't followed by a redundant blank line.
+        /// </summary>
+        public bool SuppressNextSeparatorNewline;
     }
 }

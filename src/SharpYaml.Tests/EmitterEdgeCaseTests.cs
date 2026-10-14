@@ -135,11 +135,36 @@ public sealed class EmitterEdgeCaseTests
         StringAssert.Contains(literal, "a");
         StringAssert.Contains(literal, "b");
 
+        // Extra physical breaks preserve the value's newlines under YAML folding.
         var folded = EmitDocument(
-            new Scalar(null, null, "a\nb\n", ScalarStyle.Folded, true, true));
+            new Scalar(null, null, "a\n\nb\n", ScalarStyle.Folded, true, true));
         StringAssert.Contains(folded, ">");
         StringAssert.Contains(folded, "a");
         StringAssert.Contains(folded, "b");
+        StringAssert.Contains(folded.Replace("\r\n", "\n"), "a\n\n\n");
+    }
+
+    [TestMethod]
+    [DataRow(ScalarStyle.Literal, YamlStyle.Flow)]
+    [DataRow(ScalarStyle.Folded, YamlStyle.Flow)]
+    [DataRow(ScalarStyle.Literal, YamlStyle.Block)]
+    [DataRow(ScalarStyle.Folded, YamlStyle.Block)]
+    public void Emit_BlockStyleRequests_InKeysAndFlowCollections_PreserveValues(ScalarStyle style, YamlStyle collectionStyle)
+    {
+        var yaml = EmitDocument(
+            new MappingStart(null, null, true, collectionStyle),
+            new Scalar(null, null, "key", style, true, true),
+            new SequenceStart(null, null, true, collectionStyle),
+            new Scalar(null, null, "a\n\nb\n", style, true, true),
+            new SequenceEnd(),
+            new MappingEnd());
+        var result = YamlSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string[]>>(yaml)!;
+        Assert.AreEqual("a\n\nb\n", result["key"][0]);
+        if (collectionStyle == YamlStyle.Flow)
+        {
+            Assert.DoesNotContain("|", yaml);
+            Assert.DoesNotContain(">", yaml);
+        }
     }
 
     private static string EmitDocument(params ParsingEvent[] events)

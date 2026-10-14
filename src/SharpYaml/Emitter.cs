@@ -1112,6 +1112,8 @@ public class Emitter : IEmitter
                     }
                     if (i + k < value.Length && !(IsBlank(value[i + k]) || IsBreak(value[i + k])))
                     {
+                        // Folding discards the first break before empty lines. Add one
+                        // physical break so every newline in the value survives decoding.
                         WriteBreak();
                     }
                 }
