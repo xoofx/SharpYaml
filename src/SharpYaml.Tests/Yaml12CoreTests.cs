@@ -1176,7 +1176,7 @@ public sealed class Yaml12CoreTests
         var stream = YamlStream.Load(new StringReader(yaml));
         var root = (YamlMapping)stream[0].Contents!;
         var value = ((YamlValue)root["text"]!).Value;
-        Assert.AreEqual("paragraph1\n\nparagraph2\n", value);
+        Assert.AreEqual("paragraph1\nparagraph2\n", value);
     }
 
     [TestMethod]

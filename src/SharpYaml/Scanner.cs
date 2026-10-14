@@ -1389,14 +1389,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             bool trailingBlank = analyzer.IsBlank();
 
-            // Check if we need to fold the leading line break. Folding only ever replaces a single break
-            // between two non-blank lines with a space; if any further (blank-line) breaks accumulated in
-            // trailingBreaks, the leading break must be preserved literally rather than discarded, or a
-            // blank line between two paragraphs would be lost on read-back.
-
-            if (!isLiteral && StartsWith(leadingBreak, '\n') && !leadingBlank && !trailingBlank && trailingBreaks.Length == 0)
+            // YAML 1.2 section 6.5: fold a single break to a space, or discard the first
+            // break before empty lines and retain the remaining breaks as content.
+            if (!isLiteral && StartsWith(leadingBreak, '\n') && !leadingBlank && !trailingBlank)
             {
-                value.Append(' ');
+                if (trailingBreaks.Length == 0)
+                {
+                    value.Append(' ');
+                }
                 leadingBreak.Length = 0;
             }
             else

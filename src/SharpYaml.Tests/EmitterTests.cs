@@ -309,20 +309,16 @@ namespace SharpYaml.Tests
         [TestMethod]
         public void FoldedScalarWithMultipleWordsPreservesLineBreaks()
         {
-            // "a folded\nscalar" has a single break between two non-blank lines. Per YAML's folding rule,
-            // a conforming reader always collapses such a break into a space, and there is no valid
-            // folded-scalar syntax that avoids this without altering the value (a blank line adds content;
-            // a more-indented line adds leading whitespace to that line). So requesting Folded style for
-            // this value must transparently fall back to literal style ("|-") to preserve it exactly,
-            // rather than emit ">-" and silently lose the line break (or, as before this fix, corrupt the
-            // value by inserting a spurious blank line).
+            // YAML folding discards the first break before an empty line. Emit an
+            // extra physical break to preserve this newline without changing style.
             var input = "a folded\nscalar";
 
             var yaml = EmitScalar(new Scalar(null, null, input, ScalarStyle.Folded, true, false));
             Console.WriteLine("Emitted YAML:");
             Console.WriteLine(yaml);
 
-            StringAssert.Contains(yaml, "|-", "Should fall back to literal style to preserve the line break exactly");
+            StringAssert.Contains(yaml, ">-", "Should preserve the requested folded style");
+            StringAssert.Contains(yaml.Replace("\r\n", "\n"), "a folded\n\n");
             StringAssert.Contains(yaml, "a folded", "Should contain the first part");
             StringAssert.Contains(yaml, "scalar", "Should contain the second part");
 

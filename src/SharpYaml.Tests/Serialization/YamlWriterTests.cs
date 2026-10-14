@@ -298,28 +298,27 @@ public sealed class YamlWriterTests
     {
         var writer = CreateWriter(new YamlSerializerOptions(), out var buffer);
 
-        // Paragraphs separated by a blank line are always safe to fold (folding never applies around a
-        // blank line), so this should keep the requested '>' indicator.
+        // Folding discards one physical break; the writer must add it back in the YAML.
         writer.WriteScalar("paragraph one\n\nparagraph two\n", ScalarStyle.Folded);
 
         var yaml = buffer.ToString();
         Assert.IsTrue(yaml.StartsWith('>'), $"Expected folded indicator, got: {yaml}");
+        StringAssert.Contains(yaml, "paragraph one\n\n\n");
 
         var result = YamlSerializer.Deserialize<string>(yaml);
         Assert.AreEqual("paragraph one\n\nparagraph two\n", result);
     }
 
     [TestMethod]
-    public void WriteScalar_WithFoldedStyle_UnsafeContent_FallsBackToLiteralAndRoundTrips()
+    public void WriteScalar_WithFoldedStyle_InsertsBlankLineAndRoundTrips()
     {
         var writer = CreateWriter(new YamlSerializerOptions(), out var buffer);
 
-        // A single break between two non-blank lines would be folded into a space on read - must fall back
-        // to literal style to preserve the value exactly.
+        // An extra physical break prevents folding this newline into a space.
         writer.WriteScalar("line1\nline2\n", ScalarStyle.Folded);
 
         var yaml = buffer.ToString();
-        Assert.IsTrue(yaml.StartsWith('|'), $"Expected fallback to literal indicator, got: {yaml}");
+        Assert.AreEqual(">\n  line1\n\n  line2\n", yaml);
 
         var result = YamlSerializer.Deserialize<string>(yaml);
         Assert.AreEqual("line1\nline2\n", result);

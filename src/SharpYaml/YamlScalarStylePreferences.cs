@@ -33,6 +33,9 @@ public sealed class YamlScalarStylePreferences
     /// <see cref="Serialization.YamlWriter.WriteScalar(string?)"/>, or on an explicit style requested through
     /// <see cref="Serialization.YamlWriter.WriteScalar(string?, ScalarStyle)"/> from a custom converter, which
     /// always takes precedence.
+    /// Both block styles preserve the string value, including trailing LF newlines. Folded style inserts
+    /// extra physical breaks where needed to counteract YAML folding. Unsafe block content (including CR
+    /// and CRLF line endings) falls back to double quotes and escapes rather than normalizing the value.
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">Value is not <see cref="ScalarStyle.Any"/>, <see cref="ScalarStyle.Literal"/>, or <see cref="ScalarStyle.Folded"/>.</exception>
     public ScalarStyle MultilineStringStyle
