@@ -44,6 +44,8 @@
 // SOFTWARE.
 
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 
@@ -330,6 +332,61 @@ namespace SharpYaml.Tests
                 MappingEnd,
                 DocumentEnd(Implicit),
                 StreamEnd);
+        }
+
+        [TestMethod]
+        public void VerifyNonSpecificTag()
+        {
+            var parser = Parser.CreateParser(new StringReader("- ! 12\n- ! {a: b}\n"));
+            var tags = new List<string?>();
+            while (parser.MoveNext())
+            {
+                if (parser.Current is NodeEvent { Tag: not null } node)
+                {
+                    tags.Add(node.Tag);
+                    Assert.IsTrue(node is Scalar or MappingStart, $"Unexpected tagged event {node}");
+                }
+            }
+
+            CollectionAssert.AreEqual(new[] { "!", "!" }, tags);
+        }
+
+        [TestMethod]
+        [DataRow("!", "!")]
+        [DataRow("! # comment\n12\n", "!")]
+        [DataRow("! [12, 34]\n", "!")]
+        [DataRow("[! 12, ! {a: b}]\n", "!", 2)]
+        [DataRow("%TAG ! tag:example.com,2026:\n--- ! 12\n", "!")]
+        [DataRow("!local value\n", "!local")]
+        [DataRow("!!str 12\n", "tag:yaml.org,2002:str")]
+        public void VerifyTagForms(string yaml, string expectedTag, int expectedCount = 1)
+        {
+            var parser = Parser.CreateParser(new StringReader(yaml));
+            var count = 0;
+            while (parser.MoveNext())
+            {
+                if (parser.Current is NodeEvent { Tag: not null } node)
+                {
+                    Assert.AreEqual(expectedTag, node.Tag);
+                    count++;
+                }
+            }
+
+            Assert.AreEqual(expectedCount, count);
+        }
+
+        [TestMethod]
+        [DataRow("!<> value\n")]
+        [DataRow("!! value\n")]
+        [DataRow("%TAG !e! tag:example.com,2026:\n--- !e! value\n")]
+        [DataRow("%TAG !e! \n--- value\n")]
+        public void RejectEmptyTagUris(string yaml)
+        {
+            var parser = Parser.CreateParser(new StringReader(yaml));
+            Assert.ThrowsExactly<SyntaxErrorException>(() =>
+            {
+                while (parser.MoveNext()) { }
+            });
         }
 
         private IParser ParserFor(string name)
