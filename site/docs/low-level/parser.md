@@ -34,6 +34,12 @@ while (parser.MoveNext())
 
 For higher-level consumption, you can use the model layer (`YamlStream.Load(...)`), which is built on top of the parser.
 
+Explicit tags are available through `NodeEvent.Tag`. This includes the YAML non-specific
+tag `!`: for example, `- ! 12` produces a scalar event whose `Tag` is `"!"` and whose
+`Value` is `"12"`. The tag can also appear on mapping and sequence nodes. The parser
+preserves it for consumers to resolve; it does not convert scalar text to .NET values.
+Empty verbatim tags (`!<>`), tag directive prefixes, and named-handle suffixes remain invalid.
+
 ## Scanning tokens
 
 The scanner is lower level than the parser. It tokenizes YAML input before parsing.
