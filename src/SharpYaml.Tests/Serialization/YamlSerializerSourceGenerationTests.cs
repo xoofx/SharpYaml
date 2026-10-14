@@ -1823,6 +1823,65 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
+    public void GeneratedContextRuntimeConverterForNonNullableTypeAlsoAppliesToNullableMember()
+    {
+        // Regression for https://github.com/xoofx/SharpYaml/issues/167: a converter registered only for the
+        // non-nullable Guid should also be selected for the Guid? member (OptionalId) below, without needing a
+        // second converter declared against Guid? directly, like RuntimeNullableGuidConverter above.
+        var id = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var optionalId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        var context = TestYamlSerializerContext.Default;
+        var options = new YamlSerializerOptions
+        {
+            TypeInfoResolver = context,
+            Converters = [new RuntimeGuidConverter("ref:id", id)],
+        };
+
+        var value = YamlSerializer.Deserialize<GeneratedRuntimeConverterHolder>(
+            "Id: ref:id\nOptionalId: ref:id\n",
+            options);
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedRuntimeConverterHolder { Id = id, OptionalId = id },
+            options);
+
+        Assert.IsNotNull(value);
+        Assert.AreEqual(id, value.Id);
+        Assert.AreEqual(id, value.OptionalId);
+        StringAssert.Contains(yaml, "Id: \"ref:id\"");
+        StringAssert.Contains(yaml, "OptionalId: \"ref:id\"");
+
+        // OptionalId still round-trips a non-marker value through the same converter.
+        var other = YamlSerializer.Deserialize<GeneratedRuntimeConverterHolder>(
+            $"Id: ref:id\nOptionalId: {optionalId:D}\n",
+            options);
+        Assert.AreEqual(optionalId, other!.OptionalId);
+    }
+
+    [TestMethod]
+    public void GeneratedContextWritesNullForNullableMemberWhenOnlyNonNullableConverterMatches()
+    {
+        // The converter below is only ever registered against the non-nullable Guid; its sealed
+        // Write(YamlWriter, object?) would throw unboxing a null OptionalId straight to Guid, so writing a null
+        // OptionalId must bypass the converter and write a plain null, not crash.
+        var id = Guid.Parse("66666666-6666-6666-6666-666666666666");
+        var context = TestYamlSerializerContext.Default;
+        var options = new YamlSerializerOptions
+        {
+            TypeInfoResolver = context,
+            Converters = [new RuntimeGuidConverter("ref:id", id)],
+        };
+
+        var yaml = YamlSerializer.Serialize(
+            new GeneratedRuntimeConverterHolder { Id = id, OptionalId = null },
+            options);
+        var value = YamlSerializer.Deserialize<GeneratedRuntimeConverterHolder>(yaml, options);
+
+        StringAssert.Contains(yaml, "OptionalId:");
+        Assert.IsNotNull(value);
+        Assert.IsNull(value.OptionalId);
+    }
+
+    [TestMethod]
     public void GeneratedContextResolvesRuntimeConvertersWhenTypeInfoIsInitialized()
     {
         var id = Guid.Parse("33333333-3333-3333-3333-333333333333");

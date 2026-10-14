@@ -55,6 +55,35 @@ public sealed class YamlConverterSelectionTests
         Assert.IsNull(converter);
     }
 
+    [TestMethod]
+    public void TryGetCustomConverter_MatchesConverterRegisteredForUnderlyingTypeAgainstNullableLookup()
+    {
+        // Regression for https://github.com/xoofx/SharpYaml/issues/167: YamlConverter<T>.CanConvert is sealed
+        // to an exact type match, so a converter written against a value type T must still be selected when
+        // the requested type is T?. The resolved converter must also safely handle null.
+        var options = new YamlSerializerOptions
+        {
+            Converters = [new AlwaysInt32Converter("underlying")],
+        };
+
+        var writer = new YamlWriter(new StringBuilder(), options);
+        Assert.IsTrue(writer.TryGetCustomConverter(typeof(int?), out var converter));
+        Assert.IsTrue(converter!.CanConvert(typeof(int?)));
+        converter.Write(writer, null);
+        Assert.IsFalse(writer.TryGetCustomConverter(typeof(long?), out _));
+    }
+
+    [TestMethod]
+    public void TryGetCustomConverter_DoesNotExpandFactoryForUnderlyingNullableType()
+    {
+        var writer = new YamlWriter(new StringBuilder(), new YamlSerializerOptions
+        {
+            Converters = [new Int32FactoryConverter()],
+        });
+
+        Assert.IsFalse(writer.TryGetCustomConverter(typeof(int?), out _));
+    }
+
     private sealed class AlwaysInt32Converter : YamlConverter<int>
     {
         public AlwaysInt32Converter(string id) => Id = id;
