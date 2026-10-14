@@ -181,7 +181,7 @@ public abstract class YamlReaderWriterBase
     /// Attempts to resolve a custom converter for <paramref name="typeToConvert"/> from <see cref="YamlSerializerOptions.Converters"/>.
     /// </summary>
     /// <param name="typeToConvert">The CLR type to resolve.</param>
-    /// <param name="converter">When successful, receives the converter instance.</param>
+    /// <param name="converter">When successful, receives the converter instance, adapted to handle null when only the nullable underlying type matches.</param>
     /// <returns><see langword="true"/> when a custom converter was resolved; otherwise <see langword="false"/>.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="typeToConvert"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">
@@ -226,7 +226,7 @@ public abstract class YamlReaderWriterBase
     /// <param name="typeToConvert">The CLR type to resolve.</param>
     /// <param name="matchNullableUnderlyingType">
     /// When <see langword="true"/>, matches a plain (non-factory) converter against <paramref name="typeToConvert"/>'s
-    /// <see cref="Nullable{T}"/> underlying type instead of the type itself (see <see cref="YamlConverter.CanConvertNullable"/>).
+    /// <see cref="Nullable{T}"/> underlying type instead of the type itself.
     /// Factories are skipped in this pass - they already receive <paramref name="typeToConvert"/> as-is and can
     /// unwrap it themselves if they choose to support <see cref="Nullable{T}"/>.
     /// </param>
@@ -234,6 +234,7 @@ public abstract class YamlReaderWriterBase
     /// <returns><see langword="true"/> when a matching converter was found; otherwise <see langword="false"/>.</returns>
     private bool TryFindCustomConverter(Type typeToConvert, bool matchNullableUnderlyingType, out YamlConverter? converter)
     {
+        var matchedType = matchNullableUnderlyingType ? Nullable.GetUnderlyingType(typeToConvert)! : typeToConvert;
         for (var i = 0; i < Options.Converters.Count; i++)
         {
             var candidate = Options.Converters[i];
@@ -259,10 +260,11 @@ public abstract class YamlReaderWriterBase
                 return true;
             }
 
-            var matches = matchNullableUnderlyingType ? candidate.CanConvertNullable(typeToConvert) : candidate.CanConvert(typeToConvert);
-            if (matches)
+            if (candidate.CanConvert(matchedType))
             {
-                converter = candidate;
+                converter = matchNullableUnderlyingType
+                    ? new YamlNullableCustomConverter(typeToConvert, matchedType, candidate)
+                    : candidate;
                 return true;
             }
         }

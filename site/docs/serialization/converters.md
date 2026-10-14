@@ -29,6 +29,29 @@ var options = new YamlSerializerOptions
 };
 ```
 
+### Nullable value types
+
+An options-level converter registered for a value type `T`, such as `YamlConverter<Guid>`,
+also applies to non-null values of `T?`. You do not need to register a second converter
+just to use nullable members or collection/dictionary values. This applies to reflection
+serialization and to runtime converters supplied through `YamlSerializerOptions.Converters`
+when using a source-generated context.
+
+Options converter lookup first searches the complete converter list for a match to the requested type.
+Only if no converter accepts `T?` does it search for a non-factory converter accepting `T`.
+Consequently, an explicit `YamlConverter<T?>` takes precedence over a `YamlConverter<T>`
+regardless of their registration order; within each search, the first match wins.
+
+When using the underlying-type fallback, SharpYaml reads and writes YAML null directly,
+without calling the `T` converter. For non-null reads, non-generic `YamlConverter`
+implementations receive `typeof(T)`, not `typeof(T?)`. When options converter lookup
+selects an explicitly registered `T?` converter, that converter retains its own
+null-handling behavior.
+
+Factories do not participate in this automatic fallback. To handle nullable types in a
+factory, make `CanConvert` accept `typeof(T?)` and return a converter that also accepts
+that nullable type. The factory receives the originally requested type unchanged.
+
 ### Type-level attribute
 
 Apply [`YamlConverterAttribute`](xref:SharpYaml.Serialization.YamlConverterAttribute) to a type to associate a converter with all instances of that type:

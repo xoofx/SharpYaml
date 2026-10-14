@@ -1174,11 +1174,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        }");
         builder.AppendLine();
         builder.AppendLine("        // matchNullableUnderlyingType: matches a plain (non-factory) converter against typeToConvert's");
-        builder.AppendLine("        // Nullable<T> underlying type instead of the type itself (see YamlConverter.CanConvertNullable).");
+        builder.AppendLine("        // Nullable<T> underlying type instead of the type itself.");
         builder.AppendLine("        // Factories are skipped in this pass - they already receive typeToConvert as-is and can unwrap it");
         builder.AppendLine("        // themselves if they choose to support Nullable<T>.");
         builder.AppendLine("        private static bool TryFindConverter(global::SharpYaml.YamlSerializerOptions options, global::System.Type typeToConvert, bool matchNullableUnderlyingType, out global::SharpYaml.Serialization.YamlConverter? converter)");
         builder.AppendLine("        {");
+        builder.AppendLine("            var matchedType = matchNullableUnderlyingType ? global::System.Nullable.GetUnderlyingType(typeToConvert)! : typeToConvert;");
         builder.AppendLine("            var converters = options.Converters;");
         builder.AppendLine("            for (var i = 0; i < converters.Count; i++)");
         builder.AppendLine("            {");
@@ -1209,8 +1210,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("                    return true;");
         builder.AppendLine("                }");
         builder.AppendLine();
-        builder.AppendLine("                var matches = matchNullableUnderlyingType ? candidate.CanConvertNullable(typeToConvert) : candidate.CanConvert(typeToConvert);");
-        builder.AppendLine("                if (matches)");
+        builder.AppendLine("                if (candidate.CanConvert(matchedType))");
         builder.AppendLine("                {");
         builder.AppendLine("                    converter = candidate;");
         builder.AppendLine("                    return true;");
@@ -6875,8 +6875,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     /// </summary>
     /// <remarks>
     /// When <paramref name="typeSymbol"/> is <see cref="Nullable{T}"/>, the resolved converter may have matched
-    /// only by having been registered for the underlying, non-nullable type (see
-    /// <see cref="YamlConverter.CanConvertNullable"/>) rather than the nullable type itself. Such a converter's
+    /// only by having been registered for the underlying, non-nullable type rather than the nullable type itself.
+    /// Such a converter's
     /// sealed <c>Write(YamlWriter, object?)</c> unboxes straight to the non-nullable type, which throws on a
     /// null value, so null is written directly instead of calling into it in that case. A converter actually
     /// declared against the nullable type is unaffected and keeps handling null itself, as before.
@@ -6923,8 +6923,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     /// </summary>
     /// <remarks>
     /// Mirrors <see cref="EmitRuntimeConverterWrite"/>: when <paramref name="typeSymbol"/> is <see cref="Nullable{T}"/>
-    /// and the resolved converter only matched by its underlying, non-nullable type (see
-    /// <see cref="YamlConverter.CanConvertNullable"/>), a null scalar is consumed and assigned as default
+    /// and the resolved converter only matched by its underlying, non-nullable type, a null scalar is consumed
+    /// and assigned as default
     /// directly rather than calling into the converter's <c>Read</c>, which has no knowledge of null for its
     /// declared (non-nullable) type. A converter actually declared against the nullable type is unaffected and
     /// keeps handling null itself, as before.
@@ -6953,7 +6953,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append(indent).AppendLine("    }");
             builder.Append(indent).AppendLine("    else");
             builder.Append(indent).AppendLine("    {");
-            builder.Append(indent).Append("        var ").Append(runtimeValueName).Append(" = ").Append(runtimeConverterName).Append(".Read(reader, typeof(").Append(typeName).AppendLine("));");
+            var underlyingTypeName = ((INamedTypeSymbol)typeSymbol).TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.Append(indent).Append("        var ").Append(runtimeValueName).Append(" = ").Append(runtimeConverterName)
+                .Append(".Read(reader, ").Append(runtimeConverterName).Append(".CanConvert(typeof(").Append(typeName).Append(")) ? typeof(")
+                .Append(typeName).Append(") : typeof(").Append(underlyingTypeName).AppendLine("));");
             emitAssignment(runtimeValueName + " is null ? default : (" + typeName + ")" + runtimeValueName);
             builder.Append(indent).AppendLine("    }");
         }
