@@ -1038,6 +1038,66 @@ public class YamlSerializerSourceGenerationTests
         AssertGeneratedSourceDoesNotContain(generatedSource, "extensionData is not global::SharpYaml.Model.YamlMapping");
     }
 
+    [TestMethod]
+    public void GeneratedSource_DeserializationMode_SkipsTheWriters()
+    {
+        var generatedSource = GenerateSourceFor(ModeProbeSource("YamlSourceGenerationMode.Deserialization"), "ModeProbeContext.g.cs");
+
+        AssertGeneratedSourceDoesNotContain(generatedSource, "WriteMembers");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "writer.WriteString");
+        StringAssert.Contains(generatedSource, "generated for deserialization only");
+        StringAssert.Contains(generatedSource, "ReadObjectCore");
+    }
+
+    [TestMethod]
+    public void GeneratedSource_SerializationMode_SkipsTheReaders()
+    {
+        var generatedSource = GenerateSourceFor(ModeProbeSource("YamlSourceGenerationMode.Serialization"), "ModeProbeContext.g.cs");
+
+        AssertGeneratedSourceDoesNotContain(generatedSource, "ReadObjectCore");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "ReadMember(");
+        StringAssert.Contains(generatedSource, "generated for serialization only");
+        StringAssert.Contains(generatedSource, "WriteMembers");
+    }
+
+    [TestMethod]
+    public void GeneratedSource_DefaultMode_EmitsBothDirections()
+    {
+        var generatedSource = GenerateSourceFor(ModeProbeSource("YamlSourceGenerationMode.Default"), "ModeProbeContext.g.cs");
+
+        StringAssert.Contains(generatedSource, "WriteMembers");
+        StringAssert.Contains(generatedSource, "ReadObjectCore");
+        AssertGeneratedSourceDoesNotContain(generatedSource, "only (YamlSourceGenerationMode");
+    }
+
+    private static string ModeProbeSource(string mode) => $$"""
+        #nullable enable
+
+        using System.Collections.Generic;
+        using SharpYaml;
+        using SharpYaml.Serialization;
+
+        namespace SharpYaml.GeneratedSourceProbe;
+
+        internal sealed class ModeProbeAddress
+        {
+            public string Street { get; set; } = string.Empty;
+        }
+
+        internal sealed class ModeProbePerson
+        {
+            public string Name { get; set; } = string.Empty;
+
+            public List<ModeProbeAddress> Addresses { get; set; } = new();
+        }
+
+        [YamlSourceGenerationOptions(GenerationMode = {{mode}})]
+        [YamlSerializable(typeof(ModeProbePerson))]
+        internal partial class ModeProbeContext : YamlSerializerContext
+        {
+        }
+        """;
+
     private static string GenerateSourceFor(string source, string hintName)
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);

@@ -105,6 +105,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public bool? UseSchema { get; set; }
         public string? UnmappedMemberHandling { get; set; }
         public string? PreferredObjectCreationHandling { get; set; }
+        public int? GenerationMode { get; set; }
         public string? DuplicateKeyHandling { get; set; }
         public bool? UnsafeAllowDeserializeFromTagTypeName { get; set; }
         public string? ReferenceHandling { get; set; }
@@ -131,6 +132,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             if (other.UseSchema.HasValue) UseSchema = other.UseSchema;
             if (!string.IsNullOrEmpty(other.UnmappedMemberHandling)) UnmappedMemberHandling = other.UnmappedMemberHandling;
             if (!string.IsNullOrEmpty(other.PreferredObjectCreationHandling)) PreferredObjectCreationHandling = other.PreferredObjectCreationHandling;
+            if (other.GenerationMode.HasValue) GenerationMode = other.GenerationMode;
             if (!string.IsNullOrEmpty(other.DuplicateKeyHandling)) DuplicateKeyHandling = other.DuplicateKeyHandling;
             if (other.UnsafeAllowDeserializeFromTagTypeName.HasValue) UnsafeAllowDeserializeFromTagTypeName = other.UnsafeAllowDeserializeFromTagTypeName;
             if (!string.IsNullOrEmpty(other.ReferenceHandling)) ReferenceHandling = other.ReferenceHandling;
@@ -990,9 +992,28 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         for (var index = 0; index < types.Length; index++)
         {
             var typeName = types[index].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            EmitWriteValue(builder, index, types[index], typeName, derivedTypeMappings, indexByType, propertyNamingPolicy, model.SourceGenerationOptions);
+            var generationMode = model.SourceGenerationOptions.GenerationMode ?? 0;
+            var emitWrite = generationMode == 0 || (generationMode & 1) != 0;
+            var emitRead = generationMode == 0 || (generationMode & 2) != 0;
+            if (emitWrite)
+            {
+                EmitWriteValue(builder, index, types[index], typeName, derivedTypeMappings, indexByType, propertyNamingPolicy, model.SourceGenerationOptions);
+            }
+            else
+            {
+                EmitUnsupportedWriteValue(builder, index, typeName);
+            }
+
             builder.AppendLine();
-            EmitReadValue(builder, index, types[index], typeName, derivedTypeMappings, indexByType, propertyNamingPolicy, model.SourceGenerationOptions);
+            if (emitRead)
+            {
+                EmitReadValue(builder, index, types[index], typeName, derivedTypeMappings, indexByType, propertyNamingPolicy, model.SourceGenerationOptions);
+            }
+            else
+            {
+                EmitUnsupportedReadValue(builder, index, types[index], typeName);
+            }
+
             builder.AppendLine();
         }
 
@@ -1235,6 +1256,26 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.Append("            global::System.Object.ReferenceEquals(converter, ").Append(GetSourceGenerationConverterFieldName(i)).Append(')');
             builder.AppendLine(i == sourceGenerationOptions.ConverterTypes.Length - 1 ? ";" : " ||");
         }
+    }
+
+    // A context generated for deserialization only keeps the WriteValue signature, so nested calls still compile, but skips the writer code.
+    private static void EmitUnsupportedWriteValue(StringBuilder builder, int index, string typeName)
+    {
+        builder.Append("    private static void WriteValue").Append(index)
+            .Append("(global::SharpYaml.Serialization.YamlWriter writer, ").Append(typeName).AppendLine(" value, RuntimeCustomConverterCache runtimeConverters)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        throw new global::System.NotSupportedException(\"This source-generated context was generated for deserialization only (YamlSourceGenerationMode.Deserialization), so it cannot serialize.\");");
+        builder.AppendLine("    }");
+    }
+
+    // The mirror of EmitUnsupportedWriteValue for a context generated for serialization only.
+    private static void EmitUnsupportedReadValue(StringBuilder builder, int index, ITypeSymbol typeSymbol, string typeName)
+    {
+        builder.Append("    private static ").Append(typeName).Append(typeSymbol.IsReferenceType ? "?" : string.Empty).Append(" ReadValue").Append(index)
+            .AppendLine("(global::SharpYaml.Serialization.YamlReader reader, RuntimeCustomConverterCache runtimeConverters)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        throw new global::System.NotSupportedException(\"This source-generated context was generated for serialization only (YamlSourceGenerationMode.Serialization), so it cannot deserialize.\");");
+        builder.AppendLine("    }");
     }
 
     private static void EmitWriteValue(
@@ -8879,6 +8920,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     break;
                 case "UnsafeAllowDeserializeFromTagTypeName":
                     model.UnsafeAllowDeserializeFromTagTypeName = argument.Value.Value as bool?;
+                    break;
+                case "GenerationMode":
+                    model.GenerationMode = argument.Value.Value as int?;
                     break;
                 case "ReferenceHandling":
                     model.ReferenceHandling = NormalizeEnumName(argument.Value.ToCSharpString());

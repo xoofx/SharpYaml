@@ -85,6 +85,23 @@ These attributes require `using System.Text.Json.Serialization;` in addition to
 `using SharpYaml.Serialization;`. Custom converters that replace collection handling must
 implement population themselves; converters for element types are still honored.
 
+### Keeping the generated code small
+
+Generated readers and writers are plain C#, so a large context adds to compile time, and to the work of any analyzer that runs on it, such as the trimming and AOT analyzers enabled by `IsAotCompatible`. Two settings keep the output down:
+
+- **Pin options you do not change at runtime.** When `PreferredObjectCreationHandling` is not set, the generator cannot know at build time whether `Populate` or `Replace` applies, so it emits both readers for every member. Setting `PreferredObjectCreationHandling = JsonObjectCreationHandling.Replace` (the runtime default) emits only the `Replace` reader. Pin it only when no code, including `YamlSerializerOptions` created at runtime, sets `Populate`.
+- **Skip the direction you do not use.** [`GenerationMode`](xref:SharpYaml.Serialization.YamlSourceGenerationOptionsAttribute.GenerationMode) takes a [`YamlSourceGenerationMode`](xref:SharpYaml.Serialization.YamlSourceGenerationMode). A context that only reads YAML can set `Deserialization`, which skips the writers, and a context that only writes can set `Serialization`. The default emits both. Calling the skipped direction throws `NotSupportedException`.
+
+```csharp
+[YamlSourceGenerationOptions(
+    PreferredObjectCreationHandling = System.Text.Json.Serialization.JsonObjectCreationHandling.Replace,
+    GenerationMode = YamlSourceGenerationMode.Deserialization)]
+[YamlSerializable(typeof(AppConfig))]
+internal partial class AppConfigContext : YamlSerializerContext
+{
+}
+```
+
 ## Use generated metadata
 
 Use the generated [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) properties (recommended):
