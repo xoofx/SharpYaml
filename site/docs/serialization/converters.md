@@ -190,27 +190,6 @@ An explicit style takes precedence over the global
 `Emitter` also supports scalar style requests and uses quoted styles where block scalars
 are not legal, such as flow collections and simple keys.
 
-## Accessing the current mapping key
-
-[`YamlReader.CurrentKey`](xref:SharpYaml.Serialization.YamlReader.CurrentKey) exposes the most recent mapping key set by built-in dictionary and object converters. Custom converters can use this for context-dependent logic:
-
-```csharp
-public sealed class KeyAwareConverter : YamlConverter<string>
-{
-    public override string? Read(YamlReader reader)
-    {
-        var text = reader.ScalarValue ?? string.Empty;
-        reader.Read();
-
-        // Replace placeholder with the dictionary key or property name
-        return text.Replace("${KEY}", reader.CurrentKey ?? string.Empty);
-    }
-
-    public override void Write(YamlWriter writer, string? value)
-        => writer.WriteScalar(value ?? string.Empty);
-}
-```
-
 ## Precedence summary
 
 | Source | Scope | Priority |
