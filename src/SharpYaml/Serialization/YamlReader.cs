@@ -280,37 +280,38 @@ public sealed class YamlReader : YamlReaderWriterBase
     }
 
     /// <summary>
-    /// Reads the value of a YAML merge key (<c>&lt;&lt;</c>) and hands every merged key to <paramref name="readMember"/>.
+    /// Reads the value of a YAML merge key (<c>&lt;&lt;</c>) and yields every merged key.
     /// </summary>
-    /// <param name="mergeEnabled"><see langword="true"/> when merge keys are honored; otherwise the value is skipped.</param>
+    /// <param name="mergeEnabled"><see langword="true"/> when merge keys are honored; otherwise the value is skipped and nothing is yielded.</param>
     /// <param name="explicitKeys">The keys already set on the object. Merged entries with one of these keys are skipped. May be <see langword="null"/>.</param>
-    /// <param name="readMember">Reads the value of a key, with the reader positioned on that value.</param>
+    /// <returns>The merged keys. Each one leaves the reader positioned on that key's value, which the caller must read or skip before asking for the next key.</returns>
     /// <remarks>
-    /// This is intended for generated code, which calls it while the reader is positioned on the value of a <c>&lt;&lt;</c> key.
-    /// The value can be a mapping or a sequence of mappings.
+    /// This is intended for generated code, which enumerates it while the reader is positioned on the value of a <c>&lt;&lt;</c> key.
+    /// The value can be a mapping or a sequence of mappings. An iterator keeps the generated reader free of a delegate, so it does not allocate a closure for objects without merge keys.
     /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="readMember"/> is <see langword="null"/>.</exception>
     /// <exception cref="YamlException">The value is not a mapping or a sequence of mappings, or is an alias.</exception>
-    public void ReadMergeValue(bool mergeEnabled, HashSet<string>? explicitKeys, Action<string> readMember)
+    public IEnumerable<string> ReadMergeKeys(bool mergeEnabled, HashSet<string>? explicitKeys)
     {
-        ArgumentGuard.ThrowIfNull(readMember);
-
         if (!mergeEnabled)
         {
             Skip();
-            return;
+            yield break;
         }
 
         if (TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(this))
         {
             Read();
-            return;
+            yield break;
         }
 
         if (TokenType == YamlTokenType.StartMapping)
         {
-            ReadMergeMapping(explicitKeys, readMember);
-            return;
+            foreach (var key in ReadMergeMapping(explicitKeys))
+            {
+                yield return key;
+            }
+
+            yield break;
         }
 
         if (TokenType == YamlTokenType.StartSequence)
@@ -323,11 +324,14 @@ public sealed class YamlReader : YamlReaderWriterBase
                     throw new YamlException(SourceName, Start, End, "Merge sequence entries must be mappings.");
                 }
 
-                ReadMergeMapping(explicitKeys, readMember);
+                foreach (var key in ReadMergeMapping(explicitKeys))
+                {
+                    yield return key;
+                }
             }
 
             Read();
-            return;
+            yield break;
         }
 
         if (TokenType == YamlTokenType.Alias)
@@ -338,7 +342,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         throw new YamlException(SourceName, Start, End, "Merge key value must be a mapping or a sequence of mappings.");
     }
 
-    private void ReadMergeMapping(HashSet<string>? explicitKeys, Action<string> readMember)
+    private IEnumerable<string> ReadMergeMapping(HashSet<string>? explicitKeys)
     {
         if (TokenType != YamlTokenType.StartMapping)
         {
@@ -357,7 +361,11 @@ public sealed class YamlReader : YamlReaderWriterBase
             Read();
             if (string.Equals(mergeKey, "<<", StringComparison.Ordinal))
             {
-                ReadMergeValue(mergeEnabled: true, explicitKeys, readMember);
+                foreach (var nestedKey in ReadMergeKeys(mergeEnabled: true, explicitKeys))
+                {
+                    yield return nestedKey;
+                }
+
                 continue;
             }
 
@@ -367,7 +375,7 @@ public sealed class YamlReader : YamlReaderWriterBase
                 continue;
             }
 
-            readMember(mergeKey);
+            yield return mergeKey;
         }
 
         Read();

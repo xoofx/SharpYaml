@@ -2462,7 +2462,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
         builder.AppendLine("            {");
-        builder.AppendLine("                reader.ReadMergeValue(mergeEnabled, explicitKeys, ReadMember);");
+        builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys))");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    ReadMember(mergeKey);");
+        builder.AppendLine("                }");
         builder.AppendLine("                continue;");
         builder.AppendLine("            }");
         builder.AppendLine();
@@ -2879,7 +2882,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
         builder.AppendLine("            {");
-        builder.AppendLine("                reader.ReadMergeValue(mergeEnabled, explicitKeys, ReadMember);");
+        builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys))");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    ReadMember(mergeKey);");
+        builder.AppendLine("                }");
         builder.AppendLine("                continue;");
         builder.AppendLine("            }");
         builder.AppendLine();
