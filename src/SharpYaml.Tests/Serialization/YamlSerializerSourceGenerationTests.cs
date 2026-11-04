@@ -1567,7 +1567,9 @@ public class YamlSerializerSourceGenerationTests
               Added: 2
             """;
 
-        var exception = Assert.Throws<InvalidOperationException>(() => YamlSerializer.Deserialize(yaml, context.GeneratedReadOnlyPopulateStructContainer));
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize(yaml, context.GeneratedReadOnlyPopulateStructContainer));
+
+        Assert.IsInstanceOfType<InvalidOperationException>(exception.InnerException);
 
         StringAssert.Contains(exception.Message, "value type");
         StringAssert.Contains(exception.Message, "doesn't have a setter");

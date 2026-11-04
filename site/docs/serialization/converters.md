@@ -102,6 +102,9 @@ public sealed class TemperatureConverter : YamlConverter<Temperature>
 }
 ```
 
+An exception thrown from `Read`, such as the `FormatException` of `double.Parse` above, reaches the caller of
+`YamlSerializer.Deserialize` as a [`YamlException`](xref:SharpYaml.YamlException) that wraps it. See [Errors and diagnostics](error-handling.md#exceptions-thrown-by-converters).
+
 ## Converter factories
 
 For open generic types or families of types, extend [`YamlConverterFactory`](xref:SharpYaml.Serialization.YamlConverterFactory):

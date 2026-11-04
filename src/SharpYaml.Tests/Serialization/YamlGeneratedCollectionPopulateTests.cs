@@ -36,7 +36,8 @@ public sealed class YamlGeneratedCollectionPopulateTests
         Assert.AreEqual("created", result.Optional!.Single().Name);
         result = YamlSerializer.Deserialize("Optional: null", CollectionPopulateContext.Default.CollectionPopulateRoot)!;
         Assert.IsNull(result.Optional);
-        Assert.Throws<InvalidOperationException>(() => YamlSerializer.Deserialize("Items: null", CollectionPopulateContext.Default.CollectionPopulateRoot));
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize("Items: null", CollectionPopulateContext.Default.CollectionPopulateRoot));
+        Assert.IsInstanceOfType<InvalidOperationException>(exception.InnerException);
     }
 
     [TestMethod]
