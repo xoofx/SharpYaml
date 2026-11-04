@@ -7419,7 +7419,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                     builder.AppendLine("        var options = reader.Options;");
                 }
 
-                builder.Append("        ").Append(typeName).AppendLine(" __memberValue = default!;");
+                // No initializer: the compiler's definite assignment check then proves that every path of the body assigns the value,
+                // so a shared reader can never overwrite a member with a default the inlined reader would not have assigned.
+                builder.Append("        ").Append(typeName).AppendLine(" __memberValue;");
                 builder.Append(body);
                 builder.AppendLine("        return __memberValue;");
                 builder.AppendLine("    }");
