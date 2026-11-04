@@ -280,6 +280,108 @@ public sealed class YamlReader : YamlReaderWriterBase
     }
 
     /// <summary>
+    /// Reads the value of a YAML merge key (<c>&lt;&lt;</c>) and yields every merged key.
+    /// </summary>
+    /// <param name="mergeEnabled"><see langword="true"/> when merge keys are honored; otherwise the value is skipped and nothing is yielded.</param>
+    /// <param name="explicitKeys">The keys already set on the object. Merged entries with one of these keys are skipped. May be <see langword="null"/>.</param>
+    /// <returns>The merged keys. Each one leaves the reader positioned on that key's value, which the caller must read or skip before asking for the next key.</returns>
+    /// <remarks>
+    /// This is intended for generated code, which enumerates it while the reader is positioned on the value of a <c>&lt;&lt;</c> key.
+    /// The value can be a mapping or a sequence of mappings. An iterator keeps the generated reader free of a delegate, so it does not allocate a closure for objects without merge keys.
+    /// </remarks>
+    /// <exception cref="YamlException">The value is not a mapping or a sequence of mappings, or is an alias.</exception>
+    public IEnumerable<string> ReadMergeKeys(bool mergeEnabled, HashSet<string>? explicitKeys)
+    {
+        if (!mergeEnabled)
+        {
+            Skip();
+            yield break;
+        }
+
+        if (TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(this))
+        {
+            Read();
+            yield break;
+        }
+
+        if (TokenType == YamlTokenType.StartMapping)
+        {
+            foreach (var key in ReadMergeMapping(explicitKeys))
+            {
+                yield return key;
+            }
+
+            yield break;
+        }
+
+        if (TokenType == YamlTokenType.StartSequence)
+        {
+            Read();
+            while (TokenType != YamlTokenType.EndSequence)
+            {
+                if (TokenType != YamlTokenType.StartMapping)
+                {
+                    throw new YamlException(SourceName, Start, End, "Merge sequence entries must be mappings.");
+                }
+
+                foreach (var key in ReadMergeMapping(explicitKeys))
+                {
+                    yield return key;
+                }
+            }
+
+            Read();
+            yield break;
+        }
+
+        if (TokenType == YamlTokenType.Alias)
+        {
+            throw new YamlException(SourceName, Start, End, "Merge alias values are not supported in source-generated deserialization.");
+        }
+
+        throw new YamlException(SourceName, Start, End, "Merge key value must be a mapping or a sequence of mappings.");
+    }
+
+    private IEnumerable<string> ReadMergeMapping(HashSet<string>? explicitKeys)
+    {
+        if (TokenType != YamlTokenType.StartMapping)
+        {
+            throw YamlThrowHelper.ThrowExpectedMapping(this);
+        }
+
+        Read();
+        while (TokenType != YamlTokenType.EndMapping)
+        {
+            if (TokenType != YamlTokenType.Scalar)
+            {
+                throw YamlThrowHelper.ThrowExpectedScalarKey(this);
+            }
+
+            var mergeKey = ScalarValue ?? string.Empty;
+            Read();
+            if (string.Equals(mergeKey, "<<", StringComparison.Ordinal))
+            {
+                foreach (var nestedKey in ReadMergeKeys(mergeEnabled: true, explicitKeys))
+                {
+                    yield return nestedKey;
+                }
+
+                continue;
+            }
+
+            if (explicitKeys is not null && explicitKeys.Contains(mergeKey))
+            {
+                Skip();
+                continue;
+            }
+
+            yield return mergeKey;
+        }
+
+        Read();
+    }
+
+    /// <summary>
     /// Buffers the current YAML node to a string while optionally extracting a discriminator value from the root mapping.
     /// </summary>
     /// <param name="reader">The reader positioned at the start of the node.</param>

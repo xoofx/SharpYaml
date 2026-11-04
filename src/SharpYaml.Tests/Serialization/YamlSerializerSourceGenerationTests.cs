@@ -1231,6 +1231,116 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
+    public void GeneratedContext_MergeKey_SequenceOfMappingsIsAppliedInOrder()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<:
+            - first_name: Ada
+              Age: 37
+            - Age: 40
+            """;
+
+        var person = YamlSerializer.Deserialize(yaml, context.GeneratedPerson);
+
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(40, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_SequenceOfMappingsIsAppliedInOrderToParameterizedConstructor()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<:
+            - Name: Ada
+              Age: 37
+            - Age: 40
+            """;
+
+        var model = YamlSerializer.Deserialize(yaml, context.GeneratedYamlCtorModel);
+
+        Assert.IsNotNull(model);
+        Assert.AreEqual("Ada", model.Name);
+        Assert.AreEqual(40, model.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_NestedMergeInsideMergedMappingIsApplied()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<:
+              <<:
+                first_name: Ada
+              Age: 37
+            """;
+
+        var person = YamlSerializer.Deserialize(yaml, context.GeneratedPerson);
+
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(37, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_NullValueIsIgnored()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<: null
+            first_name: Ada
+            Age: 38
+            """;
+
+        var person = YamlSerializer.Deserialize(yaml, context.GeneratedPerson);
+
+        Assert.IsNotNull(person);
+        Assert.AreEqual("Ada", person.FirstName);
+        Assert.AreEqual(38, person.Age);
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_ScalarValueThrows()
+    {
+        var context = TestYamlSerializerContext.Default;
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("<<: 5", context.GeneratedPerson));
+        StringAssert.Contains(exception.Message, "Merge key value must be a mapping or a sequence of mappings.");
+
+        var ctorException = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("<<: 5", context.GeneratedYamlCtorModel));
+        StringAssert.Contains(ctorException.Message, "Merge key value must be a mapping or a sequence of mappings.");
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_SequenceEntryThatIsNotAMappingThrows()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            <<:
+            - 5
+            """;
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize(yaml, context.GeneratedPerson));
+        StringAssert.Contains(exception.Message, "Merge sequence entries must be mappings.");
+    }
+
+    [TestMethod]
+    public void GeneratedContext_MergeKey_AliasValueThrows()
+    {
+        var context = TestYamlSerializerContext.Default;
+        var yaml = """
+            base: &base
+              Age: 37
+            <<: *base
+            """;
+
+        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize(yaml, context.GeneratedPerson));
+        StringAssert.Contains(exception.Message, "Merge alias values are not supported in source-generated deserialization.");
+    }
+
+    [TestMethod]
     public void GeneratedContext_ParameterizedConstructorStringParameterReadsYamlNullAsNull()
     {
         var context = TestYamlSerializerContextWithOptions.Default;
