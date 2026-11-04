@@ -1157,7 +1157,16 @@ public static class YamlSerializer
             return null;
         }
 
-        var result = typeInfo.ReadAsObject(reader);
+        object? result;
+        try
+        {
+            result = typeInfo.ReadAsObject(reader);
+        }
+        catch (Exception exception) when (IsWrappedReadException(exception))
+        {
+            throw CreateReadException(reader, exception);
+        }
+
         reader.CompleteUnmappedMembers();
         return result;
     }
@@ -1173,7 +1182,16 @@ public static class YamlSerializer
             return default;
         }
 
-        var result = typeInfo.Read(reader);
+        T? result;
+        try
+        {
+            result = typeInfo.Read(reader);
+        }
+        catch (Exception exception) when (IsWrappedReadException(exception))
+        {
+            throw CreateReadException(reader, exception);
+        }
+
         reader.CompleteUnmappedMembers();
         return result;
     }
@@ -1189,7 +1207,16 @@ public static class YamlSerializer
             return null;
         }
 
-        var result = typeInfo.ReadAsObject(yamlReader);
+        object? result;
+        try
+        {
+            result = typeInfo.ReadAsObject(yamlReader);
+        }
+        catch (Exception exception) when (IsWrappedReadException(exception))
+        {
+            throw CreateReadException(yamlReader, exception);
+        }
+
         yamlReader.CompleteUnmappedMembers();
         return result;
     }
@@ -1205,10 +1232,29 @@ public static class YamlSerializer
             return default;
         }
 
-        var result = typeInfo.Read(yamlReader);
+        T? result;
+        try
+        {
+            result = typeInfo.Read(yamlReader);
+        }
+        catch (Exception exception) when (IsWrappedReadException(exception))
+        {
+            throw CreateReadException(yamlReader, exception);
+        }
+
         yamlReader.CompleteUnmappedMembers();
         return result;
     }
+
+    // Exceptions thrown while reading a value, by a custom converter, a callback or generated code, surface as YamlException
+    // with the position of the reader, as the reflection-based object converter already does for its members.
+    // NotSupportedException reports a configuration error (no converter, a context generated without readers) and
+    // IOException a failure of the source, so they propagate unchanged.
+    private static bool IsWrappedReadException(Exception exception)
+        => exception is not YamlException and not NotSupportedException and not IOException;
+
+    private static YamlException CreateReadException(YamlReader reader, Exception exception)
+        => new(reader.SourceName, reader.Start, reader.End, exception.Message, exception);
 
     private static StringBuilder AcquireStringBuilder(int minimumCapacity)
     {

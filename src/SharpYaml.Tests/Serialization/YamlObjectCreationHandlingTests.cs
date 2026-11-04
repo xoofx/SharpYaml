@@ -144,7 +144,9 @@ public sealed class YamlObjectCreationHandlingTests
               Added: 2
             """;
 
-        var exception = Assert.Throws<InvalidOperationException>(() => YamlSerializer.Deserialize<ReadOnlyPopulateStructModel>(yaml));
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<ReadOnlyPopulateStructModel>(yaml));
+
+        Assert.IsInstanceOfType<InvalidOperationException>(exception.InnerException);
 
         StringAssert.Contains(exception.Message, "value type");
         StringAssert.Contains(exception.Message, "doesn't have a setter");
