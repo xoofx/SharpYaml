@@ -105,6 +105,15 @@ public sealed class YamlSourceGenerationOptionsAttribute : YamlAttribute
     public YamlReferenceHandling ReferenceHandling { get; set; }
 
     /// <summary>
+    /// Gets or sets which code the generator emits: deserialization, serialization or both.
+    /// </summary>
+    /// <remarks>
+    /// The default emits both. A context that only reads YAML can set <see cref="YamlSourceGenerationMode.Deserialization"/> to skip the writers,
+    /// and calling a skipped direction throws <see cref="NotSupportedException"/>.
+    /// </remarks>
+    public YamlSourceGenerationMode GenerationMode { get; set; }
+
+    /// <summary>
     /// Gets or sets an optional name for the YAML source.
     /// </summary>
     /// <remarks>
