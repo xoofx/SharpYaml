@@ -933,6 +933,50 @@ internal partial class TestYamlSerializerContextWithCustomPropertyNames : YamlSe
 public class YamlSerializerSourceGenerationTests
 {
     [TestMethod]
+    public void GeneratedSource_MembersOfTheSameTypeShareOneReader()
+    {
+        const string source = """
+            #nullable enable
+
+            using System.Text.Json.Serialization;
+            using SharpYaml;
+            using SharpYaml.Serialization;
+
+            namespace SharpYaml.GeneratedSourceProbe;
+
+            internal sealed class SharedReaderFirst
+            {
+                public string A { get; set; } = string.Empty;
+
+                public string B { get; set; } = string.Empty;
+
+                public int Count { get; set; }
+            }
+
+            internal sealed class SharedReaderSecond
+            {
+                public string C { get; set; } = string.Empty;
+
+                public int Count { get; set; }
+            }
+
+            [YamlSourceGenerationOptions(PreferredObjectCreationHandling = JsonObjectCreationHandling.Replace)]
+            [YamlSerializable(typeof(SharedReaderFirst))]
+            [YamlSerializable(typeof(SharedReaderSecond))]
+            internal partial class SharedReaderContext : YamlSerializerContext
+            {
+            }
+            """;
+
+        var generatedSource = GenerateSourceFor(source, "SharedReaderContext.g.cs");
+
+        // Three string members and two int members: one shared reader definition per type, called from every member.
+        Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"private static string ReadMemberValue\d+\(").Count);
+        Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"private static int ReadMemberValue\d+\(").Count);
+        Assert.IsGreaterThanOrEqualTo(5, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"= ReadMemberValue\d+\(reader, runtimeConverters\);").Count);
+    }
+
+    [TestMethod]
     public void GeneratedSource_ResolvesAttributeDrivenBranchesAtBuildTime()
     {
         const string source = """
