@@ -841,7 +841,29 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return named.TypeKind is TypeKind.Class or TypeKind.Struct or TypeKind.Enum;
     }
 
+    // Member readers shared across one context. They are collected while the context is emitted and written at its end.
+    // Source generation runs the emitter synchronously on one thread, so a thread-static avoids threading a registry through every emitter.
+    [ThreadStatic]
+    private static MemberReaderRegistry? s_memberReaders;
+
     private static string GenerateContextSource(
+        ContextModel model,
+        ImmutableArray<DerivedTypeMappingModel> derivedTypeMappings,
+        ImmutableArray<ITypeSymbol> types,
+        Dictionary<ITypeSymbol, int> indexByType)
+    {
+        s_memberReaders = new MemberReaderRegistry();
+        try
+        {
+            return GenerateContextSourceCore(model, derivedTypeMappings, types, indexByType);
+        }
+        finally
+        {
+            s_memberReaders = null;
+        }
+    }
+
+    private static string GenerateContextSourceCore(
         ContextModel model,
         ImmutableArray<DerivedTypeMappingModel> derivedTypeMappings,
         ImmutableArray<ITypeSymbol> types,
@@ -996,6 +1018,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine();
         }
 
+        s_memberReaders?.Emit(builder);
         builder.AppendLine("}");
         return builder.ToString();
     }
@@ -5871,6 +5894,25 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static void EmitReadMemberValueWithCustomConverter(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType, SourceGenerationOptionsModel sourceGenerationOptions)
     {
+        if (s_memberReaders is { } readers)
+        {
+            // The read only depends on the member type and the attribute converter, so members of the same type share one reader.
+            var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var readerIndex = readers.GetOrAdd(memberTypeName, member.AttributeConverterTypeName, () =>
+            {
+                var body = new StringBuilder();
+                EmitReadMemberValueWithCustomConverterCore(body, member.WithAssignExpression(static rhs => "__memberValue = " + rhs), indexByType, sourceGenerationOptions);
+                return body.ToString();
+            });
+            builder.Append("                ").Append(member.AssignExpression("ReadMemberValue" + readerIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "(reader, runtimeConverters)")).AppendLine(";");
+            return;
+        }
+
+        EmitReadMemberValueWithCustomConverterCore(builder, member, indexByType, sourceGenerationOptions);
+    }
+
+    private static void EmitReadMemberValueWithCustomConverterCore(StringBuilder builder, MemberModel member, Dictionary<ITypeSymbol, int> indexByType, SourceGenerationOptionsModel sourceGenerationOptions)
+    {
         var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         if (member.AttributeConverterTypeName is not null)
         {
@@ -7344,6 +7386,48 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         return Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "default";
     }
 
+    private sealed class MemberReaderRegistry
+    {
+        private readonly Dictionary<string, int> _indexByKey = new(StringComparer.Ordinal);
+        private readonly List<(string TypeName, string Body)> _readers = new();
+
+        public int GetOrAdd(string typeName, string? attributeConverterTypeName, Func<string> createBody)
+        {
+            var key = typeName + "|" + attributeConverterTypeName;
+            if (_indexByKey.TryGetValue(key, out var index))
+            {
+                return index;
+            }
+
+            index = _readers.Count;
+            _indexByKey.Add(key, index);
+            _readers.Add((typeName, string.Empty));
+            _readers[index] = (typeName, createBody());
+            return index;
+        }
+
+        public void Emit(StringBuilder builder)
+        {
+            for (var index = 0; index < _readers.Count; index++)
+            {
+                var (typeName, body) = _readers[index];
+                builder.Append("    private static ").Append(typeName).Append(" ReadMemberValue").Append(index.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    .AppendLine("(global::SharpYaml.Serialization.YamlReader reader, RuntimeCustomConverterCache runtimeConverters)");
+                builder.AppendLine("    {");
+                if (body.Contains("options."))
+                {
+                    builder.AppendLine("        var options = reader.Options;");
+                }
+
+                builder.Append("        ").Append(typeName).AppendLine(" __memberValue = default!;");
+                builder.Append(body);
+                builder.AppendLine("        return __memberValue;");
+                builder.AppendLine("    }");
+                builder.AppendLine();
+            }
+        }
+    }
+
     private sealed class MemberModel
     {
         public MemberModel(
@@ -7395,6 +7479,23 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         public bool IsIgnoredOnRead { get; }
         public bool IsInitOnly { get; }
         public bool IsRequiredKeyword { get; }
+
+        public MemberModel WithAssignExpression(Func<string, string> assignExpression) => new(
+            Symbol,
+            Type,
+            SerializedNameExpressionForRead,
+            SerializedNameExpressionForWrite,
+            AccessExpression,
+            assignExpression,
+            IgnoreCondition,
+            AttributeConverterTypeName,
+            ObjectCreationHandling,
+            BlockSequenceMappingStyle,
+            BlockSequenceSequenceStyle,
+            IsRequired,
+            IsIgnoredOnRead,
+            IsInitOnly,
+            IsRequiredKeyword);
         public bool NeedsObjectInitializer => IsInitOnly || IsRequiredKeyword;
     }
 
