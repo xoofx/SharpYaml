@@ -185,6 +185,52 @@ public sealed class YamlReader : YamlReaderWriterBase
     internal void CompleteReports() => _state.Tracker?.Session.Complete();
 
     /// <summary>
+    /// Gets whether a <see cref="YamlException"/> thrown while reading a member value can be recovered from: the configured
+    /// <see cref="YamlSerializerOptions.InvalidValueHandling"/> is not <see cref="YamlInvalidValueHandling.FailFast"/> and the
+    /// reader is still on the token the read began on, so nothing of the value was consumed.
+    /// </summary>
+    /// <param name="tokenType">The <see cref="TokenType"/> captured before the read.</param>
+    /// <param name="start">The <see cref="Start"/> captured before the read.</param>
+    /// <returns><see langword="true"/> when the value can be skipped and reported; otherwise <see langword="false"/>.</returns>
+    /// <remarks>Has no side effects, so it can serve as an exception filter.</remarks>
+    internal bool CanRecoverInvalidValue(YamlTokenType tokenType, Mark start)
+        => Options.InvalidValueHandling != YamlInvalidValueHandling.FailFast
+            && _state.TokenType == tokenType
+            && _state.Start.Index == start.Index;
+
+    /// <summary>
+    /// Skips the value the reader is positioned on and reports it as invalid. Call this after <see cref="CanRecoverInvalidValue"/>
+    /// returned <see langword="true"/>. The value is captured as a <see cref="Model.YamlElement"/> only when a callback or
+    /// finalizer consumes it.
+    /// </summary>
+    /// <param name="exception">The exception the converter threw.</param>
+    /// <param name="declaringType">The CLR type being deserialized.</param>
+    /// <param name="instance">The instance being populated, or <see langword="null"/> when it does not exist yet.</param>
+    /// <param name="name">The YAML key of the member or constructor parameter.</param>
+    /// <param name="targetType">The CLR type the value was meant for.</param>
+    internal void RecoverInvalidValue(YamlException exception, Type declaringType, object? instance, string name, Type targetType)
+    {
+        if (_state.Tracker is not { } tracker)
+        {
+            Skip();
+            return;
+        }
+
+        var session = tracker.Session;
+        var value = new YamlInvalidValue(SourceName, declaringType, instance, name, tracker.GetPath(), tracker.GetCurrentKeyStart(), Start, targetType, exception);
+        if (session.IsReportingInvalidValues)
+        {
+            value.SetValue(Converters.YamlModelNodeConverter.ReadUnmappedNode(this, session.Anchors));
+        }
+        else
+        {
+            Skip();
+        }
+
+        session.Report(value);
+    }
+
+    /// <summary>
     /// Creates a <see cref="YamlException"/> located at the current token, for a converter to throw when it rejects a value.
     /// </summary>
     /// <param name="message">The message describing why the value is rejected.</param>

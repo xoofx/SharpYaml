@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharpYaml.Model;
 using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization;
@@ -97,9 +99,334 @@ public sealed class YamlInvalidValueTests
         Assert.IsEmpty(new YamlInvalidValuesException().InvalidValues);
     }
 
+    [TestMethod]
+    public void FailFast_ThrowsAtTheFirstInvalidValueAndRunsNoDelegate()
+    {
+        var reported = 0;
+        var options = new YamlSerializerOptions { InvalidValueCallback = _ => reported++, InvalidValuesFinalizer = _ => reported++ };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\n", options));
+
+        StringAssert.Contains(exception.Message, "Invalid integer scalar 'abc'");
+        Assert.AreEqual(0, exception.Start.Line);
+        Assert.AreEqual(0, reported);
+    }
+
+    [TestMethod]
+    public void Skip_KeepsTheInitializerValueAndReportsEveryDetail()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { SourceName = "config.yaml", InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Name: a\nPort: abc\nTimeout: 5\n", options)!;
+
+        Assert.AreEqual("a", root.Name);
+        Assert.AreEqual(8080, root.Port);
+        Assert.AreEqual(5, root.Timeout);
+        Assert.HasCount(1, values);
+
+        var value = values[0];
+        Assert.AreEqual("config.yaml", value.SourceName);
+        Assert.AreEqual("$.Port", value.Path);
+        Assert.AreEqual("Port", value.Name);
+        Assert.AreEqual(1, value.KeyStart.Line);
+        Assert.AreEqual(0, value.KeyStart.Column);
+        Assert.AreEqual(1, value.ValueStart.Line);
+        Assert.AreEqual(6, value.ValueStart.Column);
+        Assert.AreEqual(typeof(int), value.TargetType);
+        Assert.AreEqual(typeof(InvalidValueRoot), value.DeclaringType);
+        Assert.AreSame(root, value.Instance);
+        Assert.AreEqual("abc", ((YamlValue)value.Value!).Value);
+        StringAssert.Contains(value.Message, "Invalid integer scalar 'abc'");
+        Assert.AreEqual(value.ValueStart.Index, value.Exception.Start.Index);
+        Assert.AreEqual(value.Message, value.Exception.Message);
+    }
+
+    [TestMethod]
+    public void Skip_WithoutDelegatesSucceedsSilently()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
+
+        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nName: a\n", options)!;
+
+        Assert.AreEqual(8080, root.Port);
+        Assert.AreEqual("a", root.Name);
+    }
+
+    [TestMethod]
+    public void Skip_RecoversAConverterThatRejectsBeforeConsuming()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Rejecting: nope\nName: a\n", options)!;
+
+        Assert.IsNull(root.Rejecting);
+        Assert.AreEqual("a", root.Name);
+        Assert.HasCount(1, values);
+        Assert.AreEqual(typeof(InvalidValueRejecting), values[0].TargetType);
+        StringAssert.EndsWith(values[0].Message, "rejected before consuming");
+    }
+
+    [TestMethod]
+    public void Skip_LeavesAConverterThatThrowsAfterConsumingFatal()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Consuming: nope\nName: a\n", options));
+
+        StringAssert.EndsWith(exception.Message, "rejected after consuming");
+        Assert.IsEmpty(values);
+    }
+
+    [TestMethod]
+    public void Skip_LeavesANonYamlExceptionFatalAndWrapped()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Formatted: nope\n", options));
+
+        Assert.IsInstanceOfType<FormatException>(exception.InnerException);
+        Assert.IsEmpty(values);
+    }
+
+    [TestMethod]
+    public void Skip_SkipsAMappingWhereAScalarIsExpectedWhole()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Port:\n  nested: 1\n  more: [1, 2]\nName: after\n", options)!;
+
+        Assert.AreEqual(8080, root.Port);
+        Assert.AreEqual("after", root.Name);
+        Assert.HasCount(1, values);
+        Assert.IsInstanceOfType<YamlMapping>(values[0].Value);
+    }
+
+    [TestMethod]
+    public void Skip_CountsARequiredMemberWithAnInvalidValueAsPresent()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
+
+        var root = YamlSerializer.Deserialize<InvalidValueRequired>("Port: abc\n", options)!;
+
+        Assert.AreEqual(0, root.Port);
+    }
+
+    [TestMethod]
+    public void Skip_KeepsTheDefaultOfAConstructorParameter()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = YamlSerializer.Deserialize<InvalidValueConstructed>("Port: abc\nName: a\nTimeout: xyz\n", options)!;
+
+        Assert.AreEqual(8080, root.Port);
+        Assert.AreEqual("a", root.Name);
+        Assert.AreEqual(30, root.Timeout);
+        Assert.HasCount(2, values);
+        Assert.AreEqual("$.Port", values[0].Path);
+        Assert.IsNull(values[0].Instance);
+        Assert.AreEqual(typeof(InvalidValueConstructed), values[0].DeclaringType);
+        Assert.AreEqual("$.Timeout", values[1].Path);
+        Assert.IsNull(values[1].Instance);
+    }
+
+    [TestMethod]
+    public void Skip_RecoversInsideAMergedMapping()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = YamlSerializer.Deserialize<InvalidValueMergeRoot>("Server:\n  <<: {Port: abc, Timeout: 7}\n  Name: a\nConstructed:\n  <<: {Port: abc, Timeout: xyz}\n  Name: c\n", options)!;
+
+        Assert.AreEqual(8080, root.Server!.Port);
+        Assert.AreEqual(7, root.Server.Timeout);
+        Assert.AreEqual("a", root.Server.Name);
+        Assert.AreEqual("c", root.Constructed!.Name);
+        Assert.AreEqual(8080, root.Constructed.Port);
+        Assert.AreEqual(30, root.Constructed.Timeout);
+        Assert.HasCount(3, values);
+        Assert.AreEqual("$.Server['<<'].Port", values[0].Path);
+        Assert.AreSame(root.Server, values[0].Instance);
+        Assert.AreEqual("$.Constructed['<<'].Port", values[1].Path);
+        Assert.AreEqual("$.Constructed['<<'].Timeout", values[2].Path);
+    }
+
+    [TestMethod]
+    public void Skip_KeepsThePopulatedInstanceWhenTheReadFailsBeforeConsuming()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = YamlSerializer.Deserialize<InvalidValuePopulateRoot>("Server: abc\n", options)!;
+
+        Assert.AreEqual("keep", root.Server.Name);
+        Assert.HasCount(1, values);
+        Assert.AreEqual(typeof(InvalidValueRoot), values[0].TargetType);
+        Assert.AreEqual("abc", ((YamlValue)values[0].Value!).Value);
+    }
+
+    [TestMethod]
+    public void Skip_ReportsTheCompletePathInsideAPolymorphicNode()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var zoo = YamlSerializer.Deserialize<InvalidValueZoo>("Pets:\n  - $type: dog\n    Name: a\n    BarkVolume: loud\n", options)!;
+
+        var dog = (InvalidValueDog)zoo.Pets[0];
+        Assert.AreEqual("a", dog.Name);
+        Assert.AreEqual(3, dog.BarkVolume);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$.Pets[0].BarkVolume", values[0].Path);
+        Assert.AreEqual(typeof(InvalidValueDog), values[0].DeclaringType);
+        Assert.AreSame(dog, values[0].Instance);
+    }
+
+    [TestMethod]
+    public void Skip_RecoversAnAnchoredValueAndItsAlias()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Port: &p abc\nTimeout: *p\n", options)!;
+
+        Assert.AreEqual(8080, root.Port);
+        Assert.AreEqual(30, root.Timeout);
+        Assert.HasCount(2, values);
+        Assert.AreEqual("abc", ((YamlValue)values[0].Value!).Value);
+        Assert.AreEqual("abc", ((YamlValue)values[1].Value!).Value);
+    }
+
+    [TestMethod]
+    public void Skip_LeavesAnInvalidCollectionElementFatal()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Retries: [1, abc]\n", options));
+
+        StringAssert.Contains(exception.Message, "Invalid integer scalar 'abc'");
+        Assert.IsEmpty(values);
+    }
+
+    [TestMethod]
+    public void Skip_StillDisallowsUnmappedMembers()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nOops: 1\n", options));
+
+        StringAssert.Contains(exception.Message, "Oops");
+    }
+
     private static YamlInvalidValue CreateValue(string path, Mark start, Mark end, string message)
     {
         var exception = new YamlException("config.yaml", start, end, message);
         return new YamlInvalidValue("config.yaml", typeof(object), null, path[(path.LastIndexOf('.') + 1)..], path, start, start, typeof(int), exception);
     }
+}
+
+internal sealed class InvalidValueRoot
+{
+    public string Name { get; set; } = string.Empty;
+    public int Port { get; set; } = 8080;
+    public int Timeout { get; set; } = 30;
+    public List<int> Retries { get; set; } = new();
+    public InvalidValueRejecting? Rejecting { get; set; }
+    public InvalidValueConsuming? Consuming { get; set; }
+    public InvalidValueFormatted? Formatted { get; set; }
+}
+
+internal sealed class InvalidValueRequired
+{
+    [YamlRequired]
+    public int Port { get; set; }
+}
+
+internal sealed class InvalidValueConstructed
+{
+    public InvalidValueConstructed(string name, int port = 8080, int timeout = 30)
+    {
+        Name = name;
+        Port = port;
+        Timeout = timeout;
+    }
+
+    public string Name { get; }
+    public int Port { get; }
+    public int Timeout { get; }
+}
+
+internal sealed class InvalidValueMergeRoot
+{
+    public InvalidValueRoot? Server { get; set; }
+    public InvalidValueConstructed? Constructed { get; set; }
+}
+
+internal sealed class InvalidValuePopulateRoot
+{
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public InvalidValueRoot Server { get; } = new() { Name = "keep" };
+}
+
+internal sealed class InvalidValueZoo
+{
+    public List<InvalidValueAnimal> Pets { get; set; } = new();
+}
+
+[YamlPolymorphic]
+[YamlDerivedType(typeof(InvalidValueDog), "dog")]
+internal abstract class InvalidValueAnimal
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+internal sealed class InvalidValueDog : InvalidValueAnimal
+{
+    public int BarkVolume { get; set; } = 3;
+}
+
+[YamlConverter(typeof(InvalidValueRejectingConverter))]
+internal sealed class InvalidValueRejecting
+{
+}
+
+[YamlConverter(typeof(InvalidValueConsumingConverter))]
+internal sealed class InvalidValueConsuming
+{
+}
+
+[YamlConverter(typeof(InvalidValueFormattedConverter))]
+internal sealed class InvalidValueFormatted
+{
+}
+
+internal sealed class InvalidValueRejectingConverter : YamlConverter<InvalidValueRejecting>
+{
+    public override InvalidValueRejecting Read(YamlReader reader) => throw reader.CreateException("rejected before consuming");
+
+    public override void Write(YamlWriter writer, InvalidValueRejecting value) => writer.WriteScalar(string.Empty);
+}
+
+internal sealed class InvalidValueConsumingConverter : YamlConverter<InvalidValueConsuming>
+{
+    public override InvalidValueConsuming Read(YamlReader reader)
+    {
+        reader.Read();
+        throw reader.CreateException("rejected after consuming");
+    }
+
+    public override void Write(YamlWriter writer, InvalidValueConsuming value) => writer.WriteScalar(string.Empty);
+}
+
+internal sealed class InvalidValueFormattedConverter : YamlConverter<InvalidValueFormatted>
+{
+    public override InvalidValueFormatted Read(YamlReader reader) => throw new FormatException("not formatted");
+
+    public override void Write(YamlWriter writer, InvalidValueFormatted value) => writer.WriteScalar(string.Empty);
 }

@@ -562,10 +562,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 var parameterType = constructor.GetParameterType(parameterIndex);
                 var converter = reader.GetConverter(parameterType);
+                var valueTokenType = reader.TokenType;
+                var valueStart = reader.Start;
                 object? value;
                 try
                 {
                     value = converter.Read(reader, parameterType);
+                }
+                catch (YamlException exception) when (reader.CanRecoverInvalidValue(valueTokenType, valueStart))
+                {
+                    reader.RecoverInvalidValue(exception, contract.DeclaringType, null, key, parameterType);
+                    continue;
                 }
                 catch (YamlException)
                 {
@@ -599,10 +606,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 }
 
                 var converter = member.Converter ??= reader.GetConverter(member.MemberType);
+                var valueTokenType = reader.TokenType;
+                var valueStart = reader.Start;
                 object? value;
                 try
                 {
                     value = converter.Read(reader, member.MemberType);
+                }
+                catch (YamlException exception) when (reader.CanRecoverInvalidValue(valueTokenType, valueStart))
+                {
+                    reader.RecoverInvalidValue(exception, contract.DeclaringType, null, key, member.MemberType);
+                    continue;
                 }
                 catch (YamlException)
                 {
@@ -1059,6 +1073,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return;
         }
 
+        var valueTokenType = reader.TokenType;
+        var valueStart = reader.Start;
         var converter = member.Converter ??= reader.GetConverter(member.MemberType);
         var canPopulate = converter.CanPopulate(member.MemberType);
         var canPopulateMember = canPopulate && (!member.MemberType.IsValueType || member.CanWrite);
@@ -1092,6 +1108,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 try
                 {
                     populatedValue = converter.Populate(reader, member.MemberType, currentValue);
+                }
+                catch (YamlException exception) when (reader.CanRecoverInvalidValue(valueTokenType, valueStart))
+                {
+                    reader.RecoverInvalidValue(exception, contract.DeclaringType, instance, key, member.MemberType);
+                    return;
                 }
                 catch (YamlException)
                 {
@@ -1140,6 +1161,11 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         try
         {
             value = converter.Read(reader, member.MemberType);
+        }
+        catch (YamlException exception) when (reader.CanRecoverInvalidValue(valueTokenType, valueStart))
+        {
+            reader.RecoverInvalidValue(exception, contract.DeclaringType, instance, key, member.MemberType);
+            return;
         }
         catch (YamlException)
         {
@@ -1272,10 +1298,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             {
                 var parameterType = constructor.GetParameterType(parameterIndex);
                 var converter = reader.GetConverter(parameterType);
+                var valueTokenType = reader.TokenType;
+                var valueStart = reader.Start;
                 object? value;
                 try
                 {
                     value = converter.Read(reader, parameterType);
+                }
+                catch (YamlException exception) when (reader.CanRecoverInvalidValue(valueTokenType, valueStart))
+                {
+                    reader.RecoverInvalidValue(exception, contract.DeclaringType, null, key, parameterType);
+                    continue;
                 }
                 catch (YamlException)
                 {
@@ -1309,10 +1342,17 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 }
 
                 var converter = member.Converter ??= reader.GetConverter(member.MemberType);
+                var valueTokenType = reader.TokenType;
+                var valueStart = reader.Start;
                 object? value;
                 try
                 {
                     value = converter.Read(reader, member.MemberType);
+                }
+                catch (YamlException exception) when (reader.CanRecoverInvalidValue(valueTokenType, valueStart))
+                {
+                    reader.RecoverInvalidValue(exception, contract.DeclaringType, null, key, member.MemberType);
+                    continue;
                 }
                 catch (YamlException)
                 {
