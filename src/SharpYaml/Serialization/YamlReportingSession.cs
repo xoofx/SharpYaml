@@ -8,20 +8,23 @@ using System.Collections.Generic;
 namespace SharpYaml.Serialization;
 
 /// <summary>
-/// Per-deserialization state for unmapped member reporting. Created only when a callback or finalizer is configured,
-/// and shared between a reader and the readers it creates for buffered (polymorphic) nodes.
+/// Per-deserialization reporting state. Created only when a report is consumed, and shared between a reader and the
+/// readers it creates for buffered (polymorphic) nodes.
 /// </summary>
-internal sealed class YamlUnmappedMemberSession
+internal sealed class YamlReportingSession
 {
     private readonly Action<YamlUnmappedMember>? _callback;
     private readonly Action<IReadOnlyList<YamlUnmappedMember>>? _finalizer;
     private List<YamlUnmappedMember>? _members;
 
-    private YamlUnmappedMemberSession(Action<YamlUnmappedMember>? callback, Action<IReadOnlyList<YamlUnmappedMember>>? finalizer)
+    private YamlReportingSession(Action<YamlUnmappedMember>? callback, Action<IReadOnlyList<YamlUnmappedMember>>? finalizer)
     {
         _callback = callback;
         _finalizer = finalizer;
     }
+
+    /// <summary>Whether an unmapped member callback or finalizer is configured.</summary>
+    public bool IsReportingUnmappedMembers => _callback is not null || _finalizer is not null;
 
     /// <summary>Anchors defined by the nodes reported so far, so that later reported nodes can alias them.</summary>
     public Dictionary<string, Model.YamlElement> Anchors { get; } = new();
@@ -29,11 +32,11 @@ internal sealed class YamlUnmappedMemberSession
     /// <summary>The path of the node most recently buffered by the reader; used to seed the path of the re-parse.</summary>
     public string? BufferedPath { get; set; }
 
-    public static YamlUnmappedMemberSession? Create(YamlSerializerOptions options)
+    public static YamlReportingSession? Create(YamlSerializerOptions options)
     {
         var callback = options.UnmappedMemberCallback;
         var finalizer = options.UnmappedMembersFinalizer;
-        return callback is null && finalizer is null ? null : new YamlUnmappedMemberSession(callback, finalizer);
+        return callback is null && finalizer is null ? null : new YamlReportingSession(callback, finalizer);
     }
 
     public void Report(YamlUnmappedMember member)

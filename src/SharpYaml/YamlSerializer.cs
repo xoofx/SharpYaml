@@ -1167,7 +1167,7 @@ public static class YamlSerializer
             throw CreateReadException(reader, exception);
         }
 
-        reader.CompleteUnmappedMembers();
+        reader.CompleteReports();
         return result;
     }
 
@@ -1192,7 +1192,7 @@ public static class YamlSerializer
             throw CreateReadException(reader, exception);
         }
 
-        reader.CompleteUnmappedMembers();
+        reader.CompleteReports();
         return result;
     }
 
@@ -1217,7 +1217,7 @@ public static class YamlSerializer
             throw CreateReadException(yamlReader, exception);
         }
 
-        yamlReader.CompleteUnmappedMembers();
+        yamlReader.CompleteReports();
         return result;
     }
 
@@ -1242,7 +1242,7 @@ public static class YamlSerializer
             throw CreateReadException(yamlReader, exception);
         }
 
-        yamlReader.CompleteUnmappedMembers();
+        yamlReader.CompleteReports();
         return result;
     }
 

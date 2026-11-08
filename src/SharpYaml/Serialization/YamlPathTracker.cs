@@ -7,7 +7,7 @@ using System.Text;
 namespace SharpYaml.Serialization;
 
 /// <summary>
-/// Tracks the document path of the reader by observing its tokens. Only created when unmapped member reporting is enabled.
+/// Tracks the document path of the reader by observing its tokens. Only created when a reporting session exists.
 /// </summary>
 /// <remarks>
 /// Completion of a value is applied lazily on the next token so that, while the reader is positioned on a value,
@@ -35,14 +35,14 @@ internal sealed class YamlPathTracker
     private Frame[] _frames = new Frame[8];
     private int _count;
 
-    public YamlPathTracker(YamlUnmappedMemberSession session, string? prefix)
+    public YamlPathTracker(YamlReportingSession session, string? prefix)
     {
         Session = session;
         _prefix = prefix;
     }
 
     /// <summary>Gets the session shared by this tracker's reader and the readers created for buffered nodes.</summary>
-    public YamlUnmappedMemberSession Session { get; }
+    public YamlReportingSession Session { get; }
 
     public void OnToken(YamlTokenType tokenType, string? scalarValue, Mark start)
     {

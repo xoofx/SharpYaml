@@ -373,6 +373,17 @@ public sealed class YamlUnmappedMemberTests
 
         Assert.IsTrue(value.Enabled);
     }
+
+    [TestMethod]
+    public void IsReportingUnmappedMembers_ReflectsTheConfiguredDelegates()
+    {
+        var callback = new YamlSerializerOptions { UnmappedMemberCallback = static _ => { } };
+        var finalizer = new YamlSerializerOptions { UnmappedMembersFinalizer = static _ => { } };
+
+        Assert.IsTrue(YamlReader.Create("a: 1\n", callback).IsReportingUnmappedMembers);
+        Assert.IsTrue(YamlReader.Create("a: 1\n", finalizer).IsReportingUnmappedMembers);
+        Assert.IsFalse(YamlReader.Create("a: 1\n").IsReportingUnmappedMembers);
+    }
 }
 
 internal sealed class UnmappedRoot

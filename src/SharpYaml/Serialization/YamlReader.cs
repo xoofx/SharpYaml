@@ -40,7 +40,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        var session = YamlUnmappedMemberSession.Create(effectiveOptions);
+        var session = YamlReportingSession.Create(effectiveOptions);
         var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
         return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
     }
@@ -57,7 +57,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(reader, effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        var session = YamlUnmappedMemberSession.Create(effectiveOptions);
+        var session = YamlReportingSession.Create(effectiveOptions);
         var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
         return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
     }
@@ -114,7 +114,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <see cref="YamlSerializerOptions.UnmappedMemberCallback"/> or <see cref="YamlSerializerOptions.UnmappedMembersFinalizer"/> is set.
     /// </summary>
     /// <remarks>This is intended for converters and generated code, which should only call the unmapped member methods when it is <see langword="true"/>.</remarks>
-    public bool IsReportingUnmappedMembers => _state.Tracker is not null;
+    public bool IsReportingUnmappedMembers => _state.Tracker is { Session.IsReportingUnmappedMembers: true };
 
     /// <summary>
     /// Starts reporting an unmapped member. Call this while the reader is positioned on the value of the unmapped key.
@@ -130,8 +130,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="declaringType"/>, <paramref name="knownMemberNames"/>, or <paramref name="memberName"/> is <see langword="null"/>.</exception>
     public YamlUnmappedMember? BeginUnmappedMember(Type declaringType, string[] knownMemberNames, string memberName, object? instance)
     {
-        var tracker = _state.Tracker;
-        if (tracker is null)
+        if (_state.Tracker is not { Session.IsReportingUnmappedMembers: true } tracker)
         {
             return null;
         }
@@ -183,7 +182,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         session.Report(member);
     }
 
-    internal void CompleteUnmappedMembers() => _state.Tracker?.Session.Complete();
+    internal void CompleteReports() => _state.Tracker?.Session.Complete();
 
     /// <summary>
     /// Gets the current token type.
