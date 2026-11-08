@@ -100,4 +100,48 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
 
     /// <inheritdoc />
     public abstract YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options);
+
+    /// <summary>
+    /// Gets whether <paramref name="exception"/>, thrown while reading a member value, can be recovered from under
+    /// <see cref="YamlSerializerOptions.InvalidValueHandling"/>: the handling is not <see cref="YamlInvalidValueHandling.FailFast"/>,
+    /// the exception does not come from the parser, and <paramref name="reader"/> is still on the token the read began on.
+    /// </summary>
+    /// <param name="reader">The reader the value is read from.</param>
+    /// <param name="exception">The exception the converter threw.</param>
+    /// <param name="tokenType">The <see cref="YamlReader.TokenType"/> captured before the read.</param>
+    /// <param name="start">The <see cref="YamlReader.Start"/> captured before the read.</param>
+    /// <returns><see langword="true"/> when the value can be skipped and reported; otherwise <see langword="false"/>.</returns>
+    /// <remarks>Intended for generated code, which uses it as an exception filter. It has no side effects.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> or <paramref name="exception"/> is <see langword="null"/>.</exception>
+    protected static bool CanRecoverInvalidValue(YamlReader reader, YamlException exception, YamlTokenType tokenType, Mark start)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(exception);
+        return reader.CanRecoverInvalidValue(exception, tokenType, start);
+    }
+
+    /// <summary>
+    /// Skips the value <paramref name="reader"/> is positioned on and reports it as invalid. Call this after
+    /// <see cref="CanRecoverInvalidValue"/> returned <see langword="true"/>.
+    /// </summary>
+    /// <param name="reader">The reader the value is read from.</param>
+    /// <param name="exception">The exception the converter threw.</param>
+    /// <param name="declaringType">The CLR type being deserialized.</param>
+    /// <param name="instance">The instance being populated, or <see langword="null"/> when it does not exist yet.</param>
+    /// <param name="name">The YAML key of the member or constructor parameter.</param>
+    /// <param name="targetType">The CLR type the value was meant for.</param>
+    /// <remarks>Intended for generated code.</remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="reader"/>, <paramref name="exception"/>, <paramref name="declaringType"/>, <paramref name="name"/>
+    /// or <paramref name="targetType"/> is <see langword="null"/>.
+    /// </exception>
+    protected static void RecoverInvalidValue(YamlReader reader, YamlException exception, Type declaringType, object? instance, string name, Type targetType)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(exception);
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(name);
+        ArgumentGuard.ThrowIfNull(targetType);
+        reader.RecoverInvalidValue(exception, declaringType, instance, name, targetType);
+    }
 }

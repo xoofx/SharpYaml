@@ -14,6 +14,17 @@ namespace SharpYaml.Tests.Serialization;
 [TestClass]
 public sealed class YamlInvalidValueTests
 {
+    public static IEnumerable<object[]> Modes => new[] { new object[] { false }, new object[] { true } };
+
+    private static T? Deserialize<T>(string yaml, YamlSerializerOptions options, bool generated)
+        => generated ? (T?)YamlSerializer.Deserialize(yaml, typeof(T), new InvalidValueContext(options)) : YamlSerializer.Deserialize<T>(yaml, options);
+
+    private static T? Deserialize<T>(TextReader reader, YamlSerializerOptions options, bool generated)
+        => generated ? (T?)YamlSerializer.Deserialize(reader, typeof(T), new InvalidValueContext(options)) : YamlSerializer.Deserialize<T>(reader, options);
+
+    private static bool TryDeserialize<T>(string yaml, YamlSerializerOptions options, bool generated, out T? value)
+        => generated ? YamlSerializer.TryDeserialize(yaml, new InvalidValueContext(options), out value) : YamlSerializer.TryDeserialize(yaml, out value, options);
+
     [TestMethod]
     public void InvalidValueHandling_DefaultsToFailFast()
     {
@@ -104,12 +115,13 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void FailFast_ThrowsAtTheFirstInvalidValueAndRunsNoDelegate()
+    [DynamicData(nameof(Modes))]
+    public void FailFast_ThrowsAtTheFirstInvalidValueAndRunsNoDelegate(bool generated)
     {
         var reported = 0;
         var options = new YamlSerializerOptions { InvalidValueCallback = _ => reported++, InvalidValuesFinalizer = _ => reported++ };
 
-        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\n", options));
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\n", options, generated));
 
         StringAssert.Contains(exception.Message, "Invalid integer scalar 'abc'");
         Assert.AreEqual(0, exception.Start.Line);
@@ -117,12 +129,13 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_KeepsTheInitializerValueAndReportsEveryDetail()
+    [DynamicData(nameof(Modes))]
+    public void Skip_KeepsTheInitializerValueAndReportsEveryDetail(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { SourceName = "config.yaml", InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Name: a\nPort: abc\nTimeout: 5\n", options)!;
+        var root = Deserialize<InvalidValueRoot>("Name: a\nPort: abc\nTimeout: 5\n", options, generated)!;
 
         Assert.AreEqual("a", root.Name);
         Assert.AreEqual(8080, root.Port);
@@ -147,23 +160,25 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_WithoutDelegatesSucceedsSilently()
+    [DynamicData(nameof(Modes))]
+    public void Skip_WithoutDelegatesSucceedsSilently(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
 
-        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nName: a\n", options)!;
+        var root = Deserialize<InvalidValueRoot>("Port: abc\nName: a\n", options, generated)!;
 
         Assert.AreEqual(8080, root.Port);
         Assert.AreEqual("a", root.Name);
     }
 
     [TestMethod]
-    public void Skip_RecoversAConverterThatRejectsBeforeConsuming()
+    [DynamicData(nameof(Modes))]
+    public void Skip_RecoversAConverterThatRejectsBeforeConsuming(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Rejecting: nope\nName: a\n", options)!;
+        var root = Deserialize<InvalidValueRoot>("Rejecting: nope\nName: a\n", options, generated)!;
 
         Assert.IsNull(root.Rejecting);
         Assert.AreEqual("a", root.Name);
@@ -173,36 +188,39 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_LeavesAConverterThatThrowsAfterConsumingFatal()
+    [DynamicData(nameof(Modes))]
+    public void Skip_LeavesAConverterThatThrowsAfterConsumingFatal(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Consuming: nope\nName: a\n", options));
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Consuming: nope\nName: a\n", options, generated));
 
         StringAssert.EndsWith(exception.Message, "rejected after consuming");
         Assert.IsEmpty(values);
     }
 
     [TestMethod]
-    public void Skip_LeavesANonYamlExceptionFatalAndWrapped()
+    [DynamicData(nameof(Modes))]
+    public void Skip_LeavesANonYamlExceptionFatalAndWrapped(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Formatted: nope\n", options));
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Formatted: nope\n", options, generated));
 
         Assert.IsInstanceOfType<FormatException>(exception.InnerException);
         Assert.IsEmpty(values);
     }
 
     [TestMethod]
-    public void Skip_SkipsAMappingWhereAScalarIsExpectedWhole()
+    [DynamicData(nameof(Modes))]
+    public void Skip_SkipsAMappingWhereAScalarIsExpectedWhole(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Port:\n  nested: 1\n  more: [1, 2]\nName: after\n", options)!;
+        var root = Deserialize<InvalidValueRoot>("Port:\n  nested: 1\n  more: [1, 2]\nName: after\n", options, generated)!;
 
         Assert.AreEqual(8080, root.Port);
         Assert.AreEqual("after", root.Name);
@@ -211,22 +229,24 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_CountsARequiredMemberWithAnInvalidValueAsPresent()
+    [DynamicData(nameof(Modes))]
+    public void Skip_CountsARequiredMemberWithAnInvalidValueAsPresent(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
 
-        var root = YamlSerializer.Deserialize<InvalidValueRequired>("Port: abc\n", options)!;
+        var root = Deserialize<InvalidValueRequired>("Port: abc\n", options, generated)!;
 
         Assert.AreEqual(0, root.Port);
     }
 
     [TestMethod]
-    public void Skip_KeepsTheDefaultOfAConstructorParameter()
+    [DynamicData(nameof(Modes))]
+    public void Skip_KeepsTheDefaultOfAConstructorParameter(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var root = YamlSerializer.Deserialize<InvalidValueConstructed>("Port: abc\nName: a\nTimeout: xyz\n", options)!;
+        var root = Deserialize<InvalidValueConstructed>("Port: abc\nName: a\nTimeout: xyz\n", options, generated)!;
 
         Assert.AreEqual(8080, root.Port);
         Assert.AreEqual("a", root.Name);
@@ -240,12 +260,13 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_RecoversInsideAMergedMapping()
+    [DynamicData(nameof(Modes))]
+    public void Skip_RecoversInsideAMergedMapping(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var root = YamlSerializer.Deserialize<InvalidValueMergeRoot>("Server:\n  <<: {Port: abc, Timeout: 7}\n  Name: a\nConstructed:\n  <<: {Port: abc, Timeout: xyz}\n  Name: c\n", options)!;
+        var root = Deserialize<InvalidValueMergeRoot>("Server:\n  <<: {Port: abc, Timeout: 7}\n  Name: a\nConstructed:\n  <<: {Port: abc, Timeout: xyz}\n  Name: c\n", options, generated)!;
 
         Assert.AreEqual(8080, root.Server!.Port);
         Assert.AreEqual(7, root.Server.Timeout);
@@ -261,12 +282,13 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_KeepsThePopulatedInstanceWhenTheReadFailsBeforeConsuming()
+    [DynamicData(nameof(Modes))]
+    public void Skip_KeepsThePopulatedInstanceWhenTheReadFailsBeforeConsuming(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var root = YamlSerializer.Deserialize<InvalidValuePopulateRoot>("Server: abc\n", options)!;
+        var root = Deserialize<InvalidValuePopulateRoot>("Server: abc\n", options, generated)!;
 
         Assert.AreEqual("keep", root.Server.Name);
         Assert.HasCount(1, values);
@@ -275,12 +297,13 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_ReportsTheCompletePathInsideAPolymorphicNode()
+    [DynamicData(nameof(Modes))]
+    public void Skip_ReportsTheCompletePathInsideAPolymorphicNode(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var zoo = YamlSerializer.Deserialize<InvalidValueZoo>("Pets:\n  - $type: dog\n    Name: a\n    BarkVolume: loud\n", options)!;
+        var zoo = Deserialize<InvalidValueZoo>("Pets:\n  - $type: dog\n    Name: a\n    BarkVolume: loud\n", options, generated)!;
 
         var dog = (InvalidValueDog)zoo.Pets[0];
         Assert.AreEqual("a", dog.Name);
@@ -292,12 +315,13 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_RecoversAnAnchoredValueAndItsAlias()
+    [DynamicData(nameof(Modes))]
+    public void Skip_RecoversAnAnchoredValueAndItsAlias(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var root = YamlSerializer.Deserialize<InvalidValueRoot>("Port: &p abc\nTimeout: *p\n", options)!;
+        var root = Deserialize<InvalidValueRoot>("Port: &p abc\nTimeout: *p\n", options, generated)!;
 
         Assert.AreEqual(8080, root.Port);
         Assert.AreEqual(30, root.Timeout);
@@ -307,34 +331,37 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_LeavesAnInvalidCollectionElementFatal()
+    [DynamicData(nameof(Modes))]
+    public void Skip_LeavesAnInvalidCollectionElementFatal(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Retries: [1, abc]\n", options));
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Retries: [1, abc]\n", options, generated));
 
         StringAssert.Contains(exception.Message, "Invalid integer scalar 'abc'");
         Assert.IsEmpty(values);
     }
 
     [TestMethod]
-    public void Skip_StillDisallowsUnmappedMembers()
+    [DynamicData(nameof(Modes))]
+    public void Skip_StillDisallowsUnmappedMembers(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
 
-        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nOops: 1\n", options));
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Port: abc\nOops: 1\n", options, generated));
 
         StringAssert.Contains(exception.Message, "Oops");
     }
 
     [TestMethod]
-    public void FailAtEnd_ThrowsOnceListingEveryValueInDocumentOrder()
+    [DynamicData(nameof(Modes))]
+    public void FailAtEnd_ThrowsOnceListingEveryValueInDocumentOrder(bool generated)
     {
         var options = new YamlSerializerOptions { SourceName = "config.yaml", InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
         const string yaml = "Port: abc\nName: a\nTimeout: xyz\nRejecting: nope\n";
 
-        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>(yaml, options));
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueRoot>(yaml, options, generated));
 
         Assert.IsNull(exception.InnerException);
         Assert.HasCount(3, exception.InvalidValues);
@@ -345,27 +372,29 @@ public sealed class YamlInvalidValueTests
         Assert.AreEqual(6, exception.Start.Column);
         StringAssert.Contains(exception.Message, "3 invalid values were skipped while deserializing:");
         StringAssert.Contains(exception.Message, "$.Rejecting: ");
-        Assert.IsFalse(YamlSerializer.TryDeserialize<InvalidValueRoot>(yaml, out var value, options));
+        Assert.IsFalse(TryDeserialize<InvalidValueRoot>(yaml, options, generated, out var value));
         Assert.IsNull(value);
     }
 
     [TestMethod]
-    public void FailAtEnd_ThrowsFromTheTextReaderOverloadToo()
+    [DynamicData(nameof(Modes))]
+    public void FailAtEnd_ThrowsFromTheTextReaderOverloadToo(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
 
         using var reader = new StringReader("Port: abc\n");
-        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>(reader, options));
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueRoot>(reader, options, generated));
 
         Assert.HasCount(1, exception.InvalidValues);
     }
 
     [TestMethod]
-    public void FailAtEnd_FoldsAFatalErrorIntoTheAggregate()
+    [DynamicData(nameof(Modes))]
+    public void FailAtEnd_FoldsAFatalErrorIntoTheAggregate(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
 
-        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\nConsuming: nope\n", options));
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\nConsuming: nope\n", options, generated));
 
         Assert.HasCount(2, exception.InvalidValues);
         Assert.IsInstanceOfType<YamlException>(exception.InnerException);
@@ -375,68 +404,74 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void FailAtEnd_WrapsANonYamlFatalErrorBeforeFoldingIt()
+    [DynamicData(nameof(Modes))]
+    public void FailAtEnd_WrapsANonYamlFatalErrorBeforeFoldingIt(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
 
-        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nFormatted: nope\n", options));
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueRoot>("Port: abc\nFormatted: nope\n", options, generated));
 
         Assert.HasCount(1, exception.InvalidValues);
         Assert.IsInstanceOfType<FormatException>(exception.InnerException!.InnerException);
     }
 
     [TestMethod]
-    public void FailAtEnd_FoldsAMissingConstructorParameterAfterItsValueWasSkipped()
+    [DynamicData(nameof(Modes))]
+    public void FailAtEnd_FoldsAMissingConstructorParameterAfterItsValueWasSkipped(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
 
-        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueConstructed>("Name: [1]\n", options));
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueConstructed>("Name: [1]\n", options, generated));
 
         Assert.HasCount(1, exception.InvalidValues);
         StringAssert.Contains(exception.InnerException!.Message, "Missing required constructor parameter 'name'");
     }
 
     [TestMethod]
-    public void FailAtEnd_PropagatesAFatalErrorUnchangedWhenNothingWasRecovered()
+    [DynamicData(nameof(Modes))]
+    public void FailAtEnd_PropagatesAFatalErrorUnchangedWhenNothingWasRecovered(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
 
-        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Consuming: nope\n", options));
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Consuming: nope\n", options, generated));
 
         StringAssert.EndsWith(exception.Message, "rejected after consuming");
     }
 
     [TestMethod]
-    public void Skip_PropagatesAFatalErrorUnchangedAfterRecoveries()
+    [DynamicData(nameof(Modes))]
+    public void Skip_PropagatesAFatalErrorUnchangedAfterRecoveries(bool generated)
     {
         var values = new List<YamlInvalidValue>();
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
 
-        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nConsuming: nope\n", options));
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Port: abc\nConsuming: nope\n", options, generated));
 
         StringAssert.EndsWith(exception.Message, "rejected after consuming");
         Assert.HasCount(1, values);
     }
 
     [TestMethod]
-    public void Skip_SucceedsUnderTryDeserialize()
+    [DynamicData(nameof(Modes))]
+    public void Skip_SucceedsUnderTryDeserialize(bool generated)
     {
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
 
-        Assert.IsTrue(YamlSerializer.TryDeserialize<InvalidValueRoot>("Port: abc\n", options: options, value: out var value));
+        Assert.IsTrue(TryDeserialize<InvalidValueRoot>("Port: abc\n", options, generated, out var value));
         Assert.AreEqual(8080, value!.Port);
     }
 
     [TestMethod]
-    public void Finalizer_RunsOnceWithEveryValueUnderSkipAndBeforeTheFailAtEndThrow()
+    [DynamicData(nameof(Modes))]
+    public void Finalizer_RunsOnceWithEveryValueUnderSkipAndBeforeTheFailAtEndThrow(bool generated)
     {
         var calls = new List<string[]>();
         var skip = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValuesFinalizer = values => calls.Add(values.Select(static v => v.Path).ToArray()) };
         var failAtEnd = skip with { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
         const string yaml = "Port: abc\nTimeout: xyz\n";
 
-        YamlSerializer.Deserialize<InvalidValueRoot>(yaml, skip);
-        Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>(yaml, failAtEnd));
+        Deserialize<InvalidValueRoot>(yaml, skip, generated);
+        Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueRoot>(yaml, failAtEnd, generated));
 
         Assert.HasCount(2, calls);
         CollectionAssert.AreEqual(new[] { "$.Port", "$.Timeout" }, calls[0]);
@@ -444,19 +479,21 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Finalizer_DoesNotRunWithoutInvalidValuesOrAfterAFatalError()
+    [DynamicData(nameof(Modes))]
+    public void Finalizer_DoesNotRunWithoutInvalidValuesOrAfterAFatalError(bool generated)
     {
         var called = false;
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd, InvalidValuesFinalizer = _ => called = true };
 
-        YamlSerializer.Deserialize<InvalidValueRoot>("Port: 1\n", options);
-        Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nConsuming: nope\n", options));
+        Deserialize<InvalidValueRoot>("Port: 1\n", options, generated);
+        Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueRoot>("Port: abc\nConsuming: nope\n", options, generated));
 
         Assert.IsFalse(called);
     }
 
     [TestMethod]
-    public void Finalizer_CanReplaceTheAggregate()
+    [DynamicData(nameof(Modes))]
+    public void Finalizer_CanReplaceTheAggregate(bool generated)
     {
         var options = new YamlSerializerOptions
         {
@@ -464,24 +501,38 @@ public sealed class YamlInvalidValueTests
             InvalidValuesFinalizer = values => throw new InvalidOperationException($"{values.Count} invalid"),
         };
 
-        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\n", options));
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => Deserialize<InvalidValueRoot>("Port: abc\n", options, generated));
 
         Assert.AreEqual("1 invalid", exception.Message);
     }
 
     [TestMethod]
-    public void Handlers_AreSafeToShareAcrossConcurrentDeserializations()
+    [DynamicData(nameof(Modes))]
+    public void Handlers_AreSafeToShareAcrossConcurrentDeserializations(bool generated)
     {
         var total = 0;
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd, InvalidValueCallback = _ => Interlocked.Increment(ref total) };
 
         Parallel.For(0, 200, _ =>
         {
-            var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\n", options));
+            var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\n", options, generated));
             Assert.HasCount(2, exception.InvalidValues);
         });
 
         Assert.AreEqual(400, total);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_LeavesASyntaxErrorFatal(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var exception = Assert.Throws<YamlException>(() => Deserialize<InvalidValueRoot>("Port: [1, 2\nName: a\n", options, generated));
+
+        Assert.IsTrue(exception is SyntaxErrorException or SemanticErrorException, exception.GetType().Name);
+        Assert.IsEmpty(values);
     }
 
     private static YamlInvalidValue CreateValue(string path, Mark start, Mark end, string message)
@@ -589,4 +640,24 @@ internal sealed class InvalidValueFormattedConverter : YamlConverter<InvalidValu
     public override InvalidValueFormatted Read(YamlReader reader) => throw new FormatException("not formatted");
 
     public override void Write(YamlWriter writer, InvalidValueFormatted value) => writer.WriteScalar(string.Empty);
+}
+
+[YamlSerializable(typeof(InvalidValueRoot))]
+[YamlSerializable(typeof(InvalidValueRequired))]
+[YamlSerializable(typeof(InvalidValueConstructed))]
+[YamlSerializable(typeof(InvalidValueMergeRoot))]
+[YamlSerializable(typeof(InvalidValuePopulateRoot))]
+[YamlSerializable(typeof(InvalidValueZoo))]
+[YamlSerializable(typeof(InvalidValueRejecting))]
+[YamlSerializable(typeof(InvalidValueConsuming))]
+[YamlSerializable(typeof(InvalidValueFormatted))]
+internal partial class InvalidValueContext : YamlSerializerContext
+{
+    public InvalidValueContext()
+    {
+    }
+
+    public InvalidValueContext(YamlSerializerOptions options) : base(options)
+    {
+    }
 }

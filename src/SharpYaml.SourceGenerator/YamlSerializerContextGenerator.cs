@@ -2471,6 +2471,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        void ReadMember(string key)");
         builder.AppendLine("        {");
         builder.AppendLine("            var matched = false;");
+        builder.AppendLine("            var valueTokenType = reader.TokenType;");
+        builder.AppendLine("            var valueStart = reader.Start;");
+        builder.AppendLine("            global::System.Type? valueType = null;");
+        builder.AppendLine("            try");
+        builder.AppendLine("            {");
         foreach (var member in readCandidates)
         {
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
@@ -2490,6 +2495,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append("                __required").Append(index).Append("_").Append(member.Symbol.Name).AppendLine(" = true;");
             }
 
+            builder.Append("                valueType = typeof(").Append(member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).AppendLine(");");
             EmitReadObjectMemberValueWithObjectCreationHandling(
                 builder,
                 member,
@@ -2500,6 +2506,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 sourceGenerationOptions);
             builder.AppendLine("            }");
         }
+
+        builder.AppendLine("            }");
+        builder.AppendLine("            catch (global::SharpYaml.YamlException exception) when (valueType is not null && CanRecoverInvalidValue(reader, exception, valueTokenType, valueStart))");
+        builder.AppendLine("            {");
+        builder.Append("                RecoverInvalidValue(reader, exception, typeof(").Append(typeName).AppendLine("), instance, key, valueType);");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
 
         builder.AppendLine("            if (!matched)");
         builder.AppendLine("            {");
@@ -2805,6 +2818,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        void ReadMember(string key)");
         builder.AppendLine("        {");
         builder.AppendLine("            var matched = false;");
+        builder.AppendLine("            var valueTokenType = reader.TokenType;");
+        builder.AppendLine("            var valueStart = reader.Start;");
+        builder.AppendLine("            global::System.Type? valueType = null;");
+        builder.AppendLine("            try");
+        builder.AppendLine("            {");
 
         // Read-ignored members are matched before constructor parameters so they are skipped, not captured as extension data.
         for (var i = 0; i < readIgnoredMembers.Length; i++)
@@ -2850,6 +2868,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
 
             var tmpVar = $"__ctor{index}_tmp{i}";
+            builder.Append("                valueType = typeof(").Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).AppendLine(");");
             EmitReadKnownType(builder, sourceGenerationOptions, parameter.Type, indexByType, tmpVar, indent: "                ");
             builder.Append("                ").Append(parameterValueVarNames[i]).Append(" = ").Append(tmpVar).AppendLine(";");
             builder.Append("                ").Append(parameterSeenVarNames[i]).AppendLine(" = true;");
@@ -2889,6 +2908,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.Append("                ").Append(requiredVar).AppendLine(" = true;");
             }
+            builder.Append("                valueType = typeof(").Append(member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).AppendLine(");");
             EmitReadMemberValueWithCustomConverter(builder, localModel, indexByType, sourceGenerationOptions);
             builder.Append("                ").Append(localSeenVar).AppendLine(" = true;");
             builder.AppendLine("            }");
@@ -2920,7 +2940,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("            }");
         }
 
-        builder.AppendLine();
+        builder.AppendLine("            }");
+        builder.AppendLine("            catch (global::SharpYaml.YamlException exception) when (valueType is not null && CanRecoverInvalidValue(reader, exception, valueTokenType, valueStart))");
+        builder.AppendLine("            {");
+        builder.Append("                RecoverInvalidValue(reader, exception, typeof(").Append(typeName).AppendLine("), null, key, valueType);");
+        builder.AppendLine("                return;");
+        builder.AppendLine("            }");
+
         builder.AppendLine("            if (!matched)");
         builder.AppendLine("            {");
         if (extensionData is not null)

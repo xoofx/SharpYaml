@@ -202,16 +202,19 @@ public sealed class YamlReader : YamlReaderWriterBase
         => _state.Tracker is { } tracker ? tracker.Session.CreateException(fatal) : throw new InvalidOperationException("No invalid value was recovered.");
 
     /// <summary>
-    /// Gets whether a <see cref="YamlException"/> thrown while reading a member value can be recovered from: the configured
-    /// <see cref="YamlSerializerOptions.InvalidValueHandling"/> is not <see cref="YamlInvalidValueHandling.FailFast"/> and the
-    /// reader is still on the token the read began on, so nothing of the value was consumed.
+    /// Gets whether <paramref name="exception"/>, thrown while reading a member value, can be recovered from: the configured
+    /// <see cref="YamlSerializerOptions.InvalidValueHandling"/> is not <see cref="YamlInvalidValueHandling.FailFast"/>, the
+    /// exception does not come from the parser, and the reader is still on the token the read began on, so nothing of the
+    /// value was consumed.
     /// </summary>
+    /// <param name="exception">The exception the converter threw.</param>
     /// <param name="tokenType">The <see cref="TokenType"/> captured before the read.</param>
     /// <param name="start">The <see cref="Start"/> captured before the read.</param>
     /// <returns><see langword="true"/> when the value can be skipped and reported; otherwise <see langword="false"/>.</returns>
     /// <remarks>Has no side effects, so it can serve as an exception filter.</remarks>
-    internal bool CanRecoverInvalidValue(YamlTokenType tokenType, Mark start)
+    internal bool CanRecoverInvalidValue(YamlException exception, YamlTokenType tokenType, Mark start)
         => Options.InvalidValueHandling != YamlInvalidValueHandling.FailFast
+            && exception is not (SyntaxErrorException or SemanticErrorException)
             && _state.TokenType == tokenType
             && _state.Start.Index == start.Index;
 
