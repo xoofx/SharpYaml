@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Model;
 using SharpYaml.Serialization;
@@ -322,6 +326,162 @@ public sealed class YamlInvalidValueTests
         var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nOops: 1\n", options));
 
         StringAssert.Contains(exception.Message, "Oops");
+    }
+
+    [TestMethod]
+    public void FailAtEnd_ThrowsOnceListingEveryValueInDocumentOrder()
+    {
+        var options = new YamlSerializerOptions { SourceName = "config.yaml", InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+        const string yaml = "Port: abc\nName: a\nTimeout: xyz\nRejecting: nope\n";
+
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>(yaml, options));
+
+        Assert.IsNull(exception.InnerException);
+        Assert.HasCount(3, exception.InvalidValues);
+        CollectionAssert.AreEqual(new[] { "$.Port", "$.Timeout", "$.Rejecting" }, exception.InvalidValues.Select(static v => v.Path).ToArray());
+        Assert.IsTrue(exception.InvalidValues.All(static v => v.Value is null));
+        Assert.AreEqual("config.yaml", exception.SourceName);
+        Assert.AreEqual(0, exception.Start.Line);
+        Assert.AreEqual(6, exception.Start.Column);
+        StringAssert.Contains(exception.Message, "3 invalid values were skipped while deserializing:");
+        StringAssert.Contains(exception.Message, "$.Rejecting: ");
+        Assert.IsFalse(YamlSerializer.TryDeserialize<InvalidValueRoot>(yaml, out var value, options));
+        Assert.IsNull(value);
+    }
+
+    [TestMethod]
+    public void FailAtEnd_ThrowsFromTheTextReaderOverloadToo()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+
+        using var reader = new StringReader("Port: abc\n");
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>(reader, options));
+
+        Assert.HasCount(1, exception.InvalidValues);
+    }
+
+    [TestMethod]
+    public void FailAtEnd_FoldsAFatalErrorIntoTheAggregate()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\nConsuming: nope\n", options));
+
+        Assert.HasCount(2, exception.InvalidValues);
+        Assert.IsInstanceOfType<YamlException>(exception.InnerException);
+        StringAssert.EndsWith(exception.InnerException!.Message, "rejected after consuming");
+        StringAssert.Contains(exception.Message, "2 invalid values were skipped before the deserialization failed:");
+        StringAssert.EndsWith(exception.Message, "rejected after consuming");
+    }
+
+    [TestMethod]
+    public void FailAtEnd_WrapsANonYamlFatalErrorBeforeFoldingIt()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nFormatted: nope\n", options));
+
+        Assert.HasCount(1, exception.InvalidValues);
+        Assert.IsInstanceOfType<FormatException>(exception.InnerException!.InnerException);
+    }
+
+    [TestMethod]
+    public void FailAtEnd_FoldsAMissingConstructorParameterAfterItsValueWasSkipped()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueConstructed>("Name: [1]\n", options));
+
+        Assert.HasCount(1, exception.InvalidValues);
+        StringAssert.Contains(exception.InnerException!.Message, "Missing required constructor parameter 'name'");
+    }
+
+    [TestMethod]
+    public void FailAtEnd_PropagatesAFatalErrorUnchangedWhenNothingWasRecovered()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Consuming: nope\n", options));
+
+        StringAssert.EndsWith(exception.Message, "rejected after consuming");
+    }
+
+    [TestMethod]
+    public void Skip_PropagatesAFatalErrorUnchangedAfterRecoveries()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nConsuming: nope\n", options));
+
+        StringAssert.EndsWith(exception.Message, "rejected after consuming");
+        Assert.HasCount(1, values);
+    }
+
+    [TestMethod]
+    public void Skip_SucceedsUnderTryDeserialize()
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
+
+        Assert.IsTrue(YamlSerializer.TryDeserialize<InvalidValueRoot>("Port: abc\n", options: options, value: out var value));
+        Assert.AreEqual(8080, value!.Port);
+    }
+
+    [TestMethod]
+    public void Finalizer_RunsOnceWithEveryValueUnderSkipAndBeforeTheFailAtEndThrow()
+    {
+        var calls = new List<string[]>();
+        var skip = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValuesFinalizer = values => calls.Add(values.Select(static v => v.Path).ToArray()) };
+        var failAtEnd = skip with { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+        const string yaml = "Port: abc\nTimeout: xyz\n";
+
+        YamlSerializer.Deserialize<InvalidValueRoot>(yaml, skip);
+        Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>(yaml, failAtEnd));
+
+        Assert.HasCount(2, calls);
+        CollectionAssert.AreEqual(new[] { "$.Port", "$.Timeout" }, calls[0]);
+        CollectionAssert.AreEqual(new[] { "$.Port", "$.Timeout" }, calls[1]);
+    }
+
+    [TestMethod]
+    public void Finalizer_DoesNotRunWithoutInvalidValuesOrAfterAFatalError()
+    {
+        var called = false;
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd, InvalidValuesFinalizer = _ => called = true };
+
+        YamlSerializer.Deserialize<InvalidValueRoot>("Port: 1\n", options);
+        Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nConsuming: nope\n", options));
+
+        Assert.IsFalse(called);
+    }
+
+    [TestMethod]
+    public void Finalizer_CanReplaceTheAggregate()
+    {
+        var options = new YamlSerializerOptions
+        {
+            InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd,
+            InvalidValuesFinalizer = values => throw new InvalidOperationException($"{values.Count} invalid"),
+        };
+
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\n", options));
+
+        Assert.AreEqual("1 invalid", exception.Message);
+    }
+
+    [TestMethod]
+    public void Handlers_AreSafeToShareAcrossConcurrentDeserializations()
+    {
+        var total = 0;
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd, InvalidValueCallback = _ => Interlocked.Increment(ref total) };
+
+        Parallel.For(0, 200, _ =>
+        {
+            var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nTimeout: xyz\n", options));
+            Assert.HasCount(2, exception.InvalidValues);
+        });
+
+        Assert.AreEqual(400, total);
     }
 
     private static YamlInvalidValue CreateValue(string path, Mark start, Mark end, string message)

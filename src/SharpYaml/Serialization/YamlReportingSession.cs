@@ -79,15 +79,45 @@ internal sealed class YamlReportingSession
         }
     }
 
+    /// <summary>Whether invalid values were recovered that make the deserialization fail at its end.</summary>
+    public bool FailsAtEnd => InvalidValueHandling == YamlInvalidValueHandling.FailAtEnd && _invalidValues is { Count: > 0 };
+
+    /// <summary>
+    /// Creates the exception for a deserialization that ended with <paramref name="fatal"/> after at least one value was
+    /// recovered under <see cref="YamlInvalidValueHandling.FailAtEnd"/>. Finalizers do not run, because the read did not complete.
+    /// </summary>
+    public YamlInvalidValuesException CreateException(YamlException fatal)
+    {
+        var invalidValues = _invalidValues ?? throw new InvalidOperationException("No invalid value was recovered.");
+        _invalidValues = null;
+        return new YamlInvalidValuesException(invalidValues, fatal);
+    }
+
+    /// <summary>
+    /// Runs the finalizers once the read completed, then throws when invalid values were recovered under
+    /// <see cref="YamlInvalidValueHandling.FailAtEnd"/>.
+    /// </summary>
+    /// <exception cref="YamlInvalidValuesException">At least one value was recovered and the handling is <see cref="YamlInvalidValueHandling.FailAtEnd"/>.</exception>
     public void Complete()
     {
         var members = _members;
-        if (_finalizer is null || members is null || members.Count == 0)
+        if (_finalizer is not null && members is { Count: > 0 })
+        {
+            _members = null;
+            _finalizer(members);
+        }
+
+        var invalidValues = _invalidValues;
+        if (invalidValues is not { Count: > 0 })
         {
             return;
         }
 
-        _members = null;
-        _finalizer(members);
+        _invalidValues = null;
+        _invalidValuesFinalizer?.Invoke(invalidValues);
+        if (InvalidValueHandling == YamlInvalidValueHandling.FailAtEnd)
+        {
+            throw new YamlInvalidValuesException(invalidValues);
+        }
     }
 }

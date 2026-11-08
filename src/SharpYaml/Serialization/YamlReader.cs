@@ -182,7 +182,24 @@ public sealed class YamlReader : YamlReaderWriterBase
         session.Report(member);
     }
 
+    /// <summary>
+    /// Runs the configured finalizers, then throws <see cref="YamlInvalidValuesException"/> when values were recovered under
+    /// <see cref="YamlInvalidValueHandling.FailAtEnd"/>. Called by the serializer once a read completed.
+    /// </summary>
     internal void CompleteReports() => _state.Tracker?.Session.Complete();
+
+    /// <summary>
+    /// Gets whether the read must fail at its end because values were recovered under <see cref="YamlInvalidValueHandling.FailAtEnd"/>.
+    /// </summary>
+    internal bool FailsAtEnd => _state.Tracker is { Session.FailsAtEnd: true };
+
+    /// <summary>
+    /// Folds <paramref name="fatal"/>, which ended the read, into the <see cref="YamlInvalidValuesException"/> listing the values
+    /// recovered so far. Call this only when <see cref="FailsAtEnd"/> is <see langword="true"/>.
+    /// </summary>
+    /// <param name="fatal">The exception that ended the read.</param>
+    internal YamlInvalidValuesException CreateFatalException(YamlException fatal)
+        => _state.Tracker is { } tracker ? tracker.Session.CreateException(fatal) : throw new InvalidOperationException("No invalid value was recovered.");
 
     /// <summary>
     /// Gets whether a <see cref="YamlException"/> thrown while reading a member value can be recovered from: the configured
