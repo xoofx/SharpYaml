@@ -40,7 +40,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        var session = YamlUnmappedMemberSession.Create(effectiveOptions);
+        var session = YamlReportingSession.Create(effectiveOptions);
         var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
         return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
     }
@@ -57,7 +57,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(reader, effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
         var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        var session = YamlUnmappedMemberSession.Create(effectiveOptions);
+        var session = YamlReportingSession.Create(effectiveOptions);
         var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
         return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
     }
@@ -114,7 +114,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <see cref="YamlSerializerOptions.UnmappedMemberCallback"/> or <see cref="YamlSerializerOptions.UnmappedMembersFinalizer"/> is set.
     /// </summary>
     /// <remarks>This is intended for converters and generated code, which should only call the unmapped member methods when it is <see langword="true"/>.</remarks>
-    public bool IsReportingUnmappedMembers => _state.Tracker is not null;
+    public bool IsReportingUnmappedMembers => _state.Tracker is { Session.IsReportingUnmappedMembers: true };
 
     /// <summary>
     /// Starts reporting an unmapped member. Call this while the reader is positioned on the value of the unmapped key.
@@ -130,8 +130,7 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <exception cref="ArgumentNullException"><paramref name="declaringType"/>, <paramref name="knownMemberNames"/>, or <paramref name="memberName"/> is <see langword="null"/>.</exception>
     public YamlUnmappedMember? BeginUnmappedMember(Type declaringType, string[] knownMemberNames, string memberName, object? instance)
     {
-        var tracker = _state.Tracker;
-        if (tracker is null)
+        if (_state.Tracker is not { Session.IsReportingUnmappedMembers: true } tracker)
         {
             return null;
         }
@@ -183,7 +182,90 @@ public sealed class YamlReader : YamlReaderWriterBase
         session.Report(member);
     }
 
-    internal void CompleteUnmappedMembers() => _state.Tracker?.Session.Complete();
+    /// <summary>
+    /// Runs the configured finalizers, then throws <see cref="YamlInvalidValuesException"/> when values were recovered under
+    /// <see cref="YamlInvalidValueHandling.FailAtEnd"/>. Called by the serializer once a read completed.
+    /// </summary>
+    internal void CompleteReports() => _state.Tracker?.Session.Complete();
+
+    /// <summary>
+    /// Gets whether the read must fail at its end because values were recovered under <see cref="YamlInvalidValueHandling.FailAtEnd"/>.
+    /// </summary>
+    internal bool FailsAtEnd => _state.Tracker is { Session.FailsAtEnd: true };
+
+    /// <summary>
+    /// Folds <paramref name="fatal"/>, which ended the read, into the <see cref="YamlInvalidValuesException"/> listing the values
+    /// recovered so far. Call this only when <see cref="FailsAtEnd"/> is <see langword="true"/>.
+    /// </summary>
+    /// <param name="fatal">The exception that ended the read.</param>
+    internal YamlInvalidValuesException CreateFatalException(YamlException fatal)
+        => _state.Tracker is { } tracker ? tracker.Session.CreateException(fatal) : throw new InvalidOperationException("No invalid value was recovered.");
+
+    /// <summary>
+    /// Gets whether <paramref name="exception"/>, thrown while reading a member value, can be recovered from: the configured
+    /// <see cref="YamlSerializerOptions.InvalidValueHandling"/> is not <see cref="YamlInvalidValueHandling.FailFast"/>, the
+    /// exception does not come from the parser, and the reader is still on the token the read began on, so nothing of the
+    /// value was consumed.
+    /// </summary>
+    /// <param name="exception">The exception the converter threw.</param>
+    /// <param name="tokenType">The <see cref="TokenType"/> captured before the read.</param>
+    /// <param name="start">The <see cref="Start"/> captured before the read.</param>
+    /// <returns><see langword="true"/> when the value can be skipped and reported; otherwise <see langword="false"/>.</returns>
+    /// <remarks>Has no side effects, so it can serve as an exception filter.</remarks>
+    internal bool CanRecoverInvalidValue(YamlException exception, YamlTokenType tokenType, Mark start)
+        => Options.InvalidValueHandling != YamlInvalidValueHandling.FailFast
+            && exception is not (SyntaxErrorException or SemanticErrorException)
+            && _state.TokenType == tokenType
+            && _state.Start.Index == start.Index;
+
+    /// <summary>
+    /// Skips the value the reader is positioned on and reports it as invalid. Call this after <see cref="CanRecoverInvalidValue"/>
+    /// returned <see langword="true"/>. The value is captured as a <see cref="Model.YamlElement"/> only when a callback or
+    /// finalizer consumes it.
+    /// </summary>
+    /// <param name="exception">The exception the converter threw.</param>
+    /// <param name="declaringType">The CLR type being deserialized.</param>
+    /// <param name="instance">The instance being populated, or <see langword="null"/> when it does not exist yet.</param>
+    /// <param name="name">The YAML key of the member or constructor parameter.</param>
+    /// <param name="targetType">The CLR type the value was meant for.</param>
+    internal void RecoverInvalidValue(YamlException exception, Type declaringType, object? instance, string name, Type targetType)
+    {
+        if (_state.Tracker is not { } tracker)
+        {
+            Skip();
+            return;
+        }
+
+        var session = tracker.Session;
+        var value = new YamlInvalidValue(SourceName, declaringType, instance, name, tracker.GetPath(), tracker.GetCurrentKeyStart(), Start, targetType, exception);
+        if (session.IsReportingInvalidValues)
+        {
+            value.SetValue(Converters.YamlModelNodeConverter.ReadUnmappedNode(this, session.Anchors));
+        }
+        else
+        {
+            Skip();
+        }
+
+        session.Report(value);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="YamlException"/> located at the current token, for a converter to throw when it rejects a value.
+    /// </summary>
+    /// <param name="message">The message describing why the value is rejected.</param>
+    /// <returns>An exception carrying <see cref="SourceName"/>, <see cref="Start"/> and <see cref="End"/>.</returns>
+    /// <remarks>
+    /// Thrown before any of the value is consumed, the exception is recoverable under
+    /// <see cref="YamlSerializerOptions.InvalidValueHandling"/> modes other than <see cref="YamlInvalidValueHandling.FailFast"/>:
+    /// the serializer skips the value and reports it instead of failing.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="message"/> is <see langword="null"/>.</exception>
+    public YamlException CreateException(string message)
+    {
+        ArgumentGuard.ThrowIfNull(message);
+        return new YamlException(SourceName, Start, End, message);
+    }
 
     /// <summary>
     /// Gets the current token type.

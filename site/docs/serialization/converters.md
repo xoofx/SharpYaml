@@ -105,6 +105,33 @@ public sealed class TemperatureConverter : YamlConverter<Temperature>
 An exception thrown from `Read`, such as the `FormatException` of `double.Parse` above, reaches the caller of
 `YamlSerializer.Deserialize` as a [`YamlException`](xref:SharpYaml.YamlException) that wraps it. See [Errors and diagnostics](error-handling.md#exceptions-thrown-by-converters).
 
+### Rejecting a value
+
+A converter that finds a value invalid should throw [`reader.CreateException(message)`](xref:SharpYaml.Serialization.YamlReader.CreateException(System.String))
+before it consumes any of the value. The exception carries the source name and the location of the current token, and
+because nothing was consumed the serializer can skip the value and report it when
+[`InvalidValueHandling`](error-handling.md#invalid-values) is `FailAtEnd` or `Skip`. An exception thrown after `reader.Read()`,
+or an exception of another type, always ends the call.
+
+```csharp
+public override Temperature Read(YamlReader reader)
+{
+    if (reader.TokenType != YamlTokenType.Scalar)
+    {
+        throw YamlThrowHelper.ThrowExpectedScalar(reader);
+    }
+
+    var text = reader.ScalarValue!;
+    if (text.Length < 2 || !double.TryParse(text[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+    {
+        throw reader.CreateException($"'{text}' is not a temperature such as '21.5C'.");
+    }
+
+    reader.Read();
+    return new Temperature { Value = value, Unit = text[^1..] };
+}
+```
+
 ## Converter factories
 
 For open generic types or families of types, extend [`YamlConverterFactory`](xref:SharpYaml.Serialization.YamlConverterFactory):

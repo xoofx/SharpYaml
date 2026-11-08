@@ -11,10 +11,18 @@ namespace SharpYaml;
 /// </summary>
 public class YamlException : Exception
 {
+    private readonly string? _reason;
+
     /// <summary>
     /// Gets the optional source name associated with the YAML payload (for example, a file path).
     /// </summary>
     public string? SourceName { get; }
+
+    /// <summary>
+    /// Gets the message without the source name and location that <see cref="Exception.Message"/> prefixes, for callers
+    /// that report the location in their own format. For an exception created without a location, this is <see cref="Exception.Message"/>.
+    /// </summary>
+    public string Reason => _reason ?? Message;
 
     /// <summary>
     /// Gets the position in the input stream where the event that originated the exception starts.
@@ -40,6 +48,7 @@ public class YamlException : Exception
     public YamlException(string message)
         : base(message)
     {
+        _reason = message;
     }
 
     /// <summary>
@@ -72,6 +81,7 @@ public class YamlException : Exception
     public YamlException(string? sourceName, Mark start, Mark end, string message, Exception? innerException)
         : base(FormatMessage(sourceName, start, end, message), innerException)
     {
+        _reason = message;
         SourceName = sourceName;
         Start = start;
         End = end;
@@ -85,6 +95,7 @@ public class YamlException : Exception
     public YamlException(string message, Exception inner)
         : base(message, inner)
     {
+        _reason = message;
     }
 
     private static string FormatMessage(string? sourceName, Mark start, Mark end, string message)

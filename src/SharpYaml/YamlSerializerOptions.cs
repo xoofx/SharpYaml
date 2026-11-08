@@ -120,6 +120,40 @@ public sealed record YamlSerializerOptions
     public Action<IReadOnlyList<Serialization.YamlUnmappedMember>>? UnmappedMembersFinalizer { get; init; }
 
     /// <summary>
+    /// Gets or sets what happens when a converter rejects the value of a member or constructor argument during deserialization.
+    /// </summary>
+    /// <remarks>
+    /// The default, <see cref="YamlInvalidValueHandling.FailFast"/>, throws at the first rejected value. The other modes
+    /// skip a value its converter rejected before consuming any of it, leave the member or argument at its default and keep
+    /// reading; see <see cref="YamlInvalidValueHandling"/> for what is recoverable. This is the counterpart of
+    /// <see cref="UnmappedMemberHandling"/> for values whose key is known.
+    /// </remarks>
+    public YamlInvalidValueHandling InvalidValueHandling { get; init; } = YamlInvalidValueHandling.FailFast;
+
+    /// <summary>
+    /// Gets or sets a callback invoked for every value that was rejected by its converter and skipped during deserialization.
+    /// </summary>
+    /// <remarks>
+    /// The callback runs as the values are encountered, under <see cref="YamlInvalidValueHandling.FailAtEnd"/> and
+    /// <see cref="YamlInvalidValueHandling.Skip"/> alone; under <see cref="YamlInvalidValueHandling.FailFast"/> the first
+    /// rejected value throws and the callback is not invoked. This is the counterpart of <see cref="UnmappedMemberCallback"/>.
+    /// </remarks>
+    public Action<Serialization.YamlInvalidValue>? InvalidValueCallback { get; init; }
+
+    /// <summary>
+    /// Gets or sets a callback invoked once at the end of a <see cref="YamlSerializer"/> deserialization call with every
+    /// value that was rejected and skipped, in document order.
+    /// </summary>
+    /// <remarks>
+    /// The callback is only invoked when at least one value was skipped, and runs before the
+    /// <see cref="YamlInvalidValuesException"/> that <see cref="YamlInvalidValueHandling.FailAtEnd"/> throws. It may throw to
+    /// replace that exception, or to fail a call that <see cref="YamlInvalidValueHandling.Skip"/> would let succeed.
+    /// It is invoked by the <c>YamlSerializer.Deserialize</c> and <c>TryDeserialize</c> methods, not by direct
+    /// <see cref="Serialization.YamlReader"/> usage. This is the counterpart of <see cref="UnmappedMembersFinalizer"/>.
+    /// </remarks>
+    public Action<IReadOnlyList<Serialization.YamlInvalidValue>>? InvalidValuesFinalizer { get; init; }
+
+    /// <summary>
     /// Gets or sets the preferred object creation handling for properties and fields during deserialization.
     /// </summary>
     /// <remarks>

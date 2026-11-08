@@ -1162,12 +1162,17 @@ public static class YamlSerializer
         {
             result = typeInfo.ReadAsObject(reader);
         }
+        catch (YamlException exception) when (reader.FailsAtEnd)
+        {
+            throw reader.CreateFatalException(exception);
+        }
         catch (Exception exception) when (IsWrappedReadException(exception))
         {
-            throw CreateReadException(reader, exception);
+            var readException = CreateReadException(reader, exception);
+            throw reader.FailsAtEnd ? reader.CreateFatalException(readException) : readException;
         }
 
-        reader.CompleteUnmappedMembers();
+        reader.CompleteReports();
         return result;
     }
 
@@ -1187,12 +1192,17 @@ public static class YamlSerializer
         {
             result = typeInfo.Read(reader);
         }
+        catch (YamlException exception) when (reader.FailsAtEnd)
+        {
+            throw reader.CreateFatalException(exception);
+        }
         catch (Exception exception) when (IsWrappedReadException(exception))
         {
-            throw CreateReadException(reader, exception);
+            var readException = CreateReadException(reader, exception);
+            throw reader.FailsAtEnd ? reader.CreateFatalException(readException) : readException;
         }
 
-        reader.CompleteUnmappedMembers();
+        reader.CompleteReports();
         return result;
     }
 
@@ -1212,12 +1222,17 @@ public static class YamlSerializer
         {
             result = typeInfo.ReadAsObject(yamlReader);
         }
+        catch (YamlException exception) when (yamlReader.FailsAtEnd)
+        {
+            throw yamlReader.CreateFatalException(exception);
+        }
         catch (Exception exception) when (IsWrappedReadException(exception))
         {
-            throw CreateReadException(yamlReader, exception);
+            var readException = CreateReadException(yamlReader, exception);
+            throw yamlReader.FailsAtEnd ? yamlReader.CreateFatalException(readException) : readException;
         }
 
-        yamlReader.CompleteUnmappedMembers();
+        yamlReader.CompleteReports();
         return result;
     }
 
@@ -1237,12 +1252,17 @@ public static class YamlSerializer
         {
             result = typeInfo.Read(yamlReader);
         }
+        catch (YamlException exception) when (yamlReader.FailsAtEnd)
+        {
+            throw yamlReader.CreateFatalException(exception);
+        }
         catch (Exception exception) when (IsWrappedReadException(exception))
         {
-            throw CreateReadException(yamlReader, exception);
+            var readException = CreateReadException(yamlReader, exception);
+            throw yamlReader.FailsAtEnd ? yamlReader.CreateFatalException(readException) : readException;
         }
 
-        yamlReader.CompleteUnmappedMembers();
+        yamlReader.CompleteReports();
         return result;
     }
 
