@@ -2350,7 +2350,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var needsRuntimeOptions = propertyNameComparerExpression.Contains("options.", StringComparison.Ordinal) ||
             propertyNameComparisonExpression.Contains("options.", StringComparison.Ordinal) ||
             mergeEnabledExpression.Contains("options.", StringComparison.Ordinal) ||
-            (duplicateKeyHandling is null && members.Any(static member => TryGetDictionaryTypes(member.Type, out _, out _, out _))) ||
+            (duplicateKeyHandling is null && members.Any(static member => !member.IsIgnoredOnRead || TryGetDictionaryTypes(member.Type, out _, out _, out _))) ||
             preferredObjectCreationHandling is null ||
             (extensionData is null && unmappedMemberHandling is null);
 
@@ -2466,9 +2466,22 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
         builder.Append("            ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
         builder.AppendLine("            : null;");
+        var detectsDuplicateKeys = !string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal);
+        if (detectsDuplicateKeys)
+        {
+            for (var i = 0; i < readCandidates.Length; i++)
+            {
+                if (!readCandidates[i].IsIgnoredOnRead)
+                {
+                    builder.Append("        var __seen").Append(index).Append("_").Append(i).AppendLine(" = false;");
+                }
+            }
+        }
+
         builder.AppendLine();
         // One member matcher shared by the main loop and by merged mappings, so the per-member readers are emitted once.
-        builder.AppendLine("        void ReadMember(string key)");
+        // Only explicit keys take part in duplicate detection: a merged key never overrides an explicit one.
+        builder.AppendLine("        void ReadMember(string key, bool isExplicitKey, global::SharpYaml.Mark keyStart, global::SharpYaml.Mark keyEnd)");
         builder.AppendLine("        {");
         builder.AppendLine("            var matched = false;");
         builder.AppendLine("            var valueTokenType = reader.TokenType;");
@@ -2476,8 +2489,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            global::System.Type? valueType = null;");
         builder.AppendLine("            try");
         builder.AppendLine("            {");
-        foreach (var member in readCandidates)
+        for (var memberIndex = 0; memberIndex < readCandidates.Length; memberIndex++)
         {
+            var member = readCandidates[memberIndex];
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", ").Append(propertyNameComparisonExpression).Append("))");
             builder.AppendLine();
@@ -2495,6 +2509,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append("                __required").Append(index).Append("_").Append(member.Symbol.Name).AppendLine(" = true;");
             }
 
+            EmitMemberDuplicateKeyCheck(builder, duplicateKeyHandling, $"__seen{index}_{memberIndex}", indent: "                ");
             builder.Append("                valueType = typeof(").Append(member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).AppendLine(");");
             EmitReadObjectMemberValueWithObjectCreationHandling(
                 builder,
@@ -2534,6 +2549,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            {");
         builder.AppendLine("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
         builder.AppendLine("            }");
+        builder.AppendLine("            var keyStart = reader.Start;");
+        builder.AppendLine("            var keyEnd = reader.End;");
         builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
         builder.AppendLine("            reader.Read();");
         builder.AppendLine();
@@ -2541,13 +2558,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            {");
         builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys))");
         builder.AppendLine("                {");
-        builder.AppendLine("                    ReadMember(mergeKey);");
+        builder.AppendLine("                    ReadMember(mergeKey, false, default, default);");
         builder.AppendLine("                }");
         builder.AppendLine("                continue;");
         builder.AppendLine("            }");
         builder.AppendLine();
         builder.AppendLine("            explicitKeys?.Add(key);");
-        builder.AppendLine("            ReadMember(key);");
+        builder.AppendLine("            ReadMember(key, true, keyStart, keyEnd);");
         builder.AppendLine("        }");
         if (requiredMembers.Length != 0)
         {
@@ -2672,6 +2689,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var propertyNameComparerExpression = GetPropertyNameComparerExpression(sourceGenerationOptions);
         var propertyNameComparisonExpression = GetPropertyNameComparisonExpression(sourceGenerationOptions);
         var mergeEnabledExpression = GetMergeEnabledExpression(sourceGenerationOptions);
+        var duplicateKeyHandling = GetDuplicateKeyHandling(sourceGenerationOptions);
 
         // Map constructor parameters to member YAML names when possible (STJ-like binding rules).
         var parameters = constructor.Parameters;
@@ -2802,6 +2820,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         if (propertyNameComparerExpression.Contains("options.", StringComparison.Ordinal) ||
             propertyNameComparisonExpression.Contains("options.", StringComparison.Ordinal) ||
             mergeEnabledExpression.Contains("options.", StringComparison.Ordinal) ||
+            duplicateKeyHandling is null ||
             (extensionData is null && unmappedMemberHandling is null))
         {
             builder.AppendLine("        var options = reader.Options;");
@@ -2813,9 +2832,31 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
         builder.Append("            ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
         builder.AppendLine("            : null;");
+
+        // Duplicate detection flags, one per key that a branch of ReadMember matches and reads.
+        var requiredReadOnlyMembers = requiredMembers.Where(m => !IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol)).ToArray();
+        if (!string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal))
+        {
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                builder.Append("        var __seen").Append(index).Append("_p").Append(i).AppendLine(" = false;");
+            }
+
+            for (var i = 0; i < bufferedMembers.Length; i++)
+            {
+                builder.Append("        var __seen").Append(index).Append("_m").Append(i).AppendLine(" = false;");
+            }
+
+            for (var i = 0; i < requiredReadOnlyMembers.Length; i++)
+            {
+                builder.Append("        var __seen").Append(index).Append("_r").Append(i).AppendLine(" = false;");
+            }
+        }
+
         builder.AppendLine();
         // One member matcher shared by the main loop and by merged mappings, so the per-member readers are emitted once.
-        builder.AppendLine("        void ReadMember(string key)");
+        // Only explicit keys take part in duplicate detection: a merged key never overrides an explicit one.
+        builder.AppendLine("        void ReadMember(string key, bool isExplicitKey, global::SharpYaml.Mark keyStart, global::SharpYaml.Mark keyEnd)");
         builder.AppendLine("        {");
         builder.AppendLine("            var matched = false;");
         builder.AppendLine("            var valueTokenType = reader.TokenType;");
@@ -2868,6 +2909,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
 
             var tmpVar = $"__ctor{index}_tmp{i}";
+            EmitMemberDuplicateKeyCheck(builder, duplicateKeyHandling, $"__seen{index}_p{i}", indent: "                ");
             builder.Append("                valueType = typeof(").Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).AppendLine(");");
             EmitReadKnownType(builder, sourceGenerationOptions, parameter.Type, indexByType, tmpVar, indent: "                ");
             builder.Append("                ").Append(parameterValueVarNames[i]).Append(" = ").Append(tmpVar).AppendLine(";");
@@ -2908,6 +2950,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.Append("                ").Append(requiredVar).AppendLine(" = true;");
             }
+            EmitMemberDuplicateKeyCheck(builder, duplicateKeyHandling, $"__seen{index}_m{i}", indent: "                ");
             builder.Append("                valueType = typeof(").Append(member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).AppendLine(");");
             EmitReadMemberValueWithCustomConverter(builder, localModel, indexByType, sourceGenerationOptions);
             builder.Append("                ").Append(localSeenVar).AppendLine(" = true;");
@@ -2915,20 +2958,16 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         // Required read-only members (non-writable and not constructor-bound).
-        for (var i = 0; i < requiredMembers.Length; i++)
+        for (var i = 0; i < requiredReadOnlyMembers.Length; i++)
         {
-            var member = requiredMembers[i];
-            if (IsWritableMember(member.Symbol) || ctorBoundMembers.Contains(member.Symbol))
-            {
-                continue;
-            }
-
+            var member = requiredReadOnlyMembers[i];
             builder.Append("            if (!matched && global::System.String.Equals(key, ").Append(member.SerializedNameExpressionForRead)
                 .Append(", ").Append(propertyNameComparisonExpression).Append("))");
             builder.AppendLine();
             builder.AppendLine("            {");
             builder.AppendLine("                matched = true;");
             builder.Append("                ").Append(requiredVarBySymbol[member.Symbol]).AppendLine(" = true;");
+            EmitMemberDuplicateKeyCheck(builder, duplicateKeyHandling, $"__seen{index}_r{i}", indent: "                ");
             if (extensionData is not null)
             {
                 builder.AppendLine("                BufferExtensionData(key);");
@@ -2967,6 +3006,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            {");
         builder.AppendLine("                throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
         builder.AppendLine("            }");
+        builder.AppendLine("            var keyStart = reader.Start;");
+        builder.AppendLine("            var keyEnd = reader.End;");
         builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
         builder.AppendLine("            reader.Read();");
         builder.AppendLine();
@@ -2974,13 +3015,13 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            {");
         builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys))");
         builder.AppendLine("                {");
-        builder.AppendLine("                    ReadMember(mergeKey);");
+        builder.AppendLine("                    ReadMember(mergeKey, false, default, default);");
         builder.AppendLine("                }");
         builder.AppendLine("                continue;");
         builder.AppendLine("            }");
         builder.AppendLine();
         builder.AppendLine("            explicitKeys?.Add(key);");
-        builder.AppendLine("            ReadMember(key);");
+        builder.AppendLine("            ReadMember(key, true, keyStart, keyEnd);");
         builder.AppendLine("        }");
 
         builder.AppendLine();
@@ -7539,6 +7580,50 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.Append(indent).AppendLine("    case global::SharpYaml.YamlDuplicateKeyHandling.LastWins:");
         builder.Append(indent).Append("        ").Append(lastWinsAssignment).AppendLine(";");
         builder.Append(indent).AppendLine("        break;");
+        builder.Append(indent).AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits the duplicate detection of a member or constructor parameter key inside a generated <c>ReadMember</c>, mirroring
+    /// <c>YamlObjectConverter</c>: only explicit keys count, so a key reached through a merge key (<c>&lt;&lt;</c>) is never a duplicate.
+    /// Under <c>FirstWins</c> the value of a duplicate is skipped and <c>ReadMember</c> returns.
+    /// </summary>
+    private static void EmitMemberDuplicateKeyCheck(StringBuilder builder, string? duplicateKeyHandling, string seenVarName, string indent)
+    {
+        if (string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        const string throwStatement = "throw new global::SharpYaml.YamlException(reader.SourceName, keyStart, keyEnd, $\"Duplicate mapping key '{key}'.\");";
+        builder.Append(indent).AppendLine("if (isExplicitKey)");
+        builder.Append(indent).AppendLine("{");
+        builder.Append(indent).Append("    if (").Append(seenVarName).AppendLine(")");
+        builder.Append(indent).AppendLine("    {");
+        switch (duplicateKeyHandling)
+        {
+            case "Error":
+                builder.Append(indent).Append("        ").AppendLine(throwStatement);
+                break;
+            case "FirstWins":
+                builder.Append(indent).AppendLine("        reader.Skip();");
+                builder.Append(indent).AppendLine("        return;");
+                break;
+            default:
+                builder.Append(indent).AppendLine("        if (options.DuplicateKeyHandling == global::SharpYaml.YamlDuplicateKeyHandling.Error)");
+                builder.Append(indent).AppendLine("        {");
+                builder.Append(indent).Append("            ").AppendLine(throwStatement);
+                builder.Append(indent).AppendLine("        }");
+                builder.Append(indent).AppendLine("        if (options.DuplicateKeyHandling == global::SharpYaml.YamlDuplicateKeyHandling.FirstWins)");
+                builder.Append(indent).AppendLine("        {");
+                builder.Append(indent).AppendLine("            reader.Skip();");
+                builder.Append(indent).AppendLine("            return;");
+                builder.Append(indent).AppendLine("        }");
+                break;
+        }
+
+        builder.Append(indent).AppendLine("    }");
+        builder.Append(indent).Append("    ").Append(seenVarName).AppendLine(" = true;");
         builder.Append(indent).AppendLine("}");
     }
 

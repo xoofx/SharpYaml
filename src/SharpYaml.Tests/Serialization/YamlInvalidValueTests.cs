@@ -357,13 +357,13 @@ public sealed class YamlInvalidValueTests
     }
 
     [TestMethod]
-    public void Skip_StillTreatsASkippedKeyAsPresentForDuplicateDetection()
+    [DynamicData(nameof(Modes))]
+    public void Skip_StillTreatsASkippedKeyAsPresentForDuplicateDetection(bool generated)
     {
-        // Reflection only: generated contexts do not detect duplicate member keys, whatever the invalid value handling.
         var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, DuplicateKeyHandling = YamlDuplicateKeyHandling.Error };
 
-        var member = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueRoot>("Port: abc\nPort: 1\n", options));
-        var parameter = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize<InvalidValueConstructed>("Name: a\nPort: abc\nPort: 1\n", options));
+        var member = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Port: abc\nPort: 1\n", options, generated));
+        var parameter = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueConstructed>("Name: a\nPort: abc\nPort: 1\n", options, generated));
 
         StringAssert.Contains(member.Message, "Port");
         StringAssert.Contains(parameter.Message, "Port");
