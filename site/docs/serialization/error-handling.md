@@ -13,6 +13,8 @@ When possible, exceptions include:
 - a span (start/end location)
 
 These are available through [`YamlException.SourceName`](xref:SharpYaml.YamlException.SourceName), [`YamlException.Start`](xref:SharpYaml.YamlException.Start), and [`YamlException.End`](xref:SharpYaml.YamlException.End).
+`Message` carries them as a prefix; [`YamlException.Reason`](xref:SharpYaml.YamlException.Reason) is the message without it, for reporting the
+location in your own format.
 
 ```csharp
 var options = new YamlSerializerOptions
@@ -109,7 +111,7 @@ Neither runs under `FailFast`. Both receive [`YamlInvalidValue`](xref:SharpYaml.
 | `Name`, `TargetType` | The key and the CLR type of the member or constructor parameter the value was meant for |
 | `DeclaringType`, `Instance` | The CLR type and the object being populated (`null` for constructor-bound types) |
 | `Value` | The rejected value as a `YamlElement`; `null` unless a callback or finalizer is set |
-| `Message`, `Exception` | The message and the `YamlException` the converter threw, which locate the value |
+| `Message`, `Exception` | Why the value was rejected, without a location, and the `YamlException` the converter threw, whose `Start` and `End` locate the value |
 
 ```csharp
 var options = new YamlSerializerOptions

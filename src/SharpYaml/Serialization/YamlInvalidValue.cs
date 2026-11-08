@@ -78,8 +78,10 @@ public sealed class YamlInvalidValue
     /// </summary>
     public YamlElement? Value { get; private set; }
 
-    /// <summary>Gets the message of <see cref="Exception"/>.</summary>
-    public string Message => Exception.Message;
+    /// <summary>
+    /// Gets the reason the converter gave, without the location that <see cref="System.Exception.Message"/> prefixes.
+    /// </summary>
+    public string Message => Exception.Reason;
 
     /// <summary>Gets the exception the converter threw. Its <see cref="YamlException.Start"/> and <see cref="YamlException.End"/> locate the value.</summary>
     public YamlException Exception { get; }

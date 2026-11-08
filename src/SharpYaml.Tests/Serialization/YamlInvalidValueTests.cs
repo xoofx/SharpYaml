@@ -156,7 +156,9 @@ public sealed class YamlInvalidValueTests
         Assert.AreEqual("abc", ((YamlValue)value.Value!).Value);
         StringAssert.Contains(value.Message, "Invalid integer scalar 'abc'");
         Assert.AreEqual(value.ValueStart.Index, value.Exception.Start.Index);
-        Assert.AreEqual(value.Message, value.Exception.Message);
+        Assert.AreEqual(value.Exception.Reason, value.Message);
+        Assert.IsFalse(value.Message.Contains("Lin:"), value.Message);
+        StringAssert.EndsWith(value.Exception.Message, ": " + value.Message);
     }
 
     [TestMethod]
