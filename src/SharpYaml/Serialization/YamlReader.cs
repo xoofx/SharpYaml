@@ -185,6 +185,23 @@ public sealed class YamlReader : YamlReaderWriterBase
     internal void CompleteReports() => _state.Tracker?.Session.Complete();
 
     /// <summary>
+    /// Creates a <see cref="YamlException"/> located at the current token, for a converter to throw when it rejects a value.
+    /// </summary>
+    /// <param name="message">The message describing why the value is rejected.</param>
+    /// <returns>An exception carrying <see cref="SourceName"/>, <see cref="Start"/> and <see cref="End"/>.</returns>
+    /// <remarks>
+    /// Thrown before any of the value is consumed, the exception is recoverable under
+    /// <see cref="YamlSerializerOptions.InvalidValueHandling"/> modes other than <see cref="YamlInvalidValueHandling.FailFast"/>:
+    /// the serializer skips the value and reports it instead of failing.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="message"/> is <see langword="null"/>.</exception>
+    public YamlException CreateException(string message)
+    {
+        ArgumentGuard.ThrowIfNull(message);
+        return new YamlException(SourceName, Start, End, message);
+    }
+
+    /// <summary>
     /// Gets the current token type.
     /// </summary>
     public YamlTokenType TokenType => _state.TokenType;
