@@ -124,6 +124,9 @@ is not a lossless alternative: it currently materializes aliases as copies.
 | [`SourceName`](xref:SharpYaml.YamlSerializerOptions.SourceName) | `null` | Used for error messages (file/path) when throwing [`YamlException`](xref:SharpYaml.YamlException). |
 | [`UnmappedMemberCallback`](xref:SharpYaml.YamlSerializerOptions.UnmappedMemberCallback) | `null` | Invoked for every unknown key while reading. See [Handling unknown members globally](extension-data.md#handling-unknown-members-globally). |
 | [`UnmappedMembersFinalizer`](xref:SharpYaml.YamlSerializerOptions.UnmappedMembersFinalizer) | `null` | Invoked once per deserialization call with all unknown keys; may throw to fail the call. |
+| [`InvalidValueHandling`](xref:SharpYaml.YamlSerializerOptions.InvalidValueHandling) | [`YamlInvalidValueHandling.FailFast`](xref:SharpYaml.YamlInvalidValueHandling.FailFast) | Controls whether a value a converter rejects fails the call at once, is skipped and fails the call at the end, or is skipped. See [Invalid values](error-handling.md#invalid-values). |
+| [`InvalidValueCallback`](xref:SharpYaml.YamlSerializerOptions.InvalidValueCallback) | `null` | Invoked for every skipped value while reading under `FailAtEnd` or `Skip`. |
+| [`InvalidValuesFinalizer`](xref:SharpYaml.YamlSerializerOptions.InvalidValuesFinalizer) | `null` | Invoked once per deserialization call with all skipped values; may throw to replace the `FailAtEnd` exception. |
 
 ### Block sequence item style
 
