@@ -10,8 +10,8 @@ The syntax layer is designed for scenarios where you need:
 `YamlSyntaxTree` is an immutable source snapshot with a **flat token list**, not a mutable
 mapping/sequence object model. `ToFullString()` and `WriteTo()` return the snapshot's text
 without formatting it. To edit a file while preserving the surrounding source, use
-`WithTextChange` as shown below. There is no structural `ReplaceNode` API or automatic
-comment attachment/reformatting when moving nodes.
+`WithTextChange` as shown below. To edit by key instead of by offset, use the
+[editable tree](#edit-by-key-with-the-editable-tree), a bounded layer on top of `WithTextChange`.
 
 ## Parse a document
 
@@ -69,11 +69,45 @@ remains unchanged. Tokens and spans in the returned tree reflect the new text. F
 edits, obtain offsets from that tree rather than reusing stale offsets. This is source-range
 editing, not incremental parsing or a semantic object editor.
 
+## Edit by key with the editable tree
+
+[`YamlEditableTree`](xref:SharpYaml.Syntax.Editable.YamlEditableTree) groups the tokens of a
+document into maps, lists and scalars, with comments and blank lines attached to the nodes.
+You find a value by key, change it, add or remove entries, and then call
+[`ToSyntaxTree`](xref:SharpYaml.Syntax.Editable.YamlEditableTree.ToSyntaxTree). It applies all
+the edits to the source snapshot as one `WithTextChange` over the smallest range that differs,
+so the result is validated and every character outside that range is retained.
+
+```csharp
+using SharpYaml.Syntax.Editable;
+
+var text = "# servers\nServers:\n  - Name: prod # main\n    Port: 1521\n";
+var tree = YamlEditableTree.Parse(text);
+
+var servers = (YamlEditableList)((YamlEditableMap)tree.Root).GetValue("Servers")!;
+var prod = (YamlEditableMap)servers.Items[0].Value;
+prod.SetValue("Port", new YamlEditableScalar("1522"));
+prod.SetValue("Host", new YamlEditableScalar("db1"));
+
+var edited = tree.ToSyntaxTree();
+// # servers\nServers:\n  - Name: prod # main\n    Port: 1522\n    Host: db1\n
+```
+
+A same-line comment stays with the entry on its line, and comment lines stay with the entry
+below them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`RemoveAt` keep
+each entry on its own line, so removing an entry removes its comments and nothing else.
+
+Scalar text is **raw YAML source**, as with `WithTextChange`. The scope is bounded:
+block-style mappings and sequences, plain and quoted scalars, and `#` comments.
+`YamlEditableTree.Parse` throws `NotSupportedException` for flow style, anchors, aliases, tags,
+and directives, so a document that uses them is never edited partially.
+
 ## Which API should I use?
 
 | Goal | API | Source preservation |
 | --- | --- | --- |
 | Edit known source ranges, retaining surrounding comments/formatting | `YamlSyntaxTree.WithTextChange` | All text outside edited ranges is unchanged. |
+| Change, add or remove entries by key, retaining comments/formatting (block style only) | `YamlEditableTree` | Unedited nodes keep their original text; the result is applied through `WithTextChange`. |
 | Add/remove mappings or sequences through a mutable object model | `YamlMapping`, `YamlSequence`, `YamlDocument` | Not lossless; comments/formatting are not retained and aliases are materialized as copies. |
 | Transform parsing events and emit YAML | `Parser`, `Emitter` | Can retain anchor/alias/merge events, but not original formatting/comments. |
 | Read/write .NET configuration objects | `YamlSerializer` | Data mapping, not source editing; merge keys are expanded. |
