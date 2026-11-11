@@ -121,6 +121,38 @@ public sealed class YamlDuplicateKeyHandlingTests
 
     [TestMethod]
     [DynamicData(nameof(Modes))]
+    public void Dictionary_DuplicateKey_Error_ThrowsAtTheSecondValue(bool generated)
+    {
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = YamlDuplicateKeyHandling.Error };
+
+        var byName = Assert.ThrowsExactly<YamlException>(() => Deserialize<Dictionary<string, int>>("a: 1\na: 2\n", options, generated));
+        var byNumber = Assert.ThrowsExactly<YamlException>(() => Deserialize<Dictionary<int, int>>("1: 1\n1: 2\n", options, generated));
+
+        Assert.AreEqual("Duplicate mapping key 'a'.", byName.Reason);
+        Assert.AreEqual(1, byName.Start.Line);
+        Assert.AreEqual(3, byName.Start.Column);
+        Assert.AreEqual("Duplicate mapping key '1'.", byNumber.Reason);
+        Assert.AreEqual(1, byNumber.Start.Line);
+        Assert.AreEqual(3, byNumber.Start.Column);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Dictionary_DuplicateKey_FirstWins_SkipsTheSecondValueWithoutReadingIt(bool generated)
+    {
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = YamlDuplicateKeyHandling.FirstWins };
+
+        var byName = Deserialize<Dictionary<string, int>>("a: 1\na: [x]\n", options, generated)!;
+        var byNumber = Deserialize<Dictionary<int, int>>("1: 1\n1: [x]\n", options, generated)!;
+
+        Assert.AreEqual(1, byName.Count);
+        Assert.AreEqual(1, byName["a"]);
+        Assert.AreEqual(1, byNumber.Count);
+        Assert.AreEqual(1, byNumber[1]);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
     public void Member_DuplicateKey_ErrorIsTheDefault(bool generated)
     {
         var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<DuplicateKeyMembers>("Age: 1\nAge: 2\n", new YamlSerializerOptions(), generated));
@@ -232,6 +264,8 @@ internal sealed class DuplicateKeyConstructed
 
 [YamlSerializable(typeof(DuplicateKeyMembers))]
 [YamlSerializable(typeof(DuplicateKeyConstructed))]
+[YamlSerializable(typeof(Dictionary<string, int>))]
+[YamlSerializable(typeof(Dictionary<int, int>))]
 internal partial class DuplicateKeyContext : YamlSerializerContext
 {
     public DuplicateKeyContext()

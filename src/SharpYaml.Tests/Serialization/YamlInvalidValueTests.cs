@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -15,6 +17,34 @@ namespace SharpYaml.Tests.Serialization;
 public sealed class YamlInvalidValueTests
 {
     public static IEnumerable<object[]> Modes => new[] { new object[] { false }, new object[] { true } };
+
+    public static IEnumerable<object[]> CollectionKinds
+    {
+        get
+        {
+            var kinds = new (string Member, Type DeclaringType, bool HasInstance)[]
+            {
+                ("Codes", typeof(int[]), false),
+                ("Unique", typeof(HashSet<int>), true),
+                ("Distinct", typeof(ISet<int>), true),
+                ("Ordered", typeof(IList<int>), true),
+                ("Bag", typeof(ICollection<int>), true),
+                ("ReadOnlyList", typeof(IReadOnlyList<int>), true),
+                ("ReadOnlyBag", typeof(IReadOnlyCollection<int>), true),
+                ("Items", typeof(IEnumerable<int>), true),
+                ("Frozen", typeof(ImmutableArray<int>), false),
+                ("FrozenList", typeof(ImmutableList<int>), false),
+                ("FrozenSet", typeof(ImmutableHashSet<int>), false),
+                ("Custom", typeof(Collection<int>), true),
+            };
+
+            foreach (var (member, declaringType, hasInstance) in kinds)
+            {
+                yield return new object[] { member, declaringType, hasInstance, false };
+                yield return new object[] { member, declaringType, hasInstance, true };
+            }
+        }
+    }
 
     private static T? Deserialize<T>(string yaml, YamlSerializerOptions options, bool generated)
         => generated ? (T?)YamlSerializer.Deserialize(yaml, typeof(T), new InvalidValueContext(options)) : YamlSerializer.Deserialize<T>(yaml, options);
@@ -73,6 +103,31 @@ public sealed class YamlInvalidValueTests
 
         Assert.IsFalse(YamlReader.Create("a: 1\n", failAtEnd).IsReportingUnmappedMembers);
         Assert.IsFalse(YamlReader.Create("a: 1\n", skip).IsReportingUnmappedMembers);
+    }
+
+    [TestMethod]
+    public void TryReadItem_ReportsASequenceElementByItsIndex()
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+        var reader = YamlReader.Create("[1, abc]\n", options);
+        Assert.IsTrue(reader.Read());
+        Assert.IsTrue(reader.Read());
+        var converter = reader.GetConverter(typeof(int));
+
+        Assert.IsTrue(reader.TryReadItem(converter, typeof(int), typeof(List<int>), null, out var first));
+        Assert.IsFalse(reader.TryReadItem(converter, typeof(int), typeof(List<int>), null, out var second));
+
+        Assert.AreEqual(1, first);
+        Assert.IsNull(second);
+        Assert.AreEqual(YamlTokenType.EndSequence, reader.TokenType);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$[1]", values[0].Path);
+        Assert.AreEqual("1", values[0].Name);
+        Assert.AreEqual(4, values[0].ValueStart.Column);
+        Assert.AreEqual(values[0].ValueStart.Index, values[0].KeyStart.Index);
+        Assert.IsNull(values[0].Instance);
+        Assert.AreEqual(typeof(List<int>), values[0].DeclaringType);
     }
 
     [TestMethod]
@@ -334,15 +389,336 @@ public sealed class YamlInvalidValueTests
 
     [TestMethod]
     [DynamicData(nameof(Modes))]
-    public void Skip_LeavesAnInvalidCollectionElementFatal(bool generated)
+    public void FailFast_LeavesAnInvalidElementFatal(bool generated)
     {
-        var values = new List<YamlInvalidValue>();
-        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+        var reported = 0;
+        var options = new YamlSerializerOptions { InvalidValueCallback = _ => reported++, InvalidValuesFinalizer = _ => reported++ };
 
         var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueRoot>("Retries: [1, abc]\n", options, generated));
 
         StringAssert.Contains(exception.Message, "Invalid integer scalar 'abc'");
+        Assert.AreEqual(13, exception.Start.Column);
+        Assert.AreEqual(0, reported);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_DropsAnInvalidListElementAndReportsEveryDetail(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { SourceName = "config.yaml", InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueRoot>("Retries: [1, abc, 3]\n", options, generated)!;
+
+        CollectionAssert.AreEqual(new[] { 1, 3 }, root.Retries);
+        Assert.HasCount(1, values);
+
+        var value = values[0];
+        Assert.AreEqual("config.yaml", value.SourceName);
+        Assert.AreEqual("$.Retries[1]", value.Path);
+        Assert.AreEqual("1", value.Name);
+        Assert.AreEqual(0, value.ValueStart.Line);
+        Assert.AreEqual(13, value.ValueStart.Column);
+        Assert.AreEqual(value.ValueStart.Index, value.KeyStart.Index);
+        Assert.AreEqual(typeof(int), value.TargetType);
+        Assert.AreEqual(typeof(List<int>), value.DeclaringType);
+        Assert.AreSame(root.Retries, value.Instance);
+        Assert.AreEqual("abc", ((YamlValue)value.Value!).Value);
+        StringAssert.Contains(value.Message, "Invalid integer scalar 'abc'");
+        Assert.AreEqual(value.ValueStart.Index, value.Exception.Start.Index);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(CollectionKinds))]
+    public void Skip_DropsAnInvalidElementOfEveryCollectionKind(string member, Type declaringType, bool hasInstance, bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueCollections>($"{member}: [1, abc, 3]\n", options, generated)!;
+
+        var items = (IEnumerable<int>)typeof(InvalidValueCollections).GetProperty(member)!.GetValue(root)!;
+        CollectionAssert.AreEquivalent(new[] { 1, 3 }, items.ToArray());
+        Assert.HasCount(1, values);
+        Assert.AreEqual($"$.{member}[1]", values[0].Path);
+        Assert.AreEqual("1", values[0].Name);
+        Assert.AreEqual(declaringType, values[0].DeclaringType);
+        Assert.AreEqual(typeof(int), values[0].TargetType);
+        if (hasInstance)
+        {
+            Assert.AreSame(items, values[0].Instance);
+        }
+        else
+        {
+            Assert.IsNull(values[0].Instance);
+        }
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_DropsAnInvalidElementOfANestedList(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueCollections>("Matrix: [[1, abc], [3]]\n", options, generated)!;
+
+        Assert.HasCount(2, root.Matrix);
+        CollectionAssert.AreEqual(new[] { 1 }, root.Matrix[0]);
+        CollectionAssert.AreEqual(new[] { 3 }, root.Matrix[1]);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$.Matrix[0][1]", values[0].Path);
+        Assert.AreEqual(typeof(List<int>), values[0].DeclaringType);
+        Assert.AreSame(root.Matrix[0], values[0].Instance);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_DropsAnInvalidElementOfARootList(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var list = Deserialize<List<int>>("[1, abc]\n", options, generated)!;
+
+        CollectionAssert.AreEqual(new[] { 1 }, list);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$[1]", values[0].Path);
+        Assert.AreEqual("1", values[0].Name);
+        Assert.AreEqual(4, values[0].ValueStart.Column);
+        Assert.AreEqual(4, values[0].KeyStart.Column);
+        Assert.AreEqual(typeof(List<int>), values[0].DeclaringType);
+        Assert.AreSame(list, values[0].Instance);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_SkipsAMappingElementWhereAScalarIsExpectedWhole(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueRoot>("Retries:\n  - 1\n  - nested: 1\n    more: [1, 2]\n  - 3\n", options, generated)!;
+
+        CollectionAssert.AreEqual(new[] { 1, 3 }, root.Retries);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$.Retries[1]", values[0].Path);
+        Assert.IsInstanceOfType<YamlMapping>(values[0].Value);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_RecoversAnElementAConverterRejectsBeforeConsuming(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueCollections>("Rejected: [nope, nope]\n", options, generated)!;
+
+        Assert.IsEmpty(root.Rejected);
+        Assert.HasCount(2, values);
+        Assert.AreEqual("$.Rejected[0]", values[0].Path);
+        Assert.AreEqual("$.Rejected[1]", values[1].Path);
+        Assert.AreEqual(typeof(InvalidValueRejecting), values[0].TargetType);
+        StringAssert.EndsWith(values[0].Message, "rejected before consuming");
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_LeavesAnElementConverterThatThrowsAfterConsumingFatal(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueCollections>("Consumed: [nope]\n", options, generated));
+
+        StringAssert.EndsWith(exception.Message, "rejected after consuming");
         Assert.IsEmpty(values);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_RecoversAnAnchoredElementAndItsAlias(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueRoot>("Retries: [&r abc, *r, 2]\n", options, generated)!;
+
+        CollectionAssert.AreEqual(new[] { 2 }, root.Retries);
+        Assert.HasCount(2, values);
+        Assert.AreEqual("$.Retries[0]", values[0].Path);
+        Assert.AreEqual("$.Retries[1]", values[1].Path);
+        Assert.AreEqual("abc", ((YamlValue)values[0].Value!).Value);
+        Assert.AreEqual("abc", ((YamlValue)values[1].Value!).Value);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_KeepsTheExistingItemsOfPopulatedCollections(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValuePopulateRoot>("Retries: [1, abc]\nPorts: {b: abc, c: 2}\n", options, generated)!;
+
+        CollectionAssert.AreEqual(new[] { 7, 1 }, root.Retries);
+        Assert.AreEqual(2, root.Ports.Count);
+        Assert.AreEqual(1, root.Ports["keep"]);
+        Assert.AreEqual(2, root.Ports["c"]);
+        Assert.HasCount(2, values);
+        Assert.AreSame(root.Retries, values[0].Instance);
+        Assert.AreEqual(typeof(List<int>), values[0].DeclaringType);
+        Assert.AreSame(root.Ports, values[1].Instance);
+        Assert.AreEqual(typeof(Dictionary<string, int>), values[1].DeclaringType);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_WithoutDelegatesDropsAnElementSilently(bool generated)
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
+
+        var root = Deserialize<InvalidValueRoot>("Retries: [1, abc, 3]\n", options, generated)!;
+
+        CollectionAssert.AreEqual(new[] { 1, 3 }, root.Retries);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void FailAtEnd_ListsItemsWithMembersInDocumentOrder(bool generated)
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.FailAtEnd };
+
+        var exception = Assert.ThrowsExactly<YamlInvalidValuesException>(() => Deserialize<InvalidValueCollections>("Port: abc\nRetries: [1, xyz, 3]\nPorts: {a: 1, b: q}\n", options, generated));
+
+        Assert.IsNull(exception.InnerException);
+        CollectionAssert.AreEqual(new[] { "$.Port", "$.Retries[1]", "$.Ports.b" }, exception.InvalidValues.Select(static v => v.Path).ToArray());
+        Assert.IsTrue(exception.InvalidValues.All(static v => v.Value is null));
+        StringAssert.Contains(exception.Message, "$.Retries[1]: ");
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_DropsAnInvalidDictionaryEntryAndReportsEveryDetail(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueCollections>("Ports:\n  a: 1\n  b: abc\n  c: 3\n", options, generated)!;
+
+        Assert.AreEqual(2, root.Ports.Count);
+        Assert.AreEqual(1, root.Ports["a"]);
+        Assert.AreEqual(3, root.Ports["c"]);
+        Assert.HasCount(1, values);
+
+        var value = values[0];
+        Assert.AreEqual("$.Ports.b", value.Path);
+        Assert.AreEqual("b", value.Name);
+        Assert.AreEqual(2, value.KeyStart.Line);
+        Assert.AreEqual(2, value.KeyStart.Column);
+        Assert.AreEqual(2, value.ValueStart.Line);
+        Assert.AreEqual(5, value.ValueStart.Column);
+        Assert.AreEqual(typeof(int), value.TargetType);
+        Assert.AreEqual(typeof(Dictionary<string, int>), value.DeclaringType);
+        Assert.AreSame(root.Ports, value.Instance);
+        Assert.AreEqual("abc", ((YamlValue)value.Value!).Value);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_DropsAnInvalidEntryOfATypedKeyDictionary(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueCollections>("ByNumber: {1: abc, 2: 2}\n", options, generated)!;
+
+        Assert.AreEqual(1, root.ByNumber.Count);
+        Assert.AreEqual(2, root.ByNumber[2]);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$.ByNumber.1", values[0].Path);
+        Assert.AreEqual("1", values[0].Name);
+        Assert.AreEqual(11, values[0].KeyStart.Column);
+        Assert.AreEqual(14, values[0].ValueStart.Column);
+        Assert.AreEqual(typeof(Dictionary<int, int>), values[0].DeclaringType);
+        Assert.AreEqual(typeof(int), values[0].TargetType);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_LeavesAnInvalidDictionaryKeyFatal(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueCollections>("ByNumber: {abc: 1}\n", options, generated));
+
+        StringAssert.Contains(exception.Message, "abc");
+        Assert.IsEmpty(values);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_StillTreatsADroppedDictionaryKeyAsSeenForDuplicateDetection(bool generated)
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, DuplicateKeyHandling = YamlDuplicateKeyHandling.Error };
+
+        var droppedFirst = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueCollections>("Ports: {b: abc, b: 1}\n", options, generated));
+        var droppedSecond = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueCollections>("Ports: {b: 1, b: abc}\n", options, generated));
+        var typedKey = Assert.ThrowsExactly<YamlException>(() => Deserialize<InvalidValueCollections>("ByNumber: {1: abc, 1: 2}\n", options, generated));
+
+        Assert.AreEqual("Duplicate mapping key 'b'.", droppedFirst.Reason);
+        Assert.AreEqual("Duplicate mapping key 'b'.", droppedSecond.Reason);
+        Assert.AreEqual("Duplicate mapping key '1'.", typedKey.Reason);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_RecoversInsideAMergedDictionary(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var root = Deserialize<InvalidValueCollections>("Ports:\n  <<: {a: abc, b: 2}\n  c: 3\n", options, generated)!;
+
+        Assert.AreEqual(2, root.Ports.Count);
+        Assert.AreEqual(2, root.Ports["b"]);
+        Assert.AreEqual(3, root.Ports["c"]);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$.Ports['<<'].a", values[0].Path);
+        Assert.AreEqual("a", values[0].Name);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_KeepsADroppedEntryShadowingItsMergedValue(bool generated)
+    {
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip };
+
+        var root = Deserialize<InvalidValueCollections>("Ports: {a: abc, <<: {a: 1, b: 2}}\n", options, generated)!;
+
+        Assert.AreEqual(1, root.Ports.Count);
+        Assert.AreEqual(2, root.Ports["b"]);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void Skip_DropsAnInvalidEntryOfARootDictionary(bool generated)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+
+        var dictionary = Deserialize<Dictionary<string, int>>("a: 1\nb: abc\n", options, generated)!;
+
+        Assert.AreEqual(1, dictionary.Count);
+        Assert.AreEqual(1, dictionary["a"]);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$.b", values[0].Path);
+        Assert.AreEqual(1, values[0].KeyStart.Line);
+        Assert.AreEqual(0, values[0].KeyStart.Column);
+        Assert.AreEqual(3, values[0].ValueStart.Column);
+        Assert.AreSame(dictionary, values[0].Instance);
     }
 
     [TestMethod]
@@ -598,6 +974,35 @@ internal sealed class InvalidValuePopulateRoot
 {
     [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
     public InvalidValueRoot Server { get; } = new() { Name = "keep" };
+
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public List<int> Retries { get; } = new() { 7 };
+
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public Dictionary<string, int> Ports { get; } = new() { ["keep"] = 1 };
+}
+
+internal sealed class InvalidValueCollections
+{
+    public int Port { get; set; } = 8080;
+    public List<int> Retries { get; set; } = new();
+    public int[] Codes { get; set; } = Array.Empty<int>();
+    public HashSet<int> Unique { get; set; } = new();
+    public ISet<int> Distinct { get; set; } = new HashSet<int>();
+    public IList<int> Ordered { get; set; } = new List<int>();
+    public ICollection<int> Bag { get; set; } = new List<int>();
+    public IReadOnlyList<int> ReadOnlyList { get; set; } = Array.Empty<int>();
+    public IReadOnlyCollection<int> ReadOnlyBag { get; set; } = Array.Empty<int>();
+    public IEnumerable<int> Items { get; set; } = Array.Empty<int>();
+    public ImmutableArray<int> Frozen { get; set; }
+    public ImmutableList<int> FrozenList { get; set; } = ImmutableList<int>.Empty;
+    public ImmutableHashSet<int> FrozenSet { get; set; } = ImmutableHashSet<int>.Empty;
+    public Collection<int> Custom { get; set; } = new();
+    public List<List<int>> Matrix { get; set; } = new();
+    public Dictionary<string, int> Ports { get; set; } = new();
+    public Dictionary<int, int> ByNumber { get; set; } = new();
+    public List<InvalidValueRejecting> Rejected { get; set; } = new();
+    public List<InvalidValueConsuming> Consumed { get; set; } = new();
 }
 
 internal sealed class InvalidValueZoo
@@ -662,6 +1067,9 @@ internal sealed class InvalidValueFormattedConverter : YamlConverter<InvalidValu
 [YamlSerializable(typeof(InvalidValueConstructed))]
 [YamlSerializable(typeof(InvalidValueMergeRoot))]
 [YamlSerializable(typeof(InvalidValuePopulateRoot))]
+[YamlSerializable(typeof(InvalidValueCollections))]
+[YamlSerializable(typeof(List<int>))]
+[YamlSerializable(typeof(Dictionary<string, int>))]
 [YamlSerializable(typeof(InvalidValueZoo))]
 [YamlSerializable(typeof(InvalidValueRejecting))]
 [YamlSerializable(typeof(InvalidValueConsuming))]

@@ -977,6 +977,47 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
+    public void GeneratedSource_CollectionLoopsRecoverInvalidItems()
+    {
+        const string source = """
+            #nullable enable
+
+            using System.Collections.Generic;
+            using SharpYaml;
+            using SharpYaml.Serialization;
+
+            namespace SharpYaml.GeneratedSourceProbe;
+
+            internal sealed class RecoveringCollections
+            {
+                public List<int> Numbers { get; set; } = new();
+
+                public int[] Codes { get; set; } = System.Array.Empty<int>();
+
+                public Dictionary<string, int> Map { get; set; } = new();
+
+                public Dictionary<int, int> ByNumber { get; set; } = new();
+            }
+
+            [YamlSerializable(typeof(RecoveringCollections))]
+            [YamlSerializable(typeof(List<int>))]
+            internal partial class RecoveringCollectionsContext : YamlSerializerContext
+            {
+            }
+            """;
+
+        var generatedSource = GenerateSourceFor(source, "RecoveringCollectionsContext.g.cs");
+
+        // One try per loop: the root reader and the member reader of List<int>, the array, and both dictionaries.
+        Assert.AreEqual(2, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(global::System\.Collections\.Generic\.List<int>\), list, typeof\(int\)\);").Count);
+        Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(int\[\]\), null, typeof\(int\)\);").Count);
+        Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(global::System\.Collections\.Generic\.Dictionary<string, int>\), dictionary, typeof\(int\)\);").Count);
+        Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(global::System\.Collections\.Generic\.Dictionary<int, int>\), dictionary, typeof\(int\)\);").Count);
+        StringAssert.Contains(generatedSource, "when (CanRecoverInvalidValue(reader, exception, itemTokenType, itemStart))");
+        StringAssert.Contains(generatedSource, "(dictionaryDroppedKeys ??= new global::System.Collections.Generic.HashSet<int>()).Add(entryKey);");
+    }
+
+    [TestMethod]
     public void GeneratedSource_ResolvesAttributeDrivenBranchesAtBuildTime()
     {
         const string source = """

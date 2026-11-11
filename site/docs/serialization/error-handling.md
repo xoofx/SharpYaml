@@ -66,6 +66,11 @@ A skipped member keeps the value its initializer gave it, or its existing instan
 parameter keeps its default value. The key still counts as present, so a required member whose value was skipped does not cause a
 missing-member error, and a second occurrence of the key is still a duplicate.
 
+A skipped collection element is dropped, so the collection holds the valid elements in document order. A skipped
+dictionary value drops the whole entry. Its key still counts as seen, so a second occurrence of the key is still a
+duplicate, and a merge key (`<<`) does not fill it in. Dictionary keys are not recovered: a key that fails to convert
+ends the call in every mode.
+
 ```csharp
 var options = new YamlSerializerOptions
 {
@@ -106,10 +111,10 @@ Neither runs under `FailFast`. Both receive [`YamlInvalidValue`](xref:SharpYaml.
 | Property | Description |
 | --- | --- |
 | `SourceName` | `YamlSerializerOptions.SourceName` (for example the file path) |
-| `Path` | Document path, for example `$.servers[2].port` (`$['a.b']` for keys that are not simple identifiers) |
-| `KeyStart`, `ValueStart` | Line, column and index of the key and of its value |
-| `Name`, `TargetType` | The key and the CLR type of the member or constructor parameter the value was meant for |
-| `DeclaringType`, `Instance` | The CLR type and the object being populated (`null` for constructor-bound types) |
+| `Path` | Document path, for example `$.servers[2].port` (`$['a.b']` for keys that are not simple identifiers, `$[1]` for an element of a root sequence). An index is the position in the document, so once an element is dropped it no longer matches the deserialized collection |
+| `KeyStart`, `ValueStart` | Line, column and index of the key and of its value. A sequence element has no key, so its `KeyStart` is the start of the element |
+| `Name`, `TargetType` | The key and the CLR type of the member or constructor parameter the value was meant for. For a collection item, the zero-based document index (`"1"`) or the entry key, and the element or value type |
+| `DeclaringType`, `Instance` | The CLR type and the object being populated (`null` for constructor-bound types). For a collection item, the collection type and the collection the item would have been added to (`null` for arrays and immutable collections, which are built afterwards) |
 | `Value` | The rejected value as a `YamlElement`; `null` unless a callback or finalizer is set |
 | `Message`, `Exception` | Why the value was rejected, without a location, and the `YamlException` the converter threw, whose `Start` and `End` locate the value |
 
@@ -135,8 +140,8 @@ before reading, see [Converters](converters.md#rejecting-a-value). Everything el
   converter bug is never reported as invalid content.
 - An exception thrown after part of the value was consumed, for example by a nested object whose own member was fine.
 - Parser errors (`SyntaxErrorException`, `SemanticErrorException`).
-- Values that are not member values or constructor arguments: collection elements, dictionary values, the root value and
-  extension data.
+- The root value itself, dictionary keys and extension data. Collection elements and dictionary values are recovered
+  like member values, inside a root collection too.
 - Errors that no value read throws: `UnmappedMemberHandling = Disallow`, `DuplicateKeyHandling = Error`, a missing required
   member and polymorphic discriminator errors.
 
@@ -150,7 +155,10 @@ either case, because the read did not complete.
 - Under `FailFast` there is no extra work. The other modes track the document path only when a report is consumed.
 - Source-generated contexts are supported through the same options (`context.CreateOptions(o => o with { ... })`).
 - Inside polymorphic nodes the `Path` is complete, but `KeyStart`, `ValueStart` and the exception marks are relative to the buffered node.
-- Member values and constructor arguments reached through a merge key (`<<`) are recovered like any other.
+- Member values, constructor arguments, collection elements and dictionary values reached through a merge key (`<<`) are
+  recovered like any other.
+- A dropped element shifts the elements after it in the deserialized collection; `Path` and `Name` keep the positions in
+  the document.
 - Recovery applies to deserialization only. A converter that cannot write a value has a bug, not bad input.
 
 ## Required members

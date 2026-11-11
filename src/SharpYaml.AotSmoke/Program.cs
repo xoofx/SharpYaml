@@ -46,6 +46,17 @@ if (nullableValues is not [42, null, 42] || !nullableYaml.Contains("custom"))
     return 3;
 }
 
+var skipOptions = new YamlSerializerOptions
+{
+    TypeInfoResolver = context,
+    InvalidValueHandling = YamlInvalidValueHandling.Skip,
+};
+var skippedValues = YamlSerializer.Deserialize<int?[]>("[1, abc, null]", skipOptions);
+if (skippedValues is not [1, null])
+{
+    return 4;
+}
+
 return 0;
 
 internal sealed class SmokeIntConverter : YamlConverter

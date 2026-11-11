@@ -110,8 +110,9 @@ An exception thrown from `Read`, such as the `FormatException` of `double.Parse`
 A converter that finds a value invalid should throw [`reader.CreateException(message)`](xref:SharpYaml.Serialization.YamlReader.CreateException(System.String))
 before it consumes any of the value. The exception carries the source name and the location of the current token, and
 because nothing was consumed the serializer can skip the value and report it when
-[`InvalidValueHandling`](error-handling.md#invalid-values) is `FailAtEnd` or `Skip`. An exception thrown after `reader.Read()`,
-or an exception of another type, always ends the call.
+[`InvalidValueHandling`](error-handling.md#invalid-values) is `FailAtEnd` or `Skip`, wherever the value sits: a member,
+a constructor argument, a collection element or a dictionary value. An exception thrown after `reader.Read()`, or an
+exception of another type, always ends the call.
 
 ```csharp
 public override Temperature Read(YamlReader reader)
