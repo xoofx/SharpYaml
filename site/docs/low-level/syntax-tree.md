@@ -98,9 +98,12 @@ below them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`
 each entry on its own line, so removing an entry removes its comments and nothing else.
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. The scope is bounded:
-block-style mappings and sequences, plain and quoted scalars, and `#` comments.
-`YamlEditableTree.Parse` throws `NotSupportedException` for flow style, anchors, aliases, tags,
-and directives, so a document that uses them is never edited partially.
+block-style mappings and sequences (also a sequence at the column of its key, `key:\n- a`),
+plain and quoted scalars, and `#` comments. A key or a list item without a value (`key:`, `-`)
+is a scalar with empty text. An empty mapping or sequence has no block form: it is read from and
+written as `{}` or `[]`.
+`YamlEditableTree.Parse` throws `NotSupportedException` for flow style with content, anchors,
+aliases, tags, and directives, so a document that uses them is never edited partially.
 
 ## Which API should I use?
 

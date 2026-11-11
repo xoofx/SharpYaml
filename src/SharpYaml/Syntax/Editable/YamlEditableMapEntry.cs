@@ -72,9 +72,12 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
         {
             WriteTrivia(writer, TrailingTrivia);
         }
-        else if (Value.Kind == YamlEditableKind.Scalar)
+        else if (!YamlEditableLayout.IsBlock(Value))
         {
-            writer.Write(' ');
+            if (!YamlEditableLayout.IsMissingValue(Value))
+            {
+                writer.Write(' ');
+            }
         }
         else
         {

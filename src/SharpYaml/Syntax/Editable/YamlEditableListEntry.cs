@@ -59,7 +59,7 @@ public sealed class YamlEditableListEntry : YamlEditableNode
         {
             WriteTrivia(writer, TrailingTrivia);
         }
-        else
+        else if (!YamlEditableLayout.IsMissingValue(Value))
         {
             // "- value" and "- key: value": the first line of the item follows the "-".
             writer.Write(' ');

@@ -19,8 +19,19 @@ internal static class YamlEditableLayout
 {
     private const string DefaultNewLine = "\n";
 
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="node"/> is written as a block on the lines after
+    /// "key:" or "-". An empty map or list is written on the same line, as "{}" or "[]".
+    /// </summary>
     public static bool IsBlock(YamlEditableNode? node) =>
-        node is YamlEditableMap or YamlEditableList;
+        node is YamlEditableMap { Entries.Count: > 0 } or YamlEditableList { Items.Count: > 0 };
+
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="node"/> is a missing value ("key:" or "-" with
+    /// nothing after it), which is written without the space after the ":" or the "-".
+    /// </summary>
+    public static bool IsMissingValue(YamlEditableNode? node) =>
+        node is YamlEditableScalar { Text.Length: 0 };
 
     /// <summary>
     /// Prepares <paramref name="entry"/> to be appended after <paramref name="previous"/>.

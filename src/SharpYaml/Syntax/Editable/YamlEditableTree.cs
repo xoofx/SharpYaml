@@ -13,9 +13,10 @@ namespace SharpYaml.Syntax.Editable;
 /// An editable YAML document: a <see cref="YamlSyntaxTree"/> grouped into a mutable tree of
 /// maps, lists and scalars with attached comments, in the spirit of Tomlyn.Syntax.DocumentSyntax.
 /// Scope is intentionally bounded to editing hand-written configuration files: block-style maps
-/// and sequences, plain/quoted scalars, and "#" comments. Flow style ("{ }" / "[ ]"), anchors,
-/// aliases and tags are not supported and cause <see cref="Parse"/> to throw
-/// <see cref="NotSupportedException"/>.
+/// and sequences, plain/quoted scalars, "#" comments, keys and list items without a value
+/// ("key:", "-"), and empty flow collections ("[]", "{}"), the only form of an empty map or list.
+/// Flow style with content, anchors, aliases and tags are not supported and cause
+/// <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
 /// </summary>
 /// <remarks>
 /// Edits are applied to the source snapshot through <see cref="YamlSyntaxTree.WithTextChange"/>
@@ -53,7 +54,7 @@ public sealed class YamlEditableTree
     /// </summary>
     /// <exception cref="NotSupportedException">
     /// The document uses a construct outside the bounded scope of this editable tree (flow
-    /// style, anchors, aliases, tags, or multiple documents).
+    /// style with content, anchors, aliases, tags, or multiple documents).
     /// </exception>
     public static YamlEditableTree Parse(string yaml)
     {
@@ -175,6 +176,7 @@ public sealed class YamlEditableTree
 
             var pendingTrivia = new List<YamlEditableTrivia>();
             var containingScalarEnd = -1;
+            var openFlowCollection = false;
             foreach (var token in tokens)
             {
                 if (IsTrivia(token.Kind))
@@ -204,11 +206,32 @@ public sealed class YamlEditableTree
                     continue;
                 }
 
-                if (IsUnsupported(token.Kind))
+                if (openFlowCollection)
+                {
+                    // Only an empty flow collection is supported: its end must follow its start at once.
+                    var start = _significant[_significant.Count - 1];
+                    var closes = pendingTrivia.Count == 0
+                        && (token.Kind, start.Kind) is (YamlSyntaxKind.FlowSequenceEnd, YamlSyntaxKind.FlowSequenceStart)
+                            or (YamlSyntaxKind.FlowMappingEnd, YamlSyntaxKind.FlowMappingStart);
+                    if (!closes)
+                    {
+                        throw UnsupportedFlowCollection(start.Kind);
+                    }
+
+                    // The start token stands for the whole "[]" or "{}".
+                    openFlowCollection = false;
+                    continue;
+                }
+
+                if (token.Kind is YamlSyntaxKind.FlowSequenceStart or YamlSyntaxKind.FlowMappingStart)
+                {
+                    openFlowCollection = true;
+                }
+                else if (IsUnsupported(token.Kind))
                 {
                     throw new NotSupportedException(
                         $"YamlEditableTree does not support '{token.Kind}'. Only block maps, block " +
-                        "sequences, scalars and comments are supported.");
+                        "sequences, empty flow collections (\"[]\", \"{}\"), scalars and comments are supported.");
                 }
 
                 AttachTrivia(pendingTrivia, _significant.Count);
@@ -221,12 +244,21 @@ public sealed class YamlEditableTree
                 }
             }
 
+            if (openFlowCollection)
+            {
+                throw UnsupportedFlowCollection(_significant[_significant.Count - 1].Kind);
+            }
+
             if (pendingTrivia.Count > 0)
             {
                 var rest = SplitEndOfLine(pendingTrivia, _significant.Count);
                 TrailingTrivia = rest.Count > 0 ? rest : null;
             }
         }
+
+        private static NotSupportedException UnsupportedFlowCollection(YamlSyntaxKind start) => new(
+            $"YamlEditableTree does not support '{start}' with content. Only empty flow collections " +
+            "(\"[]\", \"{}\") are supported.");
 
         /// <summary>
         /// Attaches the trivia found before the significant token at <paramref name="nextIndex"/>:
@@ -310,9 +342,23 @@ public sealed class YamlEditableTree
         /// </summary>
         private YamlEditableNode ParseValue(string parentIndent)
         {
-            if (Current.Kind == YamlSyntaxKind.BlockSequenceStart)
+            // A sequence at the column of its key ("key:\n- a") has no BlockSequenceStart: it starts
+            // directly with its first BlockEntry.
+            if (Current.Kind is YamlSyntaxKind.BlockSequenceStart or YamlSyntaxKind.BlockEntry)
             {
                 return ParseList(parentIndent);
+            }
+
+            if (Current.Kind == YamlSyntaxKind.FlowSequenceStart)
+            {
+                Take();
+                return new YamlEditableList();
+            }
+
+            if (Current.Kind == YamlSyntaxKind.FlowMappingStart)
+            {
+                Take();
+                return new YamlEditableMap();
             }
 
             if (Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead())
@@ -352,8 +398,22 @@ public sealed class YamlEditableTree
             string? mapIndent = null;
             var mapIndentCommitted = false;
 
+            // Every key of a mapping is at the column of its first key. The indentation text alone
+            // does not tell it for the first key of a list item, which shares its line with "-": a
+            // key at another column (e.g. "B" in "S:\n  - x: 1\nB: 3") belongs to an outer mapping.
+            var firstKeyColumn = -1;
+
             while (_position < _significant.Count && Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead())
             {
+                if (firstKeyColumn < 0)
+                {
+                    firstKeyColumn = Current.Span.Start.Column;
+                }
+                else if (Current.Span.Start.Column != firstKeyColumn)
+                {
+                    break;
+                }
+
                 var rawLeading = TakeLeadingTrivia();
                 var (indentOrNull, keyLeading) = SplitIndent(rawLeading);
                 var indent = indentOrNull ?? parentIndent;
@@ -374,19 +434,32 @@ public sealed class YamlEditableTree
                 }
 
                 var keyScalarToken = Take();
-                Expect(YamlSyntaxKind.Value);
+                var valueToken = Expect(YamlSyntaxKind.Value);
 
-                // When the value is a nested list or map on its own line, the trivia right after
-                // "Value" (a newline plus the nested block's own indentation) is what the nested
-                // ParseList/ParseMap needs as the leading trivia of its own first entry, not a
-                // separator owned by this MapEntry — leave it in place instead of taking it here.
-                var nestedBlockAhead = Current.Kind == YamlSyntaxKind.BlockSequenceStart
-                    || (Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead());
-                // For a nested block, the separator is only the end of the "key:" line: the
-                // nested entries keep their own indentation.
-                var separatorTrivia = nestedBlockAhead ? TakeEndOfLine(_position - 1) : TakeSeparator();
-                var valueNode = ParseValue(indent);
-                var endOfLine = valueNode is YamlEditableScalar ? TakeEndOfLine(_position - 1) : null;
+                YamlEditableNode valueNode;
+                List<YamlEditableTrivia>? separatorTrivia;
+                List<YamlEditableTrivia>? endOfLine;
+                if (IsValueMissing(valueToken, keyScalarToken.Span.Start.Column, sequenceAtOwnerColumnIsValue: true))
+                {
+                    // "key:" with nothing after it: the line ends after the ":".
+                    valueNode = new YamlEditableScalar(string.Empty);
+                    separatorTrivia = null;
+                    endOfLine = TakeEndOfLine(_position - 1);
+                }
+                else
+                {
+                    // When the value is a nested list or map on its own line, the trivia right after
+                    // "Value" (a newline plus the nested block's own indentation) is what the nested
+                    // ParseList/ParseMap needs as the leading trivia of its own first entry, not a
+                    // separator owned by this MapEntry — leave it in place instead of taking it here.
+                    var nestedBlockAhead = Current.Kind is YamlSyntaxKind.BlockSequenceStart or YamlSyntaxKind.BlockEntry
+                        || (Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead());
+                    // For a nested block, the separator is only the end of the "key:" line: the
+                    // nested entries keep their own indentation.
+                    separatorTrivia = nestedBlockAhead ? TakeEndOfLine(_position - 1) : TakeSeparator();
+                    valueNode = ParseValue(indent);
+                    endOfLine = YamlEditableLayout.IsBlock(valueNode) ? null : TakeEndOfLine(_position - 1);
+                }
 
                 // A key with no explicit indent (indentOrNull is null) shares its line with the
                 // construct that introduces this map (e.g. the "-" of a YamlEditableListEntry,
@@ -416,7 +489,10 @@ public sealed class YamlEditableTree
             // consumes the marker, since no trivia is separately attached to the first
             // BlockEntry itself.
             var firstEntryLeadingRaw = TakeLeadingTrivia();
-            Expect(YamlSyntaxKind.BlockSequenceStart);
+            if (Current.Kind == YamlSyntaxKind.BlockSequenceStart)
+            {
+                Take();
+            }
             var list = new YamlEditableList();
             var isFirstEntry = true;
 
@@ -426,11 +502,24 @@ public sealed class YamlEditableTree
                 isFirstEntry = false;
                 var (indentOrNull, entryLeading) = SplitIndent(rawLeading);
                 var indent = indentOrNull ?? parentIndent;
-                Take();
+                var dashToken = Take();
 
-                var itemLeading = TakeSeparator();
-                var itemNode = ParseValue(indent);
-                var endOfLine = itemNode is YamlEditableScalar ? TakeEndOfLine(_position - 1) : null;
+                YamlEditableNode itemNode;
+                List<YamlEditableTrivia>? itemLeading;
+                List<YamlEditableTrivia>? endOfLine;
+                if (IsValueMissing(dashToken, dashToken.Span.Start.Column, sequenceAtOwnerColumnIsValue: false))
+                {
+                    // "-" with nothing after it: the line ends after the "-".
+                    itemNode = new YamlEditableScalar(string.Empty);
+                    itemLeading = null;
+                    endOfLine = TakeEndOfLine(_position - 1);
+                }
+                else
+                {
+                    itemLeading = TakeSeparator();
+                    itemNode = ParseValue(indent);
+                    endOfLine = YamlEditableLayout.IsBlock(itemNode) ? null : TakeEndOfLine(_position - 1);
+                }
 
                 var entry = new YamlEditableListEntry(itemNode, indent)
                 {
@@ -442,6 +531,31 @@ public sealed class YamlEditableTree
             }
 
             return list;
+        }
+
+        /// <summary>
+        /// Returns <see langword="true"/> if the "key:" or "-" <paramref name="marker"/> just taken has no
+        /// value: the document ends, or the next token starts a later line at a column that cannot belong
+        /// to the value. The scanner emits no token for an empty value, so without this check the next
+        /// key would be read as a nested map. A nested block is indented past <paramref name="ownerColumn"/>
+        /// (the column of the key or the "-"); a sequence may also start at the key's own column
+        /// ("key:\n- a"), as YAML allows.
+        /// </summary>
+        private bool IsValueMissing(YamlSyntaxToken marker, int ownerColumn, bool sequenceAtOwnerColumnIsValue)
+        {
+            if (_position >= _significant.Count)
+            {
+                return true;
+            }
+
+            var next = Current.Span.Start;
+            if (next.Line == marker.Span.Start.Line)
+            {
+                return false;
+            }
+
+            var isSequence = Current.Kind is YamlSyntaxKind.BlockSequenceStart or YamlSyntaxKind.BlockEntry;
+            return sequenceAtOwnerColumnIsValue && isSequence ? next.Column < ownerColumn : next.Column <= ownerColumn;
         }
 
         private static bool IsTrivia(YamlSyntaxKind kind) =>

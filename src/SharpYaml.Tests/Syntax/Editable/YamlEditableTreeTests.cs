@@ -346,6 +346,133 @@ public class YamlEditableTreeTests
         Assert.AreEqual("30", ((YamlEditableScalar)client.GetValue("timeout")!).Text);
     }
 
+    private static string TextOf(YamlEditableNode? node) => ((YamlEditableScalar)node!).Text;
+
+    [TestMethod]
+    [DataRow("A:\nB: 1\n")]
+    [DataRow("A:\n")]
+    [DataRow("A:")]
+    [DataRow("A: 1\nB:\n")]
+    [DataRow("A: # no value\nB: 1\n")]
+    public void Parse_KeyWithoutValue_IsAnEmptyScalarAndRoundTrips(string yaml)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        var root = RootOf(tree);
+
+        var key = yaml.StartsWith("A: 1", StringComparison.Ordinal) ? "B" : "A";
+        Assert.AreEqual(string.Empty, TextOf(root.GetValue(key)));
+        Assert.AreEqual(yaml, tree.Serialize());
+    }
+
+    [TestMethod]
+    public void Parse_KeyWithoutValueBeforeSiblingKey_DoesNotNestTheSibling()
+    {
+        var root = RootOf(YamlEditableTree.Parse("L:\n  - 1\nA:\nB: 2\n"));
+
+        Assert.AreEqual(string.Empty, TextOf(root.GetValue("A")));
+        Assert.AreEqual("2", TextOf(root.GetValue("B")));
+    }
+
+    [TestMethod]
+    public void Parse_NestedKeyWithoutValue_DoesNotNestTheNextKey()
+    {
+        var root = RootOf(YamlEditableTree.Parse("M:\n  X:\n  Y: 1\nB: 2\n"));
+        var m = (YamlEditableMap)root.GetValue("M")!;
+
+        Assert.AreEqual(string.Empty, TextOf(m.GetValue("X")));
+        Assert.AreEqual("1", TextOf(m.GetValue("Y")));
+        Assert.AreEqual("2", TextOf(root.GetValue("B")));
+    }
+
+    [TestMethod]
+    public void Parse_FirstKeyOfListItemWithoutValue_KeepsTheNextKeyInTheSameItem()
+    {
+        const string yaml = "S:\n  - Name:\n    Port: 1\n";
+        var tree = YamlEditableTree.Parse(yaml);
+        var item = (YamlEditableMap)((YamlEditableList)RootOf(tree).GetValue("S")!).Items[0].Value;
+
+        Assert.AreEqual(string.Empty, TextOf(item.GetValue("Name")));
+        Assert.AreEqual("1", TextOf(item.GetValue("Port")));
+        Assert.AreEqual(yaml, tree.Serialize());
+    }
+
+    [TestMethod]
+    public void Parse_ListItemWithoutValue_IsAnEmptyScalarAndRoundTrips()
+    {
+        const string yaml = "L:\n  -\n  - 1\n";
+        var tree = YamlEditableTree.Parse(yaml);
+        var list = (YamlEditableList)RootOf(tree).GetValue("L")!;
+
+        Assert.HasCount(2, list.Items);
+        Assert.AreEqual(string.Empty, TextOf(list.Items[0].Value));
+        Assert.AreEqual(yaml, tree.Serialize());
+    }
+
+    [TestMethod]
+    [DataRow("A:\n- 1\n- 2\nB: 3\n")]
+    [DataRow("A:\n- x: 1\n  y: 2\n- x: 3\nB: 3\n")]
+    [DataRow("M:\n  A:\n  - 1\n  C: 2\nB: 3\n")]
+    [DataRow("S:\n  - x: 1\nB: 3\n")]
+    [DataRow("S:\n  - x: 1\n    y: 2\n  - x: 3\nB: 3\n")]
+    public void Parse_SequenceAtTheKeyColumn_IsTheValueOfTheKeyAndRoundTrips(string yaml)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        var root = RootOf(tree);
+
+        Assert.AreEqual("3", TextOf(root.GetValue("B")));
+        Assert.AreEqual(yaml, tree.Serialize());
+    }
+
+    [TestMethod]
+    public void SetValue_OnKeyWithoutValue_WritesASpaceAfterTheColon()
+    {
+        var tree = YamlEditableTree.Parse("A:\nB: 1\n");
+
+        RootOf(tree).SetValue("A", new YamlEditableScalar("x"));
+
+        AssertEdited("A: x\nB: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void Parse_EmptyFlowCollections_AreEmptyNodesAndRoundTrip()
+    {
+        const string yaml = "A: []\nB: {} # none\nL:\n  - []\n";
+        var tree = YamlEditableTree.Parse(yaml);
+        var root = RootOf(tree);
+
+        Assert.IsEmpty(((YamlEditableList)root.GetValue("A")!).Items);
+        Assert.IsEmpty(((YamlEditableMap)root.GetValue("B")!).Entries);
+        Assert.IsEmpty(((YamlEditableList)((YamlEditableList)root.GetValue("L")!).Items[0].Value).Items);
+        Assert.AreEqual(yaml, tree.Serialize());
+    }
+
+    [TestMethod]
+    [DataRow("A: [1]\n")]
+    [DataRow("A: {x: 1}\n")]
+    [DataRow("A: [ ]\n")]
+    public void Parse_NonEmptyFlowCollection_ThrowsNotSupportedException(string yaml)
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
+    }
+
+    [TestMethod]
+    public void SetValue_NewEmptyCollections_AreWrittenInFlowStyle()
+    {
+        var tree = YamlEditableTree.Parse("x: 1\n");
+        var root = RootOf(tree);
+
+        root.SetValue("A", new YamlEditableList());
+        root.SetValue("B", new YamlEditableMap());
+
+        AssertEdited("x: 1\nA: []\nB: {}\n", tree);
+    }
+
+    [TestMethod]
+    public void Parse_EmptyDocument_StillSerializesToNothing()
+    {
+        Assert.AreEqual(string.Empty, YamlEditableTree.Parse(string.Empty).Serialize());
+    }
+
     [TestMethod]
     public void ToSyntaxTree_WithoutEdits_ReturnsSourceSnapshot()
     {

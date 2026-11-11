@@ -95,6 +95,17 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <inheritdoc />
     protected override void WriteCore(TextWriter writer)
     {
+        if (_items.Count == 0)
+        {
+            // An empty list that is the value of an entry has no block form: it is written in flow style.
+            if (Parent is not null)
+            {
+                writer.Write("[]");
+            }
+
+            return;
+        }
+
         foreach (var item in _items)
         {
             item.WriteTo(writer);

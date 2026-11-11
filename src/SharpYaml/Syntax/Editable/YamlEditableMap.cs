@@ -158,6 +158,18 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// <inheritdoc />
     protected override void WriteCore(TextWriter writer)
     {
+        if (_entries.Count == 0)
+        {
+            // An empty map that is the value of an entry has no block form: it is written in flow
+            // style. An empty document (the root map) is written as nothing.
+            if (Parent is not null)
+            {
+                writer.Write("{}");
+            }
+
+            return;
+        }
+
         foreach (var entry in _entries)
         {
             entry.WriteTo(writer);
