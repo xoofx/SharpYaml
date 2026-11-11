@@ -346,6 +346,24 @@ public class YamlEditableTreeTests
         Assert.AreEqual("30", ((YamlEditableScalar)client.GetValue("timeout")!).Text);
     }
 
+    [TestMethod]
+    [DataRow("Items:\n  - Id: b\n    Tags:\n      - x\n  - Id: c\n")]
+    [DataRow("Items:\n  - Id: b\n    Tags:\n    - x\n  - Id: c\n")]
+    [DataRow("- Tags:\n    - x\n- c\n")]
+    public void Parse_NestedSequenceInListItem_EndsBeforeTheNextOuterItem(string yaml)
+    {
+        // The "-" of the next outer item is at another column than the "-" of the nested sequence:
+        // it belongs to the outer sequence.
+        var tree = YamlEditableTree.Parse(yaml);
+        var outer = tree.Root is YamlEditableMap map ? (YamlEditableList)map.GetValue("Items")! : (YamlEditableList)tree.Root;
+
+        Assert.HasCount(2, outer.Items);
+        var tags = (YamlEditableList)((YamlEditableMap)outer.Items[0].Value).GetValue("Tags")!;
+        Assert.HasCount(1, tags.Items);
+        Assert.AreEqual("x", TextOf(tags.Items[0].Value));
+        Assert.AreEqual(yaml, tree.Serialize());
+    }
+
     private static string TextOf(YamlEditableNode? node) => ((YamlEditableScalar)node!).Text;
 
     [TestMethod]

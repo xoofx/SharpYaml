@@ -496,8 +496,21 @@ public sealed class YamlEditableTree
             var list = new YamlEditableList();
             var isFirstEntry = true;
 
+            // Every "-" of a sequence is at the column of its first "-". A "-" at another column (the
+            // next item of an outer sequence, after a sequence nested in an item) ends this sequence.
+            var firstEntryColumn = -1;
+
             while (_position < _significant.Count && Current.Kind == YamlSyntaxKind.BlockEntry)
             {
+                if (firstEntryColumn < 0)
+                {
+                    firstEntryColumn = Current.Span.Start.Column;
+                }
+                else if (Current.Span.Start.Column != firstEntryColumn)
+                {
+                    break;
+                }
+
                 var rawLeading = isFirstEntry ? firstEntryLeadingRaw : TakeLeadingTrivia();
                 isFirstEntry = false;
                 var (indentOrNull, entryLeading) = SplitIndent(rawLeading);
