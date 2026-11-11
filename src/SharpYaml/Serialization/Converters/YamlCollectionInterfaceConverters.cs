@@ -14,7 +14,7 @@ internal sealed class YamlIReadOnlyListConverter<TElement> : YamlConverter<IRead
 
     public override IReadOnlyList<TElement>? Read(YamlReader reader)
     {
-        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "IReadOnlyList");
+        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "IReadOnlyList", typeof(IReadOnlyList<TElement>));
         return list;
     }
 
@@ -30,7 +30,7 @@ internal sealed class YamlIReadOnlyCollectionConverter<TElement> : YamlConverter
 
     public override IReadOnlyCollection<TElement>? Read(YamlReader reader)
     {
-        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "IReadOnlyCollection");
+        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "IReadOnlyCollection", typeof(IReadOnlyCollection<TElement>));
         return list;
     }
 
@@ -54,12 +54,12 @@ internal sealed class YamlIListConverter<TElement> : YamlConverter<IList<TElemen
             throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(IList<TElement>)}'.");
         }
 
-        return SequenceReadHelpers.PopulateCollection(reader, list, ref _elementConverter, "IList");
+        return SequenceReadHelpers.PopulateCollection(reader, list, ref _elementConverter, "IList", typeToConvert);
     }
 
     public override IList<TElement>? Read(YamlReader reader)
     {
-        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "IList");
+        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "IList", typeof(IList<TElement>));
         return list;
     }
 
@@ -83,12 +83,12 @@ internal sealed class YamlICollectionConverter<TElement> : YamlConverter<ICollec
             throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(ICollection<TElement>)}'.");
         }
 
-        return SequenceReadHelpers.PopulateCollection(reader, collection, ref _elementConverter, "ICollection");
+        return SequenceReadHelpers.PopulateCollection(reader, collection, ref _elementConverter, "ICollection", typeToConvert);
     }
 
     public override ICollection<TElement>? Read(YamlReader reader)
     {
-        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "ICollection");
+        var list = SequenceReadHelpers.ReadList<TElement>(reader, ref _elementConverter, "ICollection", typeof(ICollection<TElement>));
         return list;
     }
 
@@ -113,7 +113,7 @@ internal sealed class YamlMutableCollectionConverter<TCollection, TElement> : Ya
             throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(ICollection<TElement>)}'.");
         }
 
-        return SequenceReadHelpers.PopulateCollection(reader, collection, ref _elementConverter, typeof(TCollection).Name);
+        return SequenceReadHelpers.PopulateCollection(reader, collection, ref _elementConverter, typeof(TCollection).Name, typeToConvert);
     }
 
     public override TCollection? Read(YamlReader reader)
@@ -151,8 +151,10 @@ internal sealed class YamlMutableCollectionConverter<TCollection, TElement> : Ya
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(reader, typeof(TElement));
-            collection.Add((TElement)value!);
+            if (reader.TryReadItem(_elementConverter, typeof(TElement), typeof(TCollection), collection, out var value))
+            {
+                collection.Add((TElement)value!);
+            }
         }
 
         reader.Read();
@@ -179,7 +181,7 @@ internal sealed class YamlHashSetConverter<TElement> : YamlConverter<HashSet<TEl
             throw new InvalidOperationException($"Existing value for '{typeToConvert}' must be a '{typeof(HashSet<TElement>)}'.");
         }
 
-        return SequenceReadHelpers.PopulateCollection(reader, set, ref _elementConverter, "HashSet");
+        return SequenceReadHelpers.PopulateCollection(reader, set, ref _elementConverter, "HashSet", typeToConvert);
     }
 
     public override HashSet<TElement>? Read(YamlReader reader)
@@ -217,8 +219,10 @@ internal sealed class YamlHashSetConverter<TElement> : YamlConverter<HashSet<TEl
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(reader, typeof(TElement));
-            set.Add((TElement)value!);
+            if (reader.TryReadItem(_elementConverter, typeof(TElement), typeof(HashSet<TElement>), set, out var value))
+            {
+                set.Add((TElement)value!);
+            }
         }
 
         reader.Read();
@@ -273,7 +277,7 @@ internal sealed class YamlISetConverter<TElement> : YamlConverter<ISet<TElement>
             throw new InvalidOperationException($"Existing value for '{typeToConvert}' must implement '{typeof(ISet<TElement>)}'.");
         }
 
-        return SequenceReadHelpers.PopulateCollection(reader, set, ref _elementConverter, "ISet");
+        return SequenceReadHelpers.PopulateCollection(reader, set, ref _elementConverter, "ISet", typeToConvert);
     }
 
     public override ISet<TElement>? Read(YamlReader reader)
@@ -311,8 +315,10 @@ internal sealed class YamlISetConverter<TElement> : YamlConverter<ISet<TElement>
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(reader, typeof(TElement));
-            set.Add((TElement)value!);
+            if (reader.TryReadItem(_elementConverter, typeof(TElement), typeof(ISet<TElement>), set, out var value))
+            {
+                set.Add((TElement)value!);
+            }
         }
 
         reader.Read();
@@ -387,8 +393,10 @@ internal sealed class YamlImmutableArrayConverter<TElement> : YamlConverter<Immu
         var builder = ImmutableArray.CreateBuilder<TElement>();
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(reader, typeof(TElement));
-            builder.Add((TElement)value!);
+            if (reader.TryReadItem(_elementConverter, typeof(TElement), typeof(ImmutableArray<TElement>), null, out var value))
+            {
+                builder.Add((TElement)value!);
+            }
         }
 
         reader.Read();
@@ -454,8 +462,10 @@ internal sealed class YamlImmutableListConverter<TElement> : YamlConverter<Immut
         var builder = ImmutableList.CreateBuilder<TElement>();
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(reader, typeof(TElement));
-            builder.Add((TElement)value!);
+            if (reader.TryReadItem(_elementConverter, typeof(TElement), typeof(ImmutableList<TElement>), null, out var value))
+            {
+                builder.Add((TElement)value!);
+            }
         }
 
         reader.Read();
@@ -508,8 +518,10 @@ internal sealed class YamlImmutableHashSetConverter<TElement> : YamlConverter<Im
         var builder = ImmutableHashSet.CreateBuilder<TElement>();
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = _elementConverter.Read(reader, typeof(TElement));
-            builder.Add((TElement)value!);
+            if (reader.TryReadItem(_elementConverter, typeof(TElement), typeof(ImmutableHashSet<TElement>), null, out var value))
+            {
+                builder.Add((TElement)value!);
+            }
         }
 
         reader.Read();
@@ -543,7 +555,7 @@ internal sealed class YamlImmutableHashSetConverter<TElement> : YamlConverter<Im
 
 internal static class SequenceReadHelpers
 {
-    public static List<TElement>? ReadList<TElement>(YamlReader reader, ref YamlConverter? elementConverter, string typeDisplayName)
+    public static List<TElement>? ReadList<TElement>(YamlReader reader, ref YamlConverter? elementConverter, string typeDisplayName, Type declaringType)
     {
         if (reader.TryReadAlias(out var rootAliasValue))
         {
@@ -578,8 +590,10 @@ internal static class SequenceReadHelpers
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = elementConverter.Read(reader, typeof(TElement));
-            list.Add((TElement)value!);
+            if (reader.TryReadItem(elementConverter, typeof(TElement), declaringType, list, out var value))
+            {
+                list.Add((TElement)value!);
+            }
         }
 
         reader.Read();
@@ -619,7 +633,7 @@ internal static class SequenceReadHelpers
         writer.WriteEndSequence();
     }
 
-    public static ICollection<TElement>? PopulateCollection<TElement>(YamlReader reader, ICollection<TElement> collection, ref YamlConverter? elementConverter, string typeDisplayName)
+    public static ICollection<TElement>? PopulateCollection<TElement>(YamlReader reader, ICollection<TElement> collection, ref YamlConverter? elementConverter, string typeDisplayName, Type declaringType)
     {
         ArgumentGuard.ThrowIfNull(reader);
         ArgumentGuard.ThrowIfNull(collection);
@@ -655,8 +669,10 @@ internal static class SequenceReadHelpers
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = elementConverter.Read(reader, typeof(TElement));
-            collection.Add((TElement)value!);
+            if (reader.TryReadItem(elementConverter, typeof(TElement), declaringType, collection, out var value))
+            {
+                collection.Add((TElement)value!);
+            }
         }
 
         reader.Read();

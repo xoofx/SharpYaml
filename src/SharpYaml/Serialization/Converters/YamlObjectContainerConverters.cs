@@ -91,8 +91,10 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
                 continue;
             }
 
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            dict[key] = value;
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(Dictionary<string, object?>), dict, out var value))
+            {
+                dict[key] = value;
+            }
         }
 
         reader.Read();
@@ -253,8 +255,10 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
                 continue;
             }
 
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            dictionary[key] = value;
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(Dictionary<string, object?>), dictionary, out var value))
+            {
+                dictionary[key] = value;
+            }
         }
 
         reader.Read();
@@ -313,8 +317,10 @@ internal sealed class YamlListObjectConverter : YamlConverter<List<object?>?>
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            list.Add(value);
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(List<object?>), list, out var value))
+            {
+                list.Add(value);
+            }
         }
 
         reader.Read();
@@ -383,8 +389,10 @@ internal sealed class YamlListObjectConverter : YamlConverter<List<object?>?>
         reader.Read();
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            list.Add(value);
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(List<object?>), list, out var value))
+            {
+                list.Add(value);
+            }
         }
 
         reader.Read();
@@ -425,8 +433,10 @@ internal sealed class YamlObjectArrayConverter : YamlConverter<object[]?>
         var list = new List<object?>();
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            list.Add(value);
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(object[]), null, out var value))
+            {
+                list.Add(value);
+            }
         }
 
         reader.Read();

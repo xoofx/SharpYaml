@@ -5,13 +5,14 @@
 namespace SharpYaml;
 
 /// <summary>
-/// Defines what happens when a converter rejects the value of a member or constructor argument during deserialization.
+/// Defines what happens when a converter rejects a value during deserialization: the value of a member or constructor
+/// argument, a collection element or the value of a dictionary entry.
 /// </summary>
 /// <remarks>
 /// A value is recoverable when the converter throws a <see cref="YamlException"/> before consuming any of it, for example
-/// through <see cref="Serialization.YamlReader.CreateException"/>. The member or argument then keeps its default and the value is
-/// skipped. Any other exception, and any exception thrown after part of the value was read, fails the deserialization
-/// whatever the handling.
+/// through <see cref="Serialization.YamlReader.CreateException"/>. The value is then skipped: the member or argument
+/// keeps its default, and the collection element or dictionary entry is dropped. Any other exception, and any exception
+/// thrown after part of the value was read, fails the deserialization whatever the handling.
 /// </remarks>
 public enum YamlInvalidValueHandling
 {

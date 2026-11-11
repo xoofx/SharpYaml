@@ -175,6 +175,7 @@ internal static class YamlDictionaryConverterHelper
         ref YamlConverter? valueConverter,
         Func<YamlSerializerOptions, TDictionary> createDictionary,
         string containerKind,
+        Type declaringType,
         TDictionary? dictionary = null)
         where TDictionary : class, IDictionary<string, TValue>
     {
@@ -225,7 +226,7 @@ internal static class YamlDictionaryConverterHelper
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                ReadAndApplyMerge<TDictionary, TValue>(reader, ref valueConverter, dictionary, explicitKeys, createDictionary, containerKind);
+                ReadAndApplyMerge<TDictionary, TValue>(reader, ref valueConverter, dictionary, explicitKeys, createDictionary, containerKind, declaringType);
                 continue;
             }
 
@@ -243,8 +244,10 @@ internal static class YamlDictionaryConverterHelper
                 continue;
             }
 
-            var value = valueConverter.Read(reader, typeof(TValue));
-            dictionary[key] = (TValue)value!;
+            if (reader.TryReadItem(valueConverter, typeof(TValue), declaringType, dictionary, out var value))
+            {
+                dictionary[key] = (TValue)value!;
+            }
         }
 
         reader.Read();
@@ -257,6 +260,7 @@ internal static class YamlDictionaryConverterHelper
         ref YamlConverter? valueConverter,
         Func<TDictionary> createDictionary,
         string containerKind,
+        Type declaringType,
         TDictionary? dictionary = null)
         where TDictionary : class, IDictionary<TKey, TValue>
     {
@@ -286,6 +290,7 @@ internal static class YamlDictionaryConverterHelper
 
         dictionary ??= createDictionary();
         var options = reader.Options;
+        HashSet<TKey>? droppedKeys = null;
         if (reader.ReferenceReader is not null && reader.Anchor is not null)
         {
             reader.ReferenceReader.Register(reader.Anchor, dictionary);
@@ -320,10 +325,26 @@ internal static class YamlDictionaryConverterHelper
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, "Dictionary key cannot be null.");
             }
 
+            var key = (TKey)rawKey;
+            if (dictionary.ContainsKey(key) || (droppedKeys is not null && droppedKeys.Contains(key)))
+            {
+                if (options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
+                {
+                    throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key.ToString() ?? string.Empty);
+                }
+
+                if (options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+                {
+                    reader.Skip();
+                    continue;
+                }
+            }
+
+            bool read;
             object? rawValue;
             try
             {
-                rawValue = valueConverter.Read(reader, typeof(TValue));
+                read = reader.TryReadItem(valueConverter, typeof(TValue), declaringType, dictionary, out rawValue);
             }
             catch (YamlException)
             {
@@ -334,23 +355,13 @@ internal static class YamlDictionaryConverterHelper
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);
             }
 
-            var key = (TKey)rawKey;
-            if (dictionary.ContainsKey(key))
-            {
-                switch (options.DuplicateKeyHandling)
-                {
-                    case YamlDuplicateKeyHandling.Error:
-                        throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key.ToString() ?? string.Empty);
-                    case YamlDuplicateKeyHandling.FirstWins:
-                        break;
-                    case YamlDuplicateKeyHandling.LastWins:
-                        dictionary[key] = (TValue)rawValue!;
-                        break;
-                }
-            }
-            else
+            if (read)
             {
                 dictionary[key] = (TValue)rawValue!;
+            }
+            else if (options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins)
+            {
+                (droppedKeys ??= new HashSet<TKey>()).Add(key);
             }
         }
 
@@ -364,7 +375,8 @@ internal static class YamlDictionaryConverterHelper
         TDictionary dictionary,
         HashSet<string>? explicitKeys,
         Func<YamlSerializerOptions, TDictionary> createDictionary,
-        string containerKind)
+        string containerKind,
+        Type declaringType)
         where TDictionary : class, IDictionary<string, TValue>
     {
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -375,7 +387,7 @@ internal static class YamlDictionaryConverterHelper
 
         if (reader.TokenType == YamlTokenType.StartMapping || reader.TokenType == YamlTokenType.Alias)
         {
-            var merged = ReadStringDictionary<TDictionary, TValue>(reader, ref valueConverter, createDictionary, containerKind);
+            var merged = ReadStringDictionary<TDictionary, TValue>(reader, ref valueConverter, createDictionary, containerKind, declaringType);
             if (merged is null)
             {
                 return;
@@ -395,7 +407,7 @@ internal static class YamlDictionaryConverterHelper
                     throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
                 }
 
-                var merged = ReadStringDictionary<TDictionary, TValue>(reader, ref valueConverter, createDictionary, containerKind);
+                var merged = ReadStringDictionary<TDictionary, TValue>(reader, ref valueConverter, createDictionary, containerKind, declaringType);
                 if (merged is not null)
                 {
                     ApplyMergeDictionary<TValue>(dictionary, merged, explicitKeys);
@@ -448,7 +460,8 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
             reader,
             ref _valueConverter,
             static options => new Dictionary<string, TValue>(options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
-            "dictionary");
+            "dictionary",
+            typeof(Dictionary<string, TValue>));
 
     public override void Write(YamlWriter writer, Dictionary<string, TValue>? value)
     {
@@ -482,6 +495,7 @@ internal sealed class YamlDictionaryConverter<TValue> : YamlConverter<Dictionary
             ref _valueConverter,
             static options => new Dictionary<string, TValue>(options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
             "dictionary",
+            typeof(Dictionary<string, TValue>),
             dictionary);
 }
 
@@ -509,7 +523,8 @@ internal sealed class YamlDictionaryConverter<TKey, TValue> : YamlConverter<Dict
             ref _keyConverter,
             ref _valueConverter,
             static () => new Dictionary<TKey, TValue>(),
-            "dictionary");
+            "dictionary",
+            typeof(Dictionary<TKey, TValue>));
 
     public override void Write(YamlWriter writer, Dictionary<TKey, TValue>? value)
     {
@@ -544,6 +559,7 @@ internal sealed class YamlDictionaryConverter<TKey, TValue> : YamlConverter<Dict
             ref _valueConverter,
             static () => new Dictionary<TKey, TValue>(),
             "dictionary",
+            typeof(Dictionary<TKey, TValue>),
             dictionary);
 }
 
@@ -568,6 +584,7 @@ internal sealed class YamlIDictionaryConverter<TKey, TValue> : YamlConverter<IDi
             ref _valueConverter,
             static () => (IDictionary<TKey, TValue>)new Dictionary<TKey, TValue>(),
             "dictionary",
+            typeof(IDictionary<TKey, TValue>),
             dictionary);
     }
 
@@ -577,7 +594,8 @@ internal sealed class YamlIDictionaryConverter<TKey, TValue> : YamlConverter<IDi
             ref _keyConverter,
             ref _valueConverter,
             static () => (IDictionary<TKey, TValue>)new Dictionary<TKey, TValue>(),
-            "dictionary");
+            "dictionary",
+            typeof(IDictionary<TKey, TValue>));
 
     public override void Write(YamlWriter writer, IDictionary<TKey, TValue>? value)
     {
@@ -608,7 +626,8 @@ internal sealed class YamlIReadOnlyDictionaryConverter<TKey, TValue> : YamlConve
             ref _keyConverter,
             ref _valueConverter,
             static () => new Dictionary<TKey, TValue>(),
-            "dictionary");
+            "dictionary",
+            typeof(IReadOnlyDictionary<TKey, TValue>));
 
     public override void Write(YamlWriter writer, IReadOnlyDictionary<TKey, TValue>? value)
     {
@@ -640,7 +659,8 @@ internal sealed class YamlOrderedDictionaryConverter<TValue> : YamlConverter<Sys
             static options => new System.Collections.Generic.OrderedDictionary<string, TValue>(
                 0,
                 options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
-            "ordered dictionary");
+            "ordered dictionary",
+            typeof(System.Collections.Generic.OrderedDictionary<string, TValue>));
 
     public override void Write(YamlWriter writer, System.Collections.Generic.OrderedDictionary<string, TValue>? value)
     {
@@ -672,7 +692,8 @@ internal sealed class YamlOrderedDictionaryConverter<TKey, TValue> : YamlConvert
             ref _keyConverter,
             ref _valueConverter,
             static () => new System.Collections.Generic.OrderedDictionary<TKey, TValue>(),
-            "ordered dictionary");
+            "ordered dictionary",
+            typeof(System.Collections.Generic.OrderedDictionary<TKey, TValue>));
 
     public override void Write(YamlWriter writer, System.Collections.Generic.OrderedDictionary<TKey, TValue>? value)
     {

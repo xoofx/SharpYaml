@@ -102,7 +102,7 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
     public abstract YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options);
 
     /// <summary>
-    /// Gets whether <paramref name="exception"/>, thrown while reading a member value, can be recovered from under
+    /// Gets whether <paramref name="exception"/>, thrown while reading a value, can be recovered from under
     /// <see cref="YamlSerializerOptions.InvalidValueHandling"/>: the handling is not <see cref="YamlInvalidValueHandling.FailFast"/>,
     /// the exception does not come from the parser, and <paramref name="reader"/> is still on the token the read began on.
     /// </summary>
@@ -143,5 +143,33 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
         ArgumentGuard.ThrowIfNull(name);
         ArgumentGuard.ThrowIfNull(targetType);
         reader.RecoverInvalidValue(exception, declaringType, instance, name, targetType);
+    }
+
+    /// <summary>
+    /// Skips the collection element or dictionary value <paramref name="reader"/> is positioned on and reports it as
+    /// invalid, so that the caller drops it. Call this after <see cref="CanRecoverInvalidValue"/> returned
+    /// <see langword="true"/>. The name and the path of the item come from the reader: the zero-based document index
+    /// of a sequence element, or the key of a dictionary entry.
+    /// </summary>
+    /// <param name="reader">The reader the item is read from.</param>
+    /// <param name="exception">The exception the converter threw.</param>
+    /// <param name="declaringType">The CLR type of the collection being deserialized.</param>
+    /// <param name="instance">
+    /// The collection the item would have been added to, or <see langword="null"/> when the result is built afterwards,
+    /// as for arrays and immutable collections.
+    /// </param>
+    /// <param name="targetType">The element or dictionary value type.</param>
+    /// <remarks>Intended for generated code.</remarks>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="reader"/>, <paramref name="exception"/>, <paramref name="declaringType"/> or
+    /// <paramref name="targetType"/> is <see langword="null"/>.
+    /// </exception>
+    protected static void RecoverInvalidItem(YamlReader reader, YamlException exception, Type declaringType, object? instance, Type targetType)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        ArgumentGuard.ThrowIfNull(exception);
+        ArgumentGuard.ThrowIfNull(declaringType);
+        ArgumentGuard.ThrowIfNull(targetType);
+        reader.RecoverInvalidItem(exception, declaringType, instance, targetType);
     }
 }
