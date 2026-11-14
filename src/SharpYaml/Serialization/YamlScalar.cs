@@ -4,6 +4,7 @@
 
 using System;
 using System.Globalization;
+using System.Numerics;
 using SharpYaml.Schemas;
 using ScalarEvent = SharpYaml.Events.Scalar;
 
@@ -545,6 +546,20 @@ public static class YamlScalar
 
     internal static object? ResolveObject(YamlReader reader)
     {
+        if (reader.Tag is not null && reader.Tag != "!")
+        {
+            var schema = GetSchema(reader.Options.Schema);
+            var shortTag = schema.ShortenTag(reader.Tag);
+            if (shortTag is SchemaBase.StrShortTag or JsonSchema.BoolShortTag or JsonSchema.IntShortTag or JsonSchema.FloatShortTag or JsonSchema.NullShortTag)
+            {
+                if (TryResolveExplicitTag(schema, shortTag, CreateScalar(reader), out var taggedValue))
+                {
+                    return !reader.Options.UseSchema && shortTag == JsonSchema.IntShortTag && taggedValue is int taggedInteger
+                        ? (long)taggedInteger : taggedValue;
+                }
+                throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Scalar is not valid for the explicit tag '{reader.Tag}'.");
+            }
+        }
         if (reader.Options.UseSchema)
         {
             if (TryResolveSchemaScalar(reader, out _, out var value))
@@ -561,22 +576,29 @@ public static class YamlScalar
         }
 
         var text = reader.ScalarValue.AsSpan();
-        if (IsNull(text))
+        var kind = YamlCoreScalarResolver.Classify(reader.ScalarValue ?? string.Empty);
+        if (kind == YamlCoreScalarResolver.Kind.Null)
         {
             return null;
         }
 
-        if (TryParseBool(text, out var boolean))
+        if (kind == YamlCoreScalarResolver.Kind.Boolean && TryParseBool(text, out var boolean))
         {
             return boolean;
         }
 
-        if (TryParseInt64(text, out var integer))
+        if (kind == YamlCoreScalarResolver.Kind.Integer && TryParseInt64(text, out var integer))
         {
             return integer;
         }
 
-        if (TryParseDouble(text, out var floating))
+        if (kind == YamlCoreScalarResolver.Kind.Integer)
+        {
+            if (TryParseUInt64(text, out var unsigned)) return unsigned;
+            return YamlCoreScalarResolver.ParseInteger(reader.ScalarValue!);
+        }
+
+        if (kind == YamlCoreScalarResolver.Kind.Float && TryParseDouble(text, out var floating))
         {
             return floating;
         }
@@ -586,8 +608,36 @@ public static class YamlScalar
 
     private static bool IsNull(ReadOnlySpan<char> value, ScalarStyle style) => IsPlainStyle(style) && IsNull(value);
 
+    /// <summary>Parses the current scalar as an arbitrary-precision YAML Core integer.</summary>
+    /// <param name="reader">The reader positioned on a scalar.</param>
+    /// <param name="result">The parsed integer, or zero on failure.</param>
+    /// <returns>Whether the scalar represents an integer.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="reader"/> is null.</exception>
+    public static bool TryParseBigInteger(YamlReader reader, out BigInteger result)
+    {
+        ArgumentGuard.ThrowIfNull(reader);
+        result = BigInteger.Zero;
+        if (reader.Options.UseSchema)
+        {
+            if (!TryResolveSchemaScalar(reader, out var tag, out var value) || tag != JsonSchema.IntShortTag) return false;
+            switch (value)
+            {
+                case BigInteger big: result = big; return true;
+                case ulong unsigned: result = unsigned; return true;
+                case long signed: result = signed; return true;
+                case int small: result = small; return true;
+                default: return false;
+            }
+        }
+        var text = reader.ScalarValue ?? string.Empty;
+        if (YamlCoreScalarResolver.Classify(text) != YamlCoreScalarResolver.Kind.Integer) return false;
+        result = YamlCoreScalarResolver.ParseInteger(text);
+        return true;
+    }
+
     private static bool HasStringTag(YamlReader reader)
     {
+        if (reader.Tag == "!") return true;
         if (reader.Tag is null)
         {
             return false;
@@ -601,6 +651,12 @@ public static class YamlScalar
 
     private static bool TryResolveSchemaScalar(YamlReader reader, out string? defaultTag, out object? value)
     {
+        if (reader.Tag == "!")
+        {
+            defaultTag = SchemaBase.StrShortTag;
+            value = reader.ScalarValue ?? string.Empty;
+            return true;
+        }
         var schema = GetSchema(reader.Options.Schema);
         var scalar = CreateScalar(reader);
         if (reader.Tag is not null)
@@ -645,6 +701,12 @@ public static class YamlScalar
 
         if (schema.TryParse(plainScalar, true, out var resolvedTag, out value) && string.Equals(resolvedTag, shortTag, StringComparison.Ordinal))
         {
+            return true;
+        }
+
+        if (shortTag == JsonSchema.FloatShortTag && resolvedTag == JsonSchema.IntShortTag && value is not null)
+        {
+            value = value is BigInteger large ? (double)large : Convert.ToDouble(value, CultureInfo.InvariantCulture);
             return true;
         }
 
@@ -720,6 +782,9 @@ public static class YamlScalar
     {
         switch (value)
         {
+            case BigInteger large:
+                result = (double)large;
+                return true;
             case int intValue:
                 result = intValue;
                 return true;
@@ -748,6 +813,9 @@ public static class YamlScalar
     {
         switch (value)
         {
+            case BigInteger large when large >= (BigInteger)decimal.MinValue && large <= (BigInteger)decimal.MaxValue:
+                result = (decimal)large;
+                return true;
             case int intValue:
                 result = intValue;
                 return true;
@@ -840,6 +908,9 @@ public static class YamlScalar
         }
 
         ulong accumulator = 0;
+        var radix = (ulong)numberBase;
+        var limit = ulong.MaxValue / radix;
+        var lastDigit = ulong.MaxValue % radix;
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
@@ -868,10 +939,12 @@ public static class YamlScalar
                 return false;
             }
 
-            checked
+            if (accumulator > limit || (accumulator == limit && (ulong)digit > lastDigit))
             {
-                accumulator = (accumulator * (ulong)numberBase) + (ulong)digit;
+                result = default;
+                return false;
             }
+            accumulator = (accumulator * radix) + (ulong)digit;
         }
 
         result = accumulator;

@@ -241,7 +241,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         }
 
         ref var frame = ref _frames[_depth - 1];
-        if (!frame.ExpectingKey)
+        if (!frame.ExpectingKey || frame.ExplicitKeyOpen)
         {
             throw new InvalidOperationException("A property name cannot be written when a value is expected.");
         }
@@ -263,6 +263,52 @@ public sealed class YamlWriter : YamlReaderWriterBase
 
         frame.HasContent = true;
         frame.ExpectingKey = false;
+    }
+
+    internal void WriteComplexKey(object key, YamlConverter converter)
+    {
+        WriteStartMappingKey();
+        converter.Write(this, key);
+        WriteEndMappingKey();
+    }
+
+    /// <summary>Begins an explicit mapping key, which may be a scalar, sequence or mapping.</summary>
+    /// <remarks>Write exactly one node, then call <see cref="WriteEndMappingKey"/> before writing its value.</remarks>
+    /// <exception cref="InvalidOperationException">The writer is not positioned on a mapping key.</exception>
+    public void WriteStartMappingKey()
+    {
+        if (_depth == 0 || _frames[_depth - 1].Kind != ContainerKind.Mapping || !_frames[_depth - 1].ExpectingKey || _frames[_depth - 1].ExplicitKeyOpen)
+        {
+            throw new InvalidOperationException("A mapping key is not expected at this position.");
+        }
+
+        ref var frame = ref _frames[_depth - 1];
+        var startedCompact = EnsureContainerStarted(ref frame);
+        if (frame.HasContent && !frame.SuppressNextSeparatorNewline) WriteNewLine();
+        frame.SuppressNextSeparatorNewline = false;
+        if (!startedCompact) WriteIndent();
+        Write('?');
+        frame.HasContent = true;
+        frame.ExpectingKey = false;
+
+        frame.ExplicitKeyOpen = true;
+    }
+
+    /// <summary>Ends an explicit mapping key and prepares to write its value.</summary>
+    /// <exception cref="InvalidOperationException">An explicit key has not been started or its node is incomplete.</exception>
+    public void WriteEndMappingKey()
+    {
+        if (_depth == 0 || !_frames[_depth - 1].ExplicitKeyOpen || !_frames[_depth - 1].ExpectingKey)
+        {
+            throw new InvalidOperationException("An explicit mapping key must contain exactly one complete node.");
+        }
+        // Writing the key can grow the frame array; reacquire the parent afterwards.
+        if (!EndsWithNewLine) WriteNewLine();
+        WriteIndent();
+        Write(':');
+        _frames[_depth - 1].ExpectingKey = false;
+        _frames[_depth - 1].ExplicitKeyOpen = false;
+        _frames[_depth - 1].SuppressNextSeparatorNewline = false;
     }
 
     /// <summary>
@@ -681,7 +727,22 @@ public sealed class YamlWriter : YamlReaderWriterBase
                 Write(' ');
             }
 
-            Write(_pendingTag);
+            if (_pendingTag.StartsWith("!<", StringComparison.Ordinal) && _pendingTag.EndsWith(">", StringComparison.Ordinal))
+            {
+                Write(_pendingTag);
+            }
+            else if (_pendingTag.StartsWith("!", StringComparison.Ordinal))
+            {
+                var handleLength = _pendingTag.StartsWith("!!", StringComparison.Ordinal) ? 2 : 1;
+                Write(handleLength == 2 ? "!!" : "!");
+                Write(Emitter.UrlEncode(_pendingTag.Substring(handleLength), shorthand: true));
+            }
+            else
+            {
+                Write("!<");
+                Write(Emitter.UrlEncode(_pendingTag, shorthand: false));
+                Write('>');
+            }
             wroteAny = true;
         }
 
@@ -799,12 +860,14 @@ public sealed class YamlWriter : YamlReaderWriterBase
                     WriteIndent();
                 }
                 Write('-');
-                if (_pendingAnchor is not null || _pendingTag is not null)
+                var hasProperties = _pendingAnchor is not null || _pendingTag is not null;
+                if (hasProperties)
                 {
                     WriteNodeProperties(writeLeadingSpace: true, writeTrailingSpace: false);
                 }
                 parent.HasContent = true;
-                pendingStart = ShouldCompactSequenceItem(kind)
+                // Properties on a compact mapping would bind to its first key instead of the mapping.
+                pendingStart = !hasProperties && ShouldCompactSequenceItem(kind)
                     ? PendingStartKind.SequenceItemCompact
                     : PendingStartKind.SequenceItem;
             }
@@ -1366,7 +1429,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
-            if (c is '\n' or '\r' or '\t' or '\u2028' or '\u2029')
+            if (c is '\n' or '\r' or '\t' or '\u2028' or '\u2029' or '\uFEFF')
             {
                 return false;
             }
@@ -1618,6 +1681,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
         public ContainerKind Kind;
         public bool HasContent;
         public bool ExpectingKey;
+        public bool ExplicitKeyOpen;
         public PendingStartKind PendingStart;
         public int Indent;
 

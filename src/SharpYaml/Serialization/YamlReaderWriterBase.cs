@@ -295,6 +295,7 @@ public abstract class YamlReaderWriterBase
 #endif
         public static YamlConverter? CreateConverter(Type typeToConvert)
         {
+            if (typeToConvert == typeof(System.Numerics.BigInteger)) return YamlBigIntegerConverter.Instance;
             if (typeToConvert == typeof(string))
             {
                 return YamlStringConverter.Instance;
@@ -444,6 +445,11 @@ public abstract class YamlReaderWriterBase
             if (typeToConvert == typeof(Dictionary<string, object>))
             {
                 return YamlDictionaryObjectConverter.Instance;
+            }
+
+            if (typeToConvert == typeof(Dictionary<object, object>))
+            {
+                return YamlBuiltInTypeInfoResolver.GetConverter(typeToConvert);
             }
 
             if (typeof(SharpYaml.Model.YamlNode).IsAssignableFrom(typeToConvert))

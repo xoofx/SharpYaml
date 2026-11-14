@@ -30,13 +30,12 @@ public class CoreSchema : JsonSchema
         AddScalarRule<bool>("!!bool", @"true|True|TRUE", m => true, null);
         AddScalarRule<bool>("!!bool", @"false|False|FALSE", m => false, null);
 
-        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"[-+]?(0|[1-9][0-9_]*)", m => DecodeCoreInteger(m.Value), null);
-        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"[-+]?0x([0-9a-fA-F_]+)", m => DecodeCoreInteger(m.Value), null);
-        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"[-+]?0o([0-7_]+)", m => DecodeCoreInteger(m.Value), null);
-        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"[-+]?0b([01_]+)", m => DecodeCoreInteger(m.Value), null);
+        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"[-+]?[0-9]+", m => DecodeCoreInteger(m.Value), null);
+        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"0x[0-9a-fA-F]+", m => DecodeCoreInteger(m.Value), null);
+        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"0o[0-7]+", m => DecodeCoreInteger(m.Value), null);
 
         // Make float before tagged integers to keep the common decimal path fast.
-        AddScalarRule<double>("!!float", @"[-+]?(\.[0-9_]+|[0-9][0-9_]*(\.[0-9_]*)?)([eE][-+]?[0-9]+)?", m => Convert.ToDouble(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
+        AddScalarRule<double>("!!float", @"[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?", m => Convert.ToDouble(m.Value, CultureInfo.InvariantCulture), null);
 
         AddScalarRule<double>("!!float", @"\+?(\.inf|\.Inf|\.INF)", m => double.PositiveInfinity, null);
         AddScalarRule<double>("!!float", @"-(\.inf|\.Inf|\.INF)", m => double.NegativeInfinity, null);
@@ -70,6 +69,6 @@ public class CoreSchema : JsonSchema
             return unsigned;
         }
 
-        throw new FormatException($"Invalid YAML integer scalar '{text}'.");
+        return YamlCoreScalarResolver.ParseInteger(text);
     }
 }

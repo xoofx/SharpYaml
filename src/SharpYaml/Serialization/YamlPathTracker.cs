@@ -28,6 +28,7 @@ internal sealed class YamlPathTracker
     private struct Frame
     {
         public bool IsMapping;
+        public bool IsComplexKey;
         public MappingState State;
         public string? Key;
         public Mark KeyStart;
@@ -85,8 +86,8 @@ internal sealed class YamlPathTracker
 
             case YamlTokenType.StartMapping:
             case YamlTokenType.StartSequence:
-                EnterValue(start);
-                Push(isMapping: tokenType == YamlTokenType.StartMapping);
+                var isComplexKey = EnterValue(start);
+                Push(isMapping: tokenType == YamlTokenType.StartMapping, isComplexKey);
                 return;
 
             case YamlTokenType.EndMapping:
@@ -96,14 +97,36 @@ internal sealed class YamlPathTracker
                     return;
                 }
 
-                _count--;
+                var completedKey = _frames[--_count].IsComplexKey;
                 if (_count > 0 && _frames[_count - 1].IsMapping)
                 {
-                    _frames[_count - 1].State = MappingState.ValueDone;
+                    _frames[_count - 1].State = completedKey ? MappingState.Value : MappingState.ValueDone;
                 }
 
                 return;
         }
+    }
+
+    /// <summary>
+    /// Forgets the alias token last observed, which the reader replaced by the first token of a copy of its anchored
+    /// node: that token is observed next, in the place of the alias.
+    /// </summary>
+    public void OnAliasExpanded()
+    {
+        if (_count == 0)
+        {
+            return;
+        }
+
+        ref var top = ref _frames[_count - 1];
+        if (!top.IsMapping)
+        {
+            top.Index--;
+            return;
+        }
+
+        // The alias was either a value, which completed the entry, or a key, which started it.
+        top.State = top.State == MappingState.ValueDone ? MappingState.Value : MappingState.Key;
     }
 
     public string GetPath()
@@ -178,18 +201,18 @@ internal sealed class YamlPathTracker
         return "?";
     }
 
-    private void EnterValue(Mark start)
+    private bool EnterValue(Mark start)
     {
         if (_count == 0)
         {
-            return;
+            return false;
         }
 
         ref var top = ref _frames[_count - 1];
         if (!top.IsMapping)
         {
             top.Index++;
-            return;
+            return false;
         }
 
         if (top.State == MappingState.ValueDone)
@@ -203,17 +226,19 @@ internal sealed class YamlPathTracker
             top.Key = "?";
             top.KeyStart = start;
             top.State = MappingState.Value;
+            return true;
         }
+        return false;
     }
 
-    private void Push(bool isMapping)
+    private void Push(bool isMapping, bool isComplexKey)
     {
         if (_count == _frames.Length)
         {
             System.Array.Resize(ref _frames, _count * 2);
         }
 
-        _frames[_count++] = new Frame { IsMapping = isMapping, Index = -1 };
+        _frames[_count++] = new Frame { IsMapping = isMapping, IsComplexKey = isComplexKey, Index = -1 };
     }
 
     private static void AppendKey(StringBuilder builder, string key)

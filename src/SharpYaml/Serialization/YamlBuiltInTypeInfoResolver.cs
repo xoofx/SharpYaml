@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using SharpYaml.Model;
 using SharpYaml.Serialization.Converters;
 
@@ -11,6 +12,8 @@ namespace SharpYaml.Serialization;
 
 internal static class YamlBuiltInTypeInfoResolver
 {
+    private static readonly YamlConverter s_objectKeyDictionaryConverter = new YamlDictionaryConverter<object, object?>();
+
     public static YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options)
     {
         ArgumentGuard.ThrowIfNull(type);
@@ -20,8 +23,9 @@ internal static class YamlBuiltInTypeInfoResolver
         return converter is null ? null : new BuiltInYamlTypeInfo(type, options, converter);
     }
 
-    private static YamlConverter? GetConverter(Type type)
+    internal static YamlConverter? GetConverter(Type type)
     {
+        if (type == typeof(BigInteger)) return YamlBigIntegerConverter.Instance;
         if (type == typeof(string))
         {
             return YamlStringConverter.Instance;
@@ -161,6 +165,11 @@ internal static class YamlBuiltInTypeInfoResolver
         if (type == typeof(Dictionary<string, object?>) || type == typeof(Dictionary<string, object>))
         {
             return YamlDictionaryObjectConverter.Instance;
+        }
+
+        if (type == typeof(Dictionary<object, object?>))
+        {
+            return s_objectKeyDictionaryConverter;
         }
 
         if (type == typeof(List<object?>) || type == typeof(List<object>))

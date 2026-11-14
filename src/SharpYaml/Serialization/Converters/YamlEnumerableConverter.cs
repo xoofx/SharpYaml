@@ -13,14 +13,9 @@ internal sealed class YamlEnumerableConverter<TElement> : YamlConverter<IEnumera
 
     public override IEnumerable<TElement>? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<IEnumerable<TElement>>(out var rootAliasValue))
         {
-            return (IEnumerable<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an enumerable unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))

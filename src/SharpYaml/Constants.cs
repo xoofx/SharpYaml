@@ -22,7 +22,8 @@ internal static class Constants
 
     public static bool IsSupportedYamlVersion(Version version)
     {
-        return version.Major == 1 && (version.Minor == 1 || version.Minor == 2);
+        // Future minor revisions use the latest supported grammar (§6.8.1).
+        return version.Major == 1 && version.Minor >= 1;
     }
 
     public const char HandleCharacter = '!';

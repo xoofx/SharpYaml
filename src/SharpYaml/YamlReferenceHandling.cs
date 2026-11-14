@@ -17,6 +17,9 @@ public enum YamlReferenceHandling
     /// <summary>
     /// Do not emit anchors/aliases for repeated references.
     /// </summary>
+    /// <remarks>
+    /// Aliases still deserialize, each one as a copy of its anchored node; an alias inside the node it refers to is an error.
+    /// </remarks>
     None = 0,
 
     /// <summary>

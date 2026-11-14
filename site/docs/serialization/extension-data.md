@@ -118,5 +118,5 @@ var options = new YamlSerializerOptions
 - Source-generated contexts are supported through the same options (`context.CreateOptions(o => o with { ... })`).
 - Inside polymorphic nodes the `Path` is complete, but `KeyStart`/`ValueStart` are relative to the buffered node.
 - The type discriminator key of a polymorphic node (for example `$type`) is not reported.
-- Aliases inside an unknown value that refer to anchors outside of it are represented as a `*name` value.
+- Aliases inside an unknown value expand to copies of their anchored nodes by default. Under reference preservation, aliases to registered outer objects can be represented as a `*name` value in the reported model. Unknown aliases are errors even in skipped values.
 - The finalizer is invoked by the `YamlSerializer.Deserialize`/`TryDeserialize` methods, not when using `YamlReader` directly.

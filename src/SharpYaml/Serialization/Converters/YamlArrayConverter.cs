@@ -13,14 +13,9 @@ internal sealed class YamlArrayConverter<TElement> : YamlConverter<TElement[]?>
 
     public override TElement[]? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<TElement[]>(out var rootAliasValue))
         {
-            return (TElement[])rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an array unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))

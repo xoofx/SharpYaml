@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using SharpYaml.Events;
@@ -39,10 +40,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(yaml);
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
-        var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        var session = YamlReportingSession.Create(effectiveOptions);
-        var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
+        return Create(parser, effectiveOptions);
     }
 
     /// <summary>
@@ -56,10 +54,15 @@ public sealed class YamlReader : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(reader);
         var effectiveOptions = options ?? YamlSerializerOptions.Default;
         var parser = SharpYaml.Parser.CreateParser(reader, effectiveOptions.EffectiveMaxDepth, effectiveOptions.SourceName);
-        var referenceReader = effectiveOptions.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceReader() : null;
-        var session = YamlReportingSession.Create(effectiveOptions);
+        return Create(parser, effectiveOptions);
+    }
+
+    private static YamlReader Create(IParser parser, YamlSerializerOptions options)
+    {
+        var session = YamlReportingSession.Create(options);
         var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
-        return new YamlReader(new YamlReaderState(parser, referenceReader, effectiveOptions.SourceName, tracker, discriminatorPropertyName: null), effectiveOptions);
+        var anchors = new YamlAnchorTable(new YamlAliasScope(options));
+        return new YamlReader(new YamlReaderState(parser, anchors, nesting: 0, options.SourceName, tracker, discriminatorPropertyName: null), options);
     }
 
     /// <summary>
@@ -69,7 +72,8 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <returns>A new reader for <paramref name="yaml"/>.</returns>
     /// <remarks>
     /// This is intended for advanced scenarios such as polymorphic deserialization that buffers a node and needs to
-    /// re-parse it while preserving anchors and aliases.
+    /// re-parse it while preserving anchors and aliases. The aliases of <paramref name="yaml"/> resolve to the anchors
+    /// bound where the node was buffered, or to the anchors bound now when no node was buffered.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
     public YamlReader CreateReader(string yaml)
@@ -77,15 +81,9 @@ public sealed class YamlReader : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(yaml);
         var session = _state.Tracker?.Session;
         var tracker = session is null ? null : new YamlPathTracker(session, session.BufferedPath);
-        return Create(yaml, _state.ReferenceReader, _state.SourceName, Options, tracker, _state.BufferedDiscriminator);
-    }
-
-    internal static YamlReader Create(string yaml, YamlReferenceReader? referenceReader, string? sourceName, YamlSerializerOptions options, YamlPathTracker? tracker, string? discriminatorPropertyName)
-    {
-        ArgumentGuard.ThrowIfNull(yaml);
-        ArgumentGuard.ThrowIfNull(options);
-        var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), options.EffectiveMaxDepth, sourceName);
-        return new YamlReader(new YamlReaderState(parser, referenceReader, sourceName, tracker, discriminatorPropertyName), options);
+        var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), Options.EffectiveMaxDepth, _state.SourceName);
+        var anchors = _state.CreateBufferedAnchors(out var nesting);
+        return new YamlReader(new YamlReaderState(parser, anchors, nesting, _state.SourceName, tracker, _state.BufferedDiscriminator), Options);
     }
 
     /// <summary>
@@ -391,6 +389,12 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// </summary>
     /// <param name="value">When successful, receives the resolved anchored object.</param>
     /// <returns><see langword="true"/> when the current token is an alias and reference handling is enabled; otherwise <see langword="false"/>.</returns>
+    /// <remarks>
+    /// The reader reports an alias token only under <see cref="YamlReferenceHandling.Preserve"/>, when the converter of
+    /// the anchored node registered its object with <see cref="RegisterAnchor"/>. Any other alias is replayed as a copy
+    /// of its anchored node, so the reader is then positioned on the first token of the copy.
+    /// </remarks>
+    /// <exception cref="YamlException">The alias is unknown.</exception>
     public bool TryReadAlias(out object? value)
     {
         if (TokenType == YamlTokenType.Alias && _state.ReferenceReader is not null)
@@ -419,6 +423,71 @@ public sealed class YamlReader : YamlReaderWriterBase
     }
 
     /// <summary>
+    /// Attempts to resolve the current alias token into an anchored object of type <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The type the caller deserializes.</typeparam>
+    /// <param name="value">When successful, receives the resolved anchored object.</param>
+    /// <returns>
+    /// <see langword="true"/> when the current token is an alias whose object is a <typeparamref name="T"/>, which is
+    /// consumed; otherwise <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// When the object registered for the alias is not a <typeparamref name="T"/>, as for a node read as a list and
+    /// aliased as an array, the reader replays the anchored node instead: this method returns <see langword="false"/>
+    /// and the reader is positioned on the first token of the copy, for the caller to read it as a <typeparamref name="T"/>.
+    /// </remarks>
+    /// <exception cref="YamlException">The alias is unknown, or refers to a node that contains it and cannot be replayed.</exception>
+    public bool TryReadAlias<T>([MaybeNullWhen(false)] out T value)
+    {
+        if (TokenType == YamlTokenType.Alias && _state.ReferenceReader is { } references)
+        {
+            if (references.TryGet(Alias!, out var resolved) && resolved is T typed)
+            {
+                references.MarkResolved(resolved);
+                Read();
+                value = typed;
+                return true;
+            }
+
+            ExpandAlias();
+        }
+
+        value = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Replays the anchored node of the current alias token, so that the reader is positioned on the first token of a
+    /// copy of the node. Does nothing when the current token is not an alias.
+    /// </summary>
+    /// <remarks>
+    /// This is for the nodes that are read as a copy even under <see cref="YamlReferenceHandling.Preserve"/>: the value
+    /// of a merge key (<c>&lt;&lt;</c>), and a mapping key, whose equality is structural, so that two keys aliasing the
+    /// same node are not one object. By default the reader already replays every alias, so this does nothing.
+    /// </remarks>
+    /// <exception cref="YamlException">The alias refers to a node that contains it.</exception>
+    internal void ExpandAlias() => _state.ExpandAlias();
+
+    /// <summary>
+    /// Replaces the object registered for <paramref name="anchor"/> by <paramref name="replacement"/>, as when a
+    /// converter promotes the collection it registered for an anchored node to another type while reading the node.
+    /// </summary>
+    /// <param name="anchor">The anchor of the node, without the <c>&amp;</c> prefix.</param>
+    /// <param name="current">The object registered for the node.</param>
+    /// <param name="replacement">The object that takes its place.</param>
+    /// <returns>
+    /// <see langword="false"/> when an alias already resolved to <paramref name="current"/>, which the replacement would
+    /// leave as a stale reference, so the caller must not replace it; otherwise <see langword="true"/>, including when
+    /// references are not preserved.
+    /// </returns>
+    internal bool TryReplaceAnchoredObject(string anchor, object current, object replacement)
+        => _state.ReferenceReader is not { } references || references.TryReplace(anchor, current, replacement);
+
+    /// <summary>Gets whether an alias resolved to <paramref name="value"/> under <see cref="YamlReferenceHandling.Preserve"/>.</summary>
+    /// <param name="value">An object registered for an anchored node.</param>
+    internal bool WasResolvedByAlias(object value) => _state.ReferenceReader is { } references && references.WasResolved(value);
+
+    /// <summary>
     /// Registers an anchored value for later alias resolution.
     /// </summary>
     /// <param name="anchor">The anchor name, without the <c>&amp;</c> prefix.</param>
@@ -439,9 +508,9 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// <returns>The merged keys. Each one leaves the reader positioned on that key's value, which the caller must read or skip before asking for the next key.</returns>
     /// <remarks>
     /// This is intended for generated code, which enumerates it while the reader is positioned on the value of a <c>&lt;&lt;</c> key.
-    /// The value can be a mapping or a sequence of mappings. An iterator keeps the generated reader free of a delegate, so it does not allocate a closure for objects without merge keys.
+    /// The value can be a mapping or a sequence of mappings, or aliases to them, which are merged as copies. An iterator keeps the generated reader free of a delegate, so it does not allocate a closure for objects without merge keys.
     /// </remarks>
-    /// <exception cref="YamlException">The value is not a mapping or a sequence of mappings, or is an alias.</exception>
+    /// <exception cref="YamlException">The value is not a mapping or a sequence of mappings.</exception>
     public IEnumerable<string> ReadMergeKeys(bool mergeEnabled, HashSet<string>? explicitKeys)
     {
         if (!mergeEnabled)
@@ -450,6 +519,7 @@ public sealed class YamlReader : YamlReaderWriterBase
             yield break;
         }
 
+        ExpandAlias();
         if (TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(this))
         {
             Read();
@@ -471,6 +541,7 @@ public sealed class YamlReader : YamlReaderWriterBase
             Read();
             while (TokenType != YamlTokenType.EndSequence)
             {
+                ExpandAlias();
                 if (TokenType != YamlTokenType.StartMapping)
                 {
                     throw new YamlException(SourceName, Start, End, "Merge sequence entries must be mappings.");
@@ -484,11 +555,6 @@ public sealed class YamlReader : YamlReaderWriterBase
 
             Read();
             yield break;
-        }
-
-        if (TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(SourceName, Start, End, "Merge alias values are not supported in source-generated deserialization.");
         }
 
         throw new YamlException(SourceName, Start, End, "Merge key value must be a mapping or a sequence of mappings.");
@@ -560,7 +626,16 @@ public sealed class YamlReader : YamlReaderWriterBase
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
         var yamlWriter = new YamlWriter(writer, reader.Options);
 
-        WriteBufferedNode(reader, yamlWriter, comparer, discriminatorPropertyName, isRootMapping: true, ref discriminatorValue);
+        reader._state.PassAliasesThrough = true;
+        try
+        {
+            WriteBufferedNode(reader, yamlWriter, comparer, discriminatorPropertyName, isRootMapping: true, ref discriminatorValue);
+        }
+        finally
+        {
+            reader._state.PassAliasesThrough = false;
+        }
+
         return writer.ToString();
     }
 
@@ -582,13 +657,27 @@ public sealed class YamlReader : YamlReaderWriterBase
         var yamlWriter = new YamlWriter(writer, reader.Options);
 
         string? unused = null;
-        WriteBufferedNode(reader, yamlWriter, StringComparer.Ordinal, discriminatorPropertyName: string.Empty, isRootMapping: false, ref unused);
+        reader._state.PassAliasesThrough = true;
+        try
+        {
+            WriteBufferedNode(reader, yamlWriter, StringComparer.Ordinal, discriminatorPropertyName: string.Empty, isRootMapping: false, ref unused);
+        }
+        finally
+        {
+            reader._state.PassAliasesThrough = false;
+        }
+
         return writer.ToString();
     }
 
+    /// <remarks>
+    /// The buffered YAML keeps the aliases of the node, so that <see cref="CreateReader"/> resolves them against the
+    /// anchors captured here instead of copying them into the text.
+    /// </remarks>
     private void CaptureBufferedNode(string? discriminatorPropertyName)
     {
         _state.BufferedDiscriminator = discriminatorPropertyName;
+        _state.CaptureBufferedAnchors();
 
         var tracker = _state.Tracker;
         if (tracker is not null)
@@ -642,7 +731,7 @@ public sealed class YamlReader : YamlReaderWriterBase
                     writer.WriteTag(reader.Tag);
                 }
 
-                writer.WriteScalar(reader.ScalarValue);
+                writer.WriteScalar(reader.ScalarValue, reader.ScalarStyle);
                 reader.Read();
                 return;
 
@@ -687,16 +776,20 @@ public sealed class YamlReader : YamlReaderWriterBase
                 reader.Read();
                 while (reader.TokenType != YamlTokenType.EndMapping)
                 {
-                    if (reader.TokenType != YamlTokenType.Scalar)
+                    var key = reader.TokenType == YamlTokenType.Scalar ? reader.ScalarValue ?? string.Empty : null;
+                    if (reader.TokenType != YamlTokenType.Scalar || reader.Anchor is not null || reader.Tag is not null)
                     {
-                        throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
+                        writer.WriteStartMappingKey();
+                        WriteBufferedNode(reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
+                        writer.WriteEndMappingKey();
+                    }
+                    else
+                    {
+                        writer.WritePropertyName(key!);
+                        reader.Read();
                     }
 
-                    var key = reader.ScalarValue ?? string.Empty;
-                    writer.WritePropertyName(key);
-                    reader.Read();
-
-                    if (isRootMapping && discriminatorValue is null && keyComparer.Equals(key, discriminatorPropertyName))
+                    if (isRootMapping && key is not null && discriminatorValue is null && keyComparer.Equals(key, discriminatorPropertyName))
                     {
                         if (reader.TokenType != YamlTokenType.Scalar)
                         {
@@ -720,34 +813,62 @@ public sealed class YamlReader : YamlReaderWriterBase
     internal sealed class YamlReaderState
     {
         private readonly IParser _parser;
+        private readonly YamlAnchorTable _anchors;
         private readonly string? _discriminatorPropertyName;
-        private int _depth;
+        private readonly int _rootNesting;
+        private int _nesting;
+        private bool _hasBufferedAnchors;
+        private Dictionary<string, YamlAnchorBinding>? _bufferedAnchors;
+        private int _bufferedNesting;
+        private AnchorAlias? _pendingAlias;
+        private bool _skipAliasExpansion;
+        private YamlTokenType _tokenType;
+        private string? _scalarValue;
+        private ScalarStyle _scalarStyle = ScalarStyle.Any;
+        private string? _tag;
+        private string? _anchor;
+        private string? _alias;
+        private Mark _start = Mark.Empty;
+        private Mark _end = Mark.Empty;
+        private ParsingEvent? _currentEvent;
 
-        public YamlReaderState(IParser parser, YamlReferenceReader? referenceReader, string? sourceName, YamlPathTracker? tracker, string? discriminatorPropertyName)
+        /// <param name="parser">The parser of the YAML.</param>
+        /// <param name="anchors">The anchors of the YAML.</param>
+        /// <param name="nesting">The number of mappings and sequences that enclose the YAML in the document it was buffered from.</param>
+        /// <param name="sourceName">The source name reported in exceptions.</param>
+        /// <param name="tracker">The path tracker, when reporting.</param>
+        /// <param name="discriminatorPropertyName">The discriminator property name of the buffered polymorphic node this reader reads.</param>
+        public YamlReaderState(IParser parser, YamlAnchorTable anchors, int nesting, string? sourceName, YamlPathTracker? tracker, string? discriminatorPropertyName)
         {
             _parser = parser;
+            _anchors = anchors;
+            _rootNesting = nesting;
+            _nesting = nesting;
             _discriminatorPropertyName = discriminatorPropertyName;
             Tracker = tracker;
-            TokenType = YamlTokenType.None;
-            ReferenceReader = referenceReader;
+            _tokenType = YamlTokenType.None;
             SourceName = sourceName;
         }
 
-        public YamlTokenType TokenType { get; private set; }
-        public string? ScalarValue { get; private set; }
-        public ScalarStyle ScalarStyle { get; private set; } = ScalarStyle.Any;
-        public string? Tag { get; private set; }
-        public string? Anchor { get; private set; }
-        public string? Alias { get; private set; }
-        public Mark Start { get; private set; } = Mark.Empty;
-        public Mark End { get; private set; } = Mark.Empty;
-        public ParsingEvent? CurrentEvent { get; private set; }
-        public YamlReferenceReader? ReferenceReader { get; }
+        // Every token property resolves a pending alias first: see ResolvePendingAlias.
+        public YamlTokenType TokenType => _pendingAlias is null ? _tokenType : ResolvePendingAlias()._tokenType;
+        public string? ScalarValue => _pendingAlias is null ? _scalarValue : ResolvePendingAlias()._scalarValue;
+        public ScalarStyle ScalarStyle => _pendingAlias is null ? _scalarStyle : ResolvePendingAlias()._scalarStyle;
+        public string? Tag => _pendingAlias is null ? _tag : ResolvePendingAlias()._tag;
+        public string? Anchor => _pendingAlias is null ? _anchor : ResolvePendingAlias()._anchor;
+        public string? Alias => _pendingAlias is null ? _alias : ResolvePendingAlias()._alias;
+        public Mark Start => _pendingAlias is null ? _start : ResolvePendingAlias()._start;
+        public Mark End => _pendingAlias is null ? _end : ResolvePendingAlias()._end;
+        public ParsingEvent? CurrentEvent => _pendingAlias is null ? _currentEvent : ResolvePendingAlias()._currentEvent;
+        public YamlReferenceReader? ReferenceReader => _anchors.Scope.References;
         public string? SourceName { get; }
         public YamlPathTracker? Tracker { get; }
 
         /// <summary>The discriminator property name of the node most recently buffered from this reader; used to seed the reader of the re-parse.</summary>
         public string? BufferedDiscriminator { get; set; }
+
+        /// <summary>Gets or sets a value indicating whether aliases of the parser are reported as they are, while a node is buffered to text.</summary>
+        public bool PassAliasesThrough { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether <paramref name="memberName"/>, read in the root mapping of a buffered polymorphic node,
@@ -755,127 +876,179 @@ public sealed class YamlReader : YamlReaderWriterBase
         /// </summary>
         /// <remarks><paramref name="comparison"/> must match the comparison used to find the discriminator when the node was buffered.</remarks>
         public bool IsDiscriminatorMember(string memberName, StringComparison comparison)
-            => _discriminatorPropertyName is not null && _depth == 1 && string.Equals(memberName, _discriminatorPropertyName, comparison);
+            => _discriminatorPropertyName is not null && _nesting == _rootNesting + 1 && string.Equals(memberName, _discriminatorPropertyName, comparison);
+
+        /// <summary>Captures the anchors and the nesting of the node about to be buffered from the current token.</summary>
+        public void CaptureBufferedAnchors()
+        {
+            _hasBufferedAnchors = true;
+            _bufferedAnchors = _anchors.CaptureBindings();
+            _bufferedNesting = TokenType is YamlTokenType.StartMapping or YamlTokenType.StartSequence ? _nesting - 1 : _nesting;
+        }
+
+        /// <summary>Creates the anchors of a reader over the node buffered last, or, when no node was buffered, over YAML that starts at the current token.</summary>
+        public YamlAnchorTable CreateBufferedAnchors(out int nesting)
+        {
+            if (!_hasBufferedAnchors)
+            {
+                CaptureBufferedAnchors();
+            }
+
+            nesting = _bufferedNesting;
+
+            // Each table owns its bindings, as a fragment binds the anchors it parses again.
+            var bindings = _bufferedAnchors is null ? null : new Dictionary<string, YamlAnchorBinding>(_bufferedAnchors, StringComparer.Ordinal);
+            return _anchors.CreateFragment(bindings);
+        }
 
         public bool Read()
         {
-            if (!ReadCore())
+            _pendingAlias = null;
+            var current = _anchors.Read(_parser, PassAliasesThrough, _skipAliasExpansion);
+            if (current is AnchorAlias alias && _anchors.IsPendingAlias)
+            {
+                _pendingAlias = alias;
+                return true;
+            }
+
+            if (!Apply(current))
             {
                 return false;
             }
 
-            if (_discriminatorPropertyName is not null)
-            {
-                // Only the keys of the root mapping can be the discriminator: track how deep the reader is in the buffered node.
-                if (TokenType is YamlTokenType.StartMapping or YamlTokenType.StartSequence)
-                {
-                    _depth++;
-                }
-                else if (TokenType is YamlTokenType.EndMapping or YamlTokenType.EndSequence)
-                {
-                    _depth--;
-                }
-            }
-
-            Tracker?.OnToken(TokenType, ScalarValue, Start);
+            Tracker?.OnToken(_tokenType, _scalarValue, _start);
             return true;
         }
 
-        private bool ReadCore()
+        /// <summary>
+        /// Decides what an alias that has no registered object yet stands for, once the converter looks at it.
+        /// </summary>
+        /// <remarks>
+        /// Under <see cref="YamlReferenceHandling.Preserve"/>, the converter of an anchored mapping or sequence registers
+        /// its object after it read the start token, so it may not be registered yet when the reader reads an alias to it
+        /// as the first item. The alias is reported when the object is registered by the time a token property is read,
+        /// and replayed otherwise.
+        /// </remarks>
+        private YamlReaderState ResolvePendingAlias()
         {
-            while (_parser.MoveNext())
+            var alias = _pendingAlias!;
+            _pendingAlias = null;
+            Apply(_anchors.ResolvePendingAlias(alias) ? alias : _anchors.Read(_parser, PassAliasesThrough));
+            Tracker?.OnToken(_tokenType, _scalarValue, _start);
+            return this;
+        }
+
+        /// <summary>Replays the anchored node of the current alias token: see <see cref="YamlReader.ExpandAlias"/>.</summary>
+        public void ExpandAlias()
+        {
+            if (TokenType != YamlTokenType.Alias || CurrentEvent is not AnchorAlias alias)
             {
-                var current = _parser.Current;
-                if (current is null)
-                {
-                    continue;
-                }
-
-                Start = current.Start;
-                End = current.End;
-
-                // These are stream/document framing tokens that most converters should not see.
-                if (current is StreamStart or StreamEnd or DocumentStart or DocumentEnd)
-                {
-                    continue;
-                }
-
-                CurrentEvent = current;
-                ScalarValue = null;
-                ScalarStyle = ScalarStyle.Any;
-                Tag = null;
-                Anchor = null;
-                Alias = null;
-
-                switch (current)
-                {
-                    case MappingStart mappingStart:
-                        TokenType = YamlTokenType.StartMapping;
-                        Tag = mappingStart.Tag;
-                        Anchor = mappingStart.Anchor;
-                        return true;
-
-                    case MappingEnd:
-                        TokenType = YamlTokenType.EndMapping;
-                        return true;
-
-                    case SequenceStart sequenceStart:
-                        TokenType = YamlTokenType.StartSequence;
-                        Tag = sequenceStart.Tag;
-                        Anchor = sequenceStart.Anchor;
-                        return true;
-
-                    case SequenceEnd:
-                        TokenType = YamlTokenType.EndSequence;
-                        return true;
-
-                    case Scalar scalar:
-                        TokenType = YamlTokenType.Scalar;
-                        ScalarValue = scalar.Value;
-                        ScalarStyle = scalar.Style;
-                        Tag = scalar.Tag;
-                        Anchor = scalar.Anchor;
-                        return true;
-
-                    case AnchorAlias alias:
-                        TokenType = YamlTokenType.Alias;
-                        Alias = alias.Value;
-                        return true;
-                }
-
-                // Ignore any other event types (directives, etc.) for now.
+                return;
             }
 
-            TokenType = YamlTokenType.None;
-            ScalarValue = null;
-            ScalarStyle = ScalarStyle.Any;
-            Tag = null;
-            Anchor = null;
-            Alias = null;
-            Start = Mark.Empty;
-            End = Mark.Empty;
-            CurrentEvent = null;
-            return false;
+            _anchors.ExpandCurrentAlias(alias);
+
+            // The first token of the copy takes the place of the alias in the path.
+            Tracker?.OnAliasExpanded();
+            Read();
+        }
+
+        /// <summary>Makes <paramref name="current"/> the current token; <see langword="null"/> is the end of the stream.</summary>
+        private bool Apply(ParsingEvent? current)
+        {
+            _currentEvent = current;
+            _scalarValue = null;
+            _scalarStyle = ScalarStyle.Any;
+            _tag = null;
+            _anchor = null;
+            _alias = null;
+            if (current is null)
+            {
+                _tokenType = YamlTokenType.None;
+                _start = Mark.Empty;
+                _end = Mark.Empty;
+                return false;
+            }
+
+            _start = current.Start;
+            _end = current.End;
+            switch (current)
+            {
+                case MappingStart mappingStart:
+                    EnterContainer(current);
+                    _tokenType = YamlTokenType.StartMapping;
+                    _tag = mappingStart.Tag;
+                    _anchor = mappingStart.Anchor;
+                    return true;
+
+                case MappingEnd:
+                    _nesting--;
+                    _tokenType = YamlTokenType.EndMapping;
+                    return true;
+
+                case SequenceStart sequenceStart:
+                    EnterContainer(current);
+                    _tokenType = YamlTokenType.StartSequence;
+                    _tag = sequenceStart.Tag;
+                    _anchor = sequenceStart.Anchor;
+                    return true;
+
+                case SequenceEnd:
+                    _nesting--;
+                    _tokenType = YamlTokenType.EndSequence;
+                    return true;
+
+                case Scalar scalar:
+                    _tokenType = YamlTokenType.Scalar;
+                    _scalarValue = scalar.Value;
+                    _scalarStyle = scalar.Style;
+                    _tag = scalar.Tag;
+                    _anchor = scalar.Anchor;
+                    return true;
+
+                case AnchorAlias alias:
+                    _tokenType = YamlTokenType.Alias;
+                    _alias = alias.Value;
+                    return true;
+
+                default:
+                    throw new YamlException(SourceName, current.Start, current.End, $"Unexpected parsing event '{current.GetType().Name}'.");
+            }
+        }
+
+        private void EnterContainer(ParsingEvent start)
+        {
+            // The parser bounds the depth of what it parses; a replayed alias can nest deeper.
+            if (!_skipAliasExpansion && _anchors.IsReplayed && _nesting >= _anchors.Scope.MaxDepth)
+            {
+                throw YamlDepthHelper.CreateMaxDepthExceededException(_anchors.Scope.MaxDepth, start.Start, start.End, SourceName);
+            }
+
+            _nesting++;
         }
 
         public void Skip()
         {
-            switch (TokenType)
+            _skipAliasExpansion = true;
+            try
             {
-                case YamlTokenType.StartMapping:
-                case YamlTokenType.StartSequence:
+                if (_pendingAlias is { } alias)
+                {
+                    _pendingAlias = null;
+                    Apply(alias);
+                    Tracker?.OnToken(_tokenType, _scalarValue, _start);
+                }
+                if (_tokenType is YamlTokenType.StartMapping or YamlTokenType.StartSequence)
+                {
                     SkipContainer();
-                    return;
-
-                case YamlTokenType.Scalar:
-                case YamlTokenType.Alias:
-                    Read();
-                    return;
-
-                default:
-                    Read();
-                    return;
+                }
             }
+            finally
+            {
+                _skipAliasExpansion = false;
+            }
+            // The next value is observed normally, even if it is itself an alias.
+            Read();
         }
 
         private void SkipContainer()
@@ -898,11 +1071,6 @@ public sealed class YamlReader : YamlReaderWriterBase
                 }
             }
 
-            // Move past the end token.
-            if (TokenType is YamlTokenType.EndMapping or YamlTokenType.EndSequence)
-            {
-                Read();
-            }
         }
     }
 }

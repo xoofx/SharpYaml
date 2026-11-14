@@ -130,12 +130,12 @@ namespace SharpYaml.Tests
             TryParse(schema, "false", JsonSchema.BoolShortTag, false);
             TryParse(schema, "5", JsonSchema.IntShortTag, 5);
             TryParse(schema, "5.5", JsonSchema.FloatShortTag, 5.5);
-            TryParse(schema, ".inf", JsonSchema.FloatShortTag, double.PositiveInfinity);
         }
 
         public void TestCoreSchemaCommon(IYamlSchema schema)
         {
             TestJsonSchemaCommon(schema);
+            TryParse(schema, ".inf", JsonSchema.FloatShortTag, double.PositiveInfinity);
 
             // Core schema is accepting plain string
             Assert.AreEqual(SchemaBase.StrShortTag, schema.GetDefaultTag(new Scalar("boom")));

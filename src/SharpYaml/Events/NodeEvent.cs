@@ -3,7 +3,6 @@
 // // See LICENSE.txt file in the project root for full license information.
 
 using System;
-using System.Text.RegularExpressions;
 
 namespace SharpYaml.Events;
 
@@ -12,7 +11,24 @@ namespace SharpYaml.Events;
 /// </summary>
 public abstract class NodeEvent : ParsingEvent
 {
-    internal static readonly Regex anchorValidator = new Regex(@"^[0-9a-zA-Z_\-]+$", RegexOptions.Compiled);
+    internal static bool IsValidAnchor(string value)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            var character = value[i];
+            if (char.IsHighSurrogate(character) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+            {
+                i++;
+                continue;
+            }
+            // YAML 1.2.2 ns-anchor-char excludes whitespace and flow indicators.
+            if (character is ' ' or '\t' or '\r' or '\n' or ',' or '[' or ']' or '{' or '}' || !Emitter.IsPrintable(character))
+            {
+                return false;
+            }
+        }
+        return value.Length != 0;
+    }
 
     /// <summary>
     /// Gets the anchor.
@@ -49,9 +65,9 @@ public abstract class NodeEvent : ParsingEvent
                 throw new ArgumentException("Anchor value must not be empty.", "anchor");
             }
 
-            if (!anchorValidator.IsMatch(anchor))
+            if (!IsValidAnchor(anchor))
             {
-                throw new ArgumentException("Anchor value must contain alphanumerical characters only.", "anchor");
+                throw new ArgumentException("Anchor value must contain non-space characters and no flow indicators.", "anchor");
             }
         }
 

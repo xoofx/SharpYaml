@@ -3,8 +3,10 @@
 // // See LICENSE.txt file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace SharpYaml.Serialization.Converters;
 
@@ -55,56 +57,7 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 return list;
 
             case YamlTokenType.StartMapping:
-                var mappingAnchor = reader.Anchor;
-                reader.Read();
-                var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-                var dict = new Dictionary<string, object?>(comparer);
-                var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
-                HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
-                HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
-                if (reader.ReferenceReader is not null && mappingAnchor is not null)
-                {
-                    reader.ReferenceReader.Register(mappingAnchor, dict);
-                }
-
-                while (reader.TokenType != YamlTokenType.EndMapping)
-                {
-                    if (reader.TokenType != YamlTokenType.Scalar)
-                    {
-                        throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
-                    }
-
-                    var key = reader.ScalarValue ?? string.Empty;
-                    reader.Read();
-
-                    if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
-                    {
-                        ReadAndApplyMerge(reader, dict, explicitKeys);
-                        continue;
-                    }
-
-                    explicitKeys?.Add(key);
-
-                    var wasSeen = seenKeys is not null && !seenKeys.Add(key);
-                    if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
-                    {
-                        throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
-                    }
-
-                    if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
-                    {
-                        reader.Skip();
-                        continue;
-                    }
-
-                    var value = Read(reader, typeof(object));
-                    dict[key] = value;
-                }
-                reader.Read();
-                return dict;
-
-            case YamlTokenType.Alias:
-                throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into object unless ReferenceHandling is Preserve.");
+                return ReadMapping(reader);
 
             default:
                 throw YamlThrowHelper.ThrowUnexpectedToken(reader);
@@ -153,57 +106,124 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
         return converter.Read(reader, type);
     }
 
-    private void ReadAndApplyMerge(YamlReader reader, Dictionary<string, object?> dictionary, HashSet<string>? explicitKeys)
+    private object ReadMapping(YamlReader reader)
     {
+        var anchor = reader.Anchor;
+        var options = reader.Options;
+        var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        IDictionary dictionary = new Dictionary<string, object?>(comparer);
+        var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
+        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
+        HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
+        if (anchor is not null) reader.RegisterAnchor(anchor, dictionary);
+        reader.Read();
+
+        while (reader.TokenType != YamlTokenType.EndMapping)
+        {
+            reader.ExpandAlias();
+            object key;
+            if (reader.TokenType == YamlTokenType.Scalar)
+            {
+                key = reader.ScalarValue ?? string.Empty;
+                var isMerge = mergeEnabled && (string)key == "<<" && reader.ScalarStyle == ScalarStyle.Plain;
+                reader.Read();
+                if (isMerge)
+                {
+                    ReadAndApplyMerge(reader, ref dictionary, explicitKeys, anchor);
+                    continue;
+                }
+
+                explicitKeys?.Add((string)key);
+                var wasSeen = seenKeys is not null && !seenKeys.Add((string)key);
+                if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
+                {
+                    throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, (string)key);
+                }
+                if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.FirstWins)
+                {
+                    reader.Skip();
+                    continue;
+                }
+            }
+            else
+            {
+                PromoteMapping(reader, ref dictionary, anchor);
+                key = Read(reader, typeof(object))
+                    ?? throw new YamlException(reader.SourceName, reader.Start, reader.End, "A complex mapping key cannot be null.");
+            }
+
+            dictionary[key] = Read(reader, typeof(object));
+        }
+        reader.Read();
+        return dictionary;
+    }
+
+    private static void PromoteMapping(YamlReader reader, ref IDictionary dictionary, string? anchor)
+    {
+        if (dictionary is Dictionary<object, object?>) return;
+        var promoted = new Dictionary<object, object?>(reader.Options.PropertyNameCaseInsensitive
+            ? MappingKeyComparer.IgnoreCase : MappingKeyComparer.Ordinal);
+        foreach (DictionaryEntry entry in dictionary) promoted.Add(entry.Key, entry.Value);
+        if (reader.WasResolvedByAlias(dictionary) ||
+            (anchor is not null && !reader.TryReplaceAnchoredObject(anchor, dictionary, promoted)))
+        {
+            throw new YamlException(reader.SourceName, reader.Start, reader.End,
+                "A mapping with complex keys cannot replace a mapping already referenced by an earlier alias.");
+        }
+        dictionary = promoted;
+    }
+
+    private void ReadAndApplyMerge(YamlReader reader, ref IDictionary dictionary, HashSet<string>? explicitKeys, string? anchor)
+    {
+        reader.ExpandAlias();
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
             return;
         }
 
-        if (reader.TokenType == YamlTokenType.StartMapping || reader.TokenType == YamlTokenType.Alias)
+        if (reader.TokenType == YamlTokenType.StartMapping)
         {
-            var merged = Read(reader, typeof(object));
-            if (merged is Dictionary<string, object?> mergedDict)
-            {
-                ApplyMergeDictionary(dictionary, mergedDict, explicitKeys);
-                return;
-            }
-
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
+            var mapping = (IDictionary)Read(reader, typeof(object))!;
+            ApplyMergeDictionary(reader, ref dictionary, mapping, explicitKeys, anchor);
+            return;
         }
-
         if (reader.TokenType == YamlTokenType.StartSequence)
         {
             reader.Read();
             while (reader.TokenType != YamlTokenType.EndSequence)
             {
-                var merged = Read(reader, typeof(object));
-                if (merged is not Dictionary<string, object?> mergedDict)
+                reader.ExpandAlias();
+                if (Read(reader, typeof(object)) is not IDictionary source)
                 {
                     throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
                 }
-
-                ApplyMergeDictionary(dictionary, mergedDict, explicitKeys);
+                ApplyMergeDictionary(reader, ref dictionary, source, explicitKeys, anchor);
             }
-
             reader.Read();
             return;
         }
-
         throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
     }
 
-    private static void ApplyMergeDictionary(Dictionary<string, object?> target, Dictionary<string, object?> merged, HashSet<string>? explicitKeys)
+    private static void ApplyMergeDictionary(YamlReader reader, ref IDictionary target, IDictionary merged, HashSet<string>? explicitKeys, string? anchor)
     {
-        foreach (var pair in merged)
+        foreach (DictionaryEntry pair in merged)
         {
-            if (explicitKeys is not null && explicitKeys.Contains(pair.Key))
-            {
-                continue;
-            }
-
-            target[pair.Key] = pair.Value;
+            if (pair.Key is string key && explicitKeys?.Contains(key) == true) continue;
+            if (pair.Key is not string) PromoteMapping(reader, ref target, anchor);
+            // Earlier mappings in a merge sequence take precedence over later ones.
+            if (!target.Contains(pair.Key)) target[pair.Key] = pair.Value;
         }
+    }
+
+    private sealed class MappingKeyComparer : IEqualityComparer<object>
+    {
+        public static readonly MappingKeyComparer Ordinal = new(StringComparer.Ordinal);
+        public static readonly MappingKeyComparer IgnoreCase = new(StringComparer.OrdinalIgnoreCase);
+        private readonly StringComparer _strings;
+        private MappingKeyComparer(StringComparer strings) => _strings = strings;
+        public new bool Equals(object? x, object? y) => x is string a && y is string b ? _strings.Equals(a, b) : ReferenceEquals(x, y);
+        public int GetHashCode(object value) => value is string text ? _strings.GetHashCode(text) : RuntimeHelpers.GetHashCode(value);
     }
 }

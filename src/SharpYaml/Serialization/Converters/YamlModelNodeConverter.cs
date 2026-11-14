@@ -202,7 +202,7 @@ internal sealed class YamlModelNodeConverter : YamlConverter
         switch (node)
         {
             case YamlValue scalar:
-                writer.WriteScalar(scalar.Value);
+                writer.WriteScalar(scalar.Value, scalar.Scalar.Style);
                 return;
 
             case YamlSequence sequence:
@@ -219,12 +219,14 @@ internal sealed class YamlModelNodeConverter : YamlConverter
                 for (var i = 0; i < mapping.Count; i++)
                 {
                     var pair = ((IList<KeyValuePair<YamlElement, YamlElement?>>)mapping)[i];
-                    if (pair.Key is not YamlValue keyValue)
+                    if (pair.Key is not YamlValue keyValue || keyValue.Anchor is not null || keyValue.Tag is not null)
                     {
-                        throw new YamlException(Mark.Empty, Mark.Empty, "Only scalar mapping keys are supported when serializing a YamlMapping.");
+                        writer.WriteComplexKey(pair.Key, Instance);
                     }
-
-                    writer.WritePropertyName(keyValue.Value);
+                    else
+                    {
+                        writer.WritePropertyName(keyValue.Value);
+                    }
 
                     if (pair.Value is null)
                     {

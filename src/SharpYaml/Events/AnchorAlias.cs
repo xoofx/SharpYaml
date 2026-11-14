@@ -42,9 +42,9 @@ public class AnchorAlias : ParsingEvent
             throw new YamlException(start, end, "Anchor value must not be empty.");
         }
 
-        if (!NodeEvent.anchorValidator.IsMatch(value))
+        if (!NodeEvent.IsValidAnchor(value))
         {
-            throw new YamlException(start, end, "Anchor value must contain alphanumerical characters only.");
+            throw new YamlException(start, end, "Anchor value must contain non-space characters and no flow indicators.");
         }
 
         this.Value = value;

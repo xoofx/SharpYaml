@@ -55,7 +55,7 @@ public sealed class YamlUntypedObjectTests
     [TestMethod]
     public void UnsafeTagActivation_HandlesMscorlibTypeNames()
     {
-        var yaml = "!System.Int32,mscorlib 42\n";
+        var yaml = "!System.Int32%2Cmscorlib 42\n";
         var value = YamlSerializer.Deserialize<object>(
             yaml,
             new YamlSerializerOptions { UnsafeAllowDeserializeFromTagTypeName = true });
@@ -76,11 +76,10 @@ public sealed class YamlUntypedObjectTests
     }
 
     [TestMethod]
-    public void DeserializeObject_AliasWithoutPreserve_ThrowsYamlException()
+    public void DeserializeObject_UnknownAlias_ThrowsYamlException()
     {
         var ex = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<object>("*id001\n"));
-        StringAssert.Contains(ex.Message, "ReferenceHandling");
-        StringAssert.Contains(ex.Message, "Preserve");
+        StringAssert.Contains(ex.Message, "unknown anchor");
     }
 }
 

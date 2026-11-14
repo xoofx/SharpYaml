@@ -23,11 +23,6 @@ internal sealed class YamlStringConverter : YamlConverter<string?>
             return value;
         }
 
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into string unless ReferenceHandling is Preserve.");
-        }
-
         throw YamlThrowHelper.ThrowExpectedScalar(reader);
     }
 

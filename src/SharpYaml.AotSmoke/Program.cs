@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Numerics;
 using SharpYaml;
 using SharpYaml.Serialization;
 
@@ -59,6 +60,53 @@ if (skippedValues is not [1, null])
 {
     return 4;
 }
+
+// The parser and the built-in untyped graph do not require reflected metadata.
+var graphOptions = new YamlSerializerOptions { TypeInfoResolver = context };
+var graph = YamlSerializer.Deserialize<object>("%RESERVED test\n---\nfirst: &name '123'\ncopy: *name\n? [a, b]\n: !!str 456", graphOptions);
+if (graph is not Dictionary<object, object?> complexGraph || complexGraph["copy"] is not "123" ||
+    complexGraph.Values.OfType<string>().Count(v => v == "456") != 1)
+{
+    return 5;
+}
+var graphYaml = YamlSerializer.Serialize(graph, graphOptions);
+if (YamlSerializer.Deserialize<object>(graphYaml, graphOptions) is not Dictionary<object, object?> graphRoundTrip || graphRoundTrip.Count != 3)
+{
+    return 6;
+}
+
+var complexKeys = YamlSerializer.Deserialize<Dictionary<List<string>, string>>("? [a, b]\n: value", graphOptions);
+if (complexKeys is null || complexKeys.Single().Key is not ["a", "b"] || complexKeys.Single().Value != "value")
+{
+    return 7;
+}
+var keyYaml = YamlSerializer.Serialize(complexKeys, graphOptions);
+if (YamlSerializer.Deserialize<Dictionary<List<string>, string>>(keyYaml, graphOptions)?.Count != 1)
+{
+    return 8;
+}
+
+var largeInteger = BigInteger.Parse("123456789012345678901234567890", System.Globalization.CultureInfo.InvariantCulture);
+var largeYaml = YamlSerializer.Serialize(largeInteger, graphOptions);
+if (YamlSerializer.Deserialize<BigInteger>(largeYaml, graphOptions) != largeInteger ||
+    YamlSerializer.Deserialize<object>(largeYaml, graphOptions) is not BigInteger largeUntyped || largeUntyped != largeInteger)
+{
+    return 9;
+}
+foreach (var handling in new[] { YamlReferenceHandling.Preserve, YamlReferenceHandling.PreserveMinimal })
+{
+    var preservedOptions = graphOptions with { ReferenceHandling = handling };
+    var sharedMap = new Dictionary<string, object?> { ["k"] = "v" };
+    object sharedGraph = new List<object?> { sharedMap, sharedMap };
+    var sharedYaml = YamlSerializer.Serialize(sharedGraph, preservedOptions);
+    var sharedResult = YamlSerializer.Deserialize<object>(sharedYaml, preservedOptions) as List<object?>;
+    if (sharedResult is null || sharedResult[0] is not Dictionary<string, object?> first || first["k"] is not "v" ||
+        !ReferenceEquals(sharedResult[0], sharedResult[1])) return 10;
+}
+var skippedRecursive = YamlSerializer.Deserialize("Unknown: &u {x: *u}\nname: kept", context.SmokeConfig);
+if (skippedRecursive?.Name != "kept") return 11;
+var bigNumber = YamlSerializer.Deserialize("Value: 123456789012345678901234567890", context.SmokeBigNumber);
+if (bigNumber?.Value != largeInteger) return 12;
 
 return 0;
 
@@ -122,6 +170,15 @@ internal sealed class SmokePopulateItem
 [YamlSerializable(typeof(SmokeConfig))]
 [YamlSerializable(typeof(SmokePopulateConfig))]
 [YamlSerializable(typeof(int?[]))]
+[YamlSerializable(typeof(object))]
+[YamlSerializable(typeof(BigInteger))]
+[YamlSerializable(typeof(SmokeBigNumber))]
+[YamlSerializable(typeof(Dictionary<List<string>, string>))]
 internal partial class SmokeYamlContext : YamlSerializerContext
 {
+}
+
+internal sealed class SmokeBigNumber
+{
+    public BigInteger Value { get; set; }
 }

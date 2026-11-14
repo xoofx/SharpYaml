@@ -4,6 +4,7 @@
 
 using System;
 using System.Globalization;
+using System.Numerics;
 using System.Text.RegularExpressions;
 
 namespace SharpYaml.Schemas;
@@ -79,13 +80,10 @@ public class JsonSchema : FailsafeSchema
         AddScalarRule<bool>("!!bool", @"false", m => false, null);
 
         // 10.2.1.3. Integer
-        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"((0|-?[1-9][0-9_]*))", DecodeInteger, null);
+        AddScalarRule(new Type[] { typeof(ulong), typeof(long), typeof(int) }, "!!int", @"-?(0|[1-9][0-9]*)", DecodeInteger, null);
 
         // 10.2.1.4. Floating Point
         AddScalarRule<double>("!!float", @"-?(0|[1-9][0-9]*)(\.[0-9]*)?([eE][-+]?[0-9]+)?", m => Convert.ToDouble(m.Value.Replace("_", ""), CultureInfo.InvariantCulture), null);
-        AddScalarRule<double>("!!float", @"\.inf", m => double.PositiveInfinity, null);
-        AddScalarRule<double>("!!float", @"-\.inf", m => double.NegativeInfinity, null);
-        AddScalarRule<double>("!!float", @"\.nan", m => double.NaN, null);
 
         // Json doesn't allow failsafe string, so we are disabling it here.
         AllowFailsafeString = false;
@@ -109,7 +107,8 @@ public class JsonSchema : FailsafeSchema
             return result;
         }
         // Else ulong
-        return ulong.Parse(valueStr, CultureInfo.InvariantCulture);
+        return ulong.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var unsigned)
+            ? (object)unsigned : BigInteger.Parse(valueStr, CultureInfo.InvariantCulture);
     }
 
     /// <summary>Registers default tag mappings for JSON-schema scalar types.</summary>
@@ -129,6 +128,7 @@ public class JsonSchema : FailsafeSchema
         RegisterDefaultTagMapping<uint>(IntShortTag);
         RegisterDefaultTagMapping<long>(IntShortTag);
         RegisterDefaultTagMapping<ulong>(IntShortTag);
+        RegisterDefaultTagMapping<BigInteger>(IntShortTag);
 
         // All double/float types
         RegisterDefaultTagMapping<float>(FloatShortTag, true);

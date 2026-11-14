@@ -1473,7 +1473,7 @@ public class YamlSerializerSourceGenerationTests
     }
 
     [TestMethod]
-    public void GeneratedContext_MergeKey_AliasValueThrows()
+    public void GeneratedContext_MergeKey_AliasValueIsExpanded()
     {
         var context = TestYamlSerializerContext.Default;
         var yaml = """
@@ -1482,8 +1482,9 @@ public class YamlSerializerSourceGenerationTests
             <<: *base
             """;
 
-        var exception = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize(yaml, context.GeneratedPerson));
-        StringAssert.Contains(exception.Message, "Merge alias values are not supported in source-generated deserialization.");
+        var person = YamlSerializer.Deserialize(yaml, context.GeneratedPerson);
+        Assert.IsNotNull(person);
+        Assert.AreEqual(37, person.Age);
     }
 
     [TestMethod]

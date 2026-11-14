@@ -26,14 +26,9 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
 
     public override Dictionary<string, object?>? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<Dictionary<string, object?>>(out var rootAliasValue))
         {
-            return (Dictionary<string, object?>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -204,14 +199,9 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
 
     private Dictionary<string, object?>? PopulateDictionary(YamlReader reader, Dictionary<string, object?> dictionary)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<Dictionary<string, object?>>(out var rootAliasValue))
         {
-            return (Dictionary<string, object?>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -306,14 +296,9 @@ internal sealed class YamlListObjectConverter : YamlConverter<List<object?>?>
 
     public override List<object?>? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<List<object?>>(out var rootAliasValue))
         {
-            return (List<object?>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a list unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -381,14 +366,9 @@ internal sealed class YamlListObjectConverter : YamlConverter<List<object?>?>
 
     private static List<object?>? PopulateList(YamlReader reader, List<object?> list)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<List<object?>>(out var rootAliasValue))
         {
-            return (List<object?>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a list unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -427,14 +407,9 @@ internal sealed class YamlObjectArrayConverter : YamlConverter<object[]?>
 
     public override object[]? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<object[]>(out var rootAliasValue))
         {
-            return (object[])rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an array unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))

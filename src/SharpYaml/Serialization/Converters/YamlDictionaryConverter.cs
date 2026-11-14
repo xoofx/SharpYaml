@@ -81,6 +81,12 @@ internal static class YamlDictionaryConverterHelper
             return;
         }
 
+        if (key is System.Collections.IEnumerable or Model.YamlContainer || key is not (IFormattable or bool or char or Enum))
+        {
+            writer.WriteComplexKey(key, writer.GetConverter(key.GetType()));
+            return;
+        }
+
         writer.WritePropertyName(FormatNonStringKey(key));
     }
 
@@ -180,14 +186,9 @@ internal static class YamlDictionaryConverterHelper
         TDictionary? dictionary = null)
         where TDictionary : class, IDictionary<string, TValue>
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<TDictionary>(out var rootAliasValue))
         {
-            return (TDictionary)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into a {containerKind} unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -275,14 +276,9 @@ internal static class YamlDictionaryConverterHelper
         TDictionary? dictionary = null)
         where TDictionary : class, IDictionary<TKey, TValue>
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<TDictionary>(out var rootAliasValue))
         {
-            return (TDictionary)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into a {containerKind} unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -317,11 +313,6 @@ internal static class YamlDictionaryConverterHelper
         reader.Read();
         while (reader.TokenType != YamlTokenType.EndMapping)
         {
-            if (reader.TokenType != YamlTokenType.Scalar)
-            {
-                throw YamlThrowHelper.ThrowExpectedScalarKey(reader);
-            }
-
             var keyStart = reader.Start;
             var keyEnd = reader.End;
             object? rawKey;

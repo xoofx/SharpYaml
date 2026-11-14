@@ -166,7 +166,8 @@ internal static class CharacterAnalyzer
     /// </summary>
     public static bool IsBreak(this ILookAheadBuffer buffer, int offset)
     {
-        return Check(buffer, "\r\n\x85\x2028\x2029", offset);
+        // YAML 1.2 treats NEL, LS and PS as ordinary non-break characters (§5.4).
+        return Check(buffer, "\r\n", offset);
     }
 
     public static bool IsBreak(this ILookAheadBuffer buffer)

@@ -92,4 +92,15 @@ if (cList[0] is not null || cList[1] is not string cy || cy != "y")
     return 9;
 }
 
+var complex = YamlSerializer.Deserialize<object>("name: &n value\ncopy: *n\n? [key]\n: value");
+if (complex is not Dictionary<object, object?> complexMapping || complexMapping["copy"] is not "value")
+{
+    return 19;
+}
+var complexYaml = YamlSerializer.Serialize(complex);
+if (YamlSerializer.Deserialize<object>(complexYaml) is not Dictionary<object, object?> complexCopy || complexCopy.Count != 3)
+{
+    return 20;
+}
+
 return 0;

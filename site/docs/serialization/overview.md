@@ -73,6 +73,19 @@ If you want camelCase keys, set `PropertyNamingPolicy = JsonNamingPolicy.CamelCa
 
 ### References are not source preservation
 
+Aliases are expanded while loading ordinary acyclic values, including scalar aliases and mapping-key
+aliases. Use `ReferenceHandling.Preserve` or `PreserveMinimal` to retain shared CLR object identity and
+load recursive graphs. Expansion is bounded to prevent excessive work; unknown anchors and recursive
+expansion without reference preservation produce `YamlException`.
+
+`MaxAliasExpansion` limits nodes produced by replayed aliases across a deserialization call, including
+buffered polymorphic nodes. Its default is 100,000 nodes (`0` selects this default). `MaxDepth` also
+applies to expanded graphs. Anchors are scoped to each YAML document and a repeated anchor name binds
+the latest node. When a preserved alias is read into a different CLR type, the reader replays a copy
+through that type's converter instead of casting the registered object.
+Skipped unmapped values are scanned without expanding their aliases, including recursive aliases;
+undefined anchor names still produce errors. Anchors recorded while skipping remain available to later values.
+
 `ReferenceHandling` preserves **CLR object identity**, not the original YAML spelling or structure.
 In particular, YAML merge keys (`<<: *defaults`) are expanded during deserialization. A mapping
 that merges defaults and adds or overrides entries is a distinct object, not an alias of the
@@ -116,7 +129,8 @@ is not a lossless alternative: it currently materializes aliases as copies.
 | [`BlockSequenceSequenceStyle`](xref:SharpYaml.YamlSerializerOptions.BlockSequenceSequenceStyle) | [`YamlSequenceItemStyle.Expanded`](xref:SharpYaml.YamlSequenceItemStyle.Expanded) | Controls whether nested sequences in block sequences start on the dash line or the following line. |
 | [`Schema`](xref:SharpYaml.YamlSerializerOptions.Schema) | [`YamlSchemaKind.Core`](xref:SharpYaml.YamlSchemaKind.Core) | Controls scalar resolution rules (YAML 1.2). |
 | [`DuplicateKeyHandling`](xref:SharpYaml.YamlSerializerOptions.DuplicateKeyHandling) | [`YamlDuplicateKeyHandling.Error`](xref:SharpYaml.YamlDuplicateKeyHandling.Error) | Controls behavior when duplicate keys are encountered, in every schema and with both reflection and source-generated readers. |
-| [`ReferenceHandling`](xref:SharpYaml.YamlSerializerOptions.ReferenceHandling) | [`YamlReferenceHandling.None`](xref:SharpYaml.YamlReferenceHandling.None) | Enables anchor/alias preservation. `Preserve` anchors every reference object; `PreserveMinimal` performs a pre-serialization pass and anchors only shared or cyclic objects. |
+| [`ReferenceHandling`](xref:SharpYaml.YamlSerializerOptions.ReferenceHandling) | [`YamlReferenceHandling.None`](xref:SharpYaml.YamlReferenceHandling.None) | Expands acyclic aliases while loading. `Preserve` retains object identity and anchors every reference object when writing; `PreserveMinimal` anchors only shared or cyclic objects. |
+| [`MaxAliasExpansion`](xref:SharpYaml.YamlSerializerOptions.MaxAliasExpansion) | `0` (100,000 nodes) | Bounds the work performed while expanding aliases, including nested and buffered copies. |
 | [`ScalarStylePreferences`](xref:SharpYaml.YamlSerializerOptions.ScalarStylePreferences) | new | Controls scalar emission styles. |
 | [`PolymorphismOptions`](xref:SharpYaml.YamlSerializerOptions.PolymorphismOptions) | new | Controls polymorphism behaviors. |
 | [`UnsafeAllowDeserializeFromTagTypeName`](xref:SharpYaml.YamlSerializerOptions.UnsafeAllowDeserializeFromTagTypeName) | `false` | Allows tag-based activation by runtime type name (use only with trusted input). |

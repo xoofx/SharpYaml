@@ -137,10 +137,10 @@ public sealed class YamlGeneratedCollectionPopulateTests
     }
 
     [TestMethod]
-    public void Populate_DictionaryAlias_RequiresReferencePreservation()
+    public void Populate_UnknownDictionaryAliasThrows()
     {
         var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize("ByName: *missing", CollectionPopulateContext.Default.CollectionPopulateRoot));
-        Assert.AreEqual("Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.", exception.Reason);
+        Assert.AreEqual("Found an alias '*missing' referencing an unknown anchor.", exception.Reason);
     }
 
     private sealed class PopulateKeyConverter : YamlConverter<int>

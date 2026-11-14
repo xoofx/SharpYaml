@@ -21,14 +21,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     public override T? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<T>(out var rootAliasValue))
         {
-            return (T)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into '{typeof(T)}' unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -74,14 +69,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             throw new InvalidOperationException($"Converter '{GetType()}' cannot populate '{typeToConvert}'.");
         }
 
-        if (reader.TryReadAlias(out var aliasValue))
+        if (reader.TryReadAlias<T>(out var aliasValue))
         {
             return aliasValue;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into '{typeof(T)}' unless ReferenceHandling is Preserve.");
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -802,6 +792,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return;
         }
 
+        // A merged alias is applied as a copy of its mapping, even when references are preserved.
+        reader.ExpandAlias();
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
@@ -819,6 +811,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             reader.Read();
             while (reader.TokenType != YamlTokenType.EndSequence)
             {
+                reader.ExpandAlias();
                 if (reader.TokenType != YamlTokenType.StartMapping)
                 {
                     throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
@@ -829,31 +822,6 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             reader.Read();
             return;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            // Merge requires reading mapping entries; alias expansion is only supported when ReferenceHandling is Preserve
-            // and the alias resolves to a mapping-like value. For other cases, report a clear error.
-            if (reader.TryReadAlias(out var aliasValue) && aliasValue is Dictionary<string, object?> mergedDict)
-            {
-                foreach (var pair in mergedDict)
-                {
-                    if (explicitKeys.Contains(pair.Key))
-                    {
-                        continue;
-                    }
-
-                    if (contract.TryGetMember(pair.Key, out var member) && member.CanWrite && !member.ShouldIgnoreOnRead)
-                    {
-                        member.SetValue(instance, pair.Value);
-                    }
-                }
-
-                return;
-            }
-
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge alias values are not supported unless they resolve to a mapping.");
         }
 
         throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
@@ -928,6 +896,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return;
         }
 
+        // A merged alias is applied as a copy of its mapping, even when references are preserved.
+        reader.ExpandAlias();
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
@@ -945,6 +915,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             reader.Read();
             while (reader.TokenType != YamlTokenType.EndSequence)
             {
+                reader.ExpandAlias();
                 if (reader.TokenType != YamlTokenType.StartMapping)
                 {
                     throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");
@@ -955,11 +926,6 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             reader.Read();
             return;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge alias values are not supported unless they resolve to a mapping.");
         }
 
         throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
@@ -1207,6 +1173,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             return;
         }
 
+        // A merged alias is applied as a copy of its mapping, even when references are preserved.
+        reader.ExpandAlias();
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
             reader.Read();
@@ -1224,6 +1192,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             reader.Read();
             while (reader.TokenType != YamlTokenType.EndSequence)
             {
+                reader.ExpandAlias();
                 if (reader.TokenType != YamlTokenType.StartMapping)
                 {
                     throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge sequence entries must be mappings.");

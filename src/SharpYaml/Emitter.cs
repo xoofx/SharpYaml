@@ -418,7 +418,7 @@ public class Emitter : IEmitter
                 }
             }
 
-            if (!special_characters && !buffer.IsPrintable())
+            if (!special_characters && (!buffer.IsPrintable() || buffer.Check('\uFEFF')))
             {
                 special_characters = true;
             }
@@ -552,6 +552,12 @@ public class Emitter : IEmitter
         tagData.handle = tag;
         foreach (var tagDirective in tagDirectives)
         {
+            if (tagDirective.Handle.Length > 1 && tag.StartsWith(tagDirective.Handle, StringComparison.Ordinal))
+            {
+                tagData.handle = tagDirective.Handle;
+                tagData.suffix = tag.Substring(tagDirective.Handle.Length);
+                break;
+            }
             if (tag.StartsWith(tagDirective.Prefix, StringComparison.Ordinal))
             {
                 tagData.handle = tagDirective.Handle;
@@ -782,11 +788,12 @@ public class Emitter : IEmitter
         isIndentation = false;
     }
 
-    private static readonly Regex uriReplacer = new Regex(@"[^0-9A-Za-z_\-;?@=$~\\\)\]/:&+,\.\*\(\[!]", RegexOptions.Singleline | RegexOptions.Compiled);
+    private static readonly Regex uriReplacer = new Regex(@"[^0-9A-Za-z_\-;?@=$~)/:&+,.\*('\[\]!]", RegexOptions.Singleline | RegexOptions.Compiled);
+    private static readonly Regex tagSuffixReplacer = new Regex(@"[^0-9A-Za-z_\-;?@=$~)/:&+.\*(']", RegexOptions.Singleline | RegexOptions.Compiled);
 
-    private static string UrlEncode(string text)
+    internal static string UrlEncode(string text, bool shorthand)
     {
-        return uriReplacer.Replace(text, delegate (Match match)
+        return (shorthand ? tagSuffixReplacer : uriReplacer).Replace(text, delegate (Match match)
         {
             var buffer = new StringBuilder();
             foreach (var toEncode in Encoding.UTF8.GetBytes(match.Value))
@@ -797,14 +804,14 @@ public class Emitter : IEmitter
         });
     }
 
-    private void WriteTagContent(string value, bool needsWhitespace)
+    private void WriteTagContent(string value, bool needsWhitespace, bool shorthand = false)
     {
         if (needsWhitespace && !isWhitespace)
         {
             Write(' ');
         }
 
-        Write(UrlEncode(value));
+        Write(UrlEncode(value, shorthand));
 
         isWhitespace = false;
         isIndentation = false;
@@ -980,7 +987,7 @@ public class Emitter : IEmitter
             WriteTagHandle(tagData.handle);
             if (tagData.suffix != null)
             {
-                WriteTagContent(tagData.suffix, false);
+                WriteTagContent(tagData.suffix, false, shorthand: true);
             }
         }
         else

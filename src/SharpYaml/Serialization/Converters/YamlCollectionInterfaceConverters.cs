@@ -118,14 +118,9 @@ internal sealed class YamlMutableCollectionConverter<TCollection, TElement> : Ya
 
     public override TCollection? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<TCollection>(out var rootAliasValue))
         {
-            return (TCollection)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into {typeof(TCollection)} unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -186,14 +181,9 @@ internal sealed class YamlHashSetConverter<TElement> : YamlConverter<HashSet<TEl
 
     public override HashSet<TElement>? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<HashSet<TElement>>(out var rootAliasValue))
         {
-            return (HashSet<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a set unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -282,14 +272,9 @@ internal sealed class YamlISetConverter<TElement> : YamlConverter<ISet<TElement>
 
     public override ISet<TElement>? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<ISet<TElement>>(out var rootAliasValue))
         {
-            return (ISet<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into a set unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -365,14 +350,9 @@ internal sealed class YamlImmutableArrayConverter<TElement> : YamlConverter<Immu
 
     public override ImmutableArray<TElement> Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<ImmutableArray<TElement>>(out var rootAliasValue))
         {
-            return (ImmutableArray<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into ImmutableArray unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -434,14 +414,9 @@ internal sealed class YamlImmutableListConverter<TElement> : YamlConverter<Immut
 
     public override ImmutableList<TElement>? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<ImmutableList<TElement>>(out var rootAliasValue))
         {
-            return (ImmutableList<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into ImmutableList unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -490,14 +465,9 @@ internal sealed class YamlImmutableHashSetConverter<TElement> : YamlConverter<Im
 
     public override ImmutableHashSet<TElement>? Read(YamlReader reader)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<ImmutableHashSet<TElement>>(out var rootAliasValue))
         {
-            return (ImmutableHashSet<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, "Aliases are not supported when deserializing into an immutable set unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -557,14 +527,9 @@ internal static class SequenceReadHelpers
 {
     public static List<TElement>? ReadList<TElement>(YamlReader reader, ref YamlConverter? elementConverter, string typeDisplayName, Type declaringType)
     {
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<List<TElement>>(out var rootAliasValue))
         {
-            return (List<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into {typeDisplayName} unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
@@ -638,14 +603,9 @@ internal static class SequenceReadHelpers
         ArgumentGuard.ThrowIfNull(reader);
         ArgumentGuard.ThrowIfNull(collection);
 
-        if (reader.TryReadAlias(out var rootAliasValue))
+        if (reader.TryReadAlias<ICollection<TElement>>(out var rootAliasValue))
         {
-            return (ICollection<TElement>)rootAliasValue!;
-        }
-
-        if (reader.TokenType == YamlTokenType.Alias)
-        {
-            throw new YamlException(reader.SourceName, reader.Start, reader.End, $"Aliases are not supported when deserializing into {typeDisplayName} unless ReferenceHandling is Preserve.");
+            return rootAliasValue;
         }
 
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))

@@ -110,15 +110,9 @@ public sealed class Yaml12CoreTests
     public void JsonSchema_FloatEdgeCases()
     {
         var schema = new JsonSchema();
-        // .inf / -.inf / .nan
-        Assert.IsTrue(schema.TryParse(new Scalar(".inf"), true, out _, out var posInf));
-        Assert.AreEqual(double.PositiveInfinity, posInf);
-
-        Assert.IsTrue(schema.TryParse(new Scalar("-.inf"), true, out _, out var negInf));
-        Assert.AreEqual(double.NegativeInfinity, negInf);
-
-        Assert.IsTrue(schema.TryParse(new Scalar(".nan"), true, out _, out var nan));
-        Assert.IsTrue(double.IsNaN((double)nan!));
+        Assert.IsFalse(schema.TryParse(new Scalar(".inf"), true, out _, out _));
+        Assert.IsFalse(schema.TryParse(new Scalar("-.inf"), true, out _, out _));
+        Assert.IsFalse(schema.TryParse(new Scalar(".nan"), true, out _, out _));
 
         // Scientific notation
         Assert.IsTrue(schema.TryParse(new Scalar("1e10"), true, out var tag, out var sci));
@@ -196,12 +190,12 @@ public sealed class Yaml12CoreTests
     }
 
     [TestMethod]
-    public void CoreSchema_IntegersWithUnderscores()
+    public void CoreSchema_UnderscoresRemainStrings()
     {
         var schema = new CoreSchema();
         Assert.IsTrue(schema.TryParse(new Scalar("1_000"), true, out var tag, out var val));
-        Assert.AreEqual(JsonSchema.IntShortTag, tag);
-        Assert.AreEqual(1000, val);
+        Assert.AreEqual(SchemaBase.StrShortTag, tag);
+        Assert.AreEqual("1_000", val);
     }
 
     [TestMethod]
@@ -537,7 +531,7 @@ public sealed class Yaml12CoreTests
     [TestMethod]
     public void Parser_DocumentEndMarker()
     {
-        // After "...", a new document requires "---"
+        // An explicit start marker is permitted after an explicit document end.
         var events = ParseAll("foo\n...\n---\nbar\n");
         var scalars = events.OfType<Scalar>().ToList();
         Assert.AreEqual(2, scalars.Count);
@@ -546,10 +540,11 @@ public sealed class Yaml12CoreTests
     }
 
     [TestMethod]
-    public void Parser_DocumentEndMarkerWithoutNewDocStart_ThrowsException()
+    public void Parser_DocumentEndMarkerAllowsFollowingBareDocument()
     {
-        // Bare content after "..." without "---" is an error
-        Assert.Throws<YamlException>(() => ParseAll("foo\n...\nbar\n"));
+        var scalars = ParseAll("foo\n...\nbar\n").OfType<Scalar>().ToList();
+        Assert.AreEqual(2, scalars.Count);
+        Assert.AreEqual("bar", scalars[1].Value);
     }
 
     [TestMethod]

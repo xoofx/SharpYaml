@@ -285,7 +285,36 @@ public sealed record YamlSerializerOptions
     /// <summary>
     /// Gets or sets object reference handling behavior.
     /// </summary>
+    /// <remarks>
+    /// Aliases deserialize with every value: each alias is read as a copy of its anchored node, except that under
+    /// <see cref="YamlReferenceHandling.Preserve"/> an alias resolves to the same object as its anchored mapping or
+    /// sequence, which also lets an object contain itself.
+    /// </remarks>
     public YamlReferenceHandling ReferenceHandling { get; init; }
+
+    /// <summary>
+    /// Gets or sets the maximum number of nodes that aliases can expand to during one deserialization.
+    /// </summary>
+    /// <remarks>
+    /// A value of <c>0</c> uses the default limit of 100,000. Each scalar, mapping and sequence that an alias reads as a
+    /// copy of its anchored node counts, nested aliases included, which bounds documents that nest aliases to expand
+    /// exponentially. Within a replay, an alias that reuses an object under <see cref="YamlReferenceHandling.Preserve"/>
+    /// counts as one node. Aliases in the original input that reuse objects do not expand and do not consume the budget.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Value is less than 0.</exception>
+    public int MaxAliasExpansion
+    {
+        get;
+        init
+        {
+            if (value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Max alias expansion must be greater than or equal to 0.");
+            }
+
+            field = value;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the maximum allowed nesting depth for YAML mappings and sequences during serialization and deserialization.
@@ -316,6 +345,8 @@ public sealed record YamlSerializerOptions
     public IYamlTypeInfoResolver? TypeInfoResolver { get; init; }
 
     internal int EffectiveMaxDepth => YamlDepthHelper.GetEffectiveMaxDepth(MaxDepth);
+
+    internal int EffectiveMaxAliasExpansion => MaxAliasExpansion == 0 ? 100_000 : MaxAliasExpansion;
 
     internal static void ValidateSequenceItemStyle(YamlSequenceItemStyle value, string paramName)
     {
