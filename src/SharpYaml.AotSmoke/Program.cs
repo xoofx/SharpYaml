@@ -108,6 +108,17 @@ if (skippedRecursive?.Name != "kept") return 11;
 var bigNumber = YamlSerializer.Deserialize("Value: 123456789012345678901234567890", context.SmokeBigNumber);
 if (bigNumber?.Value != largeInteger) return 12;
 
+foreach (var identifier in new[] { "0xFFFFFFFFFFFFFFFF", "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "0x52908400098527886E0F7030069857D2E4169EE7", "0o7777777777777777777777777" })
+{
+    var identifierYaml = YamlSerializer.Serialize<object>(identifier, graphOptions);
+    if (YamlSerializer.Deserialize<object>(identifierYaml, graphOptions) is not string identifierResult || identifierResult != identifier) return 13;
+    object identifiers = new List<object?> { identifier, new Dictionary<string, object?> { ["value"] = identifier } };
+    var identifiersYaml = YamlSerializer.Serialize(identifiers, graphOptions);
+    if (YamlSerializer.Deserialize<object>(identifiersYaml, graphOptions) is not List<object?> identifiersResult ||
+        identifiersResult[0] is not string firstIdentifier || firstIdentifier != identifier ||
+        identifiersResult[1] is not Dictionary<string, object?> identifierMap || identifierMap["value"] is not string mappedIdentifier || mappedIdentifier != identifier) return 14;
+}
+
 return 0;
 
 internal sealed class SmokeIntConverter : YamlConverter

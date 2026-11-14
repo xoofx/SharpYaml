@@ -1399,7 +1399,9 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return true;
         }
 
-        return YamlScalar.IsNull(value) ||
+        // Core integers have no native width limit, so numeric parsing alone cannot detect every ambiguity.
+        return YamlCoreScalarResolver.Classify(value) != YamlCoreScalarResolver.Kind.String ||
+               YamlScalar.IsNull(value) ||
                YamlScalar.TryParseBool(value, out _) ||
                YamlScalar.TryParseInt64(value, out _) ||
                YamlScalar.TryParseDouble(value, out _);

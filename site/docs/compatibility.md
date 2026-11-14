@@ -33,6 +33,8 @@ Default untyped integers use `Int64`, then `UInt64`, and then `BigInteger` when 
 64-bit ranges. Explicit `!!int` uses the same default CLR widths. `UseSchema = true` retains the schema's
 smallest native width. Large integers remain exact and can be serialized again, including with generated
 metadata and NativeAOT.
+With the default scalar-style preferences, writers quote numeric-looking strings, including large
+hexadecimal and octal identifiers, so untyped round trips preserve their text and string type.
 
 By default, untyped `object` values use a span-based Core resolver. Typed numeric conversion helpers
 also accept convenient .NET spellings, including numeric underscores. Set `UseSchema = true` to

@@ -41,13 +41,13 @@ internal static class YamlCoreScalarResolver
         return BigInteger.Parse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
     }
 
-    public static Kind Classify(string text)
+    public static Kind Classify(ReadOnlySpan<char> text)
     {
         if (text is "" or "~" or "null" or "Null" or "NULL") return Kind.Null;
         if (text is "true" or "True" or "TRUE" or "false" or "False" or "FALSE") return Kind.Boolean;
         if (text is ".nan" or ".NaN" or ".NAN") return Kind.Float;
 
-        var value = text.AsSpan();
+        var value = text;
         var offset = value[0] is '+' or '-' ? 1 : 0;
         if (offset == value.Length) return Kind.String;
         var unsigned = value.Slice(offset);

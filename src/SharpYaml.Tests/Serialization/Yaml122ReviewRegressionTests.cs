@@ -51,6 +51,37 @@ public sealed class Yaml122ReviewRegressionTests
     }
 
     [TestMethod]
+    [DataRow("0x8000000000000000")]
+    [DataRow("0xFFFFFFFFFFFFFFFF")]
+    [DataRow("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")]
+    [DataRow("0x52908400098527886E0F7030069857D2E4169EE7")]
+    [DataRow("0xABCDEFABCDEFABCDEFAB")]
+    [DataRow("0o1777777777777777777777")]
+    [DataRow("0o7777777777777777777777777")]
+    public void LargeIntegerStringsKeepTheirTextAndType(string text)
+    {
+        foreach (var generated in new[] { false, true })
+        foreach (var useSchema in new[] { false, true })
+        {
+            var options = Options(generated) with { UseSchema = useSchema };
+            var yaml = YamlSerializer.Serialize<object>(text, options);
+            Assert.AreEqual(text, YamlSerializer.Deserialize<object>(yaml, options));
+
+            object graph = new List<object?>
+            {
+                text,
+                new Dictionary<string, object?> { ["value"] = text, [text] = "identifier" },
+            };
+            var graphYaml = YamlSerializer.Serialize(graph, options);
+            var result = (List<object?>)YamlSerializer.Deserialize<object>(graphYaml, options)!;
+            Assert.AreEqual(text, result[0]);
+            var mapping = (Dictionary<string, object?>)result[1]!;
+            Assert.AreEqual(text, mapping["value"]);
+            Assert.AreEqual("identifier", mapping[text]);
+        }
+    }
+
+    [TestMethod]
     [DataRow("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")]
     [DataRow("0o7777777777777777777777777777777777777777")]
     public void NativeIntegerTryParsersReturnFalseForOverflow(string text)
