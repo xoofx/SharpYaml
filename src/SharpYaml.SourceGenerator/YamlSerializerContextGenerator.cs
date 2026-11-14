@@ -3670,9 +3670,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append("            ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
                 builder.AppendLine("            : null;");
                 builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? mergedKeys = null;");
-                builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? seenKeys = mergeEnabled");
-                builder.Append("            ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
-                builder.AppendLine("            : null;");
+                EmitDictionarySeenKeys(builder, duplicateKeyHandling, propertyNameComparerExpression, "seenKeys", "        ");
             }
             else
             {
@@ -5343,9 +5341,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.Append("                        ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
                 builder.AppendLine("                        : null;");
                 builder.AppendLine("                    global::System.Collections.Generic.HashSet<string>? dictionaryMergedKeys = null;");
-                builder.AppendLine("                    global::System.Collections.Generic.HashSet<string>? dictionarySeenKeys = dictionaryMergeEnabled");
-                builder.Append("                        ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
-                builder.AppendLine("                        : null;");
+                EmitDictionarySeenKeys(builder, duplicateKeyHandling, propertyNameComparerExpression, "dictionarySeenKeys", "                    ");
                 builder.AppendLine("                    global::SharpYaml.Serialization.YamlConverter? dictionaryMergeConverter = null;");
             }
             else
@@ -7606,6 +7602,24 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
     private static bool DiscriminatorStyleReadsProperty(int style)
         => style is DiscriminatorStyleProperty or DiscriminatorStyleBoth;
+
+    /// <summary>
+    /// Emits dictionary key tracking according to duplicate handling, independently of merge-key support.
+    /// </summary>
+    private static void EmitDictionarySeenKeys(StringBuilder builder, string? duplicateKeyHandling, string comparerExpression, string variableName, string indent)
+    {
+        if (string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        builder.Append(indent).Append("global::System.Collections.Generic.HashSet<string>? ").Append(variableName).Append(" = ");
+        if (duplicateKeyHandling is null)
+        {
+            builder.Append("options.DuplicateKeyHandling == global::SharpYaml.YamlDuplicateKeyHandling.LastWins ? null : ");
+        }
+        builder.Append("new global::System.Collections.Generic.HashSet<string>(").Append(comparerExpression).AppendLine(");");
+    }
 
     /// <summary>
     /// Emits the handling of a duplicate dictionary key inside a generated dictionary loop, before the value of the

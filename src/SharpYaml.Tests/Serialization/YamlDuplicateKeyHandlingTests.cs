@@ -102,8 +102,70 @@ public sealed class YamlDuplicateKeyHandlingTests
 
     public static IEnumerable<object[]> Modes => new[] { new object[] { false }, new object[] { true } };
 
+    public static IEnumerable<object[]> SchemaModes
+    {
+        get
+        {
+            foreach (var schema in new[] { YamlSchemaKind.Core, YamlSchemaKind.Extended, YamlSchemaKind.Json, YamlSchemaKind.Failsafe })
+            {
+                yield return new object[] { schema, false };
+                yield return new object[] { schema, true };
+            }
+        }
+    }
+
     private static T? Deserialize<T>(string yaml, YamlSerializerOptions options, bool generated)
         => generated ? (T?)YamlSerializer.Deserialize(yaml, typeof(T), new DuplicateKeyContext(options)) : YamlSerializer.Deserialize<T>(yaml, options);
+
+    [TestMethod]
+    [DynamicData(nameof(SchemaModes))]
+    public void Dictionary_AllSchemas_ErrorDetectsDuplicates(YamlSchemaKind schema, bool generated)
+    {
+        var options = new YamlSerializerOptions { Schema = schema, DuplicateKeyHandling = YamlDuplicateKeyHandling.Error, PropertyNameCaseInsensitive = true };
+
+        var root = Assert.ThrowsExactly<YamlException>(() => Deserialize<Dictionary<string, int>>("A: 1\na: 2\n", options, generated));
+        var member = Assert.ThrowsExactly<YamlException>(() => Deserialize<DuplicateKeyDictionaryMembers>("Values: {A: 1, a: 2}\n", options, generated));
+
+        Assert.AreEqual("Duplicate mapping key 'a'.", root.Reason);
+        Assert.AreEqual(1, root.Start.Line);
+        Assert.AreEqual(3, root.Start.Column);
+        Assert.AreEqual("Duplicate mapping key 'a'.", member.Reason);
+        Assert.AreEqual(18, member.Start.Column);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(SchemaModes))]
+    public void Dictionary_AllSchemas_FirstWinsAndLastWins(YamlSchemaKind schema, bool generated)
+    {
+        var options = new YamlSerializerOptions { Schema = schema, DuplicateKeyHandling = YamlDuplicateKeyHandling.FirstWins };
+
+        var first = Deserialize<Dictionary<string, int>>("a: 1\na: [x]\n", options, generated)!;
+        var firstMember = Deserialize<DuplicateKeyDictionaryMembers>("Values: {a: 1, a: [x]}\n", options, generated)!;
+        Assert.AreEqual(1, first["a"]);
+        Assert.AreEqual(1, firstMember.Values["a"]);
+
+        options = options with { DuplicateKeyHandling = YamlDuplicateKeyHandling.LastWins };
+        var last = Deserialize<Dictionary<string, int>>("a: 1\na: 2\n", options, generated)!;
+        var lastMember = Deserialize<DuplicateKeyDictionaryMembers>("Values: {a: 1, a: 2}\n", options, generated)!;
+        Assert.AreEqual(2, last["a"]);
+        Assert.AreEqual(2, lastMember.Values["a"]);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(SchemaModes))]
+    public void Dictionary_AllSchemas_DroppedKeysStillCountAsSeen(YamlSchemaKind schema, bool generated)
+    {
+        var options = new YamlSerializerOptions { Schema = schema, DuplicateKeyHandling = YamlDuplicateKeyHandling.Error, InvalidValueHandling = YamlInvalidValueHandling.Skip };
+
+        var root = Assert.ThrowsExactly<YamlException>(() => Deserialize<Dictionary<string, int>>("a: abc\na: 2\n", options, generated));
+        var member = Assert.ThrowsExactly<YamlException>(() => Deserialize<DuplicateKeyDictionaryMembers>("Values: {a: abc, a: 2}\n", options, generated));
+        Assert.AreEqual("Duplicate mapping key 'a'.", root.Reason);
+        Assert.AreEqual("Duplicate mapping key 'a'.", member.Reason);
+
+        options = options with { DuplicateKeyHandling = YamlDuplicateKeyHandling.FirstWins };
+        Assert.IsEmpty(Deserialize<Dictionary<string, int>>("a: abc\na: 2\n", options, generated)!);
+        Assert.IsEmpty(Deserialize<DuplicateKeyDictionaryMembers>("Values: {a: abc, a: 2}\n", options, generated)!.Values);
+    }
 
     [TestMethod]
     [DynamicData(nameof(Modes))]
@@ -240,7 +302,17 @@ public sealed class YamlDuplicateKeyHandlingTests
 
         Assert.AreEqual(1, members.Age);
         Assert.AreEqual(1, constructed.Age);
+
+        var dictionary = (Dictionary<string, int>)YamlSerializer.Deserialize("a: 1\na: [x]\n", typeof(Dictionary<string, int>), context)!;
+        var member = (DuplicateKeyDictionaryMembers)YamlSerializer.Deserialize("Values: {a: 1, a: [x]}\n", typeof(DuplicateKeyDictionaryMembers), context)!;
+        Assert.AreEqual(1, dictionary["a"]);
+        Assert.AreEqual(1, member.Values["a"]);
     }
+}
+
+internal sealed class DuplicateKeyDictionaryMembers
+{
+    public Dictionary<string, int> Values { get; set; } = new();
 }
 
 internal sealed class DuplicateKeyMembers
@@ -264,6 +336,7 @@ internal sealed class DuplicateKeyConstructed
 
 [YamlSerializable(typeof(DuplicateKeyMembers))]
 [YamlSerializable(typeof(DuplicateKeyConstructed))]
+[YamlSerializable(typeof(DuplicateKeyDictionaryMembers))]
 [YamlSerializable(typeof(Dictionary<string, int>))]
 [YamlSerializable(typeof(Dictionary<int, int>))]
 internal partial class DuplicateKeyContext : YamlSerializerContext
@@ -277,9 +350,11 @@ internal partial class DuplicateKeyContext : YamlSerializerContext
     }
 }
 
-[YamlSourceGenerationOptions(DuplicateKeyHandling = YamlDuplicateKeyHandling.FirstWins)]
+[YamlSourceGenerationOptions(Schema = YamlSchemaKind.Failsafe, DuplicateKeyHandling = YamlDuplicateKeyHandling.FirstWins)]
 [YamlSerializable(typeof(DuplicateKeyMembers))]
 [YamlSerializable(typeof(DuplicateKeyConstructed))]
+[YamlSerializable(typeof(DuplicateKeyDictionaryMembers))]
+[YamlSerializable(typeof(Dictionary<string, int>))]
 internal partial class FirstWinsDuplicateKeyContext : YamlSerializerContext
 {
     public FirstWinsDuplicateKeyContext()
