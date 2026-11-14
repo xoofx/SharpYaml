@@ -202,7 +202,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         => _state.Tracker is { } tracker ? tracker.Session.CreateException(fatal) : throw new InvalidOperationException("No invalid value was recovered.");
 
     /// <summary>
-    /// Gets whether <paramref name="exception"/>, thrown while reading a member value, can be recovered from: the configured
+    /// Gets whether <paramref name="exception"/>, thrown while reading a value, can be recovered from: the configured
     /// <see cref="YamlSerializerOptions.InvalidValueHandling"/> is not <see cref="YamlInvalidValueHandling.FailFast"/>, the
     /// exception does not come from the parser, and the reader is still on the token the read began on, so nothing of the
     /// value was consumed.
@@ -236,8 +236,78 @@ public sealed class YamlReader : YamlReaderWriterBase
             return;
         }
 
+        RecoverInvalidValueCore(tracker, exception, declaringType, instance, name, tracker.GetCurrentKeyStart(), targetType);
+    }
+
+    /// <summary>
+    /// Skips the collection element or dictionary value the reader is positioned on and reports it as invalid, so that
+    /// the caller drops it. Call this after <see cref="CanRecoverInvalidValue"/> returned <see langword="true"/>. The
+    /// name of the item comes from the path tracker: the zero-based document index of a sequence element, or the key of
+    /// a dictionary entry. A sequence element has no key, so its <see cref="YamlInvalidValue.KeyStart"/> is its own
+    /// start.
+    /// </summary>
+    /// <param name="exception">The exception the converter threw.</param>
+    /// <param name="declaringType">The CLR type of the collection being deserialized.</param>
+    /// <param name="instance">
+    /// The collection the item would have been added to, or <see langword="null"/> when the result is built afterwards,
+    /// as for arrays and immutable collections.
+    /// </param>
+    /// <param name="targetType">The element or dictionary value type.</param>
+    internal void RecoverInvalidItem(YamlException exception, Type declaringType, object? instance, Type targetType)
+    {
+        if (_state.Tracker is not { } tracker)
+        {
+            Skip();
+            return;
+        }
+
+        var name = tracker.GetCurrentName(out var isElement);
+        RecoverInvalidValueCore(tracker, exception, declaringType, instance, name, isElement ? Start : tracker.GetCurrentKeyStart(), targetType);
+    }
+
+    /// <summary>
+    /// Reads a collection element or dictionary value with <paramref name="converter"/>. When the converter rejects it
+    /// and <see cref="CanRecoverInvalidValue"/> allows recovery, the item is skipped and reported through
+    /// <see cref="RecoverInvalidItem"/>, and the caller drops it. Any other exception propagates unchanged.
+    /// </summary>
+    /// <param name="converter">The converter of the element or value type.</param>
+    /// <param name="itemType">
+    /// The element or dictionary value type, passed to the converter and reported as the target type.
+    /// </param>
+    /// <param name="declaringType">The CLR type of the collection being deserialized.</param>
+    /// <param name="instance">
+    /// The collection the item is added to, or <see langword="null"/> when the result is built afterwards.
+    /// </param>
+    /// <param name="value">The value read, or <see langword="null"/> when the item was skipped.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="value"/> was read; <see langword="false"/> when the item was skipped
+    /// and reported.
+    /// </returns>
+    /// <remarks>
+    /// Under <see cref="YamlInvalidValueHandling.FailFast"/> this allocates nothing: the filter runs only when the
+    /// converter throws.
+    /// </remarks>
+    internal bool TryReadItem(YamlConverter converter, Type itemType, Type declaringType, object? instance, out object? value)
+    {
+        var tokenType = TokenType;
+        var start = Start;
+        try
+        {
+            value = converter.Read(this, itemType);
+            return true;
+        }
+        catch (YamlException exception) when (CanRecoverInvalidValue(exception, tokenType, start))
+        {
+            RecoverInvalidItem(exception, declaringType, instance, itemType);
+            value = null;
+            return false;
+        }
+    }
+
+    private void RecoverInvalidValueCore(YamlPathTracker tracker, YamlException exception, Type declaringType, object? instance, string name, Mark keyStart, Type targetType)
+    {
         var session = tracker.Session;
-        var value = new YamlInvalidValue(SourceName, declaringType, instance, name, tracker.GetPath(), tracker.GetCurrentKeyStart(), Start, targetType, exception);
+        var value = new YamlInvalidValue(SourceName, declaringType, instance, name, tracker.GetPath(), keyStart, Start, targetType, exception);
         if (session.IsReportingInvalidValues)
         {
             value.SetValue(Converters.YamlModelNodeConverter.ReadUnmappedNode(this, session.Anchors));

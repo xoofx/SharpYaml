@@ -8,8 +8,9 @@ using SharpYaml.Model;
 namespace SharpYaml.Serialization;
 
 /// <summary>
-/// Describes a YAML value that a converter rejected while deserializing a member or a constructor argument, and that
-/// was skipped because <see cref="YamlSerializerOptions.InvalidValueHandling"/> is not <see cref="YamlInvalidValueHandling.FailFast"/>.
+/// Describes a YAML value that a converter rejected while deserializing a member, a constructor argument, a collection
+/// element or a dictionary value, and that was skipped because <see cref="YamlSerializerOptions.InvalidValueHandling"/>
+/// is not <see cref="YamlInvalidValueHandling.FailFast"/>.
 /// </summary>
 /// <remarks>
 /// Instances are passed to <see cref="YamlSerializerOptions.InvalidValueCallback"/> and
@@ -42,16 +43,24 @@ public sealed class YamlInvalidValue
     /// <summary>Gets the source name (for example a file path) from <see cref="YamlSerializerOptions.SourceName"/>.</summary>
     public string? SourceName { get; }
 
-    /// <summary>Gets the CLR type that was being deserialized when the value was rejected.</summary>
+    /// <summary>
+    /// Gets the CLR type that was being deserialized when the value was rejected: the type declaring the member or
+    /// constructor, or the collection type for an element or a dictionary value.
+    /// </summary>
     public Type DeclaringType { get; }
 
     /// <summary>
-    /// Gets the instance being populated, or <see langword="null"/> when it does not exist yet
-    /// (for example for types deserialized through a parameterized constructor).
+    /// Gets the instance being populated, or <see langword="null"/> when it does not exist yet (for example for types
+    /// deserialized through a parameterized constructor, or for arrays and immutable collections, which are built once
+    /// every element was read). For a collection element or a dictionary value this is the collection the item would
+    /// have been added to.
     /// </summary>
     public object? Instance { get; }
 
-    /// <summary>Gets the YAML key of the member or constructor argument.</summary>
+    /// <summary>
+    /// Gets the YAML key of the member, constructor argument or dictionary entry, or the zero-based index of a sequence
+    /// element in the document, formatted with the invariant culture.
+    /// </summary>
     public string Name { get; }
 
     /// <summary>
@@ -59,18 +68,24 @@ public sealed class YamlInvalidValue
     /// Keys that are not simple identifiers are written as <c>$['a.b']</c>.
     /// </summary>
     /// <remarks>
-    /// For values inside polymorphic nodes the path is complete, but <see cref="KeyStart"/> and
-    /// <see cref="ValueStart"/> are relative to the buffered node rather than the document.
+    /// The index of a sequence element is its position in the document. Once an element is dropped, the elements after
+    /// it have a lower index in the resulting collection. For values inside polymorphic nodes the path is complete, but
+    /// <see cref="KeyStart"/> and <see cref="ValueStart"/> are relative to the buffered node rather than the document.
     /// </remarks>
     public string Path { get; }
 
-    /// <summary>Gets the location of the key.</summary>
+    /// <summary>
+    /// Gets the location of the key, or of the element itself for a sequence element, which has no key.
+    /// </summary>
     public Mark KeyStart { get; }
 
     /// <summary>Gets the location where the value starts.</summary>
     public Mark ValueStart { get; }
 
-    /// <summary>Gets the CLR type of the member or constructor parameter the value was meant for.</summary>
+    /// <summary>
+    /// Gets the CLR type the value was meant for: the member or constructor parameter type, the element type of a
+    /// collection or the value type of a dictionary.
+    /// </summary>
     public Type TargetType { get; }
 
     /// <summary>

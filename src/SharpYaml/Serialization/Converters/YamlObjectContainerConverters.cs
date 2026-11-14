@@ -55,6 +55,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
         var dict = new Dictionary<string, object?>(comparer);
         var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
         HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
+        HashSet<string>? mergedKeys = null;
         HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
         if (reader.ReferenceReader is not null && anchor is not null)
         {
@@ -73,11 +74,16 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                ReadAndApplyMerge(reader, dict, explicitKeys);
+                if (options.InvalidValueHandling != YamlInvalidValueHandling.FailFast)
+                {
+                    mergedKeys ??= new HashSet<string>(comparer);
+                }
+                ReadAndApplyMerge(reader, dict, explicitKeys, mergedKeys);
                 continue;
             }
 
             explicitKeys?.Add(key);
+            var wasMerged = mergedKeys?.Remove(key) == true;
 
             var wasSeen = seenKeys is not null && !seenKeys.Add(key);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
@@ -91,8 +97,14 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
                 continue;
             }
 
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            dict[key] = value;
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(Dictionary<string, object?>), dict, out var value))
+            {
+                dict[key] = value;
+            }
+            else if (wasMerged)
+            {
+                dict.Remove(key);
+            }
         }
 
         reader.Read();
@@ -132,7 +144,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
         writer.WriteEndMapping();
     }
 
-    private void ReadAndApplyMerge(YamlReader reader, Dictionary<string, object?> dictionary, HashSet<string>? explicitKeys)
+    private void ReadAndApplyMerge(YamlReader reader, Dictionary<string, object?> dictionary, HashSet<string>? explicitKeys, HashSet<string>? mergedKeys)
     {
         if (reader.TokenType == YamlTokenType.Scalar && YamlScalar.IsNull(reader))
         {
@@ -148,7 +160,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
                 return;
             }
 
-            ApplyMergeDictionary(dictionary, merged, explicitKeys);
+            ApplyMergeDictionary(dictionary, merged, explicitKeys, mergedKeys);
             return;
         }
 
@@ -165,7 +177,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
                 var merged = Read(reader);
                 if (merged is not null)
                 {
-                    ApplyMergeDictionary(dictionary, merged, explicitKeys);
+                    ApplyMergeDictionary(dictionary, merged, explicitKeys, mergedKeys);
                 }
             }
 
@@ -176,7 +188,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
         throw new YamlException(reader.SourceName, reader.Start, reader.End, "Merge key value must be a mapping or a sequence of mappings.");
     }
 
-    private static void ApplyMergeDictionary(Dictionary<string, object?> target, Dictionary<string, object?> merged, HashSet<string>? explicitKeys)
+    private static void ApplyMergeDictionary(Dictionary<string, object?> target, Dictionary<string, object?> merged, HashSet<string>? explicitKeys, HashSet<string>? mergedKeys)
     {
         foreach (var pair in merged)
         {
@@ -186,6 +198,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
             }
 
             target[pair.Key] = pair.Value;
+            mergedKeys?.Add(pair.Key);
         }
     }
 
@@ -216,6 +229,7 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
         var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
         HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
+        HashSet<string>? mergedKeys = null;
         HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
         if (reader.ReferenceReader is not null && reader.Anchor is not null)
         {
@@ -235,11 +249,16 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                ReadAndApplyMerge(reader, dictionary, explicitKeys);
+                if (options.InvalidValueHandling != YamlInvalidValueHandling.FailFast)
+                {
+                    mergedKeys ??= new HashSet<string>(comparer);
+                }
+                ReadAndApplyMerge(reader, dictionary, explicitKeys, mergedKeys);
                 continue;
             }
 
             explicitKeys?.Add(key);
+            var wasMerged = mergedKeys?.Remove(key) == true;
 
             var wasSeen = seenKeys is not null && !seenKeys.Add(key);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
@@ -253,8 +272,14 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
                 continue;
             }
 
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            dictionary[key] = value;
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(Dictionary<string, object?>), dictionary, out var value))
+            {
+                dictionary[key] = value;
+            }
+            else if (wasMerged)
+            {
+                dictionary.Remove(key);
+            }
         }
 
         reader.Read();
@@ -313,8 +338,10 @@ internal sealed class YamlListObjectConverter : YamlConverter<List<object?>?>
 
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            list.Add(value);
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(List<object?>), list, out var value))
+            {
+                list.Add(value);
+            }
         }
 
         reader.Read();
@@ -383,8 +410,10 @@ internal sealed class YamlListObjectConverter : YamlConverter<List<object?>?>
         reader.Read();
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            list.Add(value);
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(List<object?>), list, out var value))
+            {
+                list.Add(value);
+            }
         }
 
         reader.Read();
@@ -425,8 +454,10 @@ internal sealed class YamlObjectArrayConverter : YamlConverter<object[]?>
         var list = new List<object?>();
         while (reader.TokenType != YamlTokenType.EndSequence)
         {
-            var value = reader.GetConverter(typeof(object)).Read(reader, typeof(object));
-            list.Add(value);
+            if (reader.TryReadItem(reader.GetConverter(typeof(object)), typeof(object), typeof(object[]), null, out var value))
+            {
+                list.Add(value);
+            }
         }
 
         reader.Read();

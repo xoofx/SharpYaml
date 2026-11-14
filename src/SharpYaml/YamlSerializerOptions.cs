@@ -120,13 +120,15 @@ public sealed record YamlSerializerOptions
     public Action<IReadOnlyList<Serialization.YamlUnmappedMember>>? UnmappedMembersFinalizer { get; init; }
 
     /// <summary>
-    /// Gets or sets what happens when a converter rejects the value of a member or constructor argument during deserialization.
+    /// Gets or sets what happens when a converter rejects a value during deserialization: the value of a member or
+    /// constructor argument, a collection element or the value of a dictionary entry.
     /// </summary>
     /// <remarks>
     /// The default, <see cref="YamlInvalidValueHandling.FailFast"/>, throws at the first rejected value. The other modes
-    /// skip a value its converter rejected before consuming any of it, leave the member or argument at its default and keep
-    /// reading; see <see cref="YamlInvalidValueHandling"/> for what is recoverable. This is the counterpart of
-    /// <see cref="UnmappedMemberHandling"/> for values whose key is known.
+    /// skip a value its converter rejected before consuming any of it, leave the member or argument at its default or
+    /// drop the collection element or dictionary entry, and keep reading; see <see cref="YamlInvalidValueHandling"/> for
+    /// what is recoverable. This is the counterpart of <see cref="UnmappedMemberHandling"/> for values whose key is
+    /// known.
     /// </remarks>
     public YamlInvalidValueHandling InvalidValueHandling { get; init; } = YamlInvalidValueHandling.FailFast;
 
