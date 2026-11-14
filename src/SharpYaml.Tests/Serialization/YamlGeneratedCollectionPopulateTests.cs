@@ -136,6 +136,13 @@ public sealed class YamlGeneratedCollectionPopulateTests
         Assert.AreEqual("attribute", result.AttributeMap["custom"].Name);
     }
 
+    [TestMethod]
+    public void Populate_DictionaryAlias_RequiresReferencePreservation()
+    {
+        var exception = Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize("ByName: *missing", CollectionPopulateContext.Default.CollectionPopulateRoot));
+        Assert.AreEqual("Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.", exception.Reason);
+    }
+
     private sealed class PopulateKeyConverter : YamlConverter<int>
     {
         public override int Read(YamlReader reader)

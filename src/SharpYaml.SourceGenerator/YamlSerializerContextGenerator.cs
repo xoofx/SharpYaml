@@ -3658,6 +3658,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        {");
             builder.Append("            return (").Append(typeName).AppendLine(")rootAliasValue!;");
             builder.AppendLine("        }");
+            builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Alias)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            throw new global::SharpYaml.YamlException(reader.SourceName, reader.Start, reader.End, \"Aliases are not supported when deserializing into a dictionary unless ReferenceHandling is Preserve.\");");
+            builder.AppendLine("        }");
             builder.AppendLine("        if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
             builder.AppendLine("        {");
             builder.AppendLine("            reader.Read();");
@@ -3736,7 +3740,8 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
                 builder.AppendLine("            {");
-                builder.AppendLine("                if (reader.Options.InvalidValueHandling != global::SharpYaml.YamlInvalidValueHandling.FailFast)");
+                builder.Append("                if (reader.Options.InvalidValueHandling != global::SharpYaml.YamlInvalidValueHandling.FailFast")
+                    .Append(detectsDuplicateKeys ? " || seenKeysUseDictionary" : string.Empty).AppendLine(")");
                 builder.AppendLine("                {");
                 builder.Append("                    mergedKeys ??= CreateDictionaryKeySet(dictionary) ?? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(");");
                 builder.AppendLine("                }");
@@ -3799,7 +3804,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 if (detectsDuplicateKeys)
                 {
-                    builder.AppendLine("            if (seenKeys is not null && (!seenKeys.Add(key) || (seenKeysUseDictionary && dictionary.ContainsKey(key))))");
+                    builder.AppendLine("            if (seenKeys is not null && (!seenKeys.Add(key) || (seenKeysUseDictionary && !wasMerged && dictionary.ContainsKey(key))))");
                     builder.AppendLine("            {");
                     EmitDuplicateKeyHandling(builder, duplicateKeyHandling, "key", indent: "                ");
                     builder.AppendLine("            }");

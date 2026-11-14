@@ -240,6 +240,67 @@ public sealed class YamlDuplicateKeyHandlingTests
         }
     }
 
+    public static IEnumerable<object[]> OpaqueMergeModes
+    {
+        get
+        {
+            foreach (var handling in Enum.GetValues<YamlDuplicateKeyHandling>())
+            foreach (var invalidHandling in Enum.GetValues<YamlInvalidValueHandling>())
+            {
+                yield return new object[] { handling, invalidHandling };
+            }
+        }
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(OpaqueMergeModes))]
+    public void Populate_OpaqueStringDictionary_ExplicitKeysOverrideMergedKeys(YamlDuplicateKeyHandling handling, YamlInvalidValueHandling invalidHandling)
+    {
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = handling, InvalidValueHandling = invalidHandling };
+        foreach (var mapping in new[] { "{<<: {b: 1}, b: 2}", "{b: 2, <<: {b: 1}}" })
+        {
+            var root = Deserialize<PopulatedDuplicateKeyDictionaries>("OpaqueNames: " + mapping, options, true)!;
+            Assert.AreEqual(1, root.OpaqueNames["a"]);
+            Assert.AreEqual(2, root.OpaqueNames["b"]);
+        }
+    }
+
+    [TestMethod]
+    [DataRow(YamlDuplicateKeyHandling.Error)]
+    [DataRow(YamlDuplicateKeyHandling.FirstWins)]
+    [DataRow(YamlDuplicateKeyHandling.LastWins)]
+    public void Populate_OpaqueStringDictionary_InvalidExplicitValueDropsMergedFallback(YamlDuplicateKeyHandling handling)
+    {
+        var values = new List<YamlInvalidValue>();
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = handling, InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+        var root = Deserialize<PopulatedDuplicateKeyDictionaries>("OpaqueNames: {<<: {b: 1}, b: abc}", options, true)!;
+
+        Assert.AreEqual(1, root.OpaqueNames.Count);
+        Assert.HasCount(1, values);
+        Assert.AreEqual("$.OpaqueNames.b", values[0].Path);
+        Assert.AreSame(root.OpaqueNames, values[0].Instance);
+    }
+
+    [TestMethod]
+    [DataRow(YamlDuplicateKeyHandling.Error)]
+    [DataRow(YamlDuplicateKeyHandling.FirstWins)]
+    [DataRow(YamlDuplicateKeyHandling.LastWins)]
+    public void Populate_OpaqueStringDictionary_RepeatedExplicitKeysRemainDuplicates(YamlDuplicateKeyHandling handling)
+    {
+        const string yaml = "OpaqueNames: {<<: {b: 1}, b: 2, b: 3}";
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = handling };
+        if (handling == YamlDuplicateKeyHandling.Error)
+        {
+            var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, true));
+            Assert.AreEqual(yaml.LastIndexOf('3'), exception.Start.Column);
+        }
+        else
+        {
+            var root = Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, true)!;
+            Assert.AreEqual(handling == YamlDuplicateKeyHandling.FirstWins ? 2 : 3, root.OpaqueNames["b"]);
+        }
+    }
+
     private static T? Deserialize<T>(string yaml, YamlSerializerOptions options, bool generated)
         => generated ? (T?)YamlSerializer.Deserialize(yaml, typeof(T), new DuplicateKeyContext(options)) : YamlSerializer.Deserialize<T>(yaml, options);
 
@@ -464,29 +525,31 @@ internal sealed class PopulatedDuplicateKeyDictionaries
 
     public Dictionary<string, int> CaseMap { get; } = new(StringComparer.OrdinalIgnoreCase) { ["a"] = 1, ["keep"] = 7 };
 
-    public IDictionary<int, int> OpaqueMap { get; } = new OpaqueDuplicateKeyDictionary();
+    public IDictionary<int, int> OpaqueMap { get; } = new OpaqueDuplicateKeyDictionary<int, int>(DuplicateKeyAbsoluteComparer.Instance);
+
+    public IDictionary<string, int> OpaqueNames { get; } = new OpaqueDuplicateKeyDictionary<string, int>(StringComparer.Ordinal) { ["a"] = 1 };
 }
 
-internal sealed class OpaqueDuplicateKeyDictionary : IDictionary<int, int>
+internal sealed class OpaqueDuplicateKeyDictionary<TKey, TValue>(IEqualityComparer<TKey> comparer) : IDictionary<TKey, TValue> where TKey : notnull
 {
-    private readonly Dictionary<int, int> _values = new(DuplicateKeyAbsoluteComparer.Instance);
-    private ICollection<KeyValuePair<int, int>> Entries => _values;
+    private readonly Dictionary<TKey, TValue> _values = new(comparer);
+    private ICollection<KeyValuePair<TKey, TValue>> Entries => _values;
 
-    public int this[int key] { get => _values[key]; set => _values[key] = value; }
-    public ICollection<int> Keys => _values.Keys;
-    public ICollection<int> Values => _values.Values;
+    public TValue this[TKey key] { get => _values[key]; set => _values[key] = value; }
+    public ICollection<TKey> Keys => _values.Keys;
+    public ICollection<TValue> Values => _values.Values;
     public int Count => _values.Count;
     public bool IsReadOnly => false;
-    public void Add(int key, int value) => _values.Add(key, value);
-    public bool ContainsKey(int key) => _values.ContainsKey(key);
-    public bool Remove(int key) => _values.Remove(key);
-    public bool TryGetValue(int key, out int value) => _values.TryGetValue(key, out value);
-    public void Add(KeyValuePair<int, int> item) => Entries.Add(item);
+    public void Add(TKey key, TValue value) => _values.Add(key, value);
+    public bool ContainsKey(TKey key) => _values.ContainsKey(key);
+    public bool Remove(TKey key) => _values.Remove(key);
+    public bool TryGetValue(TKey key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TValue value) => _values.TryGetValue(key, out value);
+    public void Add(KeyValuePair<TKey, TValue> item) => Entries.Add(item);
     public void Clear() => _values.Clear();
-    public bool Contains(KeyValuePair<int, int> item) => Entries.Contains(item);
-    public void CopyTo(KeyValuePair<int, int>[] array, int arrayIndex) => Entries.CopyTo(array, arrayIndex);
-    public bool Remove(KeyValuePair<int, int> item) => Entries.Remove(item);
-    public IEnumerator<KeyValuePair<int, int>> GetEnumerator() => _values.GetEnumerator();
+    public bool Contains(KeyValuePair<TKey, TValue> item) => Entries.Contains(item);
+    public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex) => Entries.CopyTo(array, arrayIndex);
+    public bool Remove(KeyValuePair<TKey, TValue> item) => Entries.Remove(item);
+    public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator() => _values.GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
