@@ -3,6 +3,7 @@
 // // See LICENSE.txt file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 
 namespace SharpYaml.Serialization;
 
@@ -100,6 +101,26 @@ public abstract partial class YamlSerializerContext : IYamlTypeInfoResolver
 
     /// <inheritdoc />
     public abstract YamlTypeInfo? GetTypeInfo(Type type, YamlSerializerOptions options);
+
+    /// <summary>
+    /// Creates an empty set using the equality or ordering comparer exposed by a dictionary.
+    /// </summary>
+    /// <typeparam name="TKey">The dictionary key type.</typeparam>
+    /// <typeparam name="TValue">The dictionary value type.</typeparam>
+    /// <param name="dictionary">The dictionary whose key comparer is used.</param>
+    /// <returns>
+    /// An empty key set, or <see langword="null"/> when the dictionary implementation does not expose a supported comparer.
+    /// </returns>
+    /// <remarks>
+    /// Intended for generated code. For an unsupported implementation, callers should retain the dictionary's
+    /// own <see cref="IDictionary{TKey,TValue}.ContainsKey"/> checks rather than assume default key equality.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="dictionary"/> is <see langword="null"/>.</exception>
+    protected static ISet<TKey>? CreateDictionaryKeySet<TKey, TValue>(IDictionary<TKey, TValue> dictionary)
+    {
+        ArgumentGuard.ThrowIfNull(dictionary);
+        return Converters.YamlDictionaryConverterHelper.CreateSeenKeySet(dictionary);
+    }
 
     /// <summary>
     /// Gets whether <paramref name="exception"/>, thrown while reading a value, can be recovered from under

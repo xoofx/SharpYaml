@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -137,6 +138,8 @@ public sealed class YamlDuplicateKeyHandlingTests
         ("SortedMap", "1", "-1"),
         ("SortedListMap", "1", "-1"),
         ("OrderedMap", "1", "-1"),
+        ("ConcurrentMap", "1", "-1"),
+        ("CaseMap", "a", "A"),
     ];
 
     [TestMethod]
@@ -215,6 +218,25 @@ public sealed class YamlDuplicateKeyHandlingTests
             Assert.AreEqual(2, byNumber.Count, member);
             Assert.AreEqual(expected, byNumber[1], member);
             Assert.AreEqual(7, byNumber[9], member);
+        }
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(PopulateModes))]
+    public void Populate_OpaqueDictionaryRetainsItsOwnKeyEquality(YamlDuplicateKeyHandling handling, bool generated)
+    {
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = handling };
+        const string yaml = "OpaqueMap: {1: 2, -1: 3}\n";
+        if (handling == YamlDuplicateKeyHandling.Error)
+        {
+            var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, generated));
+            Assert.AreEqual("Duplicate mapping key '-1'.", exception.Reason);
+        }
+        else
+        {
+            var root = Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, generated)!;
+            Assert.AreEqual(1, root.OpaqueMap.Count);
+            Assert.AreEqual(handling == YamlDuplicateKeyHandling.FirstWins ? 2 : 3, root.OpaqueMap[1]);
         }
     }
 
@@ -437,6 +459,35 @@ internal sealed class PopulatedDuplicateKeyDictionaries
     public IDictionary<int, int> SortedListMap { get; } = new SortedList<int, int>(DuplicateKeyAbsoluteComparer.Instance) { [-1] = 1, [9] = 7 };
 
     public IDictionary<int, int> OrderedMap { get; } = new OrderedDictionary<int, int>(DuplicateKeyAbsoluteComparer.Instance) { [-1] = 1, [9] = 7 };
+
+    public IDictionary<int, int> ConcurrentMap { get; } = new ConcurrentDictionary<int, int>(DuplicateKeyAbsoluteComparer.Instance) { [-1] = 1, [9] = 7 };
+
+    public Dictionary<string, int> CaseMap { get; } = new(StringComparer.OrdinalIgnoreCase) { ["a"] = 1, ["keep"] = 7 };
+
+    public IDictionary<int, int> OpaqueMap { get; } = new OpaqueDuplicateKeyDictionary();
+}
+
+internal sealed class OpaqueDuplicateKeyDictionary : IDictionary<int, int>
+{
+    private readonly Dictionary<int, int> _values = new(DuplicateKeyAbsoluteComparer.Instance);
+    private ICollection<KeyValuePair<int, int>> Entries => _values;
+
+    public int this[int key] { get => _values[key]; set => _values[key] = value; }
+    public ICollection<int> Keys => _values.Keys;
+    public ICollection<int> Values => _values.Values;
+    public int Count => _values.Count;
+    public bool IsReadOnly => false;
+    public void Add(int key, int value) => _values.Add(key, value);
+    public bool ContainsKey(int key) => _values.ContainsKey(key);
+    public bool Remove(int key) => _values.Remove(key);
+    public bool TryGetValue(int key, out int value) => _values.TryGetValue(key, out value);
+    public void Add(KeyValuePair<int, int> item) => Entries.Add(item);
+    public void Clear() => _values.Clear();
+    public bool Contains(KeyValuePair<int, int> item) => Entries.Contains(item);
+    public void CopyTo(KeyValuePair<int, int>[] array, int arrayIndex) => Entries.CopyTo(array, arrayIndex);
+    public bool Remove(KeyValuePair<int, int> item) => Entries.Remove(item);
+    public IEnumerator<KeyValuePair<int, int>> GetEnumerator() => _values.GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 internal sealed class DuplicateKeyAbsoluteComparer : IEqualityComparer<int>, IComparer<int>

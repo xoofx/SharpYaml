@@ -75,6 +75,94 @@ public sealed class YamlGeneratedCollectionPopulateTests
         Assert.Throws<YamlException>(() => YamlSerializer.Deserialize("Items: {}", CollectionPopulateContext.Default.CollectionPopulateRoot));
     }
 
+    [TestMethod]
+    public void Populate_Dictionaries_UsesGeneratedValuesAndPreservesInitialEntries()
+    {
+        var result = YamlSerializer.Deserialize("ByName: {added: {Name: generated}}\nByNumber: {1: {Name: typed}}\nOptionalMap: {new: {Name: optional}}", CollectionPopulateContext.Default.CollectionPopulateRoot)!;
+
+        Assert.AreEqual("existing", result.ByName["keep"].Name);
+        Assert.AreEqual("generated", result.ByName["added"].Name);
+        Assert.AreEqual("typed", result.ByNumber[1].Name);
+        Assert.AreEqual("optional", result.OptionalMap!["new"].Name);
+        result = YamlSerializer.Deserialize("OptionalMap: null", CollectionPopulateContext.Default.CollectionPopulateRoot)!;
+        Assert.IsNull(result.OptionalMap);
+        Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize("ByName: null", CollectionPopulateContext.Default.CollectionPopulateRoot));
+        Assert.ThrowsExactly<YamlException>(() => YamlSerializer.Deserialize("ByName: []", CollectionPopulateContext.Default.CollectionPopulateRoot));
+    }
+
+    [TestMethod]
+    public void Populate_DictionaryAnchors_RegisterTheExistingInstanceAndValues()
+    {
+        var context = new CollectionPopulateContext(new YamlSerializerOptions { ReferenceHandling = YamlReferenceHandling.Preserve });
+        var result = YamlSerializer.Deserialize("ByName: &map {a: &value {Name: shared}, b: *value}\nOptionalMap: *map", context.CollectionPopulateRoot)!;
+
+        Assert.AreSame(result.ByName, result.OptionalMap);
+        Assert.AreSame(result.ByName["a"], result.ByName["b"]);
+        Assert.AreEqual("existing", result.ByName["keep"].Name);
+    }
+
+    [TestMethod]
+    public void Populate_Dictionary_UsesRuntimeValueAndCollectionConverters()
+    {
+        var context = new CollectionPopulateContext(new YamlSerializerOptions { Converters = [new PopulateItemConverter()] });
+        var result = YamlSerializer.Deserialize("ByName: {new: custom}", context.CollectionPopulateRoot)!;
+        Assert.AreEqual("converted:custom", result.ByName["new"].Name);
+
+        context = new CollectionPopulateContext(new YamlSerializerOptions { Converters = [new PopulateDictionaryConverter()] });
+        result = YamlSerializer.Deserialize("ByName: ignored", context.CollectionPopulateRoot)!;
+        Assert.AreEqual("populated", result.ByName["custom"].Name);
+    }
+
+    [TestMethod]
+    public void Populate_Dictionary_UsesRuntimeKeyConverters()
+    {
+        var context = new CollectionPopulateContext(new YamlSerializerOptions { Converters = [new PopulateKeyConverter()] });
+        var result = YamlSerializer.Deserialize("ByNumber: {key: {Name: converted}}", context.CollectionPopulateRoot)!;
+        Assert.AreEqual("converted", result.ByNumber[42].Name);
+    }
+
+    [TestMethod]
+    public void Populate_Dictionary_UsesCompileTimeDuplicateHandling()
+    {
+        var context = new FirstWinsDictionaryPopulateContext(new YamlSerializerOptions { DuplicateKeyHandling = YamlDuplicateKeyHandling.Error });
+        var result = YamlSerializer.Deserialize("ByNumber: {1: {Name: first}, 1: {Name: second}}", context.CollectionPopulateRoot)!;
+        Assert.AreEqual("first", result.ByNumber[1].Name);
+    }
+
+    [TestMethod]
+    public void Populate_Dictionary_UsesMemberAttributeConverter()
+    {
+        var result = YamlSerializer.Deserialize("AttributeMap: ignored", CollectionPopulateContext.Default.CollectionPopulateRoot)!;
+        Assert.AreEqual("attribute", result.AttributeMap["custom"].Name);
+    }
+
+    private sealed class PopulateKeyConverter : YamlConverter<int>
+    {
+        public override int Read(YamlReader reader)
+        {
+            Assert.AreEqual("key", reader.GetScalarValue());
+            reader.Read();
+            return 42;
+        }
+
+        public override void Write(YamlWriter writer, int value) => throw new NotSupportedException();
+    }
+
+    private sealed class PopulateDictionaryConverter : YamlConverter<IDictionary<string, CollectionPopulateItem>>
+    {
+        public override bool CanPopulate(Type typeToConvert) => true;
+
+        public override object Populate(YamlReader reader, Type typeToConvert, object existingValue)
+        {
+            ((IDictionary<string, CollectionPopulateItem>)existingValue)["custom"] = new() { Name = "populated" };
+            reader.Skip();
+            return existingValue;
+        }
+
+        public override IDictionary<string, CollectionPopulateItem> Read(YamlReader reader) => throw new NotSupportedException();
+        public override void Write(YamlWriter writer, IDictionary<string, CollectionPopulateItem> value) => throw new NotSupportedException();
+    }
+
     private sealed class PopulateItemConverter : YamlConverter<CollectionPopulateItem>
     {
         public override CollectionPopulateItem Read(YamlReader reader)
@@ -112,11 +200,32 @@ internal sealed class CollectionPopulateRoot
     public ISet<CollectionPopulateItem> Set { get; } = new HashSet<CollectionPopulateItem>();
     public Collection<CollectionPopulateItem> Mutable { get; } = new();
     public IList<CollectionPopulateItem>? Optional { get; set; }
+    public IDictionary<string, CollectionPopulateItem> ByName { get; } = new Dictionary<string, CollectionPopulateItem> { ["keep"] = new() { Name = "existing" } };
+    public Dictionary<int, CollectionPopulateItem> ByNumber { get; } = new() { [1] = new() { Name = "existing" } };
+    public IDictionary<string, CollectionPopulateItem>? OptionalMap { get; set; }
+
+    [YamlConverter(typeof(AttributePopulateDictionaryConverter))]
+    public IDictionary<string, CollectionPopulateItem> AttributeMap { get; } = new Dictionary<string, CollectionPopulateItem>();
 }
 
 internal sealed class CollectionPopulateItem
 {
     public string Name { get; set; } = string.Empty;
+}
+
+internal sealed class AttributePopulateDictionaryConverter : YamlConverter<IDictionary<string, CollectionPopulateItem>>
+{
+    public override bool CanPopulate(Type typeToConvert) => true;
+
+    public override object Populate(YamlReader reader, Type typeToConvert, object existingValue)
+    {
+        ((IDictionary<string, CollectionPopulateItem>)existingValue)["custom"] = new() { Name = "attribute" };
+        reader.Skip();
+        return existingValue;
+    }
+
+    public override IDictionary<string, CollectionPopulateItem> Read(YamlReader reader) => throw new NotSupportedException();
+    public override void Write(YamlWriter writer, IDictionary<string, CollectionPopulateItem> value) => throw new NotSupportedException();
 }
 
 [YamlSerializable(typeof(CollectionPopulateRoot))]
@@ -127,6 +236,19 @@ internal partial class CollectionPopulateContext : YamlSerializerContext
     }
 
     public CollectionPopulateContext(YamlSerializerOptions options) : base(options)
+    {
+    }
+}
+
+[YamlSourceGenerationOptions(DuplicateKeyHandling = YamlDuplicateKeyHandling.FirstWins)]
+[YamlSerializable(typeof(CollectionPopulateRoot))]
+internal partial class FirstWinsDictionaryPopulateContext : YamlSerializerContext
+{
+    public FirstWinsDictionaryPopulateContext()
+    {
+    }
+
+    public FirstWinsDictionaryPopulateContext(YamlSerializerOptions options) : base(options)
     {
     }
 }

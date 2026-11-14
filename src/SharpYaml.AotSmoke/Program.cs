@@ -27,9 +27,12 @@ var populated = YamlSerializer.Deserialize("""
         value: other text 1
       - name: text 2
         value: other text 2
+    ports: {1: 81}
+    objects: {first: {name: nested, value: generated}}
     """, context.SmokePopulateConfig);
 if (populated is null || populated.RootObject.Count != 2 ||
-    populated.RootObject[0].Name != "text 1" || populated.RootObject[1].Value != "other text 2")
+    populated.RootObject[0].Name != "text 1" || populated.RootObject[1].Value != "other text 2" ||
+    populated.Ports[1] != 81 || populated.Objects["first"].Value != "generated")
 {
     return 2;
 }
@@ -99,6 +102,12 @@ internal sealed class SmokePopulateConfig
 {
     [JsonPropertyName("root_object")]
     public IList<SmokePopulateItem> RootObject { get; } = new List<SmokePopulateItem>();
+
+    [JsonPropertyName("ports")]
+    public Dictionary<int, int> Ports { get; } = new() { [1] = 80 };
+
+    [JsonPropertyName("objects")]
+    public IDictionary<string, SmokePopulateItem> Objects { get; } = new Dictionary<string, SmokePopulateItem>();
 }
 
 internal sealed class SmokePopulateItem

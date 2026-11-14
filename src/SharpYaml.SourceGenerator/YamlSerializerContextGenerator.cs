@@ -751,6 +751,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 continue;
             }
 
+            var objectCreationHandling = GetObjectCreationHandling(member)
+                ?? TryGetJsonObjectCreationHandlingOverride(named)
+                ?? GetPreferredObjectCreationHandling(sourceGenerationOptions);
+            if (objectCreationHandling != "Replace"
+                && TryGetDictionaryTypes(memberType, out var keyType, out _, out var dictionaryKind)
+                && dictionaryKind != DictionaryKind.IReadOnlyDictionary
+                && IsSupportedDictionaryKeyType(keyType)
+                && !IsTypeHandledByConverter(memberType, sourceGenerationOptions.ConverterTypes, compilation))
+            {
+                // Populate shares the dictionary's generated reader with an existing instance.
+                yield return memberType;
+            }
+
             foreach (var dependency in GetTransitiveSerializableMemberDependencies(memberType, contextMappings, sourceGenerationOptions, compilation))
             {
                 yield return dependency;
@@ -3413,8 +3426,15 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         var mergeEnabledExpression = GetMergeEnabledExpression(sourceGenerationOptions);
         var duplicateKeyHandling = GetDuplicateKeyHandling(sourceGenerationOptions);
 
+        var mutableDictionary = TryGetDictionaryTypes(typeSymbol, out _, out _, out var dictionaryKind)
+            && dictionaryKind != DictionaryKind.IReadOnlyDictionary;
         builder.Append("    private static ").Append(typeName).Append(typeSymbol.IsReferenceType ? "?" : string.Empty).Append(" ReadValue").Append(index)
-            .AppendLine("(global::SharpYaml.Serialization.YamlReader reader, RuntimeCustomConverterCache runtimeConverters)");
+            .Append("(global::SharpYaml.Serialization.YamlReader reader, RuntimeCustomConverterCache runtimeConverters");
+        if (mutableDictionary)
+        {
+            builder.Append(", ").Append(typeName).Append("? existingValue = null");
+        }
+        builder.AppendLine(")");
         builder.AppendLine("    {");
         if (attributeConverterTypeName is not null)
         {
@@ -3663,22 +3683,19 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             var dictionaryTypePrefix = GetDictionaryTypePrefix(typeSymbol);
             if (dictionaryKeyIsString)
             {
-                builder.Append("        var dictionary = new ").Append(dictionaryTypePrefix).Append("<string, ").Append(valueTypeName)
+                builder.Append("        var dictionary = ").Append(mutableDictionary ? "existingValue ?? " : string.Empty).Append("new ").Append(dictionaryTypePrefix).Append("<string, ").Append(valueTypeName)
                     .Append(">(").Append(propertyNameComparerExpression).AppendLine(");");
                 builder.Append("        var mergeEnabled = ").Append(mergeEnabledExpression).AppendLine(";");
-                builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
-                builder.Append("            ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
+                builder.AppendLine("        global::System.Collections.Generic.ISet<string>? explicitKeys = mergeEnabled");
+                builder.Append("            ? CreateDictionaryKeySet(dictionary) ?? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
                 builder.AppendLine("            : null;");
-                builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? mergedKeys = null;");
-                EmitDictionarySeenKeys(builder, duplicateKeyHandling, propertyNameComparerExpression, "seenKeys", "        ");
+                builder.AppendLine("        global::System.Collections.Generic.ISet<string>? mergedKeys = null;");
+                EmitDictionarySeenKeys(builder, duplicateKeyHandling, propertyNameComparerExpression, "seenKeys", "        ", "string", "dictionary");
             }
             else
             {
-                builder.Append("        var dictionary = new ").Append(dictionaryTypePrefix).Append("<").Append(keyTypeName).Append(", ").Append(valueTypeName).AppendLine(">();");
-                if (detectsDuplicateKeys)
-                {
-                    builder.Append("        global::System.Collections.Generic.HashSet<").Append(keyTypeName).AppendLine(">? droppedKeys = null;");
-                }
+                builder.Append("        var dictionary = ").Append(mutableDictionary ? "existingValue ?? " : string.Empty).Append("new ").Append(dictionaryTypePrefix).Append("<").Append(keyTypeName).Append(", ").Append(valueTypeName).AppendLine(">();");
+                EmitDictionarySeenKeys(builder, duplicateKeyHandling, propertyNameComparerExpression, "seenKeys", "        ", keyTypeName, "dictionary");
             }
 
             builder.AppendLine("        if (rootAnchor is not null) { reader.RegisterAnchor(rootAnchor, dictionary); }");
@@ -3692,15 +3709,28 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
                 builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
+                builder.AppendLine("            reader.Read();");
             }
             else
             {
+                builder.AppendLine("            var keyStart = reader.Start;");
+                builder.AppendLine("            var keyEnd = reader.End;");
                 builder.Append("            var key = default(").Append(keyTypeName).AppendLine(");");
+                builder.AppendLine("            try");
                 builder.AppendLine("            {");
-                EmitReadScalarAssignment(builder, dictionaryKeyType, "key", indent: "                ");
+                EmitReadKnownType(builder, sourceGenerationOptions, dictionaryKeyType, indexByType, "rawKey", "                ");
+                builder.AppendLine("                key = rawKey;");
                 builder.AppendLine("            }");
+                builder.AppendLine("            catch (global::SharpYaml.YamlException) { throw; }");
+                builder.AppendLine("            catch (global::System.Exception exception)");
+                builder.AppendLine("            {");
+                builder.AppendLine("                throw new global::SharpYaml.YamlException(reader.SourceName, keyStart, keyEnd, exception.Message, exception);");
+                builder.AppendLine("            }");
+                if (dictionaryKeyType.IsReferenceType || dictionaryKeyType is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T })
+                {
+                    builder.AppendLine("            if (key is null) { throw new global::SharpYaml.YamlException(reader.SourceName, keyStart, keyEnd, \"Dictionary key cannot be null.\"); }");
+                }
             }
-            builder.AppendLine("            reader.Read();");
 
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
@@ -3708,7 +3738,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("            {");
                 builder.AppendLine("                if (reader.Options.InvalidValueHandling != global::SharpYaml.YamlInvalidValueHandling.FailFast)");
                 builder.AppendLine("                {");
-                builder.Append("                    mergedKeys ??= new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(");");
+                builder.Append("                    mergedKeys ??= CreateDictionaryKeySet(dictionary) ?? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(");");
                 builder.AppendLine("                }");
                 builder.AppendLine("                if (reader.TokenType == global::SharpYaml.Serialization.YamlTokenType.Scalar && global::SharpYaml.Serialization.YamlScalar.IsNull(reader))");
                 builder.AppendLine("                {");
@@ -3769,7 +3799,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 if (detectsDuplicateKeys)
                 {
-                    builder.AppendLine("            if (seenKeys is not null && !seenKeys.Add(key))");
+                    builder.AppendLine("            if (seenKeys is not null && (!seenKeys.Add(key) || (seenKeysUseDictionary && dictionary.ContainsKey(key))))");
                     builder.AppendLine("            {");
                     EmitDuplicateKeyHandling(builder, duplicateKeyHandling, "key", indent: "                ");
                     builder.AppendLine("            }");
@@ -3781,15 +3811,14 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 if (detectsDuplicateKeys)
                 {
-                    builder.AppendLine("            if (dictionary.ContainsKey(key) || (droppedKeys is not null && droppedKeys.Contains(key)))");
+                    builder.AppendLine("            if (seenKeys is not null && (!seenKeys.Add(key) || (seenKeysUseDictionary && dictionary.ContainsKey(key))))");
                     builder.AppendLine("            {");
                     EmitDuplicateKeyHandling(builder, duplicateKeyHandling, "key.ToString() ?? string.Empty", indent: "                ");
                     builder.AppendLine("            }");
                 }
 
                 EmitRecoverableItemRead(
-                    builder, sourceGenerationOptions, dictionaryValueType, indexByType, "value", "dictionary[key] = value;", typeName, "dictionary", indent: "            ",
-                    recoveredStatement: detectsDuplicateKeys ? "(droppedKeys ??= new global::System.Collections.Generic.HashSet<" + keyTypeName + ">()).Add(key);" : null);
+                    builder, sourceGenerationOptions, dictionaryValueType, indexByType, "value", "dictionary[key] = value;", typeName, "dictionary", indent: "            ");
             }
             builder.AppendLine("        }");
             builder.AppendLine("        reader.Read();");
@@ -5312,6 +5341,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             var keyTypeName = dictionaryKeyType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             var valueTypeName = dictionaryValueType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             var memberTypeName = member.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            if (indexByType.TryGetValue(member.Type, out var dictionaryIndex))
+            {
+                builder.Append("                ").Append(member.AssignExpression($"ReadValue{dictionaryIndex}(reader, runtimeConverters)")).AppendLine(";");
+                return;
+            }
             builder.AppendLine("                if (reader.TryReadAlias(out var memberAliasValue))");
             builder.AppendLine("                {");
             builder.Append("                    ").Append(member.AssignExpression($"({memberTypeName})memberAliasValue!")).AppendLine(";");
@@ -5568,18 +5602,53 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             && member.AttributeConverterTypeName is null
             && GetYamlConverterAttributeTypeName(member.Type) is null
             && !TryGetStaticOptionsConverterType(sourceGenerationOptions, member.Type, out _, out _);
-        if (generatedSequence)
+        var generatedDictionary = TryGetDictionaryTypes(member.Type, out _, out _, out var dictionaryKind)
+            && dictionaryKind != DictionaryKind.IReadOnlyDictionary
+            && indexByType.ContainsKey(member.Type)
+            && member.AttributeConverterTypeName is null
+            && GetYamlConverterAttributeTypeName(member.Type) is null
+            && !TryGetStaticOptionsConverterType(sourceGenerationOptions, member.Type, out _, out _);
+        if (generatedSequence || generatedDictionary)
         {
             builder.Append(indent).Append("    if (!runtimeConverters.TryGetConverter(typeof(").Append(memberTypeName).AppendLine("), out var memberConverter))");
             builder.Append(indent).AppendLine("    {");
-            EmitPopulateSequenceMember(builder, member, elementType, memberTypeName, indexByType, readOnlyFallbackStatement, canAssign, indent + "        ", sourceGenerationOptions);
+            if (generatedSequence)
+            {
+                EmitPopulateSequenceMember(builder, member, elementType, memberTypeName, indexByType, readOnlyFallbackStatement, canAssign, indent + "        ", sourceGenerationOptions);
+            }
+            else
+            {
+                EmitPopulateDictionaryMember(builder, member, memberTypeName, indexByType, readOnlyFallbackStatement, canAssign, indent + "        ", sourceGenerationOptions);
+            }
             builder.Append(indent).AppendLine("    }");
             builder.Append(indent).AppendLine("    else");
             builder.Append(indent).AppendLine("    {");
         }
         else
         {
-            builder.Append(indent).Append("    var memberConverter = reader.GetConverter(typeof(").Append(memberTypeName).AppendLine("));");
+            var attributeConverterTypeName = member.AttributeConverterTypeName ?? GetYamlConverterAttributeTypeName(member.Type);
+            if (attributeConverterTypeName is not null)
+            {
+                builder.Append(indent).Append("    global::SharpYaml.Serialization.YamlConverter memberConverter = new ").Append(attributeConverterTypeName).AppendLine("();");
+                builder.Append(indent).AppendLine("    if (memberConverter is global::SharpYaml.Serialization.YamlConverterFactory factory)");
+                builder.Append(indent).AppendLine("    {");
+                builder.Append(indent).Append("        memberConverter = factory.CreateConverter(typeof(").Append(memberTypeName).AppendLine("), reader.Options);");
+                builder.Append(indent).Append("        if (memberConverter is null || !memberConverter.CanConvert(typeof(").Append(memberTypeName).AppendLine(")))");
+                builder.Append(indent).AppendLine("        {");
+                builder.Append(indent).AppendLine("            throw new global::System.InvalidOperationException(\"Attribute converter factory returned an invalid converter.\");");
+                builder.Append(indent).AppendLine("        }");
+                builder.Append(indent).AppendLine("    }");
+            }
+            else if (TryGetStaticOptionsConverterType(sourceGenerationOptions, member.Type, out _, out var converterIndex))
+            {
+                builder.Append(indent).Append("    global::SharpYaml.Serialization.YamlConverter memberConverter = runtimeConverters.TryGetConverter(typeof(")
+                    .Append(memberTypeName).Append("), out var runtimeMemberConverter) ? runtimeMemberConverter! : ")
+                    .Append(GetSourceGenerationConverterFieldName(converterIndex)).AppendLine(";");
+            }
+            else
+            {
+                builder.Append(indent).Append("    var memberConverter = reader.GetConverter(typeof(").Append(memberTypeName).AppendLine("));");
+            }
         }
         if (!canPopulateValueType)
         {
@@ -5653,7 +5722,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.Append(indent).AppendLine("    }");
-        if (generatedSequence)
+        if (generatedSequence || generatedDictionary)
         {
             builder.Append(indent).AppendLine("    }");
         }
@@ -5699,6 +5768,33 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         EmitRecoverableItemRead(builder, sourceGenerationOptions, elementType, indexByType, "element", "collection.Add(element);", memberTypeName, "currentValue", indent + "        ");
         builder.Append(indent).AppendLine("    }");
         builder.Append(indent).AppendLine("    reader.Read();");
+        builder.Append(indent).AppendLine("}");
+    }
+
+    private static void EmitPopulateDictionaryMember(
+        StringBuilder builder, MemberModel member, string memberTypeName,
+        Dictionary<ITypeSymbol, int> indexByType, string readOnlyFallbackStatement, bool canAssign,
+        string indent, SourceGenerationOptionsModel sourceGenerationOptions)
+    {
+        builder.Append(indent).Append("var currentValue = instance.").Append(member.Symbol.Name).AppendLine(";");
+        builder.Append(indent).AppendLine("if (currentValue is null)");
+        builder.Append(indent).AppendLine("{");
+        if (canAssign)
+        {
+            EmitReadMemberValueWithCustomConverter(builder, member, indexByType, sourceGenerationOptions);
+        }
+        else
+        {
+            builder.Append(indent).Append("    ").Append(readOnlyFallbackStatement).AppendLine();
+        }
+        builder.Append(indent).AppendLine("}");
+        builder.Append(indent).AppendLine("else");
+        builder.Append(indent).AppendLine("{");
+        builder.Append(indent).Append("    var populatedValue = ReadValue").Append(indexByType[member.Type]).AppendLine("(reader, runtimeConverters, currentValue);");
+        if (canAssign)
+        {
+            builder.Append(indent).Append("    ").Append(member.AssignExpression("(" + memberTypeName + ")populatedValue!")).AppendLine(";");
+        }
         builder.Append(indent).AppendLine("}");
     }
 
@@ -7606,19 +7702,34 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     /// <summary>
     /// Emits dictionary key tracking according to duplicate handling, independently of merge-key support.
     /// </summary>
-    private static void EmitDictionarySeenKeys(StringBuilder builder, string? duplicateKeyHandling, string comparerExpression, string variableName, string indent)
+    private static void EmitDictionarySeenKeys(StringBuilder builder, string? duplicateKeyHandling, string comparerExpression, string variableName, string indent, string keyTypeName = "string", string? dictionaryExpression = null)
     {
         if (string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal))
         {
             return;
         }
 
-        builder.Append(indent).Append("global::System.Collections.Generic.HashSet<string>? ").Append(variableName).Append(" = ");
+        builder.Append(indent).Append("global::System.Collections.Generic.ISet<").Append(keyTypeName).Append(">? ").Append(variableName).Append(" = ");
         if (duplicateKeyHandling is null)
         {
             builder.Append("options.DuplicateKeyHandling == global::SharpYaml.YamlDuplicateKeyHandling.LastWins ? null : ");
         }
-        builder.Append("new global::System.Collections.Generic.HashSet<string>(").Append(comparerExpression).AppendLine(");");
+        if (dictionaryExpression is null)
+        {
+            builder.Append("new global::System.Collections.Generic.HashSet<string>(").Append(comparerExpression).AppendLine(");");
+        }
+        else
+        {
+            builder.Append("CreateDictionaryKeySet(").Append(dictionaryExpression).AppendLine(");");
+            builder.Append(indent).Append("var ").Append(variableName).Append("UseDictionary = ");
+            if (duplicateKeyHandling is null)
+            {
+                builder.Append("options.DuplicateKeyHandling != global::SharpYaml.YamlDuplicateKeyHandling.LastWins && ");
+            }
+            builder.Append(variableName).AppendLine(" is null;");
+            builder.Append(indent).Append("if (").Append(variableName).Append("UseDictionary) { ").Append(variableName)
+                .Append(" = new global::System.Collections.Generic.HashSet<").Append(keyTypeName).AppendLine(">(); }");
+        }
     }
 
     /// <summary>

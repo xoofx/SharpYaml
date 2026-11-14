@@ -10,6 +10,8 @@ namespace SharpYaml;
 /// <remarks>
 /// Existing entries in a dictionary being populated are initial values, not duplicate keys. The first occurrence of a
 /// key in the YAML mapping can replace its existing value; this policy applies to subsequent occurrences in that mapping.
+/// Custom dictionaries whose comparer is not supported retain their own key-existence checks, so pre-existing keys also
+/// count as seen for those implementations.
 /// </remarks>
 public enum YamlDuplicateKeyHandling
 {

@@ -1008,13 +1008,13 @@ public class YamlSerializerSourceGenerationTests
 
         var generatedSource = GenerateSourceFor(source, "RecoveringCollectionsContext.g.cs");
 
-        // One try per loop: the root reader and the member reader of List<int>, the array, and both dictionaries.
+        // One recovery catch per loop. Dictionary members reuse their generated dictionary reader.
         Assert.AreEqual(2, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(global::System\.Collections\.Generic\.List<int>\), list, typeof\(int\)\);").Count);
         Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(int\[\]\), null, typeof\(int\)\);").Count);
         Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(global::System\.Collections\.Generic\.Dictionary<string, int>\), dictionary, typeof\(int\)\);").Count);
         Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(generatedSource, @"RecoverInvalidItem\(reader, exception, typeof\(global::System\.Collections\.Generic\.Dictionary<int, int>\), dictionary, typeof\(int\)\);").Count);
         StringAssert.Contains(generatedSource, "when (CanRecoverInvalidValue(reader, exception, itemTokenType, itemStart))");
-        StringAssert.Contains(generatedSource, "(dictionaryDroppedKeys ??= new global::System.Collections.Generic.HashSet<int>()).Add(entryKey);");
+        StringAssert.Contains(generatedSource, "seenKeys = options.DuplicateKeyHandling == global::SharpYaml.YamlDuplicateKeyHandling.LastWins ? null : CreateDictionaryKeySet(dictionary);");
     }
 
     [TestMethod]
