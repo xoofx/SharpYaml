@@ -300,7 +300,7 @@ internal static class YamlDictionaryConverterHelper
 
         dictionary ??= createDictionary();
         var options = reader.Options;
-        ISet<TKey>? droppedKeys = null;
+        var seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : CreateSeenKeySet(dictionary);
         if (reader.ReferenceReader is not null && reader.Anchor is not null)
         {
             reader.ReferenceReader.Register(reader.Anchor, dictionary);
@@ -336,7 +336,7 @@ internal static class YamlDictionaryConverterHelper
             }
 
             var key = (TKey)rawKey;
-            if (dictionary.ContainsKey(key) || (droppedKeys is not null && droppedKeys.Contains(key)))
+            if (seenKeys is not null && !seenKeys.Add(key))
             {
                 if (options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
                 {
@@ -369,17 +369,13 @@ internal static class YamlDictionaryConverterHelper
             {
                 dictionary[key] = (TValue)rawValue!;
             }
-            else if (options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins)
-            {
-                (droppedKeys ??= CreateDroppedKeySet(dictionary)).Add(key);
-            }
         }
 
         reader.Read();
         return dictionary;
     }
 
-    private static ISet<TKey> CreateDroppedKeySet<TKey, TValue>(IDictionary<TKey, TValue> dictionary)
+    private static ISet<TKey> CreateSeenKeySet<TKey, TValue>(IDictionary<TKey, TValue> dictionary)
         => dictionary switch
         {
             Dictionary<TKey, TValue> value => new HashSet<TKey>(value.Comparer),

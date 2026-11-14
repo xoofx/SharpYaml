@@ -5,8 +5,12 @@
 namespace SharpYaml;
 
 /// <summary>
-/// Defines how duplicate mapping keys are handled when reading YAML.
+/// Defines how repeated keys in a YAML mapping are handled when reading YAML.
 /// </summary>
+/// <remarks>
+/// Existing entries in a dictionary being populated are initial values, not duplicate keys. The first occurrence of a
+/// key in the YAML mapping can replace its existing value; this policy applies to subsequent occurrences in that mapping.
+/// </remarks>
 public enum YamlDuplicateKeyHandling
 {
     /// <summary>

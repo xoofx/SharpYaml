@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Serialization;
 
@@ -111,6 +112,109 @@ public sealed class YamlDuplicateKeyHandlingTests
                 yield return new object[] { schema, false };
                 yield return new object[] { schema, true };
             }
+        }
+    }
+
+    public static IEnumerable<object[]> PopulateModes
+    {
+        get
+        {
+            foreach (var handling in new[] { YamlDuplicateKeyHandling.Error, YamlDuplicateKeyHandling.FirstWins, YamlDuplicateKeyHandling.LastWins })
+            {
+                yield return new object[] { handling, false };
+                yield return new object[] { handling, true };
+            }
+        }
+    }
+
+    private static readonly (string Member, string Key, string EquivalentKey)[] PopulatedDictionaries =
+    [
+        ("ByName", "a", "a"),
+        ("ByNumber", "1", "1"),
+        ("NameMap", "a", "a"),
+        ("NumberMap", "1", "1"),
+        ("CustomMap", "1", "-1"),
+        ("SortedMap", "1", "-1"),
+        ("SortedListMap", "1", "-1"),
+        ("OrderedMap", "1", "-1"),
+    ];
+
+    [TestMethod]
+    [DynamicData(nameof(PopulateModes))]
+    public void Populate_ExistingKeysAreInitialValues(YamlDuplicateKeyHandling handling, bool generated)
+    {
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = handling };
+
+        foreach (var (member, key, _) in PopulatedDictionaries)
+        {
+            var root = Deserialize<PopulatedDuplicateKeyDictionaries>($"{member}: {{{key}: 2}}\n", options, generated)!;
+
+            AssertPopulatedValues(root, member, 2);
+        }
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(PopulateModes))]
+    public void Populate_DuplicateDocumentKeysUseHandling(YamlDuplicateKeyHandling handling, bool generated)
+    {
+        var options = new YamlSerializerOptions { DuplicateKeyHandling = handling };
+
+        foreach (var (member, key, equivalentKey) in PopulatedDictionaries)
+        {
+            var yaml = $"{member}: {{{key}: 2, {equivalentKey}: 3}}\n";
+            if (handling == YamlDuplicateKeyHandling.Error)
+            {
+                var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, generated), member);
+                Assert.AreEqual($"Duplicate mapping key '{equivalentKey}'.", exception.Reason);
+                Assert.AreEqual(yaml.LastIndexOf('3'), exception.Start.Column);
+            }
+            else
+            {
+                var root = Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, generated)!;
+                AssertPopulatedValues(root, member, handling == YamlDuplicateKeyHandling.FirstWins ? 2 : 3);
+            }
+        }
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(PopulateModes))]
+    public void Populate_DroppedDocumentKeysStillCountAsSeen(YamlDuplicateKeyHandling handling, bool generated)
+    {
+        foreach (var (member, key, equivalentKey) in PopulatedDictionaries)
+        {
+            var values = new List<YamlInvalidValue>();
+            var options = new YamlSerializerOptions { DuplicateKeyHandling = handling, InvalidValueHandling = YamlInvalidValueHandling.Skip, InvalidValueCallback = values.Add };
+            var yaml = $"{member}: {{{key}: abc, {equivalentKey}: 3}}\n";
+            if (handling == YamlDuplicateKeyHandling.Error)
+            {
+                var exception = Assert.ThrowsExactly<YamlException>(() => Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, generated), member);
+                Assert.AreEqual($"Duplicate mapping key '{equivalentKey}'.", exception.Reason);
+                Assert.AreEqual(yaml.LastIndexOf('3'), exception.Start.Column);
+            }
+            else
+            {
+                var root = Deserialize<PopulatedDuplicateKeyDictionaries>(yaml, options, generated)!;
+                AssertPopulatedValues(root, member, handling == YamlDuplicateKeyHandling.FirstWins ? 1 : 3);
+            }
+            Assert.HasCount(1, values, member);
+        }
+    }
+
+    private static void AssertPopulatedValues(PopulatedDuplicateKeyDictionaries root, string member, int expected)
+    {
+        var dictionary = typeof(PopulatedDuplicateKeyDictionaries).GetProperty(member)!.GetValue(root);
+        if (dictionary is IDictionary<string, int> byName)
+        {
+            Assert.AreEqual(2, byName.Count, member);
+            Assert.AreEqual(expected, byName["a"], member);
+            Assert.AreEqual(7, byName["keep"], member);
+        }
+        else
+        {
+            var byNumber = (IDictionary<int, int>)dictionary!;
+            Assert.AreEqual(2, byNumber.Count, member);
+            Assert.AreEqual(expected, byNumber[1], member);
+            Assert.AreEqual(7, byNumber[9], member);
         }
     }
 
@@ -315,6 +419,37 @@ internal sealed class DuplicateKeyDictionaryMembers
     public Dictionary<string, int> Values { get; set; } = new();
 }
 
+[JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+internal sealed class PopulatedDuplicateKeyDictionaries
+{
+    public Dictionary<string, int> ByName { get; } = new() { ["a"] = 1, ["keep"] = 7 };
+
+    public Dictionary<int, int> ByNumber { get; } = new() { [1] = 1, [9] = 7 };
+
+    public IDictionary<string, int> NameMap { get; } = new Dictionary<string, int> { ["a"] = 1, ["keep"] = 7 };
+
+    public IDictionary<int, int> NumberMap { get; } = new Dictionary<int, int> { [1] = 1, [9] = 7 };
+
+    public IDictionary<int, int> CustomMap { get; } = new Dictionary<int, int>(DuplicateKeyAbsoluteComparer.Instance) { [-1] = 1, [9] = 7 };
+
+    public IDictionary<int, int> SortedMap { get; } = new SortedDictionary<int, int>(DuplicateKeyAbsoluteComparer.Instance) { [-1] = 1, [9] = 7 };
+
+    public IDictionary<int, int> SortedListMap { get; } = new SortedList<int, int>(DuplicateKeyAbsoluteComparer.Instance) { [-1] = 1, [9] = 7 };
+
+    public IDictionary<int, int> OrderedMap { get; } = new OrderedDictionary<int, int>(DuplicateKeyAbsoluteComparer.Instance) { [-1] = 1, [9] = 7 };
+}
+
+internal sealed class DuplicateKeyAbsoluteComparer : IEqualityComparer<int>, IComparer<int>
+{
+    public static readonly DuplicateKeyAbsoluteComparer Instance = new();
+
+    public bool Equals(int x, int y) => Math.Abs(x) == Math.Abs(y);
+
+    public int GetHashCode(int value) => Math.Abs(value).GetHashCode();
+
+    public int Compare(int x, int y) => Math.Abs(x).CompareTo(Math.Abs(y));
+}
+
 internal sealed class DuplicateKeyMembers
 {
     public int Age { get; set; }
@@ -337,6 +472,7 @@ internal sealed class DuplicateKeyConstructed
 [YamlSerializable(typeof(DuplicateKeyMembers))]
 [YamlSerializable(typeof(DuplicateKeyConstructed))]
 [YamlSerializable(typeof(DuplicateKeyDictionaryMembers))]
+[YamlSerializable(typeof(PopulatedDuplicateKeyDictionaries))]
 [YamlSerializable(typeof(Dictionary<string, int>))]
 [YamlSerializable(typeof(Dictionary<int, int>))]
 internal partial class DuplicateKeyContext : YamlSerializerContext

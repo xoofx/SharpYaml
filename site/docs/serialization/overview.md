@@ -195,6 +195,7 @@ You can also opt in per type or per member with [`JsonObjectCreationHandlingAttr
 
 - `Replace` is the default.
 - `Populate` reuses existing mutable reference-type members such as child objects, `List<T>`, `IList<T>`, `ICollection<T>`, `Dictionary<TKey, TValue>`, and `IDictionary<TKey, TValue>`.
+- Existing dictionary entries act as initial values: the first occurrence of a key in YAML can replace its existing value. `DuplicateKeyHandling` applies only when the key repeats in the YAML mapping, with the same rule for string and non-string keys.
 - Member-level `[JsonObjectCreationHandling(...)]` overrides the type or options default.
 - Struct members require a setter for `Populate`. A readonly struct property marked with `Populate` throws at runtime, matching `System.Text.Json`.
 
