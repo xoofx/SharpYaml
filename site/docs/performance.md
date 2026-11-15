@@ -18,10 +18,11 @@ The parser reads a `string` in place, which is its fastest path. To use that pat
 
 Any other input is read into a small pooled window that the parser scans in place, which allocates nothing for the text of the document:
 
-- A larger seekable stream is read in blocks, so that parsing it does not need a string of twice its size. This takes about 1.5 times as long as a string.
-- A stream that cannot seek (a pipe, a network stream) and any other `TextReader` are only asked for the characters the parser needs. Such a reader may wait for its writer: asked for more than the document holds, it would wait for characters that are not coming. A document is therefore parsed as soon as it arrived, while the writer of the stream is still open. This takes about 3.5 times as long as a string.
+- A larger seekable stream is read in blocks, so that parsing it does not need a string of twice its size.
+- A `Stream` that cannot seek (a pipe, a network stream) is read as its bytes arrive: the serializer decodes what each read of the stream returns and never asks it to fill a buffer.
+- Any other `TextReader`, a `StreamReader` over such a stream included, is only asked for the characters the parser needs. Such a reader may wait for its writer: asked for more than the document holds, it would wait for characters that are not coming.
 
-When the whole input is there, as the body of an HTTP response is once it was received, read it into a `string` or a `MemoryStream` first to get the fastest path.
+In each case a document is parsed as soon as it arrived, while the writer of the stream is still open. The first two take about 1.5 times as long as a string, the last one about 3.5 times: pass the `Stream` itself rather than a `StreamReader` over it when it cannot seek.
 
 ## What the serializer reuses
 

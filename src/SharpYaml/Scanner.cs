@@ -92,11 +92,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private int _windowPin = int.MaxValue;
     private bool _readerEnded;
 
-    // Whether the reader is asked to fill the window, which only a reader that never waits for its input can be: one
-    // over a seekable stream, such as a file. Any other reader may be a pipe or a socket whose writer waits for an
-    // answer to the document it sent: asked for more characters than the scanner needs, it may wait for ever for
-    // characters that are not coming. That includes a StreamReader, which reads its stream again when the last read
-    // filled its buffer, whatever it was asked for.
+    // Whether the reader is asked to fill the window, which only a reader that gives what it has can be: one over a
+    // seekable stream, such as a file, which never waits, and a StreamBlockReader, which reads its stream once. Any
+    // other reader may be a pipe or a socket whose writer waits for an answer to the document it sent: asked for
+    // more characters than the scanner needs, it may wait for ever for characters that are not coming. That
+    // includes a StreamReader, which reads its stream again when the last read filled its buffer, whatever it was
+    // asked for.
     private bool _readInBlocks;
     private bool tokenAvailable;
 
@@ -415,7 +416,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         else if (buffer is ReaderLookAheadBuffer readerBuffer)
         {
             _reader = readerBuffer.Reader;
-            _readInBlocks = _reader is StreamReader { BaseStream.CanSeek: true };
+            _readInBlocks = _reader is StreamBlockReader or StreamReader { BaseStream.CanSeek: true };
             _window = ArrayPool<char>.Shared.Rent(readerBuffer.InitialWindowSize > 0 ? readerBuffer.InitialWindowSize : InitialWindowSize);
         }
     }

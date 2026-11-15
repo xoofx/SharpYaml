@@ -21,6 +21,16 @@ public static class YamlSerializer
     private static readonly Encoding DefaultStreamEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     /// <summary>
+    /// Creates the reader of a stream to deserialize, which does not close the stream. A stream that cannot seek may
+    /// be a pipe or a socket that delivers its documents over time: it gets the reader that reads it once per call,
+    /// which the scanner can read in blocks without waiting for bytes that are not coming.
+    /// </summary>
+    private static TextReader CreateReader(Stream utf8Stream)
+        => utf8Stream.CanSeek
+            ? new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true)
+            : new StreamBlockReader(utf8Stream, DefaultStreamEncoding);
+
+    /// <summary>
     /// Gets a value indicating whether reflection-based serialization is enabled by default.
     /// </summary>
     public static bool IsReflectionEnabledByDefault => ReflectionEnabledByDefault;
@@ -457,7 +467,7 @@ public static class YamlSerializer
     {
         ArgumentGuard.ThrowIfNull(utf8Stream);
 
-        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        using var reader = CreateReader(utf8Stream);
         return Deserialize<T>(reader, options);
     }
 
@@ -549,7 +559,7 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(utf8Stream);
         ArgumentGuard.ThrowIfNull(context);
 
-        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        using var reader = CreateReader(utf8Stream);
         return Deserialize<T>(reader, context);
     }
 
@@ -636,7 +646,7 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(utf8Stream);
         ArgumentGuard.ThrowIfNull(returnType);
 
-        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        using var reader = CreateReader(utf8Stream);
         return Deserialize(reader, returnType, options);
     }
 
@@ -727,7 +737,7 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(returnType);
         ArgumentGuard.ThrowIfNull(context);
 
-        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        using var reader = CreateReader(utf8Stream);
         return Deserialize(reader, returnType, context);
     }
 
@@ -982,7 +992,7 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(utf8Stream);
         ArgumentGuard.ThrowIfNull(typeInfo);
 
-        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        using var reader = CreateReader(utf8Stream);
         return Deserialize(reader, typeInfo);
     }
 
@@ -998,7 +1008,7 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(utf8Stream);
         ArgumentGuard.ThrowIfNull(typeInfo);
 
-        using var reader = new StreamReader(utf8Stream, DefaultStreamEncoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
+        using var reader = CreateReader(utf8Stream);
         return Deserialize(reader, typeInfo);
     }
 
