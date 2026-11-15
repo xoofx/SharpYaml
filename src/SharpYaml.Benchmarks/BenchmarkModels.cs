@@ -1,6 +1,10 @@
+using PolyType;
+
 namespace SharpYaml.Benchmarks;
 
-public sealed class BenchmarkDocument
+// The models are partial and carry [GenerateShape] for ShapeShift, which reads them through PolyType's generated shapes.
+[GenerateShape]
+public sealed partial class BenchmarkDocument
 {
     public string Environment { get; set; } = string.Empty;
 
@@ -15,7 +19,8 @@ public sealed class BenchmarkDocument
     public List<string> FeatureFlags { get; set; } = [];
 }
 
-public sealed class DatabaseConfiguration
+[GenerateShape]
+public sealed partial class DatabaseConfiguration
 {
     public string Host { get; set; } = string.Empty;
 
@@ -30,7 +35,8 @@ public sealed class DatabaseConfiguration
     public bool UseSsl { get; set; }
 }
 
-public sealed class ServiceConfiguration
+[GenerateShape]
+public sealed partial class ServiceConfiguration
 {
     public string Name { get; set; } = string.Empty;
 

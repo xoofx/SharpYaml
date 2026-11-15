@@ -14,7 +14,11 @@ public class SourceGeneratedBenchmarks
     private ISerializer _yamlDotNetStaticSerializer = null!;
     private IDeserializer _yamlDotNetStaticDeserializer = null!;
 
+    private ShapeShift.Yaml.YamlSerializer _shapeShiftSerializer = null!;
+
     private string _documentYaml = null!;
+    private byte[] _documentUtf8 = null!;
+    private string _shapeShiftYaml = null!;
     private string _mergeKeyYaml = null!;
 
     [GlobalSetup]
@@ -30,6 +34,12 @@ public class SourceGeneratedBenchmarks
         _yamlDotNetStaticDeserializer = new StaticDeserializerBuilder(yamlDotNetStaticContext).Build();
 
         _documentYaml = SharpYaml.YamlSerializer.Serialize(_document, _sharpYamlTypeInfo);
+        _documentUtf8 = System.Text.Encoding.UTF8.GetBytes(_documentYaml);
+
+        // ShapeShift.Yaml reads a line-based subset of YAML (no flow collections, block scalars, anchors or tags),
+        // so it deserializes the text it wrote itself, which has the same shape as SharpYaml's.
+        _shapeShiftSerializer = new ShapeShift.Yaml.YamlSerializer();
+        _shapeShiftYaml = _shapeShiftSerializer.Serialize(_document);
         _mergeKeyYaml = """
             <<:
               Host: db.internal
@@ -55,6 +65,13 @@ public class SourceGeneratedBenchmarks
         return _yamlDotNetStaticSerializer.Serialize(_document);
     }
 
+    [Benchmark]
+    [BenchmarkCategory("Serialize_SourceGenerated")]
+    public string ShapeShift_Serialize()
+    {
+        return _shapeShiftSerializer.Serialize(_document);
+    }
+
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Deserialize_SourceGenerated")]
     public BenchmarkDocument? SharpYaml_SourceGenerated_Deserialize()
@@ -67,6 +84,29 @@ public class SourceGeneratedBenchmarks
     public BenchmarkDocument YamlDotNet_StaticGenerator_Deserialize()
     {
         return _yamlDotNetStaticDeserializer.Deserialize<BenchmarkDocument>(_documentYaml);
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Deserialize_SourceGenerated")]
+    public BenchmarkDocument? ShapeShift_Deserialize()
+    {
+        return _shapeShiftSerializer.Deserialize<BenchmarkDocument>(_shapeShiftYaml);
+    }
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Deserialize_SourceGenerated_Stream")]
+    public BenchmarkDocument? SharpYaml_SourceGenerated_Deserialize_Stream()
+    {
+        return SharpYaml.YamlSerializer.Deserialize(new MemoryStream(_documentUtf8), _sharpYamlTypeInfo);
+    }
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Serialize_SourceGenerated_Stream")]
+    public long SharpYaml_SourceGenerated_Serialize_Stream()
+    {
+        var stream = new MemoryStream(_documentUtf8.Length + 16);
+        SharpYaml.YamlSerializer.Serialize(stream, _document, _sharpYamlTypeInfo);
+        return stream.Length;
     }
 
     [Benchmark(Baseline = true)]

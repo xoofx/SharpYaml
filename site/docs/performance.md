@@ -9,9 +9,19 @@ SharpYaml is built for configuration workloads: fast parsing/emitting and low al
 - Prefer [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) for AOT and performance-critical paths.
 - Prefer generated [`YamlTypeInfo<T>`](xref:SharpYaml.YamlTypeInfo`1) properties (for example `MyContext.Default.MyConfig`) over resolving by `Type` in tight loops.
 - When using runtime converters with a generated context, resolve the generated `YamlTypeInfo<T>` once for that options instance and reuse it so converter replacement is initialized once.
-- Reuse [`YamlSerializerOptions`](xref:SharpYaml.YamlSerializerOptions) instances (they are immutable and safe to cache).
-- For large YAML payloads, consider `TextReader`/`TextWriter` overloads to avoid extra copies.
-- For allocation-sensitive output, consider `IBufferWriter<char>` overloads to avoid allocating a `string`.
+- Reuse [`YamlSerializerOptions`](xref:SharpYaml.YamlSerializerOptions) instances (they are immutable and safe to cache). The converters and the reflection metadata resolved for an options instance are kept with it, so a new options instance for each call resolves them again each time.
+- For allocation-sensitive output, use the `Stream`, `TextWriter` or `IBufferWriter<char>` overloads: they write through a pooled buffer and allocate no `string` for the document.
+
+## How input is read
+
+The parser reads a `string` in place, which is its fastest path. To use that path for files as well, a `Stream` or a `StreamReader` over a **seekable** stream (a `FileStream`, a `MemoryStream`) is read to its end at once, into one string, before parsing starts.
+
+Any other `TextReader`, and a stream that cannot seek (a pipe, a network stream), is read incrementally, a few characters ahead of what the parser needs: a document can be parsed as soon as it arrived, while the writer of the stream is still open. This path is several times slower per character. When the whole input is available and speed matters, read it into a string first, or wrap it in a `MemoryStream`.
+
+## What the serializer reuses
+
+- Reading a document reuses the tokens and events of the parser, so they are not allocated once per scalar. This only applies to the serializer: `Parser.CreateParser` and `Scanner<T>` still return a new object per event and token, which you can keep.
+- The strings of short plain mapping keys are shared within a document: the keys that repeat in a list of mappings are one `string` instance.
 
 ## Benchmarks
 

@@ -80,6 +80,12 @@ public sealed class Config
 }
 ```
 
+### Converter instances are shared
+
+A converter is resolved once for a [`YamlSerializerOptions`](xref:SharpYaml.YamlSerializerOptions) instance and then used by every call made with those options, possibly from several threads at the same time. This holds for the converters of `YamlSerializerOptions.Converters`, for the converter a [`YamlConverterFactory`](xref:SharpYaml.Serialization.YamlConverterFactory) creates for a type, and for the converter created from a type-level `[YamlConverter]` attribute.
+
+Keep converters stateless, or make their state thread-safe: the state of one document belongs in local variables of `Read` and `Write`, not in fields of the converter.
+
 ## Converter shape
 
 Converters extend [`YamlConverter<T>`](xref:SharpYaml.Serialization.YamlConverter`1) and operate on [`YamlReader`](xref:SharpYaml.Serialization.YamlReader) and [`YamlWriter`](xref:SharpYaml.Serialization.YamlWriter):

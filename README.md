@@ -135,35 +135,46 @@ You can override the default by setting the following MSBuild property in your a
 
 ## 🚀 Benchmarks
 
-In the included benchmarks, SharpYaml is typically **~2x to ~6x faster** than YamlDotNet and uses **~2x to ~9x less memory allocations**, depending on the scenario (POCO vs generic vs source-generated).
+In the included benchmarks, SharpYaml is typically **~5x to ~25x faster** than YamlDotNet and allocates **~7x to ~9x less memory**, depending on the scenario (POCO vs generic vs source-generated). See the [benchmark page](https://xoofx.github.io/SharpYaml/benchmarks/) for the scenarios and for the comparison with ShapeShift.Yaml.
 
 ```
-
-BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.8655/25H2/2025Update/HudsonValley2)
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9711/25H2/2025Update/HudsonValley2)
 AMD Ryzen 9 9950X 4.30GHz, 1 CPU, 32 logical and 16 physical cores
-.NET SDK 10.0.301
-  [Host]     : .NET 10.0.9 (10.0.9, 10.0.926.27113), X64 RyuJIT x86-64-v4
-  DefaultJob : .NET 10.0.9 (10.0.9, 10.0.926.27113), X64 RyuJIT x86-64-v4
-
-
+.NET SDK 10.0.404
+  [Host]     : .NET 10.0.15 (10.0.15, 10.0.1526.53008), X64 RyuJIT x86-64-v4
+  DefaultJob : .NET 10.0.15 (10.0.15, 10.0.1526.53008), X64 RyuJIT x86-64-v4
 ```
 
-| Type                           | Method                                 | Categories                  | Mean       | Error    | StdDev   | Median     | Ratio | RatioSD | Gen0     | Gen1     | Gen2     | Allocated  | Alloc Ratio |
-|------------------------------- |--------------------------------------- |---------------------------- |-----------:|---------:|---------:|-----------:|------:|--------:|---------:|---------:|---------:|-----------:|------------:|
-| PocoBenchmarks                 | SharpYaml_Deserialize_Poco             | Deserialize_Poco            | 1,341.5 μs |  3.07 μs |  2.56 μs | 1,342.5 μs |  1.00 |    0.00 | 119.1406 |  70.3125 |        - | 1947.94 KB |        1.00 |
-| PocoBenchmarks                 | YamlDotNet_Deserialize_Poco            | Deserialize_Poco            | 2,764.9 μs | 42.75 μs | 35.70 μs | 2,765.6 μs |  2.06 |    0.03 | 250.0000 | 218.7500 |        - | 4135.91 KB |        2.12 |
-|                                |                                        |                             |            |          |          |            |       |         |          |          |          |            |             |
-| GenericSerializationBenchmarks | SharpYaml_Serialize_GenericDictionary  | Serialize_GenericDictionary |   326.7 μs |  6.45 μs | 11.95 μs |   318.7 μs |  1.00 |    0.05 |  83.0078 |  83.0078 |  83.0078 |  303.42 KB |        1.00 |
-| GenericSerializationBenchmarks | YamlDotNet_Serialize_GenericDictionary | Serialize_GenericDictionary | 2,062.5 μs |  4.53 μs |  3.54 μs | 2,062.0 μs |  6.32 |    0.23 | 152.3438 | 148.4375 |  74.2188 | 2579.25 KB |        8.50 |
-|                                |                                        |                             |            |          |          |            |       |         |          |          |          |            |             |
-| PocoBenchmarks                 | SharpYaml_Serialize_Poco               | Serialize_Poco              |   354.5 μs |  1.01 μs |  0.84 μs |   354.3 μs |  1.00 |    0.00 |  83.0078 |  83.0078 |  83.0078 |  330.99 KB |        1.00 |
-| PocoBenchmarks                 | YamlDotNet_Serialize_Poco              | Serialize_Poco              | 2,608.8 μs | 35.76 μs | 31.70 μs | 2,608.6 μs |  7.36 |    0.09 | 125.0000 |  62.5000 |  62.5000 | 2529.24 KB |        7.64 |
-|                                |                                        |                             |            |          |          |            |       |         |          |          |          |            |             |
-| SourceGeneratedBenchmarks      | SharpYaml_SourceGenerated_Serialize    | Serialize_SourceGenerated   |   296.2 μs |  0.67 μs |  0.60 μs |   296.4 μs |  1.00 |    0.00 |  83.0078 |  83.0078 |  83.0078 |  295.37 KB |        1.00 |
-| SourceGeneratedBenchmarks      | YamlDotNet_StaticGenerator_Serialize   | Serialize_SourceGenerated   | 2,120.9 μs |  5.14 μs |  4.29 μs | 2,121.4 μs |  7.16 |    0.02 | 152.3438 |  74.2188 |  74.2188 | 2404.09 KB |        8.14 |
-|                                |                                        |                             |            |          |          |            |       |         |          |          |          |            |             |
-| GenericSerializationBenchmarks | SharpYaml_Serialize_StringList         | Serialize_StringList        |   433.8 μs |  0.98 μs |  0.82 μs |   433.9 μs |  1.00 |    0.00 |  99.6094 |  99.6094 |  99.6094 |  329.25 KB |        1.00 |
-| GenericSerializationBenchmarks | YamlDotNet_Serialize_StringList        | Serialize_StringList        | 2,637.8 μs | 10.95 μs |  9.14 μs | 2,638.3 μs |  6.08 |    0.02 | 218.7500 | 214.8438 | 109.3750 | 3019.75 KB |        9.17 |
+| Type                           | Method                                              | Categories                            | Mean         | Error      | StdDev     | Median       | Ratio | RatioSD | Gen0     | Gen1     | Gen2     | Allocated  | Alloc Ratio |
+|------------------------------- |---------------------------------------------------- |-------------------------------------- |-------------:|-----------:|-----------:|-------------:|------:|--------:|---------:|---------:|---------:|-----------:|------------:|
+| PocoBenchmarks                 | SharpYaml_Deserialize_Poco                          | Deserialize_Poco                      |   575.891 μs |  7.4058 μs |  6.1842 μs |   572.542 μs |  1.00 |    0.01 |  32.2266 |  15.6250 |        - |  526.73 KB |        1.00 |
+| PocoBenchmarks                 | YamlDotNet_Deserialize_Poco                         | Deserialize_Poco                      | 2,814.069 μs | 40.4824 μs | 35.8866 μs | 2,797.839 μs |  4.89 |    0.08 | 242.1875 | 152.3438 |        - | 3967.78 KB |        7.53 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| PocoBenchmarks                 | SharpYaml_Deserialize_Poco_UnknownKeys              | Deserialize_Poco_Unmapped             |   609.725 μs |  8.0721 μs |  7.1557 μs |   608.133 μs |  1.00 |    0.02 |  32.2266 |  19.5313 |        - |  527.94 KB |        1.00 |
+| PocoBenchmarks                 | SharpYaml_Deserialize_Poco_UnknownKeys_WithCallback | Deserialize_Poco_Unmapped             |   597.764 μs |  6.0313 μs |  5.0364 μs |   596.347 μs |  0.98 |    0.01 |  32.2266 |  19.5313 |        - |  530.12 KB |        1.00 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| SourceGeneratedBenchmarks      | SharpYaml_SourceGenerated_Deserialize               | Deserialize_SourceGenerated           |   521.404 μs |  2.4262 μs |  2.1508 μs |   521.208 μs |  1.00 |    0.01 |  31.2500 |  17.0898 |        - |  517.51 KB |        1.00 |
+| SourceGeneratedBenchmarks      | YamlDotNet_StaticGenerator_Deserialize              | Deserialize_SourceGenerated           | 2,636.226 μs | 21.9571 μs | 18.3352 μs | 2,632.869 μs |  5.06 |    0.04 | 246.0938 | 160.1563 |        - | 4030.26 KB |        7.79 |
+| SourceGeneratedBenchmarks      | ShapeShift_Deserialize                              | Deserialize_SourceGenerated           |   292.813 μs |  1.4817 μs |  1.1568 μs |   292.657 μs |  0.56 |    0.00 |  29.2969 |  17.0898 |        - |  480.26 KB |        0.93 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| SourceGeneratedBenchmarks      | SharpYaml_SourceGenerated_Deserialize_MergeKeys     | Deserialize_SourceGenerated_MergeKeys |     1.623 μs |  0.0119 μs |  0.0100 μs |     1.626 μs |  1.00 |    0.01 |   0.2880 |   0.0038 |        - |    4.73 KB |        1.00 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| SourceGeneratedBenchmarks      | SharpYaml_SourceGenerated_Deserialize_Stream        | Deserialize_SourceGenerated_Stream    |   584.814 μs | 11.3160 μs | 11.1138 μs |   579.469 μs |  1.00 |    0.03 | 106.4453 |  90.8203 |  75.1953 |  787.95 KB |        1.00 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| GenericSerializationBenchmarks | SharpYaml_Serialize_GenericDictionary               | Serialize_GenericDictionary           |   102.641 μs |  1.2638 μs |  1.0553 μs |   102.393 μs |  1.00 |    0.01 |  71.4111 |  71.0449 |  71.0449 |     274 KB |        1.00 |
+| GenericSerializationBenchmarks | YamlDotNet_Serialize_GenericDictionary              | Serialize_GenericDictionary           | 2,321.592 μs | 38.3120 μs | 33.9625 μs | 2,315.858 μs | 22.62 |    0.39 | 152.3438 | 148.4375 |  74.2188 | 2579.25 KB |        9.41 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| PocoBenchmarks                 | SharpYaml_Serialize_Poco                            | Serialize_Poco                        |   111.059 μs |  2.2183 μs |  2.6408 μs |   111.132 μs |  1.00 |    0.03 |  72.8760 |  71.1670 |  71.1670 |  294.36 KB |        1.00 |
+| PocoBenchmarks                 | YamlDotNet_Serialize_Poco                           | Serialize_Poco                        | 2,882.347 μs | 18.9760 μs | 14.8152 μs | 2,883.020 μs | 25.97 |    0.61 | 152.3438 | 148.4375 |  74.2188 | 2551.29 KB |        8.67 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| SourceGeneratedBenchmarks      | SharpYaml_SourceGenerated_Serialize                 | Serialize_SourceGenerated             |    88.165 μs |  1.6690 μs |  1.7858 μs |    88.065 μs |  1.00 |    0.03 |  71.1670 |  71.1670 |  71.1670 |  268.12 KB |        1.00 |
+| SourceGeneratedBenchmarks      | YamlDotNet_StaticGenerator_Serialize                | Serialize_SourceGenerated             | 2,231.336 μs | 36.6335 μs | 32.4747 μs | 2,231.815 μs | 25.32 |    0.61 | 195.3125 | 132.8125 |  66.4063 | 2404.17 KB |        8.97 |
+| SourceGeneratedBenchmarks      | ShapeShift_Serialize                                | Serialize_SourceGenerated             |   175.785 μs |  3.8823 μs | 11.2013 μs |   180.285 μs |  1.99 |    0.13 |  90.8203 |  90.8203 |  90.8203 |  617.01 KB |        2.30 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| SourceGeneratedBenchmarks      | SharpYaml_SourceGenerated_Serialize_Stream          | Serialize_SourceGenerated_Stream      |    86.142 μs |  1.7034 μs |  1.5101 μs |    85.911 μs |  1.00 |    0.02 |  39.0625 |  38.6963 |  38.6963 |   139.5 KB |        1.00 |
+|                                |                                                     |                                       |              |            |            |              |       |         |          |          |          |            |             |
+| GenericSerializationBenchmarks | SharpYaml_Serialize_StringList                      | Serialize_StringList                  |   186.646 μs |  3.6106 μs |  3.5460 μs |   186.899 μs |  1.00 |    0.03 |  88.6230 |  88.6230 |  88.6230 |  329.23 KB |        1.00 |
+| GenericSerializationBenchmarks | YamlDotNet_Serialize_StringList                     | Serialize_StringList                  | 2,671.553 μs | 36.5366 μs | 32.3888 μs | 2,669.281 μs | 14.32 |    0.31 | 218.7500 | 214.8438 | 109.3750 | 3019.75 KB |        9.17 |
 
 
 ## 📖 Documentation
