@@ -121,7 +121,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private char Peek() => Peek(0);
 
-    private bool EndOfInput => _text != null ? index >= _text.Length : analyzer.EndOfInput;
+    private bool EndOfInput
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _text != null ? index >= _text.Length : analyzer.EndOfInput;
+    }
 
     /// <summary>Advances the buffer; in a string, <see cref="index"/> is the position.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -199,6 +203,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsBreak(int offset) => Peek(offset) is '\r' or '\n';
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsCrLf() => Peek(0) == '\r' && Peek(1) == '\n';
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -276,6 +281,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     /// <summary>
     /// Consumes the current token and increments the parsed token count
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void ConsumeCurrent()
     {
         ++tokensParsed;
@@ -330,7 +336,19 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     /// </summary>
     /// <param name="tokenNumber">A token number, or -1.</param>
     /// <returns><see langword="true"/> when a simple key is still possible at <paramref name="tokenNumber"/>.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool StaleSimpleKeys(int tokenNumber = -1)
+    {
+        // Outside of flow collections there is one key, and none is possible while a value is scanned.
+        if (simpleKeyCount == 1 && !simpleKeys[0].IsPossible)
+        {
+            return false;
+        }
+
+        return StaleSimpleKeysCore(tokenNumber);
+    }
+
+    private bool StaleSimpleKeysCore(int tokenNumber)
     {
         // Check for a potential simple key for each flow level.
 
@@ -2852,6 +2870,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     internal void EnableTokenRecycling() => _recycleTokens = true;
 
     /// <summary>Hands back a token the caller consumed and keeps no reference to.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void Recycle(Token token)
     {
         var slot = token.PoolSlot;
@@ -2921,6 +2940,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         private Slot[] _items;
         private int _count;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryPop(out Token token)
         {
             if (_count == 0)
@@ -2933,13 +2953,28 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             return true;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Push(Token token)
+        {
+            var items = _items;
+            var count = _count;
+            if (items != null && (uint)count < (uint)items.Length)
+            {
+                items[count].Token = token;
+                _count = count + 1;
+                return;
+            }
+
+            PushWithResize(token);
+        }
+
+        private void PushWithResize(Token token)
         {
             if (_items == null)
             {
                 _items = new Slot[4];
             }
-            else if (_count == _items.Length)
+            else
             {
                 Array.Resize(ref _items, _count * 2);
             }

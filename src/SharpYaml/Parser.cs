@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using SharpYaml.Tokens;
 using AnchorAlias = SharpYaml.Tokens.AnchorAlias;
 using DocumentEnd = SharpYaml.Tokens.DocumentEnd;
@@ -242,22 +243,24 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     /// <summary>Gets the kind of the current token, fetching it when needed; <see cref="TokenKind.None"/> after the last token.</summary>
     private TokenKind CurrentKind
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            var token = currentToken ?? GetCurrentToken();
+            var token = currentToken ?? FetchCurrentToken();
             return token is null ? TokenKind.None : token.Kind;
         }
     }
 
-    private Token GetCurrentToken()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Token GetCurrentToken() => currentToken ?? FetchCurrentToken();
+
+    private Token FetchCurrentToken()
     {
-        if (currentToken == null)
+        if (scanner.InternalMoveNext())
         {
-            if (scanner.InternalMoveNext())
-            {
-                currentToken = scanner.Current;
-            }
+            currentToken = scanner.Current;
         }
+
         return currentToken!;
     }
 
@@ -306,8 +309,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
     private void EnforceMaxDepth(Event current)
     {
-        // The event type is one virtual call; the end events are not sealed, so testing their type costs a call each.
-        var type = current.Type;
+        var type = current.Kind;
         if (type is Events.EventType.YAML_SEQUENCE_START_EVENT or Events.EventType.YAML_MAPPING_START_EVENT)
         {
             if (_currentDepth >= _maxDepth)
@@ -402,6 +404,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Skip()
     {
         if (currentToken != null)

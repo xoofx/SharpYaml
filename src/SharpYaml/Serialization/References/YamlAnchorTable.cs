@@ -120,29 +120,37 @@ internal sealed class YamlAnchorTable
                 }
 
                 next = parser.Current;
-                if (next is null or StreamStart or StreamEnd)
+                if (next is null)
                 {
                     continue;
                 }
 
-                if (next is DocumentStart or DocumentEnd)
+                switch (next.Kind)
                 {
-                    if (!_isFragment)
-                    {
-                        ResetDocument();
-                    }
+                    case EventType.YAML_STREAM_START_EVENT:
+                    case EventType.YAML_STREAM_END_EVENT:
+                        continue;
 
-                    continue;
+                    case EventType.YAML_DOCUMENT_START_EVENT:
+                    case EventType.YAML_DOCUMENT_END_EVENT:
+                        if (!_isFragment)
+                        {
+                            ResetDocument();
+                        }
+
+                        continue;
                 }
 
-                binding = Record(next, passAliasesThrough);
+                // An event the parser reuses has no anchor and is not an alias: it only matters to a recording.
+                binding = next.IsReused && _openCount == 0 ? null : Record(next, passAliasesThrough);
                 IsReplayed = false;
             }
 
             CurrentAliasTarget = null;
             IsPendingAlias = false;
-            if (next is AnchorAlias alias)
+            if (next.Kind == EventType.YAML_ALIAS_EVENT)
             {
+                var alias = (AnchorAlias)next;
                 if (skipAliasExpansion || (!IsReplayed && passAliasesThrough))
                 {
                     CurrentAliasTarget = binding;

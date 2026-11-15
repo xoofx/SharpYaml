@@ -72,5 +72,12 @@ public abstract class ParsingEvent
     {
         this.Start = start;
         this.End = end;
+        this.Kind = Type;
     }
+
+    /// <summary>
+    /// The value of <see cref="Type"/>, in a field: the consumers of events switch on it for every event, which is
+    /// cheaper than a virtual call or than testing the type of the event, a call for each event class that is not sealed.
+    /// </summary>
+    internal readonly EventType Kind;
 }

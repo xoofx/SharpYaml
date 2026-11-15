@@ -3,6 +3,7 @@
 // // See LICENSE.txt file in the project root for full license information.
 
 using System;
+using System.Runtime.CompilerServices;
 
 namespace SharpYaml;
 
@@ -28,14 +29,19 @@ internal sealed class InsertionQueue<T>
     /// Enqueues the specified item.
     /// </summary>
     /// <param name="item">The item to be enqueued.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Enqueue(T item)
     {
-        if (_head + _count == _items.Length)
+        var items = _items;
+        var tail = _head + _count;
+        if ((uint)tail >= (uint)items.Length)
         {
             MakeRoom();
+            items = _items;
+            tail = _head + _count;
         }
 
-        _items[_head + _count].Value = item;
+        items[tail].Value = item;
         _count++;
     }
 
@@ -43,11 +49,12 @@ internal sealed class InsertionQueue<T>
     /// Dequeues an item.
     /// </summary>
     /// <returns>Returns the item that been dequeued.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public T Dequeue()
     {
         if (_count == 0)
         {
-            throw new InvalidOperationException("The queue is empty");
+            ThrowEmpty();
         }
 
         ref var slot = ref _items[_head];
@@ -84,6 +91,8 @@ internal sealed class InsertionQueue<T>
         _items[position].Value = item;
         _count++;
     }
+
+    private static void ThrowEmpty() => throw new InvalidOperationException("The queue is empty");
 
     /// <summary>Moves the window back to the start of the array, or grows the array when the window fills it.</summary>
     private void MakeRoom()

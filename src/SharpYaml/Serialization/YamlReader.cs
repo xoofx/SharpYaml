@@ -998,33 +998,10 @@ public sealed class YamlReader : YamlReaderWriterBase
 
             _start = current.Start;
             _end = current.End;
-            switch (current)
+            switch (current.Kind)
             {
-                case MappingStart mappingStart:
-                    EnterContainer(current);
-                    _tokenType = YamlTokenType.StartMapping;
-                    _tag = mappingStart.Tag;
-                    _anchor = mappingStart.Anchor;
-                    return true;
-
-                case MappingEnd:
-                    _nesting--;
-                    _tokenType = YamlTokenType.EndMapping;
-                    return true;
-
-                case SequenceStart sequenceStart:
-                    EnterContainer(current);
-                    _tokenType = YamlTokenType.StartSequence;
-                    _tag = sequenceStart.Tag;
-                    _anchor = sequenceStart.Anchor;
-                    return true;
-
-                case SequenceEnd:
-                    _nesting--;
-                    _tokenType = YamlTokenType.EndSequence;
-                    return true;
-
-                case Scalar scalar:
+                case EventType.YAML_SCALAR_EVENT:
+                    var scalar = (Scalar)current;
                     _tokenType = YamlTokenType.Scalar;
                     _scalarValue = scalar.Value;
                     _scalarStyle = scalar.Style;
@@ -1032,9 +1009,35 @@ public sealed class YamlReader : YamlReaderWriterBase
                     _anchor = scalar.Anchor;
                     return true;
 
-                case AnchorAlias alias:
+                case EventType.YAML_MAPPING_START_EVENT:
+                    var mappingStart = (MappingStart)current;
+                    EnterContainer(current);
+                    _tokenType = YamlTokenType.StartMapping;
+                    _tag = mappingStart.Tag;
+                    _anchor = mappingStart.Anchor;
+                    return true;
+
+                case EventType.YAML_MAPPING_END_EVENT:
+                    _nesting--;
+                    _tokenType = YamlTokenType.EndMapping;
+                    return true;
+
+                case EventType.YAML_SEQUENCE_START_EVENT:
+                    var sequenceStart = (SequenceStart)current;
+                    EnterContainer(current);
+                    _tokenType = YamlTokenType.StartSequence;
+                    _tag = sequenceStart.Tag;
+                    _anchor = sequenceStart.Anchor;
+                    return true;
+
+                case EventType.YAML_SEQUENCE_END_EVENT:
+                    _nesting--;
+                    _tokenType = YamlTokenType.EndSequence;
+                    return true;
+
+                case EventType.YAML_ALIAS_EVENT:
                     _tokenType = YamlTokenType.Alias;
-                    _alias = alias.Value;
+                    _alias = ((AnchorAlias)current).Value;
                     return true;
 
                 default:

@@ -24,6 +24,12 @@ public static class YamlScalar
     /// </summary>
     public static bool IsNull(ReadOnlySpan<char> value)
     {
+        // Null is empty, "~" or "null" once trimmed: a value that starts with any other visible ASCII character is not.
+        if (value.Length != 0 && value[0] is > ' ' and < '\x7F' and not ('n' or 'N' or '~'))
+        {
+            return false;
+        }
+
         value = Trim(value);
         if (value.Length == 0)
         {
