@@ -70,10 +70,79 @@ public static class Parser
 
     private static IParser CreateParserCore(TextReader reader, int maxDepth, string? sourceName)
     {
-        if (reader is StringReader stringReader)
-            return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(stringReader.ReadToEnd()), maxDepth, sourceName);
+        // The scanner reads a string in place, several times faster than it reads a reader one character at a time.
+        // A reader whose end is known to be reachable is therefore read at once: a string, or a seekable stream such as
+        // a file. Any other reader may be a pipe or a socket that delivers documents over time, and stays incremental.
+        if (reader is StringReader)
+        {
+            return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(reader.ReadToEnd()), maxDepth, sourceName);
+        }
 
-        else return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength), maxDepth, sourceName);
+        if (reader is StreamReader { BaseStream.CanSeek: true } streamReader)
+        {
+            return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(ReadToEnd(streamReader)), maxDepth, sourceName);
+        }
+
+        return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength), maxDepth, sourceName);
+    }
+
+    /// <summary>
+    /// Reads the rest of a reader over a seekable stream into one string, through a pooled buffer sized from the bytes
+    /// left in the stream: <see cref="TextReader.ReadToEnd"/> builds the string in chunks it then copies.
+    /// </summary>
+    private static string ReadToEnd(StreamReader reader)
+    {
+        const int MaxPooledLength = 16 * 1024 * 1024;
+
+        // A character takes at least one byte in every encoding, so the bytes left bound the characters left in the
+        // stream; the reader may hold a few more it already decoded, which the loop below makes room for.
+        long remaining;
+        try
+        {
+            var stream = reader.BaseStream;
+            remaining = stream.Length - stream.Position;
+        }
+        catch (Exception exception) when (exception is NotSupportedException or IOException or ObjectDisposedException)
+        {
+            return reader.ReadToEnd();
+        }
+
+        if (remaining < 0 || remaining > MaxPooledLength)
+        {
+            return reader.ReadToEnd();
+        }
+
+        var pool = System.Buffers.ArrayPool<char>.Shared;
+        var buffer = pool.Rent((int)remaining + 64);
+        var length = 0;
+        try
+        {
+            while (true)
+            {
+                if (length == buffer.Length)
+                {
+                    var larger = pool.Rent(buffer.Length * 2);
+                    Array.Copy(buffer, larger, length);
+                    pool.Return(buffer, clearArray: true);
+                    buffer = larger;
+                }
+
+                var read = reader.Read(buffer, length, buffer.Length - length);
+                if (read <= 0)
+                {
+                    break;
+                }
+
+                length += read;
+            }
+
+            return new string(buffer, 0, length);
+        }
+        finally
+        {
+            // The buffer held the document: do not leave it readable to the next renter.
+            pool.Return(buffer, clearArray: true);
+        }
     }
 }
 
