@@ -27,7 +27,7 @@ public abstract class YamlReaderWriterBase
     private YamlSerializerOptionsCache? _optionsCache;
 
     /// <summary>The converters resolved for <see cref="Options"/>, shared by every reader and writer of these options.</summary>
-    private YamlSerializerOptionsCache OptionsCache => _optionsCache ??= YamlSerializerOptionsCache.For(Options);
+    internal YamlSerializerOptionsCache OptionsCache => _optionsCache ??= Options.Cache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlReaderWriterBase"/> class.
@@ -111,22 +111,22 @@ public abstract class YamlReaderWriterBase
     {
         ArgumentGuard.ThrowIfNull(typeToConvert);
 
-        var converters = OptionsCache.Converters;
-        if (converters.TryGetValue(typeToConvert, out var cached))
+        var cache = OptionsCache;
+        if (cache.TryGetConverter(typeToConvert, out var cached))
         {
             return cached;
         }
 
-        // Two threads may resolve the same type at once: both then use the converter that was stored first.
+        // Two threads may resolve the same type at once: both then use the converter that was kept first.
         var attributeConverter = CreateConverterFromAttribute(typeToConvert);
         if (attributeConverter is not null)
         {
-            return converters.GetOrAdd(typeToConvert, attributeConverter);
+            return cache.GetOrAddConverter(typeToConvert, attributeConverter);
         }
 
         if (TryGetCustomConverter(typeToConvert, out var custom) && custom is not null)
         {
-            return converters.GetOrAdd(typeToConvert, custom);
+            return cache.GetOrAddConverter(typeToConvert, custom);
         }
 
         var created = YamlBuiltInConverters.CreateConverter(typeToConvert);
@@ -135,7 +135,7 @@ public abstract class YamlReaderWriterBase
             throw new NotSupportedException($"No YAML converter is registered for '{typeToConvert}'.");
         }
 
-        return converters.GetOrAdd(typeToConvert, created);
+        return cache.GetOrAddConverter(typeToConvert, created);
     }
 
     private YamlConverter? CreateConverterFromAttribute(Type typeToConvert)
@@ -197,8 +197,8 @@ public abstract class YamlReaderWriterBase
             return false;
         }
 
-        var customConverters = OptionsCache.CustomConverters;
-        if (customConverters.TryGetValue(typeToConvert, out converter))
+        var cache = OptionsCache;
+        if (cache.TryGetCustomConverter(typeToConvert, out converter))
         {
             return converter is not null;
         }
@@ -211,12 +211,12 @@ public abstract class YamlReaderWriterBase
             || (Nullable.GetUnderlyingType(typeToConvert) is not null
                 && TryFindCustomConverter(typeToConvert, matchNullableUnderlyingType: true, out converter)))
         {
-            converter = customConverters.GetOrAdd(typeToConvert, converter);
+            converter = cache.GetOrAddCustomConverter(typeToConvert, converter);
             return true;
         }
 
         converter = null;
-        customConverters.TryAdd(typeToConvert, null);
+        cache.GetOrAddCustomConverter(typeToConvert, null);
         return false;
     }
 

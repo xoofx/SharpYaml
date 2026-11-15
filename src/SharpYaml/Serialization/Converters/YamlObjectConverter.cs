@@ -18,7 +18,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
     private Contract? _contract;
 
     // The contract of each derived type written through this converter: building one reads the members and the
-    // attributes of the type by reflection, which is not something to do for every polymorphic value.
+    // attributes of the type by reflection, which is not something to do for every polymorphic value. Its keys are
+    // derived types the polymorphism model of the contract already holds, so they keep no other type alive.
     private System.Collections.Concurrent.ConcurrentDictionary<Type, Contract>? _derivedContracts;
 
     public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(T);

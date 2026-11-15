@@ -92,16 +92,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// once the document is written, then <see cref="ReleaseBuffer"/> in every case, which returns the pooled buffer.
     /// </remarks>
     internal static YamlWriter CreateBuffered(TextWriter? writer, YamlSerializerOptions options, YamlReferenceWriter? referenceWriter = null)
-        => new(writer, options, referenceWriter, writer is null ? Math.Max(InitialStringBufferSize, t_lastStringLength) : WriterBufferSize);
+        => new(writer, options, referenceWriter, writer is null ? Math.Max(InitialStringBufferSize, options.Cache.LastStringLength) : WriterBufferSize);
 
     private const int InitialStringBufferSize = 1024;
     private const int MaxInitialStringBufferSize = 1024 * 1024;
     private const int WriterBufferSize = 4096;
-
-    // The length of the last string this thread serialized, with some room: an application tends to serialize
-    // documents of a similar size, and a buffer of the right size from the start is not copied while it grows.
-    [ThreadStatic]
-    private static int t_lastStringLength;
 
     /// <summary>Ends the document with a line break when it has none.</summary>
     internal void EnsureEndsWithNewLine()
@@ -134,7 +129,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     {
         if (isDocument)
         {
-            t_lastStringLength = Math.Min(_bufferPosition + (_bufferPosition >> 4), MaxInitialStringBufferSize);
+            OptionsCache.LastStringLength = Math.Min(_bufferPosition + (_bufferPosition >> 4), MaxInitialStringBufferSize);
         }
 
         return new string(_buffer!, 0, _bufferPosition);
