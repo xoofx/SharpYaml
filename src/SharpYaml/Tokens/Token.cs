@@ -29,7 +29,7 @@ public abstract class Token
     internal TokenKind Kind;
 
     /// <summary>Gives a token of a scanner pool the locations of the token it now stands for.</summary>
-    internal void Reset(Mark start, Mark end)
+    internal void Reset(in Mark start, in Mark end)
     {
         this.Start = start;
         this.End = end;

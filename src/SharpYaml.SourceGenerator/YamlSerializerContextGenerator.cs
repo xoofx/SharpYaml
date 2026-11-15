@@ -2522,7 +2522,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         // One member matcher shared by the main loop and by merged mappings, so the per-member readers are emitted once.
         // Only explicit keys take part in duplicate detection: a merged key never overrides an explicit one.
-        builder.AppendLine("        void ReadMember(string key, bool isExplicitKey, global::SharpYaml.Mark keyStart, global::SharpYaml.Mark keyEnd)");
+        builder.AppendLine("        void ReadMember(string key, bool isExplicitKey, in global::SharpYaml.Mark keyStart, in global::SharpYaml.Mark keyEnd)");
         builder.AppendLine("        {");
         builder.AppendLine("            var matched = false;");
         builder.AppendLine("            var valueTokenType = reader.TokenType;");
@@ -2900,7 +2900,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         // One member matcher shared by the main loop and by merged mappings, so the per-member readers are emitted once.
         // Only explicit keys take part in duplicate detection: a merged key never overrides an explicit one.
-        builder.AppendLine("        void ReadMember(string key, bool isExplicitKey, global::SharpYaml.Mark keyStart, global::SharpYaml.Mark keyEnd)");
+        builder.AppendLine("        void ReadMember(string key, bool isExplicitKey, in global::SharpYaml.Mark keyStart, in global::SharpYaml.Mark keyEnd)");
         builder.AppendLine("        {");
         builder.AppendLine("            var matched = false;");
         builder.AppendLine("            var valueTokenType = reader.TokenType;");

@@ -166,7 +166,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         set => _reuseEvents = value;
     }
 
-    private Event CreateScalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
+    private Event CreateScalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, in Mark start, in Mark end)
     {
         if (!_reuseEvents || anchor is not null || tag is not null)
         {
@@ -181,7 +181,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style)
         => CreateMappingStart(anchor, tag, isImplicit, style, Mark.Empty, Mark.Empty);
 
-    private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, Mark start, Mark end)
+    private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, in Mark start, in Mark end)
     {
         if (!_reuseEvents || anchor is not null || tag is not null)
         {
@@ -193,7 +193,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         return mapping;
     }
 
-    private Event CreateSequenceStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, Mark start, Mark end)
+    private Event CreateSequenceStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, in Mark start, in Mark end)
     {
         if (!_reuseEvents || anchor is not null || tag is not null)
         {
@@ -205,7 +205,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         return sequence;
     }
 
-    private Event CreateMappingEnd(Mark start, Mark end)
+    private Event CreateMappingEnd(in Mark start, in Mark end)
     {
         if (!_reuseEvents)
         {
@@ -217,7 +217,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         return mappingEnd;
     }
 
-    private Event CreateSequenceEnd(Mark start, Mark end)
+    private Event CreateSequenceEnd(in Mark start, in Mark end)
     {
         if (!_reuseEvents)
         {

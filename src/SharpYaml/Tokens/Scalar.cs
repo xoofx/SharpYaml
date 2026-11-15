@@ -22,7 +22,7 @@ public class Scalar : Token
     public ScalarStyle Style { get; private set; }
 
     /// <summary>Gives a token of a scanner pool the content of the scalar it now stands for.</summary>
-    internal void Reset(string value, ScalarStyle style, Mark start, Mark end)
+    internal void Reset(string value, ScalarStyle style, in Mark start, in Mark end)
     {
         Reset(start, end);
         this.Value = value;

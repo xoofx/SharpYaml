@@ -2871,7 +2871,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private const byte PoolSlotFlowEntry = 8;
     private const int PoolSlotCount = 9;
 
-    private Token NewScalar(string value, ScalarStyle style, Mark start, Mark end)
+    private Token NewScalar(string value, ScalarStyle style, in Mark start, in Mark end)
     {
         if (_freeTokens[PoolSlotScalar].TryPop(out var token))
         {
@@ -2883,29 +2883,29 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         return new Scalar(value, style, start, end) { PoolSlot = _recycleTokens ? PoolSlotScalar : (byte)0 };
     }
 
-    private Token NewKey(Mark start, Mark end)
+    private Token NewKey(in Mark start, in Mark end)
         => TryReuse(PoolSlotKey, start, end) ?? new Key(start, end) { PoolSlot = _recycleTokens ? PoolSlotKey : (byte)0 };
 
-    private Token NewValue(Mark start, Mark end)
+    private Token NewValue(in Mark start, in Mark end)
         => TryReuse(PoolSlotValue, start, end) ?? new Value(start, end) { PoolSlot = _recycleTokens ? PoolSlotValue : (byte)0 };
 
-    private Token NewBlockEntry(Mark start, Mark end)
+    private Token NewBlockEntry(in Mark start, in Mark end)
         => TryReuse(PoolSlotBlockEntry, start, end) ?? new BlockEntry(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockEntry : (byte)0 };
 
-    private Token NewBlockEnd(Mark start, Mark end)
+    private Token NewBlockEnd(in Mark start, in Mark end)
         => TryReuse(PoolSlotBlockEnd, start, end) ?? new BlockEnd(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockEnd : (byte)0 };
 
-    private Token NewBlockMappingStart(Mark start, Mark end)
+    private Token NewBlockMappingStart(in Mark start, in Mark end)
         => TryReuse(PoolSlotBlockMappingStart, start, end) ?? new BlockMappingStart(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockMappingStart : (byte)0 };
 
-    private Token NewBlockSequenceStart(Mark start, Mark end)
+    private Token NewBlockSequenceStart(in Mark start, in Mark end)
         => TryReuse(PoolSlotBlockSequenceStart, start, end) ?? new BlockSequenceStart(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockSequenceStart : (byte)0 };
 
-    private Token NewFlowEntry(Mark start, Mark end)
+    private Token NewFlowEntry(in Mark start, in Mark end)
         => TryReuse(PoolSlotFlowEntry, start, end) ?? new FlowEntry(start, end) { PoolSlot = _recycleTokens ? PoolSlotFlowEntry : (byte)0 };
 
     /// <summary>Takes a free token of a kind that only carries its marks, or returns <see langword="null"/>.</summary>
-    private Token TryReuse(byte slot, Mark start, Mark end)
+    private Token TryReuse(byte slot, in Mark start, in Mark end)
     {
         if (_freeTokens[slot].TryPop(out var token))
         {

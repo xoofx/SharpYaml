@@ -44,7 +44,7 @@ public sealed class SequenceStart : NodeEvent
     public YamlStyle Style { get; private set; }
 
     /// <summary>Gives a reused event, which has no anchor and no tag, the content of the event it now stands for.</summary>
-    internal void Reset(bool isImplicit, YamlStyle style, Mark start, Mark end)
+    internal void Reset(bool isImplicit, YamlStyle style, in Mark start, in Mark end)
     {
         Reset(start, end);
         this.IsImplicit = isImplicit;

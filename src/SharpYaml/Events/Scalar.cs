@@ -47,7 +47,7 @@ public sealed class Scalar : NodeEvent
     public bool IsQuotedImplicit { get; private set; }
 
     /// <summary>Gives a reused event, which has no anchor and no tag, the content of the scalar it now stands for.</summary>
-    internal void Reset(string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
+    internal void Reset(string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, in Mark start, in Mark end)
     {
         Reset(start, end);
         this.Value = value;

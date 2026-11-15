@@ -38,7 +38,7 @@ public abstract class ParsingEvent
     internal bool IsReused;
 
     /// <summary>Gives a reused event the locations of the event it now stands for.</summary>
-    internal void Reset(Mark start, Mark end)
+    internal void Reset(in Mark start, in Mark end)
     {
         this.Start = start;
         this.End = end;
