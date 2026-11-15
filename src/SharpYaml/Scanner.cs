@@ -33,11 +33,21 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private bool _recycleTokens;
     private readonly TokenStack[] _freeTokens = new TokenStack[PoolSlotCount];
 
-    // Used by ScanFlowScalar, this will reduce memory usage by /2
-    private readonly StringBuilder scanScalarValue = new StringBuilder();
-    private readonly StringBuilder scanScalarWhitespaces = new StringBuilder();
-    private readonly StringBuilder scanScalarLeadingBreak = new StringBuilder();
-    private readonly StringBuilder scanScalarTrailingBreaks = new StringBuilder();
+    // The builders of the scalars that are not a slice of the input (quoted, folded, read through a buffer), used
+    // again for every scalar and created with the first one that needs them: many documents, and the small ones a
+    // polymorphic value is buffered into, only have plain scalars on one line.
+    private StringBuilder _scanScalarValue;
+    private StringBuilder _scanScalarWhitespaces;
+    private StringBuilder _scanScalarLeadingBreak;
+    private StringBuilder _scanScalarTrailingBreaks;
+
+    private StringBuilder scanScalarValue => _scanScalarValue ??= new StringBuilder();
+
+    private StringBuilder scanScalarWhitespaces => _scanScalarWhitespaces ??= new StringBuilder();
+
+    private StringBuilder scanScalarLeadingBreak => _scanScalarLeadingBreak ??= new StringBuilder();
+
+    private StringBuilder scanScalarTrailingBreaks => _scanScalarTrailingBreaks ??= new StringBuilder();
 
 
     private bool streamStartProduced;
@@ -2694,6 +2704,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
     private const int MaxCachedKeyLength = 32;
     private const int KeyCacheSize = 64;
+    private const int KeyCacheStart = 512;
 
     // The strings of the short plain mapping keys read last, by hash: a document repeats the keys of its mappings,
     // so most keys are found here instead of being allocated again.
@@ -2713,7 +2724,19 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             hash = (hash * 31) + key[i];
         }
 
-        var cache = _keyCache ??= new string[KeyCacheSize];
+        var cache = _keyCache;
+        if (cache == null)
+        {
+            // A document this short repeats few keys: the cache would cost more than the strings it saves. The length
+            // of a string is known from the start; a reader has to be read that far first.
+            if (_text != null ? _text.Length < KeyCacheStart : index < KeyCacheStart)
+            {
+                return key.ToString();
+            }
+
+            cache = _keyCache = new string[KeyCacheSize];
+        }
+
         ref var entry = ref cache[(int)(hash & (KeyCacheSize - 1))];
         var cached = entry;
         if (cached != null && cached.Length == length && key.SequenceEqual(cached.AsSpan()))

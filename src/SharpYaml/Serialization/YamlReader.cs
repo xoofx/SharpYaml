@@ -648,20 +648,19 @@ public sealed class YamlReader : YamlReaderWriterBase
         discriminatorValue = null;
         reader.CaptureBufferedNode(discriminatorPropertyName);
 
-        using var writer = new StringWriter(CultureInfo.InvariantCulture);
-        var yamlWriter = new YamlWriter(writer, reader.Options);
-
+        // The writer of the serializer, which keeps the text in a pooled buffer.
+        var yamlWriter = YamlWriter.CreateBuffered(writer: null, reader.Options);
         reader._state.PassAliasesThrough = true;
         try
         {
             WriteBufferedNode(reader, yamlWriter, comparer, discriminatorPropertyName, isRootMapping: true, ref discriminatorValue);
+            return yamlWriter.GetBufferedString(isDocument: false);
         }
         finally
         {
             reader._state.PassAliasesThrough = false;
+            yamlWriter.ReleaseBuffer();
         }
-
-        return writer.ToString();
     }
 
     /// <summary>
@@ -678,21 +677,19 @@ public sealed class YamlReader : YamlReaderWriterBase
         ArgumentGuard.ThrowIfNull(reader);
         reader.CaptureBufferedNode(discriminatorPropertyName: null);
 
-        using var writer = new StringWriter(CultureInfo.InvariantCulture);
-        var yamlWriter = new YamlWriter(writer, reader.Options);
-
+        var yamlWriter = YamlWriter.CreateBuffered(writer: null, reader.Options);
         string? unused = null;
         reader._state.PassAliasesThrough = true;
         try
         {
             WriteBufferedNode(reader, yamlWriter, StringComparer.Ordinal, discriminatorPropertyName: string.Empty, isRootMapping: false, ref unused);
+            return yamlWriter.GetBufferedString(isDocument: false);
         }
         finally
         {
             reader._state.PassAliasesThrough = false;
+            yamlWriter.ReleaseBuffer();
         }
-
-        return writer.ToString();
     }
 
     /// <remarks>

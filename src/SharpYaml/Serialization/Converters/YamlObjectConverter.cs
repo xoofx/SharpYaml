@@ -17,6 +17,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 {
     private Contract? _contract;
 
+    // The contract of each derived type written through this converter: building one reads the members and the
+    // attributes of the type by reflection, which is not something to do for every polymorphic value.
+    private System.Collections.Concurrent.ConcurrentDictionary<Type, Contract>? _derivedContracts;
+
     public override bool CanPopulate(Type typeToConvert) => typeToConvert == typeof(T);
 
     public override T? Read(YamlReader reader)
@@ -1553,7 +1557,12 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         }
 
         var options = writer.Options;
-        var derivedContract = Contract.Create(runtimeType, writer);
+        var derivedContracts = _derivedContracts ??= new System.Collections.Concurrent.ConcurrentDictionary<Type, Contract>();
+        if (!derivedContracts.TryGetValue(runtimeType, out var derivedContract))
+        {
+            derivedContract = derivedContracts.GetOrAdd(runtimeType, Contract.Create(runtimeType, writer));
+        }
+
         var members = options.MappingOrder == YamlMappingOrderPolicy.Sorted
             ? derivedContract.MembersSorted
             : derivedContract.MembersDeclaration;

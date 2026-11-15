@@ -126,9 +126,17 @@ public sealed class YamlWriter : YamlReaderWriterBase
     }
 
     /// <summary>Gets the output of a writer created without a destination writer.</summary>
-    internal string GetBufferedString()
+    /// <param name="isDocument">
+    /// <see langword="true"/> for a serialized document, whose length sizes the buffer of the next one;
+    /// <see langword="false"/> for a node buffered while reading, which says nothing about the documents written.
+    /// </param>
+    internal string GetBufferedString(bool isDocument = true)
     {
-        t_lastStringLength = Math.Min(_bufferPosition + (_bufferPosition >> 4), MaxInitialStringBufferSize);
+        if (isDocument)
+        {
+            t_lastStringLength = Math.Min(_bufferPosition + (_bufferPosition >> 4), MaxInitialStringBufferSize);
+        }
+
         return new string(_buffer!, 0, _bufferPosition);
     }
 
