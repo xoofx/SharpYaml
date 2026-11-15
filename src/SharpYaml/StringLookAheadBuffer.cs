@@ -10,6 +10,9 @@ internal class StringLookAheadBuffer : ILookAheadBuffer
 {
     private readonly string value;
 
+    /// <summary>Gets the whole input.</summary>
+    public string Value { get { return value; } }
+
     public int Length { get { return value.Length; } }
 
     public int Position { get; private set; }

@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using SharpYaml.Tokens;
 
@@ -57,6 +58,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     /// <summary>Defines the max buffer length constant.</summary>
     public const int MaxBufferLength = 12; // Number of characters in two 8 bit unicode codepoints.
     private readonly TBuffer analyzer;
+
+    // The whole input when it is a string: the scanner then reads it in place at 'index', without going through
+    // 'analyzer' (an interface call per character) and can consume runs of characters at once.
+    private readonly string _text;
     private bool tokenAvailable;
 
     private static readonly IDictionary<char, char> simpleEscapeCodes = InitializeSimpleEscapeCodes();
@@ -87,13 +92,119 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
     private char ReadCurrentCharacter()
     {
-        char currentCharacter = analyzer.Peek(0);
+        char currentCharacter = Peek(0);
         Skip();
         return currentCharacter;
     }
 
-    // Callers must only invoke this when positioned at an actual break (i.e. after checking analyzer.IsBreak(),
-    // not analyzer.IsBreakOrZero()). At end-of-input there is no line break to consume; calling this there
+    /// <summary>Gets the character at <paramref name="offset"/> from the current position, or NUL past the end of the input.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private char Peek(int offset)
+    {
+        var text = _text;
+        if (text != null)
+        {
+            var position = index + offset;
+            return (uint)position < (uint)text.Length ? text[position] : '\0';
+        }
+
+        return analyzer.Peek(offset);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private char Peek() => Peek(0);
+
+    private bool EndOfInput => _text != null ? index >= _text.Length : analyzer.EndOfInput;
+
+    /// <summary>Advances the buffer; in a string, <see cref="index"/> is the position.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SkipBuffer(int length)
+    {
+        if (_text == null)
+        {
+            analyzer.Skip(length);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CacheBuffer(int length)
+    {
+        if (_text == null)
+        {
+            analyzer.Cache(length);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool Check(char expected) => Peek(0) == expected;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool Check(char expected, int offset) => Peek(offset) == expected;
+
+    private bool Check(string expectedCharacters) => Check(expectedCharacters, 0);
+
+    private bool Check(string expectedCharacters, int offset)
+    {
+        Debug.Assert(expectedCharacters.Length > 1, "Use Check(char, int) instead.");
+        return expectedCharacters.IndexOf(Peek(offset)) >= 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsFlowIndicator(char character) => character is ',' or '[' or ']' or '{' or '}';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsBlankOrBreakOrZero(char character) => character is ' ' or '\t' or '\r' or '\n' or '\0';
+
+    private bool IsAlpha()
+    {
+        var character = Peek(0);
+        return character is (>= '0' and <= '9') or (>= 'A' and <= 'Z') or (>= 'a' and <= 'z') or '_' or '-';
+    }
+
+    private bool IsDigit() => Peek(0) is >= '0' and <= '9';
+
+    private int AsDigit() => Peek(0) - '0';
+
+    private bool IsHex(int offset) => Peek(offset) is (>= '0' and <= '9') or (>= 'A' and <= 'F') or (>= 'a' and <= 'f');
+
+    private int AsHex(int offset)
+    {
+        var character = Peek(offset);
+        return character <= '9' ? character - '0' : character <= 'F' ? character - 'A' + 10 : character - 'a' + 10;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsSpace() => Peek(0) == ' ';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsTab() => Peek(0) == '\t';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsZero() => Peek(0) == '\0';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBlank() => Peek(0) is ' ' or '\t';
+
+    // YAML 1.2 treats NEL, LS and PS as ordinary non-break characters (§5.4).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBreak() => Peek(0) is '\r' or '\n';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBreak(int offset) => Peek(offset) is '\r' or '\n';
+
+    private bool IsCrLf() => Peek(0) == '\r' && Peek(1) == '\n';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBreakOrZero() => Peek(0) is '\r' or '\n' or '\0';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBlankOrBreakOrZero() => IsBlankOrBreakOrZero(Peek(0));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBlankOrBreakOrZero(int offset) => IsBlankOrBreakOrZero(Peek(offset));
+
+    // Callers must only invoke this when positioned at an actual break (i.e. after checking IsBreak(),
+    // not IsBreakOrZero()). At end-of-input there is no line break to consume; calling this there
     // would return the sentinel/zero character, corrupting block/plain scalars that end at EOF with no
     // trailing newline by appending a stray '\0' to the scanned value. Returns char (not string) to avoid a
     // per-call string allocation on this hot path - every caller immediately appends the single char to a
@@ -111,6 +222,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     public Scanner(TBuffer buffer)
     {
         analyzer = buffer;
+        if (buffer is StringLookAheadBuffer { Position: 0 } text)
+        {
+            _text = text.Value;
+        }
     }
 
     /// <summary>
@@ -257,7 +372,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         var flowValueAllowed = _flowValueAllowed;
         _flowValueAllowed = false;
 
-        if (!_lineHasContent && !analyzer.EndOfInput && _lineIndentationSpaces <= indent)
+        if (!_lineHasContent && !EndOfInput && _lineIndentationSpaces <= indent)
         {
             if (flowLevel > 0)
             {
@@ -282,11 +397,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         // of the longest indicators ('--- ' and '... ').
 
 
-        analyzer.Cache(4);
+        CacheBuffer(4);
 
         // Is it the end of the stream?
 
-        if (analyzer.EndOfInput)
+        if (EndOfInput)
         {
             FetchStreamEnd();
             return;
@@ -294,7 +409,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it a directive?
 
-        if (column == 0 && analyzer.Check('%'))
+        if (column == 0 && Check('%'))
         {
             FetchDirective();
             return;
@@ -304,10 +419,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         bool isDocumentStart =
             column == 0 &&
-            analyzer.Check('-', 0) &&
-            analyzer.Check('-', 1) &&
-            analyzer.Check('-', 2) &&
-            analyzer.IsBlankOrBreakOrZero(3);
+            Check('-', 0) &&
+            Check('-', 1) &&
+            Check('-', 2) &&
+            IsBlankOrBreakOrZero(3);
 
         if (isDocumentStart)
         {
@@ -319,10 +434,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         bool isDocumentEnd =
             column == 0 &&
-            analyzer.Check('.', 0) &&
-            analyzer.Check('.', 1) &&
-            analyzer.Check('.', 2) &&
-            analyzer.IsBlankOrBreakOrZero(3);
+            Check('.', 0) &&
+            Check('.', 1) &&
+            Check('.', 2) &&
+            IsBlankOrBreakOrZero(3);
 
         if (isDocumentEnd)
         {
@@ -332,7 +447,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the flow sequence start indicator?
 
-        if (analyzer.Check('['))
+        if (Check('['))
         {
             FetchFlowCollectionStart(true);
             return;
@@ -340,7 +455,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the flow mapping start indicator?
 
-        if (analyzer.Check('{'))
+        if (Check('{'))
         {
             FetchFlowCollectionStart(false);
             return;
@@ -348,7 +463,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the flow sequence end indicator?
 
-        if (analyzer.Check(']'))
+        if (Check(']'))
         {
             FetchFlowCollectionEnd(true);
             return;
@@ -356,7 +471,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the flow mapping end indicator?
 
-        if (analyzer.Check('}'))
+        if (Check('}'))
         {
             FetchFlowCollectionEnd(false);
             return;
@@ -364,7 +479,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the flow entry indicator?
 
-        if (analyzer.Check(','))
+        if (Check(','))
         {
             FetchFlowEntry();
             return;
@@ -372,7 +487,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the block entry indicator?
 
-        if (analyzer.Check('-') && analyzer.IsBlankOrBreakOrZero(1))
+        if (Check('-') && IsBlankOrBreakOrZero(1))
         {
             FetchBlockEntry();
             return;
@@ -380,7 +495,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the key indicator?
 
-        if (analyzer.Check('?') && analyzer.IsBlankOrBreakOrZero(1))
+        if (Check('?') && IsBlankOrBreakOrZero(1))
         {
             FetchKey();
             return;
@@ -388,8 +503,8 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it the value indicator?
 
-        if (analyzer.Check(':') && (analyzer.IsBlankOrBreakOrZero(1) ||
-            (flowLevel > 0 && (flowValueAllowed || analyzer.Check(",[]{}", 1)))))
+        if (Check(':') && (IsBlankOrBreakOrZero(1) ||
+            (flowLevel > 0 && (flowValueAllowed || Check(",[]{}", 1)))))
         {
             FetchValue();
             return;
@@ -397,7 +512,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it an alias?
 
-        if (analyzer.Check('*'))
+        if (Check('*'))
         {
             FetchAnchor(true);
             return;
@@ -405,7 +520,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it an anchor?
 
-        if (analyzer.Check('&'))
+        if (Check('&'))
         {
             FetchAnchor(false);
             return;
@@ -413,7 +528,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it a tag?
 
-        if (analyzer.Check('!'))
+        if (Check('!'))
         {
             FetchTag();
             return;
@@ -421,7 +536,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it a literal scalar?
 
-        if (analyzer.Check('|') && flowLevel == 0)
+        if (Check('|') && flowLevel == 0)
         {
             FetchBlockScalar(true);
             return;
@@ -429,7 +544,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it a folded scalar?
 
-        if (analyzer.Check('>') && flowLevel == 0)
+        if (Check('>') && flowLevel == 0)
         {
             FetchBlockScalar(false);
             return;
@@ -437,7 +552,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it a single-quoted scalar?
 
-        if (analyzer.Check('\''))
+        if (Check('\''))
         {
             FetchFlowScalar(true);
             return;
@@ -445,7 +560,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Is it a double-quoted scalar?
 
-        if (analyzer.Check('"'))
+        if (Check('"'))
         {
             FetchFlowScalar(false);
             return;
@@ -467,12 +582,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // if it is followed by a non-space character.
 
-        bool isInvalidPlainScalarCharacter = analyzer.IsBlankOrBreakOrZero() || analyzer.Check("-?:,[]{}#&*!|>'\"%@`");
+        bool isInvalidPlainScalarCharacter = IsBlankOrBreakOrZero() || Check("-?:,[]{}#&*!|>'\"%@`");
 
         bool isPlainScalar =
             !isInvalidPlainScalarCharacter ||
-            (analyzer.Check("-?:") && !analyzer.IsBlankOrBreakOrZero(1) &&
-                (flowLevel == 0 || !analyzer.Check(",[]{}", 1)));
+            (Check("-?:") && !IsBlankOrBreakOrZero(1) &&
+                (flowLevel == 0 || !Check(",[]{}", 1)));
 
         if (isPlainScalar)
         {
@@ -486,15 +601,15 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
     private bool CheckWhiteSpace()
     {
-        return analyzer.IsBlank();
+        return IsBlank();
     }
 
     private bool IsDocumentIndicator()
     {
-        if (column == 0 && analyzer.IsBlankOrBreakOrZero(3))
+        if (column == 0 && IsBlankOrBreakOrZero(3))
         {
-            bool isDocumentStart = analyzer.Check('-', 0) && analyzer.Check('-', 1) && analyzer.Check('-', 2);
-            bool isDocumentEnd = analyzer.Check('.', 0) && analyzer.Check('.', 1) && analyzer.Check('.', 2);
+            bool isDocumentStart = Check('-', 0) && Check('-', 1) && Check('-', 2);
+            bool isDocumentEnd = Check('.', 0) && Check('.', 1) && Check('.', 2);
 
             return isDocumentStart || isDocumentEnd;
         }
@@ -506,10 +621,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
     private void Skip()
     {
-        var character = analyzer.Peek(0);
+        var character = Peek(0);
         var highSurrogate = char.IsHighSurrogate(character);
         if (!(character is '\t' or '\r' or '\n' || Emitter.IsPrintable(character) ||
-            (highSurrogate && char.IsLowSurrogate(analyzer.Peek(1))) ||
+            (highSurrogate && char.IsLowSurrogate(Peek(1))) ||
             (char.IsLowSurrogate(character) && _previousHighSurrogate)))
         {
             throw new SyntaxErrorException(CurrentPosition, CurrentPosition, "The input contains a character outside the YAML character set.");
@@ -524,7 +639,99 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         }
         ++index;
         ++column;
-        analyzer.Skip(1);
+        SkipBuffer(1);
+    }
+
+    /// <summary>
+    /// Consumes the run of spaces at the current position of a string input at once: what <see cref="Skip"/> does for
+    /// each of them. Does nothing for other inputs, which the caller reads character by character.
+    /// </summary>
+    private void SkipSpaces()
+    {
+        var text = _text;
+        if (text == null)
+        {
+            return;
+        }
+
+        var end = index;
+        while ((uint)end < (uint)text.Length && text[end] == ' ')
+        {
+            end++;
+        }
+
+        var count = end - index;
+        if (count == 0)
+        {
+            return;
+        }
+
+        // The spaces that start a line are its indentation: both counters then advance together.
+        if (column == _lineIndentationSpaces)
+        {
+            _lineIndentationSpaces += count;
+        }
+
+        _previousHighSurrogate = false;
+        _lastCharacter = ' ';
+        index = end;
+        column += count;
+    }
+
+    /// <summary>
+    /// Counts the characters from <paramref name="start"/> that a plain scalar takes as they are, whatever follows them:
+    /// printable, not a blank or a break, not a surrogate, not <c>:</c> (which ends the scalar depending on the next
+    /// character) and, in a flow collection, not a flow indicator.
+    /// </summary>
+    private int CountPlainScalarRun(string text, int start)
+    {
+        var position = start;
+        if (flowLevel == 0)
+        {
+            while ((uint)position < (uint)text.Length)
+            {
+                var character = text[position];
+                if ((uint)(character - 0x21) <= 0x7E - 0x21 ? character == ':' : !IsPrintableBeyondAscii(character))
+                {
+                    break;
+                }
+
+                position++;
+            }
+        }
+        else
+        {
+            while ((uint)position < (uint)text.Length)
+            {
+                var character = text[position];
+                if ((uint)(character - 0x21) <= 0x7E - 0x21 ? character == ':' || IsFlowIndicator(character) : !IsPrintableBeyondAscii(character))
+                {
+                    break;
+                }
+
+                position++;
+            }
+        }
+
+        return position - start;
+    }
+
+    /// <summary>Gets whether a character above the ASCII range is printable (<see cref="Emitter.IsPrintable"/>) and not a surrogate.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsPrintableBeyondAscii(char character)
+        => character is '\x85' or (>= '\xA0' and <= '\xD7FF') or (>= '\xE000' and <= '\xFFFD');
+
+    /// <summary>
+    /// Consumes <paramref name="count"/> characters of a string input that <see cref="CountPlainScalarRun"/> counted:
+    /// what <see cref="Skip"/> does for each of them.
+    /// </summary>
+    private void SkipPlainScalarRun(string text, int count)
+    {
+        index += count;
+        column += count;
+        _previousHighSurrogate = false;
+        _lastCharacter = text[index - 1];
+        _lineHasContent = true;
     }
 
     private void SkipLine()
@@ -532,23 +739,23 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         _lastCharacter = '\n';
         _previousHighSurrogate = false;
         _lineHasContent = false;
-        if (analyzer.IsCrLf())
+        if (IsCrLf())
         {
             index += 2;
             column = 0;
             _lineIndentationSpaces = 0;
             ++line;
-            analyzer.Skip(2);
+            SkipBuffer(2);
         }
-        else if (analyzer.IsBreak())
+        else if (IsBreak())
         {
             ++index;
             column = 0;
             _lineIndentationSpaces = 0;
             ++line;
-            analyzer.Skip(1);
+            SkipBuffer(1);
         }
-        else if (!analyzer.IsZero())
+        else if (!IsZero())
         {
             throw new InvalidOperationException("Not at a break.");
         }
@@ -560,14 +767,15 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         for (; ; )
         {
-            if (column == 0 && analyzer.Check('\uFEFF'))
+            if (column == 0 && Check('\uFEFF'))
             {
-                analyzer.Skip(1);
+                SkipBuffer(1);
                 index++;
             }
             // Eat whitespaces.
 
             // Tabs may separate tokens but do not contribute to indentation.
+            SkipSpaces();
             while (CheckWhiteSpace())
             {
                 Skip();
@@ -575,13 +783,13 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Eat a comment until a line break.
 
-            if (analyzer.Check('#'))
+            if (Check('#'))
             {
                 if (column != 0 && _lastCharacter is not (' ' or '\t' or '\r' or '\n'))
                 {
                     throw new SyntaxErrorException(CurrentPosition, CurrentPosition, "A comment must be separated from the preceding token by whitespace.");
                 }
-                while (!analyzer.IsBreakOrZero())
+                while (!IsBreakOrZero())
                 {
                     Skip();
                 }
@@ -589,7 +797,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // If it is a line break, eat it.
 
-            if (analyzer.IsBreak())
+            if (IsBreak())
             {
                 SkipLine();
 
@@ -741,7 +949,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                 break;
 
             default:
-                while (!analyzer.IsBreakOrZero())
+                while (!IsBreakOrZero())
                 {
                     Skip();
                 }
@@ -751,14 +959,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Eat the rest of the line including any comments.
 
-        while (analyzer.IsBlank())
+        while (IsBlank())
         {
             Skip();
         }
 
-        if (analyzer.Check('#'))
+        if (Check('#'))
         {
-            while (!analyzer.IsBreakOrZero())
+            while (!IsBreakOrZero())
             {
                 Skip();
             }
@@ -766,14 +974,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Check if we are at the end of the line.
 
-        if (!analyzer.IsBreakOrZero())
+        if (!IsBreakOrZero())
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a directive, did not find expected comment or line break.");
         }
 
         // Eat a line break.
 
-        if (analyzer.IsBreak())
+        if (IsBreak())
         {
             SkipLine();
         }
@@ -1156,7 +1364,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         // Consume the value.
 
         var value = new StringBuilder();
-        while (!analyzer.IsBlankOrBreakOrZero() && !analyzer.Check(",[]{}"))
+        while (!IsBlankOrBreakOrZero() && !Check(",[]{}"))
         {
             value.Append(ReadCurrentCharacter());
         }
@@ -1210,7 +1418,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         string handle;
         string suffix;
 
-        if (analyzer.Check('<', 1))
+        if (Check('<', 1))
         {
             // Set the handle to ''
 
@@ -1227,7 +1435,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Check for '>' and eat it.
 
-            if (!analyzer.Check('>'))
+            if (!Check('>'))
             {
                 throw new SyntaxErrorException(start, CurrentPosition, "While scanning a tag, did not find the expected '>'.");
             }
@@ -1277,7 +1485,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Check the character which ends the tag.
 
-        if (!analyzer.IsBlankOrBreakOrZero() && !(flowLevel > 0 && analyzer.Check(",]}")))
+        if (!IsBlankOrBreakOrZero() && !(flowLevel > 0 && Check(",]}")))
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a tag, did not find expected whitespace or line break.");
         }
@@ -1327,28 +1535,28 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Check for a chomping indicator.
 
-        if (analyzer.Check("+-"))
+        if (Check("+-"))
         {
             // Set the chomping method and eat the indicator.
 
-            chomping = analyzer.Check('+') ? +1 : -1;
+            chomping = Check('+') ? +1 : -1;
 
             Skip();
 
             // Check for an indentation indicator.
 
-            if (analyzer.IsDigit())
+            if (IsDigit())
             {
                 // Check that the intendation is greater than 0.
 
-                if (analyzer.Check('0'))
+                if (Check('0'))
                 {
                     throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, find an intendation indicator equal to 0.");
                 }
 
                 // Get the intendation level and eat the indicator.
 
-                increment = analyzer.AsDigit();
+                increment = AsDigit();
 
                 Skip();
             }
@@ -1356,41 +1564,41 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Do the same as above, but in the opposite order.
 
-        else if (analyzer.IsDigit())
+        else if (IsDigit())
         {
-            if (analyzer.Check('0'))
+            if (Check('0'))
             {
                 throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, find an intendation indicator equal to 0.");
             }
 
-            increment = analyzer.AsDigit();
+            increment = AsDigit();
 
             Skip();
 
-            if (analyzer.Check("+-"))
+            if (Check("+-"))
             {
-                chomping = analyzer.Check('+') ? +1 : -1;
+                chomping = Check('+') ? +1 : -1;
 
                 Skip();
             }
         }
 
         // A block scalar header comment requires separation from its indicators.
-        if (analyzer.Check('#'))
+        if (Check('#'))
         {
             throw new SyntaxErrorException(start, CurrentPosition, "A block scalar header comment requires whitespace.");
         }
 
         // Eat whitespaces and comments to the end of the line.
 
-        while (analyzer.IsBlank())
+        while (IsBlank())
         {
             Skip();
         }
 
-        if (analyzer.Check('#'))
+        if (Check('#'))
         {
-            while (!analyzer.IsBreakOrZero())
+            while (!IsBreakOrZero())
             {
                 Skip();
             }
@@ -1398,14 +1606,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Check if we are at the end of the line.
 
-        if (!analyzer.IsBreakOrZero())
+        if (!IsBreakOrZero())
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, did not find expected comment or line break.");
         }
 
         // Eat a line break.
 
-        if (analyzer.IsBreak())
+        if (IsBreak())
         {
             SkipLine();
         }
@@ -1425,14 +1633,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Scan the block scalar content.
 
-        while (column == currentIndent && !analyzer.IsZero() && !IsDocumentIndicator())
+        while (column == currentIndent && !IsZero() && !IsDocumentIndicator())
         {
             // We are at the beginning of a non-empty line.
 
 
             // Is it a trailing whitespace?
 
-            bool trailingBlank = analyzer.IsBlank();
+            bool trailingBlank = IsBlank();
 
             // YAML 1.2 section 6.5: fold a single break to a space, or discard the first
             // break before empty lines and retain the remaining breaks as content.
@@ -1457,22 +1665,22 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Is it a leading whitespace?
 
-            leadingBlank = analyzer.IsBlank();
+            leadingBlank = IsBlank();
 
             // Consume the current line.
 
-            while (!analyzer.IsBreakOrZero())
+            while (!IsBreakOrZero())
             {
                 value.Append(ReadCurrentCharacter());
             }
 
             // Consume the line break, if there is one. A block scalar's last content line may end at
             // end-of-input with no break at all; ReadLine() must not be called in that case (see its summary).
-            if (analyzer.IsBreak())
+            if (IsBreak())
             {
                 leadingBreak.Append(ReadLine());
             }
-            else if (analyzer.EndOfInput && !_lineHasContent && column > 0)
+            else if (EndOfInput && !_lineHasContent && column > 0)
             {
                 // A final whitespace-only content line is an empty line (§8.1.2).
                 leadingBreak.Append('\n');
@@ -1480,7 +1688,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Eat the following intendation spaces and line breaks.
 
-            if (analyzer.EndOfInput)
+            if (EndOfInput)
             {
                 end = CurrentPosition;
                 break;
@@ -1521,7 +1729,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         {
             // Eat the intendation spaces.
 
-            while ((currentIndent < 0 || column < currentIndent) && analyzer.IsSpace())
+            while ((currentIndent < 0 || column < currentIndent) && IsSpace())
             {
                 Skip();
             }
@@ -1533,14 +1741,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Check for a tab character messing the intendation.
 
-            if (column < (currentIndent < 0 ? indent + 1 : currentIndent) && analyzer.IsTab())
+            if (column < (currentIndent < 0 ? indent + 1 : currentIndent) && IsTab())
             {
                 throw new SyntaxErrorException(start, CurrentPosition, "While scanning a block scalar, find a tab character where an intendation space is expected.");
             }
 
             // Have we find a non-empty line?
 
-            if (!analyzer.IsBreak())
+            if (!IsBreak())
             {
                 break;
             }
@@ -1557,13 +1765,13 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         if (currentIndent < 0)
         {
             currentIndent = Math.Max(column, Math.Max(indent + 1, 0));
-            if (!analyzer.EndOfInput && maxIndent > currentIndent)
+            if (!EndOfInput && maxIndent > currentIndent)
             {
                 throw new SyntaxErrorException(start, CurrentPosition, "A leading empty line is more indented than the first content line.");
             }
         }
 
-        if (analyzer.EndOfInput && !_lineHasContent && column > 0)
+        if (EndOfInput && !_lineHasContent && column > 0)
         {
             breaks.Append('\n');
         }
@@ -1618,7 +1826,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Check for EOF.
 
-            if (analyzer.IsZero())
+            if (IsZero())
             {
                 throw new SyntaxErrorException(start, CurrentPosition, "While scanning a quoted scalar, find unexpected end of stream.");
             }
@@ -1627,11 +1835,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             bool hasLeadingBlanks = false;
 
-            while (!analyzer.IsBlankOrBreakOrZero())
+            while (!IsBlankOrBreakOrZero())
             {
                 // Check for an escaped single quote.
 
-                if (isSingleQuoted && analyzer.Check('\'', 0) && analyzer.Check('\'', 1))
+                if (isSingleQuoted && Check('\'', 0) && Check('\'', 1))
                 {
                     scanScalarValue.Append('\'');
                     Skip();
@@ -1640,14 +1848,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
                 // Check for the right quote.
 
-                else if (analyzer.Check(isSingleQuoted ? '\'' : '"'))
+                else if (Check(isSingleQuoted ? '\'' : '"'))
                 {
                     break;
                 }
 
                 // Check for an escaped line break.
 
-                else if (!isSingleQuoted && analyzer.Check('\\') && analyzer.IsBreak(1))
+                else if (!isSingleQuoted && Check('\\') && IsBreak(1))
                 {
                     Skip();
                     SkipLine();
@@ -1657,13 +1865,13 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
                 // Check for an escape sequence.
 
-                else if (!isSingleQuoted && analyzer.Check('\\'))
+                else if (!isSingleQuoted && Check('\\'))
                 {
                     int codeLength = 0;
 
                     // Check the escape character.
 
-                    char escapeCharacter = analyzer.Peek(1);
+                    char escapeCharacter = Peek(1);
                     switch (escapeCharacter)
                     {
                         case 'x':
@@ -1704,11 +1912,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
                         for (int k = 0; k < codeLength; ++k)
                         {
-                            if (!analyzer.IsHex(k))
+                            if (!IsHex(k))
                             {
                                 throw new SyntaxErrorException(start, CurrentPosition, "While parsing a quoted scalar, did not find expected hexdecimal number.");
                             }
-                            character = (character << 4) + analyzer.AsHex(k);
+                            character = (character << 4) + AsHex(k);
                         }
 
                         // Check the value and write the character.
@@ -1723,16 +1931,16 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                             int nextCharacter = 0;
 
                             // We might be dealing with a surrogate pair - try to read the next unicode character.
-                            if (codeLength == 4 && analyzer.Check('\\', codeLength) && analyzer.Check('u', codeLength + 1))
+                            if (codeLength == 4 && Check('\\', codeLength) && Check('u', codeLength + 1))
                             {
                                 for (int k = 0; k < codeLength; ++k)
                                 {
-                                    if (!analyzer.IsHex(k + codeLength + 2))
+                                    if (!IsHex(k + codeLength + 2))
                                     {
                                         foundNextCharacter = false;
                                         break;
                                     }
-                                    nextCharacter = (nextCharacter << 4) + analyzer.AsHex(k + codeLength + 2);
+                                    nextCharacter = (nextCharacter << 4) + AsHex(k + codeLength + 2);
                                 }
 
                                 if (foundNextCharacter)
@@ -1770,14 +1978,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Check if we are at the end of the scalar.
 
-            if (analyzer.Check(isSingleQuoted ? '\'' : '"'))
+            if (Check(isSingleQuoted ? '\'' : '"'))
                 break;
 
             // Consume blank characters.
 
-            while (analyzer.IsBlank() || analyzer.IsBreak())
+            while (IsBlank() || IsBreak())
             {
-                if (analyzer.IsBlank())
+                if (IsBlank())
                 {
                     // Consume a space or a tab character.
 
@@ -1809,7 +2017,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Join the whitespaces or fold line breaks.
 
-            if (hasLeadingBlanks && !analyzer.IsZero() && _lineIndentationSpaces <= indent)
+            if (hasLeadingBlanks && !IsZero() && _lineIndentationSpaces <= indent)
             {
                 throw new SyntaxErrorException(start, CurrentPosition, "A quoted scalar continuation must be indented.");
             }
@@ -1874,6 +2082,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     /// </summary>
     private Token ScanPlainScalar()
     {
+        if (_text != null)
+        {
+            return ScanPlainScalarInText(_text);
+        }
+
         scanScalarValue.Length = 0;
         scanScalarWhitespaces.Length = 0;
         scanScalarLeadingBreak.Length = 0;
@@ -1898,18 +2111,18 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Check for a comment.
 
-            if (analyzer.Check('#'))
+            if (Check('#'))
             {
                 break;
             }
 
             // Consume non-blank characters.
-            while (!analyzer.IsBlankOrBreakOrZero())
+            while (!IsBlankOrBreakOrZero())
             {
                 // Check for indicators that may end a plain scalar.
 
-                if ((analyzer.Check(':') && (analyzer.IsBlankOrBreakOrZero(1) ||
-                    (flowLevel > 0 && analyzer.Check(",[]{}", 1)))) || (flowLevel > 0 && analyzer.Check(",[]{}")))
+                if ((Check(':') && (IsBlankOrBreakOrZero(1) ||
+                    (flowLevel > 0 && Check(",[]{}", 1)))) || (flowLevel > 0 && Check(",[]{}")))
                 {
                     break;
                 }
@@ -1960,16 +2173,16 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
             // Is it the end?
 
-            if (!(analyzer.IsBlank() || analyzer.IsBreak()))
+            if (!(IsBlank() || IsBreak()))
             {
                 break;
             }
 
             // Consume blank characters.
 
-            while (analyzer.IsBlank() || analyzer.IsBreak())
+            while (IsBlank() || IsBreak())
             {
-                if (analyzer.IsBlank())
+                if (IsBlank())
                 {
                     // Consume a space or a tab character.
 
@@ -2019,6 +2232,195 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         return new Scalar(scanScalarValue.ToString(), ScalarStyle.Plain, start, end);
     }
 
+    /// <summary>
+    /// Scans a plain scalar of a string input: <see cref="ScanPlainScalar"/> with the runs of ordinary characters
+    /// consumed at once. The value of a scalar that stays on one line is a slice of the input, so it is built from
+    /// <see cref="scanScalarValue"/> only once a line break has to be folded.
+    /// </summary>
+    private Token ScanPlainScalarInText(string text)
+    {
+        bool hasLeadingBlanks = false;
+        bool isFolded = false;
+        int currentIndent = indent + 1;
+
+        // The blanks read since the last character of the value on its line, and the breaks read after the first one.
+        int pendingBlanks = 0;
+        int trailingBreaks = 0;
+
+        var start = CurrentPosition;
+        var end = start;
+        int valueStart = index;
+        int valueEnd = index;
+
+        // Consume the content of the plain scalar.
+
+        for (; ; )
+        {
+            // Check for a document indicator.
+
+            if (IsDocumentIndicator())
+            {
+                break;
+            }
+
+            // Check for a comment.
+
+            if (Check('#'))
+            {
+                break;
+            }
+
+            // Consume non-blank characters.
+            for (; ; )
+            {
+                var character = Peek(0);
+                if (IsBlankOrBreakOrZero(character))
+                {
+                    break;
+                }
+
+                // Check for indicators that may end a plain scalar.
+
+                if (character == ':')
+                {
+                    var next = Peek(1);
+                    if (IsBlankOrBreakOrZero(next) || (flowLevel > 0 && IsFlowIndicator(next)))
+                    {
+                        break;
+                    }
+                }
+                else if (flowLevel > 0 && IsFlowIndicator(character))
+                {
+                    break;
+                }
+
+                // Check if we need to join whitespaces and breaks.
+
+                if (hasLeadingBlanks)
+                {
+                    // Fold the line breaks: the value is not a slice of the input anymore.
+
+                    if (!isFolded)
+                    {
+                        isFolded = true;
+                        scanScalarValue.Length = 0;
+                        scanScalarValue.Append(text, valueStart, valueEnd - valueStart);
+                    }
+
+                    if (trailingBreaks == 0)
+                    {
+                        scanScalarValue.Append(' ');
+                    }
+                    else
+                    {
+                        scanScalarValue.Append('\n', trailingBreaks);
+                    }
+
+                    trailingBreaks = 0;
+                    hasLeadingBlanks = false;
+                }
+                else if (pendingBlanks > 0)
+                {
+                    if (isFolded)
+                    {
+                        scanScalarValue.Append(text, index - pendingBlanks, pendingBlanks);
+                    }
+
+                    pendingBlanks = 0;
+                }
+
+                // Copy the characters.
+
+                var run = CountPlainScalarRun(text, index);
+                if (run > 0)
+                {
+                    if (isFolded)
+                    {
+                        scanScalarValue.Append(text, index, run);
+                    }
+
+                    SkipPlainScalarRun(text, run);
+                }
+                else
+                {
+                    // A ':' inside the scalar, or a character that Skip has to check.
+                    Skip();
+                    if (isFolded)
+                    {
+                        scanScalarValue.Append(character);
+                    }
+                }
+
+                valueEnd = index;
+                end = CurrentPosition;
+            }
+
+            // Is it the end?
+
+            if (!(IsBlank() || IsBreak()))
+            {
+                break;
+            }
+
+            // Consume blank characters.
+
+            for (; ; )
+            {
+                var character = Peek(0);
+                if (character is ' ' or '\t')
+                {
+                    // Consume a space or a tab character.
+
+                    if (!hasLeadingBlanks)
+                    {
+                        pendingBlanks++;
+                    }
+
+                    Skip();
+                }
+                else if (character is '\r' or '\n')
+                {
+                    // Check if it is a first line break.
+
+                    if (!hasLeadingBlanks)
+                    {
+                        pendingBlanks = 0;
+                        hasLeadingBlanks = true;
+                    }
+                    else
+                    {
+                        trailingBreaks++;
+                    }
+
+                    SkipLine();
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // Check intendation level.
+
+            if (flowLevel == 0 && _lineIndentationSpaces < currentIndent && hasLeadingBlanks)
+            {
+                break;
+            }
+        }
+
+        // Note that we change the 'simple_key_allowed' flag.
+
+        if (hasLeadingBlanks)
+        {
+            simpleKeyAllowed = true;
+        }
+
+        // Create a token.
+
+        var value = isFolded ? scanScalarValue.ToString() : text.Substring(valueStart, valueEnd - valueStart);
+        return new Scalar(value, ScalarStyle.Plain, start, end);
+    }
+
 
     /// <summary>
     /// Remove a potential simple key at the current flow level.
@@ -2054,7 +2456,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Consume the directive name.
 
-        while (!analyzer.IsBlankOrBreakOrZero())
+        while (!IsBlankOrBreakOrZero())
         {
             name.Append(ReadCurrentCharacter());
         }
@@ -2068,7 +2470,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Check for an blank character after the name.
 
-        if (!analyzer.IsBlankOrBreakOrZero())
+        if (!IsBlankOrBreakOrZero())
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a directive, find unexpected non-alphabetical character.");
         }
@@ -2080,7 +2482,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     {
         // Eat whitespaces.
 
-        while (analyzer.IsBlank())
+        while (IsBlank())
         {
             Skip();
         }
@@ -2103,7 +2505,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Eat '.'.
 
-        if (!analyzer.Check('.'))
+        if (!Check('.'))
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %YAML directive, did not find expected digit or '.' character.");
         }
@@ -2114,7 +2516,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         int minor = ScanVersionDirectiveNumber(start);
 
-        if (!analyzer.IsBlankOrBreakOrZero())
+        if (!IsBlankOrBreakOrZero())
         {
             throw new SyntaxErrorException(start, CurrentPosition, "The YAML version must be followed by whitespace or a line break.");
         }
@@ -2139,7 +2541,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Expect a whitespace.
 
-        if (!analyzer.IsBlank())
+        if (!IsBlank())
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %TAG directive, did not find expected whitespace.");
         }
@@ -2152,7 +2554,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Expect a whitespace or line break.
 
-        if (!analyzer.IsBlankOrBreakOrZero())
+        if (!IsBlankOrBreakOrZero())
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %TAG directive, did not find expected whitespace or line break.");
         }
@@ -2180,15 +2582,15 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         //      '%'.
 
 
-        while (analyzer.IsAlpha() || analyzer.Check(";/?:@&=+$,.!~*'()[]%"))
+        while (IsAlpha() || Check(";/?:@&=+$,.!~*'()[]%"))
         {
-            if (!allowFlowIndicators && analyzer.Check("!,[]{}"))
+            if (!allowFlowIndicators && Check("!,[]{}"))
             {
                 break;
             }
             // Check if it is a URI-escape sequence.
 
-            if (analyzer.Check('%'))
+            if (Check('%'))
             {
                 tag.Append(ScanUriEscapes(start));
             }
@@ -2223,14 +2625,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         {
             // Check for a URI-escaped octet.
 
-            if (!(analyzer.Check('%') && analyzer.IsHex(1) && analyzer.IsHex(2)))
+            if (!(Check('%') && IsHex(1) && IsHex(2)))
             {
                 throw new SyntaxErrorException(start, CurrentPosition, "While parsing a tag, did not find URI escaped octet.");
             }
 
             // Get the octet.
 
-            int octet = (analyzer.AsHex(1) << 4) + analyzer.AsHex(2);
+            int octet = (AsHex(1) << 4) + AsHex(2);
 
             // If it is the leading octet, determine the length of the UTF-8 sequence.
 
@@ -2280,7 +2682,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     {
         // Check the initial '!' character.
 
-        if (!analyzer.Check('!'))
+        if (!Check('!'))
         {
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a tag, did not find expected '!'.");
         }
@@ -2292,14 +2694,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Copy all subsequent alphabetical and numerical characters.
 
-        while (analyzer.IsAlpha() && !analyzer.Check('_'))
+        while (IsAlpha() && !Check('_'))
         {
             tagHandle.Append(ReadCurrentCharacter());
         }
 
         // Check if the trailing character is '!' and copy it.
 
-        if (analyzer.Check('!'))
+        if (Check('!'))
         {
             tagHandle.Append(ReadCurrentCharacter());
         }
@@ -2335,7 +2737,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Repeat while the next character is digit.
 
-        while (analyzer.IsDigit())
+        while (IsDigit())
         {
             // Check if the number is too long.
 
@@ -2344,7 +2746,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                 throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %YAML directive, find extremely long version number.");
             }
 
-            value = value * 10 + analyzer.AsDigit();
+            value = value * 10 + AsDigit();
 
             Skip();
         }
