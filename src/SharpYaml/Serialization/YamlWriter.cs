@@ -1394,6 +1394,11 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return false;
         }
 
+        if (!CanBeAmbiguousScalar(value))
+        {
+            return false;
+        }
+
         if (value.Equals("<<", StringComparison.Ordinal))
         {
             return true;
@@ -1406,6 +1411,50 @@ public sealed class YamlWriter : YamlReaderWriterBase
                YamlScalar.TryParseInt64(value, out _) ||
                YamlScalar.TryParseDouble(value, out _);
     }
+
+    /// <summary>
+    /// Gets whether the checks of <see cref="ShouldQuoteAmbiguousScalar"/> can succeed for <paramref name="value"/>,
+    /// which is not empty: <see langword="false"/> when its characters rule out the merge key, null, the booleans and
+    /// every number, so that most strings skip the number parsers.
+    /// </summary>
+    /// <remarks>
+    /// Those checks accept <c>&lt;&lt;</c>, <c>~</c>, the words <c>null</c>, <c>true</c>, <c>false</c>, <c>nan</c>,
+    /// <c>inf</c> and <c>infinity</c> in any case, and numbers: digits, signs, a decimal point, an exponent, the
+    /// <c>0x</c>, <c>0o</c> and <c>0b</c> prefixes with hexadecimal digits, and underscores the parsers ignore. They
+    /// trim whitespace, and the runtime number parser decides for any character outside ASCII. A value whose first
+    /// character is a letter is therefore one of the words, and a value with any other character is none of this.
+    /// </remarks>
+    private static bool CanBeAmbiguousScalar(ReadOnlySpan<char> value)
+    {
+        var first = (char)(value[0] | 0x20);
+        if (first is >= 'a' and <= 'z' && first is not ('n' or 't' or 'f' or 'i'))
+        {
+            return false;
+        }
+
+        foreach (var c in value)
+        {
+            // Whitespace, control characters and characters outside ASCII are left to the checks.
+            if (c is > ' ' and < '\x7F' && !IsAmbiguousScalarCharacter(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsAmbiguousScalarCharacter(char c)
+        => c is (>= '0' and <= '9') or '+' or '-' or '.' or '_' or '~' or '<'
+            or (>= 'a' and <= 'f') or (>= 'A' and <= 'F')
+            or 'i' or 'I' or 'l' or 'L' or 'n' or 'N' or 'o' or 'O' or 'r' or 'R' or 's' or 'S'
+            or 't' or 'T' or 'u' or 'U' or 'x' or 'X' or 'y' or 'Y';
+
+#if NET8_0_OR_GREATER
+    // The ASCII characters that IsPlainSafe accepts anywhere in a plain scalar: the printable ones but the indicators.
+    private static readonly System.Buffers.SearchValues<char> s_plainSafeAscii = System.Buffers.SearchValues.Create(
+        " $()+-./0123456789;<=?ABCDEFGHIJKLMNOPQRSTUVWXYZ\\^_abcdefghijklmnopqrstuvwxyz~");
+#endif
 
     private static bool IsPlainSafe(ReadOnlySpan<char> value, bool isKey)
     {
@@ -1428,7 +1477,17 @@ public sealed class YamlWriter : YamlReaderWriterBase
         }
 
         // Disallow YAML special characters and common ambiguities.
-        for (var i = 0; i < value.Length; i++)
+#if NET8_0_OR_GREATER
+        // The loop below accepts every character of s_plainSafeAscii: start it at the first other character.
+        var start = value.IndexOfAnyExcept(s_plainSafeAscii);
+        if (start < 0)
+        {
+            start = value.Length;
+        }
+#else
+        var start = 0;
+#endif
+        for (var i = start; i < value.Length; i++)
         {
             var c = value[i];
             if (c is '\n' or '\r' or '\t' or '\u2028' or '\u2029' or '\uFEFF')
