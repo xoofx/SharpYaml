@@ -13,13 +13,21 @@ public class Scalar : Token
     /// Gets the value.
     /// </summary>
     /// <value>The value.</value>
-    public string Value { get; }
+    public string Value { get; private set; }
 
     /// <summary>
     /// Gets the style.
     /// </summary>
     /// <value>The style.</value>
-    public ScalarStyle Style { get; }
+    public ScalarStyle Style { get; private set; }
+
+    /// <summary>Gives a token of a scanner pool the content of the scalar it now stands for.</summary>
+    internal void Reset(string value, ScalarStyle style, Mark start, Mark end)
+    {
+        Reset(start, end);
+        this.Value = value;
+        this.Style = style;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Scalar"/> class.

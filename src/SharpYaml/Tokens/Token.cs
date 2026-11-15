@@ -12,12 +12,25 @@ public abstract class Token
     /// <summary>
     /// Gets the start of the token in the input stream.
     /// </summary>
-    public Mark Start { get; }
+    public Mark Start { get; private set; }
 
     /// <summary>
     /// Gets the end of the token in the input stream.
     /// </summary>
-    public Mark End { get; }
+    public Mark End { get; private set; }
+
+    /// <summary>
+    /// The pool of the scanner this token goes back to once the parser consumed it, or 0 for a token that is never
+    /// used again, as every token read through the public API of the scanner.
+    /// </summary>
+    internal byte PoolSlot;
+
+    /// <summary>Gives a token of a scanner pool the locations of the token it now stands for.</summary>
+    internal void Reset(Mark start, Mark end)
+    {
+        this.Start = start;
+        this.End = end;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Token"/> class.

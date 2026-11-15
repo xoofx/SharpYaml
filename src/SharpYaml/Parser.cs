@@ -116,6 +116,9 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         _maxDepth = YamlDepthHelper.GetEffectiveMaxDepth(maxDepth, nameof(maxDepth));
         _sourceName = sourceName;
         scanner = new Scanner<TBuffer>(buffer);
+
+        // The parser copies what it needs out of a token before it skips it: see Skip.
+        scanner.EnableTokenRecycling();
     }
 
     /// <summary>
@@ -244,8 +247,12 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
     {
         if (currentToken != null)
         {
+            // The scanner uses the token again for a later one: nothing here keeps a reference to a skipped token
+            // of a pooled kind (scalars and structural tokens), only their marks and values.
+            var consumed = currentToken;
             currentToken = null;
             scanner.ConsumeCurrent();
+            scanner.Recycle(consumed);
         }
     }
 

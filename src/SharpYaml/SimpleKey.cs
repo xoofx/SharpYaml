@@ -7,46 +7,39 @@ namespace SharpYaml;
 /// <summary>
 /// Represents a simple key.
 /// </summary>
-internal class SimpleKey
+/// <remarks>A struct, kept in the scanner's stack and changed in place: the scanner saves one for most tokens.</remarks>
+internal struct SimpleKey
 {
-
     /// <summary>
     /// Gets or sets a value indicating whether this instance is possible.
     /// </summary>
     /// <value>
     /// 	<c>true</c> if this instance is possible; otherwise, <c>false</c>.
     /// </value>
-    public bool IsPossible { get; set; }
+    public bool IsPossible;
 
     /// <summary>
-    /// Gets or sets a value indicating whether this instance is required.
+    /// Gets a value indicating whether this instance is required.
     /// </summary>
     /// <value>
     /// 	<c>true</c> if this instance is required; otherwise, <c>false</c>.
     /// </value>
-    public bool IsRequired { get; }
+    public readonly bool IsRequired;
 
     /// <summary>
-    /// Gets or sets the token number.
+    /// Gets the token number.
     /// </summary>
     /// <value>The token number.</value>
-    public int TokenNumber { get; }
+    public readonly int TokenNumber;
 
     /// <summary>
-    /// Gets or sets the mark that indicates the location of the simple key.
+    /// Gets the mark that indicates the location of the simple key.
     /// </summary>
     /// <value>The mark.</value>
-    public Mark Mark { get; }
+    public readonly Mark Mark;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SimpleKey"/> class.
-    /// </summary>
-    public SimpleKey()
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SimpleKey"/> class.
+    /// Initializes a new instance of the <see cref="SimpleKey"/> struct.
     /// </summary>
     public SimpleKey(bool isPossible, bool isRequired, int tokenNumber, Mark mark)
     {
