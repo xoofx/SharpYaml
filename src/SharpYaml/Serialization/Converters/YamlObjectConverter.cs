@@ -228,8 +228,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         var options = reader.Options;
         var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
-        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(reader.PropertyNameComparer) : null;
-        HashSet<Member>? seenMembers = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<Member>();
+
+        // The members that explicit keys matched, as bits: for duplicate detection, and to list the explicit keys once a
+        // merge key needs them (see CreateExplicitKeys). Most mappings have no merge key, so no set is allocated for them.
+        HashSet<string>? explicitKeys = null;
+        var detectDuplicates = options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins;
+        var seenBits = 0UL;
+        var seenMore = contract.MembersDeclaration.Length > 64 ? new bool[contract.MembersDeclaration.Length - 64] : null;
         var mappingStart = reader.Start;
         var requiredSeen = contract.RequiredMembers.Length == 0 ? null : new bool[contract.RequiredMembers.Length];
 
@@ -248,7 +253,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                ReadAndApplyMergeToInstance(reader, instance, contract, explicitKeys!, requiredSeen);
+                explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                ReadAndApplyMergeToInstance(reader, instance, contract, explicitKeys, requiredSeen);
                 continue;
             }
 
@@ -256,6 +262,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (!contract.TryGetMember(key, out var member))
             {
+                // No bit records a key that matches no member.
+                if (mergeEnabled && explicitKeys is null)
+                {
+                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                    explicitKeys.Add(key);
+                }
+
                 if (contract.ExtensionData is null)
                 {
                     SkipOrThrowUnmappedMember(reader, contract, key, instance);
@@ -279,6 +292,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (member.ShouldIgnoreOnRead)
             {
+                // Nor a key that matches an ignored member.
+                if (mergeEnabled && explicitKeys is null)
+                {
+                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                    explicitKeys.Add(key);
+                }
+
                 reader.Skip();
                 continue;
             }
@@ -288,7 +308,21 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredSeen[member.RequiredIndex] = true;
             }
 
-            var wasSeen = seenMembers is not null && !seenMembers.Add(member);
+            bool wasSeen;
+            var memberIndex = member.Index;
+            if (memberIndex < 64)
+            {
+                var bit = 1UL << memberIndex;
+                wasSeen = (seenBits & bit) != 0;
+                seenBits |= bit;
+            }
+            else
+            {
+                wasSeen = seenMore![memberIndex - 64];
+                seenMore[memberIndex - 64] = true;
+            }
+
+            wasSeen &= detectDuplicates;
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
             {
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, $"Duplicate mapping key '{key}'.");
@@ -342,6 +376,29 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         return (T)instance;
     }
 
+    /// <summary>
+    /// Creates the set of the explicit keys read so far in a mapping, which a merged mapping must not override, from
+    /// the members that explicit keys matched. The caller adds the keys that matched no member or an ignored one.
+    /// </summary>
+    /// <param name="reader">The reader, for the comparer of property names.</param>
+    /// <param name="contract">The contract of the type being read.</param>
+    /// <param name="seenBits">A bit for each of the first 64 members of <see cref="Contract.MembersDeclaration"/>.</param>
+    /// <param name="seenMore">A flag for each further member, when the type has more than 64.</param>
+    private static HashSet<string> CreateExplicitKeys(YamlReader reader, Contract contract, ulong seenBits, bool[]? seenMore)
+    {
+        var keys = new HashSet<string>(reader.PropertyNameComparer);
+        var members = contract.MembersDeclaration;
+        for (var i = 0; i < members.Length; i++)
+        {
+            if (i < 64 ? (seenBits & (1UL << i)) != 0 : seenMore![i - 64])
+            {
+                keys.Add(members[i].Name);
+            }
+        }
+
+        return keys;
+    }
+
     private static void PopulateObjectCore(YamlReader reader, Contract contract, object instance)
     {
         ArgumentGuard.ThrowIfNull(reader);
@@ -366,8 +423,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         var options = reader.Options;
         var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
-        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(reader.PropertyNameComparer) : null;
-        HashSet<Member>? seenMembers = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<Member>();
+
+        // The members that explicit keys matched, as bits: for duplicate detection, and to list the explicit keys once a
+        // merge key needs them (see CreateExplicitKeys). Most mappings have no merge key, so no set is allocated for them.
+        HashSet<string>? explicitKeys = null;
+        var detectDuplicates = options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins;
+        var seenBits = 0UL;
+        var seenMore = contract.MembersDeclaration.Length > 64 ? new bool[contract.MembersDeclaration.Length - 64] : null;
         var mappingStart = reader.Start;
         var requiredSeen = contract.RequiredMembers.Length == 0 ? null : new bool[contract.RequiredMembers.Length];
 
@@ -386,7 +448,8 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                ReadAndApplyMergeToPopulatedInstance(reader, instance, contract, explicitKeys!, requiredSeen);
+                explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                ReadAndApplyMergeToPopulatedInstance(reader, instance, contract, explicitKeys, requiredSeen);
                 continue;
             }
 
@@ -394,6 +457,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (!contract.TryGetMember(key, out var member))
             {
+                // No bit records a key that matches no member.
+                if (mergeEnabled && explicitKeys is null)
+                {
+                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                    explicitKeys.Add(key);
+                }
+
                 if (contract.ExtensionData is null)
                 {
                     SkipOrThrowUnmappedMember(reader, contract, key, instance);
@@ -418,6 +488,13 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (member.ShouldIgnoreOnRead)
             {
+                // Nor a key that matches an ignored member.
+                if (mergeEnabled && explicitKeys is null)
+                {
+                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                    explicitKeys.Add(key);
+                }
+
                 reader.Skip();
                 continue;
             }
@@ -427,7 +504,21 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 requiredSeen[member.RequiredIndex] = true;
             }
 
-            var wasSeen = seenMembers is not null && !seenMembers.Add(member);
+            bool wasSeen;
+            var memberIndex = member.Index;
+            if (memberIndex < 64)
+            {
+                var bit = 1UL << memberIndex;
+                wasSeen = (seenBits & bit) != 0;
+                seenBits |= bit;
+            }
+            else
+            {
+                wasSeen = seenMore![memberIndex - 64];
+                seenMore[memberIndex - 64] = true;
+            }
+
+            wasSeen &= detectDuplicates;
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
             {
                 throw new YamlException(reader.SourceName, keyStart, keyEnd, $"Duplicate mapping key '{key}'.");
@@ -1776,6 +1867,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             for (var i = 0; i < membersDeclaration.Length; i++)
             {
                 var member = membersDeclaration[i];
+                member.Index = i;
                 map[member.Name] = member;
             }
 
@@ -2393,6 +2485,9 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         public bool IsRequired { get; }
 
         public int RequiredIndex { get; set; } = -1;
+
+        /// <summary>The position of this member in <see cref="Contract.MembersDeclaration"/>.</summary>
+        public int Index { get; set; }
 
         public YamlConverter? Converter { get; set; }
 
