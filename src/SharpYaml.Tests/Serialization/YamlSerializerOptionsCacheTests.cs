@@ -69,6 +69,29 @@ public sealed class YamlSerializerOptionsCacheTests
         Assert.AreEqual("Value: 5\n", YamlSerializer.Serialize(nested, first with { Converters = [] }));
     }
 
+    [TestMethod]
+    public void UnusedCopyOfOptionsKeepsNothingOfTheOriginal()
+    {
+        // The copy is kept and not used: what the original resolved must not stay alive through it.
+        var copy = CopyOptionsThatResolvedAConverter(out var original, out var converter);
+
+        Assert.IsFalse(IsAliveAfterCollections(converter));
+        Assert.IsFalse(IsAliveAfterCollections(original));
+        Assert.AreEqual("Value: 5\n", YamlSerializer.Serialize(new WritePathNested { Value = 5 }, copy));
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static YamlSerializerOptions CopyOptionsThatResolvedAConverter(out WeakReference original, out WeakReference converter)
+    {
+        var text = new TextConverter("first");
+        var options = new YamlSerializerOptions { Converters = [text] };
+        Assert.AreEqual("first\n", YamlSerializer.Serialize(new WritePathNested { Value = 5 }, options));
+
+        original = new WeakReference(options);
+        converter = new WeakReference(text);
+        return options with { Converters = [] };
+    }
+
     private static bool IsAliveAfterCollections(WeakReference reference)
     {
         for (var i = 0; i < 10 && reference.IsAlive; i++)

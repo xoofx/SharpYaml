@@ -22,15 +22,13 @@ namespace SharpYaml.Serialization;
 /// every call, possibly from several threads.
 /// </para>
 /// <para>
-/// The cache belongs to the options instance, which holds it in a <see cref="Slot"/>, and lives as long as it. It
-/// must not keep the types of a collectible assembly from being unloaded, as the default options live as long as
-/// the application: see its tables.
+/// The cache belongs to the options instance, which reaches it through a <see cref="Slot"/>, and lives as long as
+/// it. It must not keep the types of a collectible assembly from being unloaded, as the default options live as long
+/// as the application: see its tables.
 /// </para>
 /// </remarks>
 internal sealed class YamlSerializerOptionsCache
 {
-    private readonly YamlSerializerOptions _owner;
-
     // A converter per type, in two tables that together do not keep a type from being unloaded. A type of a
     // collectible assembly is held weakly, with its converter alive only as long as the type. Any other type is
     // never unloaded and is held by a dictionary, which a lookup finds in less time than in a weak table: the
@@ -41,8 +39,6 @@ internal sealed class YamlSerializerOptionsCache
     private readonly ConcurrentDictionary<Type, YamlConverter?> _customConverters = new();
     private ConditionalWeakTable<Type, YamlConverter?>? _collectibleConverters;
     private ConditionalWeakTable<Type, YamlConverter?>? _collectibleCustomConverters;
-
-    private YamlSerializerOptionsCache(YamlSerializerOptions owner) => _owner = owner;
 
     /// <summary>
     /// The length of the last document serialized to a string with these options, with some room: an application
@@ -111,30 +107,32 @@ internal sealed class YamlSerializerOptionsCache
 #endif
 
     /// <summary>
-    /// The field of <see cref="YamlSerializerOptions"/> that holds its cache, created when it is first used.
+    /// The field of <see cref="YamlSerializerOptions"/> through which an options instance reaches its cache, created
+    /// when it is first used.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Options are a record, and the cache is no part of their value. Every slot is therefore equal to every other,
-    /// which keeps it out of the equality and the hash code the compiler writes for the record. A copy made with a
-    /// <c>with</c> expression starts with the fields of the original, this one included, and may change any setting:
-    /// a cache knows the options it was created for, and the copy, which is not them, creates its own.
+    /// which keeps it out of the equality and the hash code the compiler writes for the record.
+    /// </para>
+    /// <para>
+    /// A copy made with a <c>with</c> expression starts with the fields of the original, this one included, and may
+    /// change any setting, so it must not use the cache of the original, nor keep it alive: it may be kept long after
+    /// the original and its converters are gone. The field therefore holds no cache but a table that gives each
+    /// options instance its own, and holds an instance and its cache only as long as that instance is alive. The
+    /// copies of an instance share its table, where each of them has its own cache.
+    /// </para>
     /// </remarks>
     internal struct Slot : IEquatable<Slot>
     {
-        private YamlSerializerOptionsCache? _cache;
+        private ConditionalWeakTable<YamlSerializerOptions, YamlSerializerOptionsCache>? _caches;
 
         public YamlSerializerOptionsCache Get(YamlSerializerOptions owner)
         {
-            var cache = Volatile.Read(ref _cache);
-            return cache is not null && ReferenceEquals(cache._owner, owner) ? cache : Create(owner, cache);
-        }
-
-        private YamlSerializerOptionsCache Create(YamlSerializerOptions owner, YamlSerializerOptionsCache? inherited)
-        {
-            // Only the threads that use these options write this field: when another one was faster, its cache is theirs.
-            var created = new YamlSerializerOptionsCache(owner);
-            var current = Interlocked.CompareExchange(ref _cache, created, inherited);
-            return ReferenceEquals(current, inherited) ? created : current!;
+            var caches = Volatile.Read(ref _caches)
+                ?? Interlocked.CompareExchange(ref _caches, new ConditionalWeakTable<YamlSerializerOptions, YamlSerializerOptionsCache>(), null)
+                ?? _caches!;
+            return caches.GetValue(owner, static _ => new YamlSerializerOptionsCache());
         }
 
         public readonly bool Equals(Slot other) => true;

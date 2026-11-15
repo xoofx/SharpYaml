@@ -27,7 +27,7 @@ public sealed record YamlSerializerOptions
     private YamlConverter[] _converters = s_emptyConverters;
     private readonly ReadOnlyCollection<YamlConverter> _convertersReadOnly = s_emptyConvertersReadOnly;
 
-    // Not readonly: the slot stores the cache in itself when it is first used.
+    // Not readonly: the slot creates what it holds when it is first used.
     private YamlSerializerOptionsCache.Slot _cache;
 
     /// <summary>Gets what the serializer resolved for these options and uses again, such as the converter of each type.</summary>
