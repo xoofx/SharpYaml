@@ -179,6 +179,20 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         return scalar;
     }
 
+    /// <summary>Creates the event of a scalar token. The token goes back to the scanner afterwards: the event keeps nothing of it.</summary>
+    private Event CreateScalar(string? anchor, string? tag, Scalar token, bool isPlainImplicit, bool isQuotedImplicit, in Mark start, in Mark end)
+    {
+        if (!_reuseEvents || anchor is not null || tag is not null)
+        {
+            return new Events.Scalar(anchor, tag, token.Value, token.Style, isPlainImplicit, isQuotedImplicit, start, end);
+        }
+
+        // The reused event takes the value of the token as it is, a string or a slice of the input.
+        var scalar = _reusedScalar ??= new Events.Scalar(null, null, string.Empty, ScalarStyle.Plain, true, false) { IsReused = true };
+        scalar.Reset(token, isPlainImplicit, isQuotedImplicit, start, end);
+        return scalar;
+    }
+
     private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style)
         => CreateMappingStart(anchor, tag, isImplicit, style, Mark.Empty, Mark.Empty);
 
@@ -727,7 +741,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
                 }
 
                 state = states.Pop();
-                Event evt = CreateScalar(anchorName, tagName, scalar.Value, scalar.Style, isPlainImplicit, isQuotedImplicit, start, scalar.End);
+                Event evt = CreateScalar(anchorName, tagName, scalar, isPlainImplicit, isQuotedImplicit, start, scalar.End);
 
                 Skip();
                 return evt;

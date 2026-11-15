@@ -174,6 +174,33 @@ var options = new YamlSerializerOptions
 
 For most custom scenarios, prefer writing scalars (`writer.WriteScalar(...)`) unless you need to emit complex YAML structures.
 
+### Reading a scalar without its string
+
+[`YamlReader.ScalarValue`](xref:SharpYaml.Serialization.YamlReader.ScalarValue) returns the current scalar as a `string`. A converter that parses the scalar into something else, such as a number or a date, can read [`YamlReader.ScalarValueSpan`](xref:SharpYaml.Serialization.YamlReader.ScalarValueSpan) instead, which gives the same characters without creating a string for them:
+
+```csharp
+public sealed class PercentConverter : YamlConverter<Percent>
+{
+    public override Percent Read(YamlReader reader)
+    {
+        // "42%" -> 0.42; no string is allocated for the scalar.
+        var text = reader.ScalarValueSpan;
+        if (text.Length < 2 || text[^1] != '%' || !double.TryParse(text[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        {
+            throw reader.CreateException("Expected a percentage such as '42%'.");
+        }
+
+        reader.Read();
+        return new Percent(value / 100);
+    }
+
+    public override void Write(YamlWriter writer, Percent value)
+        => writer.WriteScalar((value.Ratio * 100).ToString("R", CultureInfo.InvariantCulture) + "%");
+}
+```
+
+The span is only valid until the reader advances: parse it, or copy what you keep, before calling `reader.Read()`.
+
 ### Requesting a scalar style
 
 Use `WriteScalar(value, ScalarStyle)` to select a presentation style in a custom converter:

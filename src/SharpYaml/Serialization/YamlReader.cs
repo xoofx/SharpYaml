@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using SharpYaml.Events;
 using SharpYaml.Serialization.References;
 
@@ -358,6 +359,16 @@ public sealed class YamlReader : YamlReaderWriterBase
     /// Gets the current scalar value when <see cref="TokenType"/> is <see cref="YamlTokenType.Scalar"/>.
     /// </summary>
     public string? ScalarValue => _state.ScalarValue;
+
+    /// <summary>
+    /// Gets the characters of the current scalar value when <see cref="TokenType"/> is <see cref="YamlTokenType.Scalar"/>,
+    /// without creating a string for them; an empty span for any other token.
+    /// </summary>
+    /// <remarks>
+    /// Prefer it to <see cref="ScalarValue"/> to parse a value that is not kept as a string, such as a number. The span
+    /// is only valid until the reader advances: copy what must outlive the current token.
+    /// </remarks>
+    public ReadOnlySpan<char> ScalarValueSpan => _state.ScalarValueSpan;
 
     /// <summary>
     /// Gets the current scalar style when <see cref="TokenType"/> is <see cref="YamlTokenType.Scalar"/>.
@@ -836,15 +847,17 @@ public sealed class YamlReader : YamlReaderWriterBase
         private int _bufferedNesting;
         private AnchorAlias? _pendingAlias;
         private bool _skipAliasExpansion;
+
+        // The current token is its type and the event it comes from: the token properties read the event rather than
+        // copies of its content. An event the parser reuses (IReusedEventSource) keeps its content until the parser
+        // moves, which is when the reader moves, so it describes the current token for as long as it is the current one.
         private YamlTokenType _tokenType;
-        private string? _scalarValue;
-        private ScalarStyle _scalarStyle = ScalarStyle.Any;
-        private string? _tag;
-        private string? _anchor;
-        private string? _alias;
-        private Mark _start = Mark.Empty;
-        private Mark _end = Mark.Empty;
         private ParsingEvent? _currentEvent;
+
+        // _currentEvent when it is a scalar or the start of a mapping or sequence, the events that have a tag and an
+        // anchor, and when it is a scalar: typed, so that the properties need no type test.
+        private NodeEvent? _currentNode;
+        private Scalar? _currentScalar;
 
         /// <param name="parser">The parser of the YAML.</param>
         /// <param name="anchors">The anchors of the YAML.</param>
@@ -865,14 +878,62 @@ public sealed class YamlReader : YamlReaderWriterBase
         }
 
         // Every token property resolves a pending alias first: see ResolvePendingAlias.
-        public YamlTokenType TokenType => _pendingAlias is null ? _tokenType : ResolvePendingAlias()._tokenType;
-        public string? ScalarValue => _pendingAlias is null ? _scalarValue : ResolvePendingAlias()._scalarValue;
-        public ScalarStyle ScalarStyle => _pendingAlias is null ? _scalarStyle : ResolvePendingAlias()._scalarStyle;
-        public string? Tag => _pendingAlias is null ? _tag : ResolvePendingAlias()._tag;
-        public string? Anchor => _pendingAlias is null ? _anchor : ResolvePendingAlias()._anchor;
-        public string? Alias => _pendingAlias is null ? _alias : ResolvePendingAlias()._alias;
-        public Mark Start => _pendingAlias is null ? _start : ResolvePendingAlias()._start;
-        public Mark End => _pendingAlias is null ? _end : ResolvePendingAlias()._end;
+        public YamlTokenType TokenType
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _pendingAlias is null ? _tokenType : ResolvePendingAlias()._tokenType;
+        }
+
+        public string? ScalarValue
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (_pendingAlias is null ? this : ResolvePendingAlias()).GetScalarValue();
+        }
+
+        /// <summary>Gets the characters of the current scalar without creating its string; empty when the token is not a scalar.</summary>
+        public ReadOnlySpan<char> ScalarValueSpan
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (_pendingAlias is null ? this : ResolvePendingAlias())._currentScalar is { } scalar ? scalar.ValueSpan : default;
+        }
+
+        /// <summary>
+        /// Gets the value of the current scalar as a string. The event creates it the first time it is asked for: a
+        /// plain scalar arrives as a slice of the input, and a value read as a number or a boolean never needs its string.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private string? GetScalarValue() => _currentScalar?.Value;
+
+        public ScalarStyle ScalarStyle
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (_pendingAlias is null ? this : ResolvePendingAlias())._currentScalar is { } scalar ? scalar.Style : ScalarStyle.Any;
+        }
+
+        public string? Tag => (_pendingAlias is null ? this : ResolvePendingAlias())._currentNode?.Tag;
+        public string? Anchor => (_pendingAlias is null ? this : ResolvePendingAlias())._currentNode?.Anchor;
+
+        public string? Alias
+        {
+            get
+            {
+                var state = _pendingAlias is null ? this : ResolvePendingAlias();
+                return state._tokenType == YamlTokenType.Alias ? ((AnchorAlias)state._currentEvent!).Value : null;
+            }
+        }
+
+        public Mark Start
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (_pendingAlias is null ? this : ResolvePendingAlias())._currentEvent is { } current ? current.Start : default;
+        }
+
+        public Mark End
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (_pendingAlias is null ? this : ResolvePendingAlias())._currentEvent is { } current ? current.End : default;
+        }
+
         /// <summary>Gets the current event, as an object that stays valid once the reader moved: callers keep it in the nodes they build.</summary>
         public ParsingEvent? CurrentEvent
         {
@@ -883,7 +944,15 @@ public sealed class YamlReader : YamlReaderWriterBase
                     ResolvePendingAlias();
                 }
 
-                return _currentEvent = _currentEvent?.Detach();
+                if (_currentEvent is { IsReused: true } reused)
+                {
+                    // The copy takes the place of the reused event, which the parser is about to give other content.
+                    _currentEvent = reused.Detach();
+                    _currentNode = _currentEvent as NodeEvent;
+                    _currentScalar = _currentEvent as Scalar;
+                }
+
+                return _currentEvent;
             }
         }
         public YamlReferenceReader? ReferenceReader => _anchors.Scope.References;
@@ -931,7 +1000,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         {
             _pendingAlias = null;
             var current = _anchors.Read(_parser, PassAliasesThrough, _skipAliasExpansion);
-            if (current is AnchorAlias alias && _anchors.IsPendingAlias)
+            if (_anchors.IsPendingAlias && current is AnchorAlias alias)
             {
                 _pendingAlias = alias;
                 return true;
@@ -942,7 +1011,7 @@ public sealed class YamlReader : YamlReaderWriterBase
                 return false;
             }
 
-            Tracker?.OnToken(_tokenType, _scalarValue, _start);
+            Tracker?.OnToken(_tokenType, GetScalarValue(), current!.Start);
             return true;
         }
 
@@ -960,7 +1029,7 @@ public sealed class YamlReader : YamlReaderWriterBase
             var alias = _pendingAlias!;
             _pendingAlias = null;
             Apply(_anchors.ResolvePendingAlias(alias) ? alias : _anchors.Read(_parser, PassAliasesThrough));
-            Tracker?.OnToken(_tokenType, _scalarValue, _start);
+            Tracker?.OnToken(_tokenType, GetScalarValue(), _currentEvent is { } current ? current.Start : Mark.Empty);
             return this;
         }
 
@@ -983,61 +1052,55 @@ public sealed class YamlReader : YamlReaderWriterBase
         private bool Apply(ParsingEvent? current)
         {
             _currentEvent = current;
-            _scalarValue = null;
-            _scalarStyle = ScalarStyle.Any;
-            _tag = null;
-            _anchor = null;
-            _alias = null;
             if (current is null)
             {
+                _currentNode = null;
+                _currentScalar = null;
                 _tokenType = YamlTokenType.None;
-                _start = Mark.Empty;
-                _end = Mark.Empty;
                 return false;
             }
 
-            _start = current.Start;
-            _end = current.End;
             switch (current.Kind)
             {
                 case EventType.YAML_SCALAR_EVENT:
                     var scalar = (Scalar)current;
+                    _currentNode = scalar;
+                    _currentScalar = scalar;
                     _tokenType = YamlTokenType.Scalar;
-                    _scalarValue = scalar.Value;
-                    _scalarStyle = scalar.Style;
-                    _tag = scalar.Tag;
-                    _anchor = scalar.Anchor;
                     return true;
 
                 case EventType.YAML_MAPPING_START_EVENT:
-                    var mappingStart = (MappingStart)current;
+                    _currentNode = (MappingStart)current;
+                    _currentScalar = null;
                     EnterContainer(current);
                     _tokenType = YamlTokenType.StartMapping;
-                    _tag = mappingStart.Tag;
-                    _anchor = mappingStart.Anchor;
                     return true;
 
                 case EventType.YAML_MAPPING_END_EVENT:
+                    _currentNode = null;
+                    _currentScalar = null;
                     _nesting--;
                     _tokenType = YamlTokenType.EndMapping;
                     return true;
 
                 case EventType.YAML_SEQUENCE_START_EVENT:
-                    var sequenceStart = (SequenceStart)current;
+                    _currentNode = (SequenceStart)current;
+                    _currentScalar = null;
                     EnterContainer(current);
                     _tokenType = YamlTokenType.StartSequence;
-                    _tag = sequenceStart.Tag;
-                    _anchor = sequenceStart.Anchor;
                     return true;
 
                 case EventType.YAML_SEQUENCE_END_EVENT:
+                    _currentNode = null;
+                    _currentScalar = null;
                     _nesting--;
                     _tokenType = YamlTokenType.EndSequence;
                     return true;
 
                 case EventType.YAML_ALIAS_EVENT:
+                    _currentNode = null;
+                    _currentScalar = null;
                     _tokenType = YamlTokenType.Alias;
-                    _alias = ((AnchorAlias)current).Value;
                     return true;
 
                 default:
@@ -1065,7 +1128,7 @@ public sealed class YamlReader : YamlReaderWriterBase
                 {
                     _pendingAlias = null;
                     Apply(alias);
-                    Tracker?.OnToken(_tokenType, _scalarValue, _start);
+                    Tracker?.OnToken(_tokenType, GetScalarValue(), alias.Start);
                 }
                 if (_tokenType is YamlTokenType.StartMapping or YamlTokenType.StartSequence)
                 {

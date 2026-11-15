@@ -28,7 +28,36 @@ public sealed class Scalar : NodeEvent
     /// Gets the value.
     /// </summary>
     /// <value>The value.</value>
-    public string Value { get; private set; }
+    public string Value
+    {
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+        get => _value ?? CreateValue();
+    }
+
+    private string CreateValue() => _value = _source?.Substring(_sourceStart, _sourceLength)!;
+
+    // The value, or while it is null the slice of the input it is: only the event a parser reuses for the reader of
+    // the serializer carries a slice (see IReusedEventSource), so that no string is created for a value that is read
+    // as a number or a boolean. Every other event has its value.
+    private string? _value;
+    private string? _source;
+    private int _sourceStart;
+    private int _sourceLength;
+
+    /// <summary>Gets the characters of the value, without creating its string when it is still a slice of the input.</summary>
+    internal ReadOnlySpan<char> ValueSpan => _value is { } value ? value.AsSpan() : _source is { } source ? source.AsSpan(_sourceStart, _sourceLength) : default;
+
+    /// <summary>Gets the value when it exists as a string; otherwise <see langword="null"/>, and the value is the slice.</summary>
+    internal string? ValueOrNull => _value;
+
+    /// <summary>Gets the input the value is a slice of, when <see cref="ValueOrNull"/> is <see langword="null"/>.</summary>
+    internal string? Source => _source;
+
+    /// <summary>Gets the start of the slice in <see cref="Source"/>.</summary>
+    internal int SourceStart => _sourceStart;
+
+    /// <summary>Gets the length of the slice in <see cref="Source"/>.</summary>
+    internal int SourceLength => _sourceLength;
 
     /// <summary>
     /// Gets the style of the scalar.
@@ -50,8 +79,22 @@ public sealed class Scalar : NodeEvent
     internal void Reset(string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, in Mark start, in Mark end)
     {
         Reset(start, end);
-        this.Value = value;
+        _value = value;
+        _source = null;
         this.Style = style;
+        this.IsPlainImplicit = isPlainImplicit;
+        this.IsQuotedImplicit = isQuotedImplicit;
+    }
+
+    /// <summary>Gives a reused event the content of the scalar token it now stands for, which may be a slice of the input.</summary>
+    internal void Reset(Tokens.Scalar token, bool isPlainImplicit, bool isQuotedImplicit, in Mark start, in Mark end)
+    {
+        Reset(start, end);
+        _value = token.ValueOrNull;
+        _source = token.Source;
+        _sourceStart = token.SourceStart;
+        _sourceLength = token.SourceLength;
+        this.Style = token.Style;
         this.IsPlainImplicit = isPlainImplicit;
         this.IsQuotedImplicit = isQuotedImplicit;
     }
@@ -76,7 +119,7 @@ public sealed class Scalar : NodeEvent
     public Scalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
         : base(anchor, tag, start, end)
     {
-        this.Value = value;
+        _value = value;
         this.Style = style;
         this.IsPlainImplicit = isPlainImplicit;
         this.IsQuotedImplicit = isQuotedImplicit;

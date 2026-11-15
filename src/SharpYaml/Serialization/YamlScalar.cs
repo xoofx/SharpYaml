@@ -209,10 +209,45 @@ public static class YamlScalar
     }
 
     /// <summary>
+    /// Parses the most common integer directly: an optional <c>-</c> and one to eighteen decimal digits, which cannot
+    /// overflow and has no whitespace to trim, no underscore and no base prefix. Anything else is left to the caller.
+    /// </summary>
+    private static bool TryParseShortDecimal(ReadOnlySpan<char> value, out long result)
+    {
+        var index = value.Length != 0 && value[0] == '-' ? 1 : 0;
+        if ((uint)(value.Length - index - 1) > 17)
+        {
+            result = 0;
+            return false;
+        }
+
+        long magnitude = 0;
+        for (var i = index; i < value.Length; i++)
+        {
+            var digit = (uint)(value[i] - '0');
+            if (digit > 9)
+            {
+                result = 0;
+                return false;
+            }
+
+            magnitude = (magnitude * 10) + digit;
+        }
+
+        result = index == 0 ? magnitude : -magnitude;
+        return true;
+    }
+
+    /// <summary>
     /// Parses a YAML integer scalar into <see cref="long"/>, including common base prefixes (<c>0x</c>, <c>0o</c>, <c>0b</c>) and underscores.
     /// </summary>
     public static bool TryParseInt64(ReadOnlySpan<char> value, out long result)
     {
+        if (TryParseShortDecimal(value, out result))
+        {
+            return true;
+        }
+
         value = Trim(value);
         if (value.Length == 0)
         {
@@ -314,22 +349,26 @@ public static class YamlScalar
     {
         value = Trim(value);
 
-        if (value.Equals(".inf", StringComparison.OrdinalIgnoreCase) || value.Equals("+.inf", StringComparison.OrdinalIgnoreCase))
+        // The infinities and not-a-number start with a dot or a sign.
+        if (value.Length != 0 && value[0] is '.' or '+' or '-')
         {
-            result = double.PositiveInfinity;
-            return true;
-        }
+            if (value.Equals(".inf", StringComparison.OrdinalIgnoreCase) || value.Equals("+.inf", StringComparison.OrdinalIgnoreCase))
+            {
+                result = double.PositiveInfinity;
+                return true;
+            }
 
-        if (value.Equals("-.inf", StringComparison.OrdinalIgnoreCase))
-        {
-            result = double.NegativeInfinity;
-            return true;
-        }
+            if (value.Equals("-.inf", StringComparison.OrdinalIgnoreCase))
+            {
+                result = double.NegativeInfinity;
+                return true;
+            }
 
-        if (value.Equals(".nan", StringComparison.OrdinalIgnoreCase))
-        {
-            result = double.NaN;
-            return true;
+            if (value.Equals(".nan", StringComparison.OrdinalIgnoreCase))
+            {
+                result = double.NaN;
+                return true;
+            }
         }
 
         if (ContainsChar(value, '_'))
@@ -379,7 +418,7 @@ public static class YamlScalar
             return false;
         }
 
-        return IsNull(reader.ScalarValue.AsSpan(), reader.ScalarStyle);
+        return IsNull(reader.ScalarValueSpan, reader.ScalarStyle);
     }
 
     /// <summary>
@@ -403,7 +442,7 @@ public static class YamlScalar
             return false;
         }
 
-        return TryParseBool(reader.ScalarValue.AsSpan(), out result);
+        return TryParseBool(reader.ScalarValueSpan, out result);
     }
 
     /// <summary>
@@ -428,7 +467,7 @@ public static class YamlScalar
             return false;
         }
 
-        return TryParseInt32(reader.ScalarValue.AsSpan(), out result);
+        return TryParseInt32(reader.ScalarValueSpan, out result);
     }
 
     /// <summary>
@@ -453,7 +492,7 @@ public static class YamlScalar
             return false;
         }
 
-        return TryParseUInt32(reader.ScalarValue.AsSpan(), out result);
+        return TryParseUInt32(reader.ScalarValueSpan, out result);
     }
 
     /// <summary>
@@ -476,7 +515,7 @@ public static class YamlScalar
             return false;
         }
 
-        return TryParseUInt64(reader.ScalarValue.AsSpan(), out result);
+        return TryParseUInt64(reader.ScalarValueSpan, out result);
     }
 
     /// <summary>
@@ -499,7 +538,7 @@ public static class YamlScalar
             return false;
         }
 
-        return TryParseInt64(reader.ScalarValue.AsSpan(), out result);
+        return TryParseInt64(reader.ScalarValueSpan, out result);
     }
 
     /// <summary>
@@ -523,7 +562,7 @@ public static class YamlScalar
             return false;
         }
 
-        return TryParseDouble(reader.ScalarValue.AsSpan(), out result);
+        return TryParseDouble(reader.ScalarValueSpan, out result);
     }
 
     /// <summary>
@@ -547,7 +586,7 @@ public static class YamlScalar
             return false;
         }
 
-        return TryParseDecimal(reader.ScalarValue.AsSpan(), out result);
+        return TryParseDecimal(reader.ScalarValueSpan, out result);
     }
 
     internal static object? ResolveObject(YamlReader reader)
@@ -581,8 +620,8 @@ public static class YamlScalar
             return reader.ScalarValue ?? string.Empty;
         }
 
-        var text = reader.ScalarValue.AsSpan();
-        var kind = YamlCoreScalarResolver.Classify(reader.ScalarValue ?? string.Empty);
+        var text = reader.ScalarValueSpan;
+        var kind = YamlCoreScalarResolver.Classify(text);
         if (kind == YamlCoreScalarResolver.Kind.Null)
         {
             return null;

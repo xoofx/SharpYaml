@@ -144,6 +144,129 @@ public sealed class YamlReadPathRegressionTests
 
     [TestMethod]
     [DynamicData(nameof(Modes))]
+    public void ValuesThatLookLikeNumbersAreReadAsTheStringsTheyAre(bool generated)
+    {
+        // A plain value that may be a number, a boolean or null travels as a slice of the input: read as a string, it
+        // must still be exactly its text.
+        var values = new[] { "123", "-5", "+7", ".5", "1.50", "0x1F", "1_000", "true", "false", "True", "nil", "none", "~x", "2026-02-28", "12:30:00", "1e3", "-x", "...x", "t", "n", "123456789012345678901234567890" };
+        var yaml = string.Concat(values.Select(value => "- " + value + "\n"));
+
+        var actual = Deserialize<List<string>>(yaml, options: null, generated)!;
+
+        CollectionAssert.AreEqual(values, actual);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void NumbersBooleansAndNullsAreParsedFromTheirText(bool generated)
+    {
+        var yaml = "Int: -2147483648\nLong: 9223372036854775807\nULong: 18446744073709551615\nDouble: -1.5e3\nDecimal: 79228162514264337593543950335\nBool: true\n" +
+            "NullableInt: null\nNullableBool: ~\nHex: 0x1F\nUnderscore: 1_000\nPlus: +42\nLeadingZero: 0042\nInfinity: .inf\nNegativeInfinity: -.INF\nNaN: .NaN\nShort: 7\nText: 12\n";
+
+        var actual = Deserialize<ReadPathNumbers>(yaml, options: null, generated)!;
+
+        Assert.AreEqual(int.MinValue, actual.Int);
+        Assert.AreEqual(long.MaxValue, actual.Long);
+        Assert.AreEqual(ulong.MaxValue, actual.ULong);
+        Assert.AreEqual(-1500d, actual.Double);
+        Assert.AreEqual(decimal.MaxValue, actual.Decimal);
+        Assert.IsTrue(actual.Bool);
+        Assert.IsNull(actual.NullableInt);
+        Assert.IsNull(actual.NullableBool);
+        Assert.AreEqual(31, actual.Hex);
+        Assert.AreEqual(1000, actual.Underscore);
+        Assert.AreEqual(42, actual.Plus);
+        Assert.AreEqual(42, actual.LeadingZero);
+        Assert.IsTrue(double.IsPositiveInfinity(actual.Infinity));
+        Assert.IsTrue(double.IsNegativeInfinity(actual.NegativeInfinity));
+        Assert.IsTrue(double.IsNaN(actual.NaN));
+        Assert.AreEqual((short)7, actual.Short);
+        Assert.AreEqual("12", actual.Text);
+    }
+
+    [TestMethod]
+    [DataRow("0", 0L)]
+    [DataRow("-0", 0L)]
+    [DataRow("7", 7L)]
+    [DataRow("-7", -7L)]
+    [DataRow("0042", 42L)]
+    [DataRow("999999999999999999", 999999999999999999L)]
+    [DataRow("-999999999999999999", -999999999999999999L)]
+    [DataRow("9223372036854775807", long.MaxValue)]
+    [DataRow("-9223372036854775808", long.MinValue)]
+    [DataRow(" 12 ", 12L)]
+    [DataRow("+12", 12L)]
+    [DataRow("1_000", 1000L)]
+    [DataRow("0x10", 16L)]
+    [DataRow("0o17", 15L)]
+    [DataRow("0b101", 5L)]
+    public void IntegerTextParsesToItsValue(string text, long expected)
+    {
+        Assert.IsTrue(YamlScalar.TryParseInt64(text.AsSpan(), out var actual));
+        Assert.AreEqual(expected, actual);
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("-")]
+    [DataRow("--1")]
+    [DataRow("1-")]
+    [DataRow("12a")]
+    [DataRow("a12")]
+    [DataRow("1.0")]
+    [DataRow("9223372036854775808")]
+    [DataRow("-9223372036854775809")]
+    [DataRow("99999999999999999999")]
+    [DataRow("１２")]
+    public void TextThatIsNotAnInt64IsRejected(string text)
+    {
+        Assert.IsFalse(YamlScalar.TryParseInt64(text.AsSpan(), out _));
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void NumericScalarKeptByAnAnchorOrACallbackKeepsItsText(bool generated)
+    {
+        var numbers = Deserialize<List<int>>("- &n 123\n- 456\n- *n\n", options: null, generated)!;
+        CollectionAssert.AreEqual(new[] { 123, 456, 123 }, numbers);
+
+        var texts = Deserialize<List<string>>("- &n 123\n- 456\n- *n\n", options: null, generated)!;
+        CollectionAssert.AreEqual(new[] { "123", "456", "123" }, texts);
+
+        var members = new List<YamlUnmappedMember>();
+        var options = new YamlSerializerOptions { UnmappedMemberCallback = members.Add };
+        Deserialize<ReadPathPerson>("x: 111\ny: true\nAge: 5\nz: 3.5\n", options, generated);
+        CollectionAssert.AreEqual(new[] { "111", "true", "3.5" }, members.Select(member => ((YamlValue)member.Value!).Value).ToArray());
+    }
+
+    [TestMethod]
+    public void ScalarValueSpanIsTheTextOfTheScalarAndEmptyOtherwise()
+    {
+        var reader = YamlReader.Create("- 123\n- text\n- \"quoted \\n\"\n- 'single ''quote'''\n- |\n  block\n- {key: -4.5}\n- >\n  folded\n  text\n- plain\n  continued\n");
+        var seen = new List<string>();
+        while (reader.Read())
+        {
+            if (reader.TokenType == YamlTokenType.Scalar)
+            {
+                // The span first, so that it is read while the value may still be a slice of the input.
+                var span = reader.ScalarValueSpan.ToString();
+                Assert.AreEqual(reader.ScalarValue, span);
+                Assert.AreEqual(span, reader.ScalarValueSpan.ToString());
+                seen.Add(span);
+            }
+            else
+            {
+                Assert.AreEqual(0, reader.ScalarValueSpan.Length);
+                Assert.IsNull(reader.ScalarValue);
+            }
+        }
+
+        CollectionAssert.AreEqual(new[] { "123", "text", "quoted \n", "single 'quote'", "block\n", "key", "-4.5", "folded text\n", "plain continued" }, seen);
+        Assert.AreEqual(0, reader.ScalarValueSpan.Length);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
     public void ExplicitKeyReadBeforeAMergeKeyIsNotOverridden(bool generated)
     {
         var model = Deserialize<ReadPathPerson>("Age: 38\n<<:\n  Name: Ada\n  Age: 37\n", options: null, generated)!;
@@ -365,6 +488,43 @@ public sealed class ReadPathPerson
     public int Age { get; set; }
 }
 
+public sealed class ReadPathNumbers
+{
+    public int Int { get; set; }
+
+    public long Long { get; set; }
+
+    public ulong ULong { get; set; }
+
+    public double Double { get; set; }
+
+    public decimal Decimal { get; set; }
+
+    public bool Bool { get; set; }
+
+    public int? NullableInt { get; set; } = 1;
+
+    public bool? NullableBool { get; set; } = true;
+
+    public int Hex { get; set; }
+
+    public int Underscore { get; set; }
+
+    public int Plus { get; set; }
+
+    public int LeadingZero { get; set; }
+
+    public double Infinity { get; set; }
+
+    public double NegativeInfinity { get; set; }
+
+    public double NaN { get; set; }
+
+    public short Short { get; set; }
+
+    public string? Text { get; set; }
+}
+
 public sealed class ReadPathPeople
 {
     public List<ReadPathPerson> Items { get; set; } = new();
@@ -396,6 +556,9 @@ public sealed class ReadPathCtorPerson
 
 [YamlSerializable(typeof(ReadPathPerson))]
 [YamlSerializable(typeof(ReadPathPeople))]
+[YamlSerializable(typeof(ReadPathNumbers))]
+[YamlSerializable(typeof(List<string>))]
+[YamlSerializable(typeof(List<int>))]
 [YamlSerializable(typeof(ReadPathWithExtensionData))]
 [YamlSerializable(typeof(ReadPathCtorPerson))]
 [YamlSerializable(typeof(List<Dictionary<string, int>>))]

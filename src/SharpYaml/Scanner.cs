@@ -2443,11 +2443,33 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         else
         {
             var length = valueEnd - valueStart;
-            value = isKey && length <= MaxCachedKeyLength ? GetCachedKey(text, valueStart, length) : text.Substring(valueStart, length);
+            if (isKey && length <= MaxCachedKeyLength)
+            {
+                value = GetCachedKey(text, valueStart, length);
+            }
+            else if (_recycleTokens && length != 0 && MayBeReadWithoutItsString(text[valueStart], length))
+            {
+                // The parser passes the slice on: the string is only created if the value is read as one.
+                return NewScalarSlice(text, valueStart, length, start, end);
+            }
+            else
+            {
+                value = text.Substring(valueStart, length);
+            }
         }
 
         return NewScalar(value, ScalarStyle.Plain, start, end);
     }
+
+    /// <summary>
+    /// Gets whether a plain scalar may be a number, a boolean or null, from its first character and its length: such
+    /// a value is usually parsed and its string never read, so it is passed on as a slice of the input. Any other
+    /// value is most likely read as a string, for which the slice would only be a detour.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool MayBeReadWithoutItsString(char first, int length)
+        => first is (>= '0' and <= '9') or '-' or '+' or '.'
+            || (length <= 5 && first is 't' or 'f' or 'n' or 'T' or 'F' or 'N' or '~');
 
     private const int MaxCachedKeyLength = 32;
     private const int KeyCacheSize = 64;
@@ -2900,6 +2922,18 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         }
 
         return new Scalar(value, style, start, end) { PoolSlot = _recycleTokens ? PoolSlotScalar : (byte)0 };
+    }
+
+    /// <summary>Creates the token of a plain scalar that is a slice of the input, for an owner that reuses tokens.</summary>
+    private Token NewScalarSlice(string source, int sourceStart, int sourceLength, in Mark start, in Mark end)
+    {
+        if (!_freeTokens[PoolSlotScalar].TryPop(out var token))
+        {
+            token = new Scalar(null, ScalarStyle.Plain, start, end) { PoolSlot = PoolSlotScalar };
+        }
+
+        ((Scalar)token).Reset(source, sourceStart, sourceLength, ScalarStyle.Plain, start, end);
+        return token;
     }
 
     private Token NewKey(in Mark start, in Mark end)
