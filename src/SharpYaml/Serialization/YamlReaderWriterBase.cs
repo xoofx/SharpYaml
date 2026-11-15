@@ -1,4 +1,4 @@
-﻿// // Copyright (c) Alexandre Mutel. All rights reserved.
+// // Copyright (c) Alexandre Mutel. All rights reserved.
 // // Licensed under the MIT license.
 // // See LICENSE.txt file in the project root for full license information.
 
@@ -24,8 +24,10 @@ public abstract class YamlReaderWriterBase
     private readonly StringComparer _propertyNameComparer;
     private Dictionary<string, string>? _propertyNameCache;
     private Dictionary<string, string>? _dictionaryKeyCache;
-    private Dictionary<Type, YamlConverter>? _converterCache;
-    private Dictionary<Type, YamlConverter?>? _customConverterCache;
+    private YamlSerializerOptionsCache? _optionsCache;
+
+    /// <summary>The converters resolved for <see cref="Options"/>, shared by every reader and writer of these options.</summary>
+    private YamlSerializerOptionsCache OptionsCache => _optionsCache ??= YamlSerializerOptionsCache.For(Options);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="YamlReaderWriterBase"/> class.
@@ -109,23 +111,22 @@ public abstract class YamlReaderWriterBase
     {
         ArgumentGuard.ThrowIfNull(typeToConvert);
 
-        _converterCache ??= new Dictionary<Type, YamlConverter>();
-        if (_converterCache.TryGetValue(typeToConvert, out var cached))
+        var converters = OptionsCache.Converters;
+        if (converters.TryGetValue(typeToConvert, out var cached))
         {
             return cached;
         }
 
+        // Two threads may resolve the same type at once: both then use the converter that was stored first.
         var attributeConverter = CreateConverterFromAttribute(typeToConvert);
         if (attributeConverter is not null)
         {
-            _converterCache[typeToConvert] = attributeConverter;
-            return attributeConverter;
+            return converters.GetOrAdd(typeToConvert, attributeConverter);
         }
 
         if (TryGetCustomConverter(typeToConvert, out var custom) && custom is not null)
         {
-            _converterCache[typeToConvert] = custom;
-            return custom;
+            return converters.GetOrAdd(typeToConvert, custom);
         }
 
         var created = YamlBuiltInConverters.CreateConverter(typeToConvert);
@@ -134,8 +135,7 @@ public abstract class YamlReaderWriterBase
             throw new NotSupportedException($"No YAML converter is registered for '{typeToConvert}'.");
         }
 
-        _converterCache[typeToConvert] = created;
-        return created;
+        return converters.GetOrAdd(typeToConvert, created);
     }
 
     private YamlConverter? CreateConverterFromAttribute(Type typeToConvert)
@@ -197,8 +197,8 @@ public abstract class YamlReaderWriterBase
             return false;
         }
 
-        _customConverterCache ??= new Dictionary<Type, YamlConverter?>();
-        if (_customConverterCache.TryGetValue(typeToConvert, out converter))
+        var customConverters = OptionsCache.CustomConverters;
+        if (customConverters.TryGetValue(typeToConvert, out converter))
         {
             return converter is not null;
         }
@@ -211,12 +211,12 @@ public abstract class YamlReaderWriterBase
             || (Nullable.GetUnderlyingType(typeToConvert) is not null
                 && TryFindCustomConverter(typeToConvert, matchNullableUnderlyingType: true, out converter)))
         {
-            _customConverterCache[typeToConvert] = converter;
+            converter = customConverters.GetOrAdd(typeToConvert, converter);
             return true;
         }
 
         converter = null;
-        _customConverterCache[typeToConvert] = null;
+        customConverters.TryAdd(typeToConvert, null);
         return false;
     }
 
