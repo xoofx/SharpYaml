@@ -2504,21 +2504,21 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         }
 
         builder.Append("        var mergeEnabled = ").Append(mergeEnabledExpression).AppendLine(";");
-        builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
-        builder.Append("            ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
-        builder.AppendLine("            : null;");
-        var detectsDuplicateKeys = !string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal);
-        if (detectsDuplicateKeys)
+
+        // One flag per member that a branch of ReadMember matches and reads, set when an explicit key matched it:
+        // for duplicate detection, and to list the explicit keys once a merge key needs them.
+        var seenMembers = new List<KeyValuePair<string, string>>();
+        for (var i = 0; i < readCandidates.Length; i++)
         {
-            for (var i = 0; i < readCandidates.Length; i++)
+            if (!readCandidates[i].IsIgnoredOnRead)
             {
-                if (!readCandidates[i].IsIgnoredOnRead)
-                {
-                    builder.Append("        var __seen").Append(index).Append("_").Append(i).AppendLine(" = false;");
-                }
+                var seenVar = $"__seen{index}_{i}";
+                builder.Append("        var ").Append(seenVar).AppendLine(" = false;");
+                seenMembers.Add(new KeyValuePair<string, string>(seenVar, readCandidates[i].SerializedNameExpressionForRead));
             }
         }
 
+        EmitExplicitKeysDeclaration(builder, seenMembers, propertyNameComparerExpression);
         builder.AppendLine();
         // One member matcher shared by the main loop and by merged mappings, so the per-member readers are emitted once.
         // Only explicit keys take part in duplicate detection: a merged key never overrides an explicit one.
@@ -2572,6 +2572,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         builder.AppendLine("            if (!matched)");
         builder.AppendLine("            {");
+        EmitUnmatchedExplicitKey(builder);
         if (extensionData is not null)
         {
             builder.AppendLine("                ReadAndStoreExtensionData(key);");
@@ -2597,7 +2598,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
         builder.AppendLine("            {");
-        builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys))");
+        builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys ??= CreateExplicitKeys()))");
         builder.AppendLine("                {");
         builder.AppendLine("                    ReadMember(mergeKey, false, default, default);");
         builder.AppendLine("                }");
@@ -2870,30 +2871,32 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         builder.AppendLine();
         builder.Append("        var mergeEnabled = ").Append(mergeEnabledExpression).AppendLine(";");
-        builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = mergeEnabled");
-        builder.Append("            ? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
-        builder.AppendLine("            : null;");
 
-        // Duplicate detection flags, one per key that a branch of ReadMember matches and reads.
+        // One flag per key that a branch of ReadMember matches and reads, set when an explicit key matched it: for
+        // duplicate detection, and to list the explicit keys once a merge key needs them.
         var requiredReadOnlyMembers = requiredMembers.Where(m => !IsWritableMember(m.Symbol) && !ctorBoundMembers.Contains(m.Symbol)).ToArray();
-        if (!string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal))
+        var seenMembers = new List<KeyValuePair<string, string>>();
+        for (var i = 0; i < parameters.Length; i++)
         {
-            for (var i = 0; i < parameters.Length; i++)
-            {
-                builder.Append("        var __seen").Append(index).Append("_p").Append(i).AppendLine(" = false;");
-            }
-
-            for (var i = 0; i < bufferedMembers.Length; i++)
-            {
-                builder.Append("        var __seen").Append(index).Append("_m").Append(i).AppendLine(" = false;");
-            }
-
-            for (var i = 0; i < requiredReadOnlyMembers.Length; i++)
-            {
-                builder.Append("        var __seen").Append(index).Append("_r").Append(i).AppendLine(" = false;");
-            }
+            seenMembers.Add(new KeyValuePair<string, string>($"__seen{index}_p{i}", parameterYamlNameExpressions[i]));
         }
 
+        for (var i = 0; i < bufferedMembers.Length; i++)
+        {
+            seenMembers.Add(new KeyValuePair<string, string>($"__seen{index}_m{i}", bufferedMembers[i].SerializedNameExpressionForRead));
+        }
+
+        for (var i = 0; i < requiredReadOnlyMembers.Length; i++)
+        {
+            seenMembers.Add(new KeyValuePair<string, string>($"__seen{index}_r{i}", requiredReadOnlyMembers[i].SerializedNameExpressionForRead));
+        }
+
+        foreach (var seenMember in seenMembers)
+        {
+            builder.Append("        var ").Append(seenMember.Key).AppendLine(" = false;");
+        }
+
+        EmitExplicitKeysDeclaration(builder, seenMembers, propertyNameComparerExpression);
         builder.AppendLine();
         // One member matcher shared by the main loop and by merged mappings, so the per-member readers are emitted once.
         // Only explicit keys take part in duplicate detection: a merged key never overrides an explicit one.
@@ -3029,6 +3032,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
         builder.AppendLine("            if (!matched)");
         builder.AppendLine("            {");
+        EmitUnmatchedExplicitKey(builder);
         if (extensionData is not null)
         {
             builder.AppendLine("                BufferExtensionData(key);");
@@ -3054,7 +3058,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
         builder.AppendLine("            {");
-        builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys))");
+        builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys ??= CreateExplicitKeys()))");
         builder.AppendLine("                {");
         builder.AppendLine("                    ReadMember(mergeKey, false, default, default);");
         builder.AppendLine("                }");
@@ -7853,10 +7857,46 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     /// <c>YamlObjectConverter</c>: only explicit keys count, so a key reached through a merge key (<c>&lt;&lt;</c>) is never a duplicate.
     /// Under <c>FirstWins</c> the value of a duplicate is skipped and <c>ReadMember</c> returns.
     /// </summary>
+    /// <summary>
+    /// Emits the declaration of <c>explicitKeys</c>, the set of the explicit keys of the mapping being read, which a
+    /// merged mapping must not override. Most mappings have no merge key, so the set is only created when one is read,
+    /// from the flags of the members that explicit keys matched, or when an explicit key matches no member, which no
+    /// flag records.
+    /// </summary>
+    /// <param name="builder">The builder of the generated source.</param>
+    /// <param name="seenMembers">The flag variable and the serialized name expression of each member.</param>
+    /// <param name="comparerExpression">The expression of the comparer of property names.</param>
+    private static void EmitExplicitKeysDeclaration(StringBuilder builder, List<KeyValuePair<string, string>> seenMembers, string comparerExpression)
+    {
+        builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = null;");
+        builder.AppendLine("        global::System.Collections.Generic.HashSet<string> CreateExplicitKeys()");
+        builder.AppendLine("        {");
+        builder.Append("            var keys = new global::System.Collections.Generic.HashSet<string>(").Append(comparerExpression).AppendLine(");");
+        foreach (var seenMember in seenMembers)
+        {
+            builder.Append("            if (").Append(seenMember.Key).Append(") { keys.Add(").Append(seenMember.Value).AppendLine("); }");
+        }
+
+        builder.AppendLine("            return keys;");
+        builder.AppendLine("        }");
+    }
+
+    /// <summary>Emits, in the branch of <c>ReadMember</c> for a key that matches no member, the recording of an explicit key.</summary>
+    private static void EmitUnmatchedExplicitKey(StringBuilder builder)
+    {
+        builder.AppendLine("                if (isExplicitKey && mergeEnabled && explicitKeys is null)");
+        builder.AppendLine("                {");
+        builder.AppendLine("                    explicitKeys = CreateExplicitKeys();");
+        builder.AppendLine("                    explicitKeys.Add(key);");
+        builder.AppendLine("                }");
+    }
+
     private static void EmitMemberDuplicateKeyCheck(StringBuilder builder, string? duplicateKeyHandling, string seenVarName, string indent)
     {
         if (string.Equals(duplicateKeyHandling, "LastWins", StringComparison.Ordinal))
         {
+            // No duplicate to detect, but the flag still tells the explicit keys.
+            builder.Append(indent).Append("if (isExplicitKey) { ").Append(seenVarName).AppendLine(" = true; }");
             return;
         }
 
