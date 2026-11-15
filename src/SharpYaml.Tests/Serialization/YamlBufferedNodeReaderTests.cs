@@ -199,6 +199,50 @@ public sealed class YamlBufferedNodeReaderTests
     }
 
     [TestMethod]
+    public void AliasThatFollowsABufferedNodeIsReplayed()
+    {
+        // The aliases of the node are passed through while it is buffered; the token after the node is not part of it.
+        const string Yaml = "- &a {$type: dog, Name: Rex}\n- *a\n";
+
+        var reader = YamlReader.Create(Yaml);
+        Assert.IsTrue(reader.Read() && reader.Read());
+        reader.BufferCurrentNodeAndFindDiscriminator("$type", out _);
+        Assert.AreEqual(YamlTokenType.StartMapping, reader.TokenType);
+        Assert.IsNull(reader.Anchor);
+
+        var textReader = YamlReader.Create(Yaml);
+        Assert.IsTrue(textReader.Read() && textReader.Read());
+        YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(textReader, "$type", out _);
+        Assert.AreEqual(YamlTokenType.StartMapping, textReader.TokenType);
+
+        var plainReader = YamlReader.Create(Yaml);
+        Assert.IsTrue(plainReader.Read() && plainReader.Read());
+        YamlReader.BufferCurrentNodeToString(plainReader);
+        Assert.AreEqual(YamlTokenType.StartMapping, plainReader.TokenType);
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void AliasToAPolymorphicValueIsRead(bool generated)
+    {
+        const string Yaml = "Animals:\n  - &rex {$type: dog, Name: Rex, Age: 3}\n  - *rex\n  - &tom\n    $type: cat\n    Name: Tom\n    Lives: 9\n    Friends: [*rex]\n  - *tom\n  - *rex\n";
+
+        foreach (var handling in new[] { YamlReferenceHandling.None, YamlReferenceHandling.Preserve })
+        {
+            var zoo = Deserialize<BufferedZoo>(Yaml, new YamlSerializerOptions { ReferenceHandling = handling }, generated)!;
+
+            CollectionAssert.AreEqual(new[] { "Rex", "Rex", "Tom", "Tom", "Rex" }, zoo.Animals.Select(animal => animal.Name).ToArray(), handling.ToString());
+            CollectionAssert.AreEqual(
+                new[] { typeof(BufferedDog), typeof(BufferedDog), typeof(BufferedCat), typeof(BufferedCat), typeof(BufferedDog) },
+                zoo.Animals.Select(animal => animal.GetType()).ToArray(),
+                handling.ToString());
+            Assert.AreEqual(9, ((BufferedCat)zoo.Animals[3]).Lives);
+            Assert.AreEqual("Rex", zoo.Animals[3].Friends[0].Name);
+            Assert.AreEqual(handling == YamlReferenceHandling.Preserve, ReferenceEquals(zoo.Animals[0], zoo.Animals[1]), handling.ToString());
+        }
+    }
+
+    [TestMethod]
     [DynamicData(nameof(Modes))]
     public void InvalidValueOfAPolymorphicValueIsReportedWhereItIsInTheDocument(bool generated)
     {

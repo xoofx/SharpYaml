@@ -677,13 +677,20 @@ public sealed class YamlReader : YamlReaderWriterBase
             _state.PassAliasesThrough = false;
         }
 
+        MovePastBufferedNode();
         _recordedEventCount = events.Count;
         return CreateBufferedReader(events);
     }
 
     /// <summary>
-    /// Reads the current node to its end and keeps its events, the aliases of the parser as they are: the reader of
-    /// the recording resolves them against the anchors captured where the node starts, as the reader of buffered text does.
+    /// Moves past the node that was just buffered, whose last token is the current one. The aliases of the node were
+    /// passed through; the token that follows it is read as any other, so that an alias there is replayed.
+    /// </summary>
+    private void MovePastBufferedNode() => Read();
+
+    /// <summary>
+    /// Reads the current node to its last token and keeps its events, the aliases of the parser as they are: the reader
+    /// of the recording resolves them against the anchors captured where the node starts, as the reader of buffered text does.
     /// </summary>
     private void RecordBufferedNode(RecordedParser events, string discriminatorPropertyName, StringComparison comparison, ref string? discriminatorValue)
     {
@@ -693,7 +700,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         var isKey = false;
         var isDiscriminatorValue = false;
         var depth = 0;
-        do
+        for (; ; )
         {
             var tokenType = TokenType;
             if (isRootMapping && depth == 1 && tokenType != YamlTokenType.EndMapping)
@@ -738,6 +745,11 @@ public sealed class YamlReader : YamlReaderWriterBase
 
             // An event the parser gives again for its next token is kept as a copy: see YamlReaderState.CurrentEvent.
             events.Add(_state.CurrentEvent!);
+            if (depth == 0)
+            {
+                return;
+            }
+
             if (isRootMapping && depth == 1)
             {
                 // The start of the root mapping is followed by its first key; any other node at this depth just ended.
@@ -746,7 +758,6 @@ public sealed class YamlReader : YamlReaderWriterBase
 
             Read();
         }
-        while (depth > 0);
     }
 
     /// <summary>Keeps the events recorded by <see cref="RecordBufferedNode"/> and gives them again, as the parser of their reader.</summary>
@@ -810,17 +821,21 @@ public sealed class YamlReader : YamlReaderWriterBase
 
         // The writer of the serializer, which keeps the text in a pooled buffer.
         var yamlWriter = YamlWriter.CreateBuffered(writer: null, reader.Options);
+        string buffered;
         reader._state.PassAliasesThrough = true;
         try
         {
             WriteBufferedNode(reader, yamlWriter, comparer, discriminatorPropertyName, isRootMapping: true, ref discriminatorValue);
-            return yamlWriter.GetBufferedString(isDocument: false);
+            buffered = yamlWriter.GetBufferedString(isDocument: false);
         }
         finally
         {
             reader._state.PassAliasesThrough = false;
             yamlWriter.ReleaseBuffer();
         }
+
+        reader.MovePastBufferedNode();
+        return buffered;
     }
 
     /// <summary>
@@ -839,17 +854,21 @@ public sealed class YamlReader : YamlReaderWriterBase
 
         var yamlWriter = YamlWriter.CreateBuffered(writer: null, reader.Options);
         string? unused = null;
+        string buffered;
         reader._state.PassAliasesThrough = true;
         try
         {
             WriteBufferedNode(reader, yamlWriter, StringComparer.Ordinal, discriminatorPropertyName: string.Empty, isRootMapping: false, ref unused);
-            return yamlWriter.GetBufferedString(isDocument: false);
+            buffered = yamlWriter.GetBufferedString(isDocument: false);
         }
         finally
         {
             reader._state.PassAliasesThrough = false;
             yamlWriter.ReleaseBuffer();
         }
+
+        reader.MovePastBufferedNode();
+        return buffered;
     }
 
     /// <remarks>
@@ -892,6 +911,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         return ScalarValue ?? string.Empty;
     }
 
+    /// <summary>Writes the current node, and leaves the reader on its last token.</summary>
     private static void WriteBufferedNode(
         YamlReader reader,
         YamlWriter writer,
@@ -914,12 +934,10 @@ public sealed class YamlReader : YamlReaderWriterBase
                 }
 
                 writer.WriteScalar(reader.ScalarValue, reader.ScalarStyle);
-                reader.Read();
                 return;
 
             case YamlTokenType.Alias:
                 writer.WriteAlias(reader.Alias ?? throw new InvalidOperationException("Alias token did not provide an alias value."));
-                reader.Read();
                 return;
 
             case YamlTokenType.StartSequence:
@@ -938,9 +956,9 @@ public sealed class YamlReader : YamlReaderWriterBase
                 while (reader.TokenType != YamlTokenType.EndSequence)
                 {
                     WriteBufferedNode(reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
+                    reader.Read();
                 }
                 writer.WriteEndSequence();
-                reader.Read();
                 return;
 
             case YamlTokenType.StartMapping:
@@ -968,8 +986,9 @@ public sealed class YamlReader : YamlReaderWriterBase
                     else
                     {
                         writer.WritePropertyName(key!);
-                        reader.Read();
                     }
+
+                    reader.Read();
 
                     if (isRootMapping && key is not null && discriminatorValue is null && keyComparer.Equals(key, discriminatorPropertyName))
                     {
@@ -982,9 +1001,9 @@ public sealed class YamlReader : YamlReaderWriterBase
                     }
 
                     WriteBufferedNode(reader, writer, keyComparer, discriminatorPropertyName, isRootMapping: false, ref discriminatorValue);
+                    reader.Read();
                 }
                 writer.WriteEndMapping();
-                reader.Read();
                 return;
 
             default:
