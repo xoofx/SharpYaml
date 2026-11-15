@@ -28,23 +28,33 @@ public sealed class Scalar : NodeEvent
     /// Gets the value.
     /// </summary>
     /// <value>The value.</value>
-    public string Value { get; }
+    public string Value { get; private set; }
 
     /// <summary>
     /// Gets the style of the scalar.
     /// </summary>
     /// <value>The style.</value>
-    public ScalarStyle Style { get; }
+    public ScalarStyle Style { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether the tag is optional for the plain style.
     /// </summary>
-    public bool IsPlainImplicit { get; }
+    public bool IsPlainImplicit { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether the tag is optional for any non-plain style.
     /// </summary>
-    public bool IsQuotedImplicit { get; }
+    public bool IsQuotedImplicit { get; private set; }
+
+    /// <summary>Gives a reused event, which has no anchor and no tag, the content of the scalar it now stands for.</summary>
+    internal void Reset(string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
+    {
+        Reset(start, end);
+        this.Value = value;
+        this.Style = style;
+        this.IsPlainImplicit = isPlainImplicit;
+        this.IsQuotedImplicit = isQuotedImplicit;
+    }
 
     /// <summary>
     /// Gets a value indicating whether this instance is canonical.

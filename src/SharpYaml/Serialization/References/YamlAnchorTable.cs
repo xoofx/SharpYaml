@@ -284,6 +284,7 @@ internal sealed class YamlAnchorTable
         }
         else if (parsingEvent is NodeEvent { Anchor: { Length: > 0 } anchor })
         {
+            // An anchored event is never a reused one: see IReusedEventSource.
             var events = _events ??= new List<YamlRecordedEvent>();
             binding = new YamlAnchorBinding(anchor, events, events.Count);
             events.Add(new YamlRecordedEvent(parsingEvent, binding));
@@ -313,6 +314,8 @@ internal sealed class YamlAnchorTable
             return binding;
         }
 
+        // The recording outlives the event when the parser reuses it.
+        parsingEvent = parsingEvent.Detach();
         _events!.Add(new YamlRecordedEvent(parsingEvent, binding));
         if (parsingEvent is MappingStart or SequenceStart)
         {

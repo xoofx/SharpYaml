@@ -59,10 +59,23 @@ public sealed class YamlReader : YamlReaderWriterBase
 
     private static YamlReader Create(IParser parser, YamlSerializerOptions options)
     {
+        ReuseEvents(parser);
         var session = YamlReportingSession.Create(options);
         var tracker = session is null ? null : new YamlPathTracker(session, prefix: null);
         var anchors = new YamlAnchorTable(new YamlAliasScope(options));
         return new YamlReader(new YamlReaderState(parser, anchors, nesting: 0, options.SourceName, tracker, discriminatorPropertyName: null), options);
+    }
+
+    /// <summary>
+    /// Lets a parser this reader owns return the same event objects again: the reader copies an event into its state
+    /// before it moves the parser, and detaches the events it has to keep (<see cref="ParsingEvent.Detach"/>).
+    /// </summary>
+    private static void ReuseEvents(IParser parser)
+    {
+        if (parser is IReusedEventSource source)
+        {
+            source.ReuseEvents = true;
+        }
     }
 
     /// <summary>
@@ -82,6 +95,7 @@ public sealed class YamlReader : YamlReaderWriterBase
         var session = _state.Tracker?.Session;
         var tracker = session is null ? null : new YamlPathTracker(session, session.BufferedPath);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), Options.EffectiveMaxDepth, _state.SourceName);
+        ReuseEvents(parser);
         var anchors = _state.CreateBufferedAnchors(out var nesting);
         return new YamlReader(new YamlReaderState(parser, anchors, nesting, _state.SourceName, tracker, _state.BufferedDiscriminator), Options);
     }
@@ -859,7 +873,19 @@ public sealed class YamlReader : YamlReaderWriterBase
         public string? Alias => _pendingAlias is null ? _alias : ResolvePendingAlias()._alias;
         public Mark Start => _pendingAlias is null ? _start : ResolvePendingAlias()._start;
         public Mark End => _pendingAlias is null ? _end : ResolvePendingAlias()._end;
-        public ParsingEvent? CurrentEvent => _pendingAlias is null ? _currentEvent : ResolvePendingAlias()._currentEvent;
+        /// <summary>Gets the current event, as an object that stays valid once the reader moved: callers keep it in the nodes they build.</summary>
+        public ParsingEvent? CurrentEvent
+        {
+            get
+            {
+                if (_pendingAlias is not null)
+                {
+                    ResolvePendingAlias();
+                }
+
+                return _currentEvent = _currentEvent?.Detach();
+            }
+        }
         public YamlReferenceReader? ReferenceReader => _anchors.Scope.References;
         public string? SourceName { get; }
         public YamlPathTracker? Tracker { get; }

@@ -80,8 +80,86 @@ public static class Parser
 /// <summary>
 /// Parses YAML streams.
 /// </summary>
-public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
+public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer : ILookAheadBuffer
 {
+    // The events returned again when ReuseEvents is set: see IReusedEventSource.
+    private Events.Scalar? _reusedScalar;
+    private Events.MappingStart? _reusedMappingStart;
+    private Events.MappingEnd? _reusedMappingEnd;
+    private Events.SequenceStart? _reusedSequenceStart;
+    private Events.SequenceEnd? _reusedSequenceEnd;
+
+    private bool _reuseEvents;
+
+    bool Events.IReusedEventSource.ReuseEvents
+    {
+        get => _reuseEvents;
+        set => _reuseEvents = value;
+    }
+
+    private Event CreateScalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, Mark start, Mark end)
+    {
+        if (!_reuseEvents || anchor is not null || tag is not null)
+        {
+            return new Events.Scalar(anchor, tag, value, style, isPlainImplicit, isQuotedImplicit, start, end);
+        }
+
+        var scalar = _reusedScalar ??= new Events.Scalar(null, null, string.Empty, ScalarStyle.Plain, true, false) { IsReused = true };
+        scalar.Reset(value, style, isPlainImplicit, isQuotedImplicit, start, end);
+        return scalar;
+    }
+
+    private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style)
+        => CreateMappingStart(anchor, tag, isImplicit, style, Mark.Empty, Mark.Empty);
+
+    private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, Mark start, Mark end)
+    {
+        if (!_reuseEvents || anchor is not null || tag is not null)
+        {
+            return new Events.MappingStart(anchor, tag, isImplicit, style, start, end);
+        }
+
+        var mapping = _reusedMappingStart ??= new Events.MappingStart { IsReused = true };
+        mapping.Reset(isImplicit, style, start, end);
+        return mapping;
+    }
+
+    private Event CreateSequenceStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, Mark start, Mark end)
+    {
+        if (!_reuseEvents || anchor is not null || tag is not null)
+        {
+            return new Events.SequenceStart(anchor, tag, isImplicit, style, start, end);
+        }
+
+        var sequence = _reusedSequenceStart ??= new Events.SequenceStart { IsReused = true };
+        sequence.Reset(isImplicit, style, start, end);
+        return sequence;
+    }
+
+    private Event CreateMappingEnd(Mark start, Mark end)
+    {
+        if (!_reuseEvents)
+        {
+            return new Events.MappingEnd(start, end);
+        }
+
+        var mappingEnd = _reusedMappingEnd ??= new Events.MappingEnd { IsReused = true };
+        mappingEnd.Reset(start, end);
+        return mappingEnd;
+    }
+
+    private Event CreateSequenceEnd(Mark start, Mark end)
+    {
+        if (!_reuseEvents)
+        {
+            return new Events.SequenceEnd(start, end);
+        }
+
+        var sequenceEnd = _reusedSequenceEnd ??= new Events.SequenceEnd { IsReused = true };
+        sequenceEnd.Reset(start, end);
+        return sequenceEnd;
+    }
+
     private readonly Stack<ParserState> states = new Stack<ParserState>();
     private readonly TagDirectiveCollection tagDirectives = new TagDirectiveCollection();
     private ParserState state;
@@ -441,9 +519,9 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
     /// <summary>
     /// Generate an empty scalar event.
     /// </summary>
-    private static Event ProcessEmptyScalar(Mark position)
+    private Event ProcessEmptyScalar(Mark position)
     {
-        return new Events.Scalar(null, null, string.Empty, ScalarStyle.Plain, true, false, position, position);
+        return CreateScalar(null, null, string.Empty, ScalarStyle.Plain, true, false, position, position);
     }
 
     /// <summary>
@@ -535,7 +613,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         {
             state = ParserState.YAML_PARSE_INDENTLESS_SEQUENCE_ENTRY_STATE;
 
-            return new Events.SequenceStart(
+            return CreateSequenceStart(
                 anchorName,
                 tagName,
                 isImplicit,
@@ -560,7 +638,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
                 }
 
                 state = states.Pop();
-                Event evt = new Events.Scalar(anchorName, tagName, scalar.Value, scalar.Style, isPlainImplicit, isQuotedImplicit, start, scalar.End);
+                Event evt = CreateScalar(anchorName, tagName, scalar.Value, scalar.Style, isPlainImplicit, isQuotedImplicit, start, scalar.End);
 
                 Skip();
                 return evt;
@@ -569,13 +647,13 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
             if (GetCurrentToken() is FlowSequenceStart flowSequenceStart)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_FIRST_ENTRY_STATE;
-                return new Events.SequenceStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowSequenceStart.End);
+                return CreateSequenceStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowSequenceStart.End);
             }
 
             if (GetCurrentToken() is FlowMappingStart flowMappingStart)
             {
                 state = ParserState.YAML_PARSE_FLOW_MAPPING_FIRST_KEY_STATE;
-                return new Events.MappingStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowMappingStart.End);
+                return CreateMappingStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowMappingStart.End);
             }
 
             if (isBlock)
@@ -583,20 +661,20 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
                 if (GetCurrentToken() is BlockSequenceStart blockSequenceStart)
                 {
                     state = ParserState.YAML_PARSE_BLOCK_SEQUENCE_FIRST_ENTRY_STATE;
-                    return new Events.SequenceStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, blockSequenceStart.End);
+                    return CreateSequenceStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, blockSequenceStart.End);
                 }
 
                 if (GetCurrentToken() is BlockMappingStart blockMappingStart)
                 {
                     state = ParserState.YAML_PARSE_BLOCK_MAPPING_FIRST_KEY_STATE;
-                    return new Events.MappingStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, GetCurrentToken().End);
+                    return CreateMappingStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, GetCurrentToken().End);
                 }
             }
 
             if (anchorName != null || tag != null)
             {
                 state = states.Pop();
-                return new Events.Scalar(anchorName, tagName, string.Empty, ScalarStyle.Plain, isImplicit, false, start, GetCurrentToken().End);
+                return CreateScalar(anchorName, tagName, string.Empty, ScalarStyle.Plain, isImplicit, false, start, GetCurrentToken().End);
             }
 
             var current = GetCurrentToken();
@@ -672,7 +750,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         else if (GetCurrentToken() is BlockEnd)
         {
             state = states.Pop();
-            Event evt = new Events.SequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
+            Event evt = CreateSequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
             Skip();
             return evt;
         }
@@ -710,7 +788,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         else
         {
             state = states.Pop();
-            return new Events.SequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
+            return CreateSequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
         }
     }
 
@@ -752,7 +830,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         else if (GetCurrentToken() is BlockEnd)
         {
             state = states.Pop();
-            Event evt = new Events.MappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
+            Event evt = CreateMappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
             Skip();
             return evt;
         }
@@ -846,12 +924,12 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
             if (GetCurrentToken() is Value)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_KEY_STATE;
-                return new Events.MappingStart(null, null, true, YamlStyle.Flow);
+                return CreateMappingStart(null, null, true, YamlStyle.Flow);
             }
             if (GetCurrentToken() is Key)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_KEY_STATE;
-                evt = new Events.MappingStart(null, null, true, YamlStyle.Flow);
+                evt = CreateMappingStart(null, null, true, YamlStyle.Flow);
                 Skip();
                 return evt;
             }
@@ -863,7 +941,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         }
 
         state = states.Pop();
-        evt = new Events.SequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
+        evt = CreateSequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
         Skip();
         return evt;
     }
@@ -916,7 +994,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
     private Event ParseFlowSequenceEntryMappingEnd()
     {
         state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_STATE;
-        return new Events.MappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
+        return CreateMappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
     }
 
     /// <summary>
@@ -983,7 +1061,7 @@ public class Parser<TBuffer> : IParser where TBuffer : ILookAheadBuffer
         }
 
         state = states.Pop();
-        Event evt = new Events.MappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
+        Event evt = CreateMappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
         Skip();
         return evt;
     }

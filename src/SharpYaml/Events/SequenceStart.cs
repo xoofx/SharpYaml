@@ -29,7 +29,7 @@ public sealed class SequenceStart : NodeEvent
     /// <value>
     /// 	<c>true</c> if this instance is implicit; otherwise, <c>false</c>.
     /// </value>
-    public bool IsImplicit { get; }
+    public bool IsImplicit { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether this instance is canonical.
@@ -41,7 +41,15 @@ public sealed class SequenceStart : NodeEvent
     /// Gets the style.
     /// </summary>
     /// <value>The style.</value>
-    public YamlStyle Style { get; }
+    public YamlStyle Style { get; private set; }
+
+    /// <summary>Gives a reused event, which has no anchor and no tag, the content of the event it now stands for.</summary>
+    internal void Reset(bool isImplicit, YamlStyle style, Mark start, Mark end)
+    {
+        Reset(start, end);
+        this.IsImplicit = isImplicit;
+        this.Style = style;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SequenceStart"/> class.
