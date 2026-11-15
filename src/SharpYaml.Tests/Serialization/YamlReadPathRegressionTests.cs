@@ -381,6 +381,77 @@ public sealed class YamlReadPathRegressionTests
     }
 
     [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void LargeSeekableStreamIsParsedWithoutReadingItAtOnce(bool generated)
+    {
+        // Above the size read into one string: the scanner reads the stream through its window, with scalars of every
+        // length around the size of the window, keys, numbers and multi-line values.
+        var yaml = new StringBuilder("Items:\n");
+        var count = 0;
+        while (yaml.Length < 1_200_000)
+        {
+            yaml.Append("  - Name: ").Append((char)('a' + (count % 26)), 1 + ((count * 131) % 5000)).Append(count).Append("\n    Age: ").Append(count).Append('\n');
+            count++;
+        }
+
+        var expected = Deserialize<ReadPathPeople>(yaml.ToString(), options: null, generated)!;
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes(yaml.ToString()));
+
+        var actual = generated
+            ? YamlSerializer.Deserialize(stream, ReadPathContext.Default.ReadPathPeople)!
+            : YamlSerializer.Deserialize<ReadPathPeople>(stream)!;
+
+        Assert.HasCount(count, actual.Items);
+        for (var i = 0; i < count; i++)
+        {
+            Assert.AreEqual(expected.Items[i].Name, actual.Items[i].Name);
+            Assert.AreEqual(i, actual.Items[i].Age);
+        }
+    }
+
+    [TestMethod]
+    public void ReaderIsOnlyReadAsFarAsTheParserNeeds()
+    {
+        // A reader that is not a StreamReader may block until it read all it is asked for, as one over a pipe: the
+        // scanner asks it for what it needs and no more, so the events of a document arrive before the next one does.
+        const string First = "a: 1\nb: [2, 3]\n";
+        var reader = new CountingReader(First + "---\n" + new string('x', 10_000));
+        var parser = Parser.CreateParser(reader);
+
+        var scalars = new List<string>();
+        while (parser.MoveNext() && parser.Current is not DocumentEnd)
+        {
+            if (parser.Current is Scalar scalar)
+            {
+                scalars.Add(scalar.Value);
+            }
+        }
+
+        CollectionAssert.AreEqual(new[] { "a", "1", "b", "2", "3" }, scalars);
+        Assert.IsLessThan(First.Length + 16, reader.Position, $"read {reader.Position} characters");
+    }
+
+    [TestMethod]
+    public void CustomReaderReadsTheSameDocumentAsAString()
+    {
+        var yaml = new StringBuilder("Items:\n");
+        for (var i = 0; i < 300; i++)
+        {
+            yaml.Append("  - Name: \"é ").Append(i).Append(" 漢 😁\"\n    Age: ").Append(i).Append("\n    # comment ").Append('c', i % 40).Append('\n');
+        }
+
+        var expected = YamlSerializer.Deserialize<ReadPathPeople>(yaml.ToString())!;
+        var actual = YamlSerializer.Deserialize<ReadPathPeople>(new CountingReader(yaml.ToString()))!;
+
+        Assert.HasCount(expected.Items.Count, actual.Items);
+        for (var i = 0; i < expected.Items.Count; i++)
+        {
+            Assert.AreEqual(expected.Items[i].Name, actual.Items[i].Name);
+            Assert.AreEqual(expected.Items[i].Age, actual.Items[i].Age);
+        }
+    }
+
+    [TestMethod]
     public void StreamWithAByteOrderMarkIsRead()
     {
         var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes("Name: Ada\nAge: 36\n")).ToArray();
@@ -437,6 +508,28 @@ public sealed class YamlReadPathRegressionTests
         var yaml = string.Concat(Enumerable.Repeat("- ", 9)) + "x\n";
 
         Assert.Throws<YamlException>(() => Deserialize<object>(yaml, options, generated));
+    }
+
+    /// <summary>A reader that is not a <see cref="StreamReader"/> and counts the characters it gave.</summary>
+    private sealed class CountingReader : TextReader
+    {
+        private readonly string _text;
+
+        public CountingReader(string text) => _text = text;
+
+        public int Position { get; private set; }
+
+        public override int Peek() => Position < _text.Length ? _text[Position] : -1;
+
+        public override int Read() => Position < _text.Length ? _text[Position++] : -1;
+
+        public override int Read(char[] buffer, int index, int count)
+        {
+            var read = Math.Min(count, _text.Length - Position);
+            _text.CopyTo(Position, buffer, index, read);
+            Position += read;
+            return read;
+        }
     }
 
     /// <summary>A stream that cannot seek, as a pipe or a network stream, and returns a few bytes per read.</summary>

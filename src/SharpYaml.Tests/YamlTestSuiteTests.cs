@@ -28,9 +28,42 @@ public sealed class YamlTestSuiteTests
     [DynamicData(nameof(Cases))]
     public void OfficialEvents(string id, string yaml, bool error, string expected, string json)
     {
-        // Exercise both the direct string buffer and the bounded streaming buffer.
+        // Exercise the direct string buffer, the bounded streaming buffer, and the window the scanner reads a reader
+        // into: with its default size, and with a small one read a few characters at a time, so that the window
+        // moves and grows at every position of every case.
         Verify(id, Parser.CreateParser(new StringReader(yaml)), error, expected);
         Verify(id, new Parser<LookAheadBuffer>(new LookAheadBuffer(new StringReader(yaml), Scanner<LookAheadBuffer>.MaxBufferLength)), error, expected);
+        Verify(id, Parser.CreateParser(new ChunkedReader(yaml, int.MaxValue)), error, expected);
+        for (var chunk = 1; chunk <= 5; chunk += 2)
+        {
+            Verify(id, new Parser<LookAheadBuffer>(new ReaderLookAheadBuffer(new ChunkedReader(yaml, chunk), initialWindowSize: 16)), error, expected);
+        }
+    }
+
+    /// <summary>A reader that is not a <see cref="StringReader"/> and returns at most <c>chunk</c> characters per read.</summary>
+    private sealed class ChunkedReader : TextReader
+    {
+        private readonly string _text;
+        private readonly int _chunk;
+        private int _position;
+
+        public ChunkedReader(string text, int chunk)
+        {
+            _text = text;
+            _chunk = chunk;
+        }
+
+        public override int Peek() => _position < _text.Length ? _text[_position] : -1;
+
+        public override int Read() => _position < _text.Length ? _text[_position++] : -1;
+
+        public override int Read(char[] buffer, int index, int count)
+        {
+            var read = Math.Min(Math.Min(count, _chunk), _text.Length - _position);
+            _text.CopyTo(_position, buffer, index, read);
+            _position += read;
+            return read;
+        }
     }
 
     public static IEnumerable<object[]> LoadCases()

@@ -71,30 +71,34 @@ public static class Parser
 
     private static IParser CreateParserCore(TextReader reader, int maxDepth, string? sourceName)
     {
-        // The scanner reads a string in place, several times faster than it reads a reader one character at a time.
-        // A reader whose end is known to be reachable is therefore read at once: a string, or a seekable stream such as
-        // a file. Any other reader may be a pipe or a socket that delivers documents over time, and stays incremental.
+        // The scanner is fastest on a string, which it reads in place and whose number-like scalars it can pass on as
+        // slices. A seekable stream of a moderate size, such as most files, is therefore read at once into a string.
         if (reader is StringReader)
         {
             return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(reader.ReadToEnd()), maxDepth, sourceName);
         }
 
-        if (reader is StreamReader { BaseStream.CanSeek: true } streamReader)
+        if (reader is StreamReader { BaseStream.CanSeek: true } streamReader && TryReadToEnd(streamReader, out var text))
         {
-            return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(ReadToEnd(streamReader)), maxDepth, sourceName);
+            return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(text), maxDepth, sourceName);
         }
 
-        return new Parser<LookAheadBuffer>(new LookAheadBuffer(reader, Scanner<LookAheadBuffer>.MaxBufferLength), maxDepth, sourceName);
+        // Any other reader is read in blocks into a window the scanner scans in place (ReaderLookAheadBuffer), a
+        // little slower than a string: a large stream, which would need a string of twice its size in memory, and a
+        // reader that may be a pipe or a socket delivering documents over time, which must not be read to its end.
+        return new Parser<LookAheadBuffer>(new ReaderLookAheadBuffer(reader), maxDepth, sourceName);
     }
+
+    // A stream of more characters than this is parsed through the window instead of being read into one string.
+    private const int MaxReadAtOnceLength = 1024 * 1024;
 
     /// <summary>
     /// Reads the rest of a reader over a seekable stream into one string, through a pooled buffer sized from the bytes
-    /// left in the stream: <see cref="TextReader.ReadToEnd"/> builds the string in chunks it then copies.
+    /// left in the stream: <see cref="TextReader.ReadToEnd"/> builds the string in chunks it then copies. Returns
+    /// <see langword="false"/>, having read nothing, when the stream is too large or does not tell its length.
     /// </summary>
-    private static string ReadToEnd(StreamReader reader)
+    private static bool TryReadToEnd(StreamReader reader, out string text)
     {
-        const int MaxPooledLength = 16 * 1024 * 1024;
-
         // A character takes at least one byte in every encoding, so the bytes left bound the characters left in the
         // stream; the reader may hold a few more it already decoded, which the loop below makes room for.
         long remaining;
@@ -105,12 +109,14 @@ public static class Parser
         }
         catch (Exception exception) when (exception is NotSupportedException or IOException or ObjectDisposedException)
         {
-            return reader.ReadToEnd();
+            text = string.Empty;
+            return false;
         }
 
-        if (remaining < 0 || remaining > MaxPooledLength)
+        if (remaining < 0 || remaining > MaxReadAtOnceLength)
         {
-            return reader.ReadToEnd();
+            text = string.Empty;
+            return false;
         }
 
         var pool = System.Buffers.ArrayPool<char>.Shared;
@@ -137,7 +143,8 @@ public static class Parser
                 length += read;
             }
 
-            return new string(buffer, 0, length);
+            text = new string(buffer, 0, length);
+            return true;
         }
         finally
         {

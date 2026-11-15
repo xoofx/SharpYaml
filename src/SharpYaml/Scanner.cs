@@ -6,7 +6,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Buffers;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using SharpYaml.Tokens;
@@ -69,6 +71,17 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     // The whole input when it is a string: the scanner then reads it in place at 'index', without going through
     // 'analyzer' (an interface call per character) and can consume runs of characters at once.
     private readonly string _text;
+
+    // The input of a reader that cannot be read at once (ReaderLookAheadBuffer): the scanner reads it in blocks into
+    // this pooled window and scans it in place, as it does a string. The window holds the characters of the input from
+    // _windowStart; FillWindow moves it forward, keeping what follows the current position and _windowPin.
+    private TextReader _reader;
+    private char[] _window;
+    private int _windowStart;
+    private int _windowLength;
+    private int _windowPin = int.MaxValue;
+    private bool _readerEnded;
+    private bool _readInBlocks;
     private bool tokenAvailable;
 
     private static readonly IDictionary<char, char> simpleEscapeCodes = InitializeSimpleEscapeCodes();
@@ -115,6 +128,25 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             return (uint)position < (uint)text.Length ? text[position] : '\0';
         }
 
+        return PeekOutsideText(offset);
+    }
+
+    // The inputs that are not a string are kept out of the inlined accessors: every method of the scanner inlines
+    // them many times, and what they inline for a string must stay as small as it is.
+    private char PeekOutsideText(int offset)
+    {
+        var window = _window;
+        if (window != null)
+        {
+            var position = index - _windowStart + offset;
+            if ((uint)position < (uint)_windowLength)
+            {
+                return window[position];
+            }
+
+            return FillWindow(offset + 1) ? _window[index - _windowStart + offset] : '\0';
+        }
+
         return analyzer.Peek(offset);
     }
 
@@ -124,14 +156,32 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private bool EndOfInput
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _text != null ? index >= _text.Length : analyzer.EndOfInput;
+        get => _text != null ? index >= _text.Length : EndOfInputOutsideText();
     }
 
-    /// <summary>Advances the buffer; in a string, <see cref="index"/> is the position.</summary>
+    private bool EndOfInputOutsideText()
+        => _window != null ? index - _windowStart >= _windowLength && !FillWindow(1) : analyzer.EndOfInput;
+
+    /// <summary>Gets whether the scanner reads its input in place, a string or the window of a reader, rather than through <see cref="analyzer"/>.</summary>
+    private bool IsInPlace
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _text != null || _window != null;
+    }
+
+    /// <summary>Advances the buffer; in place, <see cref="index"/> is the position.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SkipBuffer(int length)
     {
         if (_text == null)
+        {
+            SkipBufferOutsideText(length);
+        }
+    }
+
+    private void SkipBufferOutsideText(int length)
+    {
+        if (_window == null)
         {
             analyzer.Skip(length);
         }
@@ -142,7 +192,110 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     {
         if (_text == null)
         {
+            CacheBufferOutsideText(length);
+        }
+    }
+
+    private void CacheBufferOutsideText(int length)
+    {
+        if (_window == null)
+        {
             analyzer.Cache(length);
+        }
+    }
+
+    private const int InitialWindowSize = 4096;
+
+    /// <summary>
+    /// Reads more of the reader, so that the window holds at least <paramref name="needed"/> characters from the current
+    /// position. Returns <see langword="false"/> when the input ends before that.
+    /// </summary>
+    /// <remarks>
+    /// The characters before the current position are dropped to make room, except from <see cref="_windowPin"/>, the
+    /// start of the scalar being scanned, whose value is a slice of the window. A window that is all needed grows.
+    /// </remarks>
+    private bool FillWindow(int needed)
+    {
+        while (!_readerEnded)
+        {
+            var window = _window;
+            if (_windowLength == window.Length)
+            {
+                var consumed = Math.Min(index, _windowPin) - _windowStart;
+                if (consumed > 0)
+                {
+                    Array.Copy(window, consumed, window, 0, _windowLength - consumed);
+                    _windowStart += consumed;
+                    _windowLength -= consumed;
+                }
+                else
+                {
+                    var larger = ArrayPool<char>.Shared.Rent(checked(window.Length * 2));
+                    Array.Copy(window, larger, _windowLength);
+                    Array.Clear(window, 0, _windowLength);
+                    ArrayPool<char>.Shared.Return(window);
+                    _window = window = larger;
+                }
+            }
+
+            // A StreamReader returns what it has without waiting for a full block; any other reader may block until
+            // it read all that is asked, so it is only asked for what the scanner needs now.
+            var available = _windowLength - (index - _windowStart);
+            var count = _readInBlocks ? window.Length - _windowLength : Math.Min(window.Length - _windowLength, needed - available);
+            var read = _reader.Read(window, _windowLength, count);
+            if (read <= 0)
+            {
+                _readerEnded = true;
+                break;
+            }
+
+            _windowLength += read;
+            if (available + read >= needed)
+            {
+                return true;
+            }
+        }
+
+        return _windowLength - (index - _windowStart) >= needed;
+    }
+
+    /// <summary>
+    /// Gives the window back to the pool once the end of the stream is produced. The scanner then sees an empty input.
+    /// </summary>
+    private void ReleaseWindow()
+    {
+        var window = _window;
+        if (window != null && window.Length != 0)
+        {
+            // The window held a part of the document: do not leave it readable to the next renter.
+            Array.Clear(window, 0, _windowLength);
+            _window = Array.Empty<char>();
+            _windowStart = index;
+            _windowLength = 0;
+            _readerEnded = true;
+            ArrayPool<char>.Shared.Return(window);
+        }
+    }
+
+    /// <summary>Gets <paramref name="length"/> characters of the window from the index <paramref name="start"/> of the input.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private ReadOnlySpan<char> WindowSpan(int start, int length)
+        => new ReadOnlySpan<char>(_window, start - _windowStart, length);
+
+    /// <summary>Gets the character of the window at the index <paramref name="position"/> of the input.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private char WindowCharacter(int position) => _window[position - _windowStart];
+
+    /// <summary>Appends <paramref name="length"/> characters of the input from the index <paramref name="start"/> to <paramref name="builder"/>.</summary>
+    private void AppendInput(StringBuilder builder, int start, int length)
+    {
+        if (_text != null)
+        {
+            builder.Append(_text, start, length);
+        }
+        else
+        {
+            builder.Append(_window, start - _windowStart, length);
         }
     }
 
@@ -237,6 +390,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         if (buffer is StringLookAheadBuffer { Position: 0 } text)
         {
             _text = text.Value;
+        }
+        else if (buffer is ReaderLookAheadBuffer readerBuffer)
+        {
+            _reader = readerBuffer.Reader;
+            _readInBlocks = _reader is StreamReader;
+            _window = ArrayPool<char>.Shared.Rent(readerBuffer.InitialWindowSize > 0 ? readerBuffer.InitialWindowSize : InitialWindowSize);
         }
     }
 
@@ -641,14 +800,15 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     }
 
     /// <summary>
-    /// Consumes the run of spaces at the current position of a string input at once: what <see cref="Skip"/> does for
-    /// each of them. Does nothing for other inputs, which the caller reads character by character.
+    /// Consumes the run of spaces at the current position of an input read in place at once: what <see cref="Skip"/>
+    /// does for each of them. Does nothing for other inputs, which the caller reads character by character.
     /// </summary>
     private void SkipSpaces()
     {
         var text = _text;
         if (text == null)
         {
+            SkipSpacesInWindow();
             return;
         }
 
@@ -658,11 +818,46 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             end++;
         }
 
-        var count = end - index;
+        SkipSpaces(end - index);
+    }
+
+    private void SkipSpacesInWindow()
+    {
+        if (_window == null)
+        {
+            return;
+        }
+
+        var count = 0;
+        for (; ; )
+        {
+            var window = _window;
+            var from = index + count - _windowStart;
+            var position = from;
+            while (position < _windowLength && window[position] == ' ')
+            {
+                position++;
+            }
+
+            count += position - from;
+            if (position < _windowLength || !FillWindow(count + 1))
+            {
+                break;
+            }
+        }
+
+        SkipSpaces(count);
+    }
+
+    /// <summary>Consumes <paramref name="count"/> spaces at the current position: what <see cref="Skip"/> does for each of them.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SkipSpaces(int count)
+    {
         if (count == 0)
         {
             return;
         }
+
 
         // The spaces that start a line are its indentation: both counters then advance together.
         if (column == _lineIndentationSpaces)
@@ -672,25 +867,42 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         _previousHighSurrogate = false;
         _lastCharacter = ' ';
-        index = end;
+        index += count;
         column += count;
     }
 
     /// <summary>
-    /// Counts the characters from <paramref name="start"/> that a plain scalar takes as they are, whatever follows them:
+    /// Counts the characters from the current position that a plain scalar takes as they are, whatever follows them:
     /// printable, not a blank or a break, not a surrogate, not <c>:</c> (which ends the scalar depending on the next
     /// character) and, in a flow collection, not a flow indicator.
     /// </summary>
-    private int CountPlainScalarRun(string text, int start)
+    private int CountPlainScalarRunInWindow()
     {
-        var position = start;
+        // The run may go past what the window holds: count again from where it stopped once more is read.
+        var inFlow = flowLevel != 0;
+        var count = 0;
+        for (; ; )
+        {
+            var from = index + count - _windowStart;
+            var ahead = new ReadOnlySpan<char>(_window, from, _windowLength - from);
+            var run = CountPlainScalarRun(ahead, inFlow);
+            count += run;
+            if (run < ahead.Length || !FillWindow(count + 1))
+            {
+                return count;
+            }
+        }
+    }
+
+    private static int CountPlainScalarRun(ReadOnlySpan<char> text, bool inFlow)
+    {
+        var position = 0;
 #if NET8_0_OR_GREATER
         // The ASCII part of the run, several characters at a time.
-        var remaining = text.AsSpan(start);
-        var ascii = remaining.IndexOfAnyExcept(flowLevel == 0 ? ScannerCharacters.PlainScalarRunInBlock : ScannerCharacters.PlainScalarRunInFlow);
-        position += ascii < 0 ? remaining.Length : ascii;
+        var ascii = text.IndexOfAnyExcept(inFlow ? ScannerCharacters.PlainScalarRunInFlow : ScannerCharacters.PlainScalarRunInBlock);
+        position = ascii < 0 ? text.Length : ascii;
 #endif
-        if (flowLevel == 0)
+        if (!inFlow)
         {
             while ((uint)position < (uint)text.Length)
             {
@@ -717,26 +929,13 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             }
         }
 
-        return position - start;
+        return position;
     }
 
     /// <summary>Gets whether a character above the ASCII range is printable (<see cref="Emitter.IsPrintable"/>) and not a surrogate.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsPrintableBeyondAscii(char character)
         => character is '\x85' or (>= '\xA0' and <= '\xD7FF') or (>= '\xE000' and <= '\xFFFD');
-
-    /// <summary>
-    /// Consumes <paramref name="count"/> characters of a string input that <see cref="CountPlainScalarRun"/> counted:
-    /// what <see cref="Skip"/> does for each of them.
-    /// </summary>
-    private void SkipPlainScalarRun(string text, int count)
-    {
-        index += count;
-        column += count;
-        _previousHighSurrogate = false;
-        _lastCharacter = text[index - 1];
-        _lineHasContent = true;
-    }
 
     private void SkipLine()
     {
@@ -895,6 +1094,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         streamEndProduced = true;
         tokens.Enqueue(new StreamEnd(CurrentPosition, CurrentPosition));
+        ReleaseWindow();
     }
 
     private void FetchDirective()
@@ -2088,7 +2288,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     {
         if (_text != null)
         {
-            return ScanPlainScalarInText(_text);
+            return ScanPlainScalarInPlace();
+        }
+
+        if (_window != null)
+        {
+            return ScanPlainScalarInWindow();
         }
 
         scanScalarValue.Length = 0;
@@ -2237,12 +2442,22 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     }
 
     /// <summary>
-    /// Scans a plain scalar of a string input: <see cref="ScanPlainScalar"/> with the runs of ordinary characters
-    /// consumed at once. The value of a scalar that stays on one line is a slice of the input, so it is built from
-    /// <see cref="scanScalarValue"/> only once a line break has to be folded.
+    /// Scans a plain scalar of an input read in place, a string or the window of a reader: <see cref="ScanPlainScalar"/>
+    /// with the runs of ordinary characters consumed at once. The value of a scalar that stays on one line is a slice
+    /// of the input, so it is built from <see cref="scanScalarValue"/> only once a line break has to be folded.
     /// </summary>
-    private Token ScanPlainScalarInText(string text)
+    private Token ScanPlainScalarInWindow()
     {
+        // The window keeps the scalar from its start, where its value is sliced, until the token is created.
+        _windowPin = index;
+        var token = ScanPlainScalarInPlace();
+        _windowPin = int.MaxValue;
+        return token;
+    }
+
+    private Token ScanPlainScalarInPlace()
+    {
+        var text = _text;
         bool hasLeadingBlanks = false;
         bool isFolded = false;
         bool isKey = false;
@@ -2311,7 +2526,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                     {
                         isFolded = true;
                         scanScalarValue.Length = 0;
-                        scanScalarValue.Append(text, valueStart, valueEnd - valueStart);
+                        AppendInput(scanScalarValue, valueStart, valueEnd - valueStart);
                     }
 
                     if (trailingBreaks == 0)
@@ -2330,7 +2545,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                 {
                     if (isFolded)
                     {
-                        scanScalarValue.Append(text, index - pendingBlanks, pendingBlanks);
+                        AppendInput(scanScalarValue, index - pendingBlanks, pendingBlanks);
                     }
 
                     pendingBlanks = 0;
@@ -2338,15 +2553,20 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
                 // Copy the characters.
 
-                var run = CountPlainScalarRun(text, index);
+                var run = text != null ? CountPlainScalarRun(text.AsSpan(index), flowLevel != 0) : CountPlainScalarRunInWindow();
                 if (run > 0)
                 {
                     if (isFolded)
                     {
-                        scanScalarValue.Append(text, index, run);
+                        AppendInput(scanScalarValue, index, run);
                     }
 
-                    SkipPlainScalarRun(text, run);
+                    // What Skip does for each of these characters.
+                    index += run;
+                    column += run;
+                    _previousHighSurrogate = false;
+                    _lastCharacter = text != null ? text[index - 1] : WindowCharacter(index - 1);
+                    _lineHasContent = true;
                 }
                 else
                 {
@@ -2445,16 +2665,17 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             var length = valueEnd - valueStart;
             if (isKey && length <= MaxCachedKeyLength)
             {
-                value = GetCachedKey(text, valueStart, length);
+                value = GetCachedKey(text != null ? text.AsSpan(valueStart, length) : WindowSpan(valueStart, length));
             }
-            else if (_recycleTokens && length != 0 && MayBeReadWithoutItsString(text[valueStart], length))
+            else if (text != null && _recycleTokens && length != 0 && MayBeReadWithoutItsString(text[valueStart], length))
             {
-                // The parser passes the slice on: the string is only created if the value is read as one.
+                // The parser passes the slice on: the string is only created if the value is read as one. A window
+                // moves on before the value is read, so its scalars always get their string here.
                 return NewScalarSlice(text, valueStart, length, start, end);
             }
             else
             {
-                value = text.Substring(valueStart, length);
+                value = text != null ? text.Substring(valueStart, length) : WindowSpan(valueStart, length).ToString();
             }
         }
 
@@ -2478,14 +2699,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     // so most keys are found here instead of being allocated again.
     private string[] _keyCache;
 
-    private string GetCachedKey(string text, int start, int length)
+    private string GetCachedKey(ReadOnlySpan<char> key)
     {
+        var length = key.Length;
         if (length == 0)
         {
             return string.Empty;
         }
 
-        var key = text.AsSpan(start, length);
         var hash = (uint)length;
         for (var i = 0; i < key.Length; i++)
         {
