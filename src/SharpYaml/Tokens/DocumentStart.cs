@@ -25,5 +25,6 @@ public class DocumentStart : Token
     public DocumentStart(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.DocumentStart;
     }
 }

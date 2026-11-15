@@ -32,6 +32,7 @@ public class AnchorAlias : Token
     public AnchorAlias(string value, Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.AnchorAlias;
         this.Value = value;
     }
 }

@@ -47,6 +47,7 @@ public class TagDirective : Token
     public TagDirective(string handle, string prefix, Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.TagDirective;
         if (string.IsNullOrEmpty(handle))
         {
             throw new ArgumentNullException("handle", "Tag handle must not be empty.");

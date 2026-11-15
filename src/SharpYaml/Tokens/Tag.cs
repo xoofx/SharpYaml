@@ -42,6 +42,7 @@ public class Tag : Token
     public Tag(string handle, string suffix, Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.Tag;
         this.Handle = handle;
         this.Suffix = suffix;
     }

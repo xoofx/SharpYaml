@@ -25,5 +25,6 @@ public class BlockMappingStart : Token
     public BlockMappingStart(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.BlockMappingStart;
     }
 }

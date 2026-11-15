@@ -25,5 +25,6 @@ public class FlowMappingStart : Token
     public FlowMappingStart(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.FlowMappingStart;
     }
 }

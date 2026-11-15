@@ -58,6 +58,7 @@ public class Scalar : Token
     public Scalar(string value, ScalarStyle style, Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.Scalar;
         this.Value = value;
         this.Style = style;
     }

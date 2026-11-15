@@ -25,5 +25,6 @@ public class BlockEnd : Token
     public BlockEnd(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.BlockEnd;
     }
 }

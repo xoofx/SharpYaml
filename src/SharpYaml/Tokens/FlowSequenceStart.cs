@@ -25,5 +25,6 @@ public class FlowSequenceStart : Token
     public FlowSequenceStart(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.FlowSequenceStart;
     }
 }

@@ -25,6 +25,9 @@ public abstract class Token
     /// </summary>
     internal byte PoolSlot;
 
+    /// <summary>The kind of this token; <see cref="TokenKind.None"/> for a token class defined outside this library.</summary>
+    internal TokenKind Kind;
+
     /// <summary>Gives a token of a scanner pool the locations of the token it now stands for.</summary>
     internal void Reset(Mark start, Mark end)
     {

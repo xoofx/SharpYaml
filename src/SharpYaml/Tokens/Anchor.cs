@@ -33,6 +33,7 @@ public class Anchor : Token
     public Anchor(string value, Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.Anchor;
         this.Value = value;
     }
 }

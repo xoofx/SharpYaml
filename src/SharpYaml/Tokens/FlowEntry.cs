@@ -25,5 +25,6 @@ public class FlowEntry : Token
     public FlowEntry(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.FlowEntry;
     }
 }

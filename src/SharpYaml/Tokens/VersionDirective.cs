@@ -33,6 +33,7 @@ public class VersionDirective : Token
     public VersionDirective(Version version, Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.VersionDirective;
         this.Version = version;
     }
 

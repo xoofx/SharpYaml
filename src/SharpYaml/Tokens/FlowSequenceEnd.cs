@@ -25,5 +25,6 @@ public class FlowSequenceEnd : Token
     public FlowSequenceEnd(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.FlowSequenceEnd;
     }
 }

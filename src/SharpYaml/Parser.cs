@@ -170,6 +170,16 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     private int _currentDepth;
     private Token? currentToken;
 
+    /// <summary>Gets the kind of the current token, fetching it when needed; <see cref="TokenKind.None"/> after the last token.</summary>
+    private TokenKind CurrentKind
+    {
+        get
+        {
+            var token = currentToken ?? GetCurrentToken();
+            return token is null ? TokenKind.None : token.Kind;
+        }
+    }
+
     private Token GetCurrentToken()
     {
         if (currentToken == null)
@@ -227,7 +237,9 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
     private void EnforceMaxDepth(Event current)
     {
-        if (current is Events.SequenceStart or Events.MappingStart)
+        // The event type is one virtual call; the end events are not sealed, so testing their type costs a call each.
+        var type = current.Type;
+        if (type is Events.EventType.YAML_SEQUENCE_START_EVENT or Events.EventType.YAML_MAPPING_START_EVENT)
         {
             if (_currentDepth >= _maxDepth)
             {
@@ -236,7 +248,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
             _currentDepth++;
         }
-        else if (current is Events.SequenceEnd or Events.MappingEnd)
+        else if (type is Events.EventType.YAML_SEQUENCE_END_EVENT or Events.EventType.YAML_MAPPING_END_EVENT)
         {
             _currentDepth--;
         }
@@ -365,7 +377,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         {
             var endLine = documentEnd.Start.Line;
             Skip();
-            if (GetCurrentToken() is not StreamEnd && GetCurrentToken().Start.Line == endLine)
+            if (CurrentKind != TokenKind.StreamEnd && GetCurrentToken().Start.Line == endLine)
             {
                 throw new SemanticErrorException(GetCurrentToken().Start, GetCurrentToken().End, "Document end markers must be followed by a line break.");
             }
@@ -373,7 +385,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
         // Parse an isImplicit document.
 
-        if (isImplicit && !(GetCurrentToken() is VersionDirective || GetCurrentToken() is TagDirective || GetCurrentToken() is ReservedDirective || GetCurrentToken() is DocumentStart || GetCurrentToken() is StreamEnd))
+        if (isImplicit && !(CurrentKind == TokenKind.VersionDirective || CurrentKind == TokenKind.TagDirective || CurrentKind == TokenKind.ReservedDirective || CurrentKind == TokenKind.DocumentStart || CurrentKind == TokenKind.StreamEnd))
         {
             var directives = new TagDirectiveCollection();
             ProcessDirectives(directives);
@@ -387,7 +399,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
         // Parse an explicit document.
 
-        else if (GetCurrentToken() is not StreamEnd)
+        else if (CurrentKind != TokenKind.StreamEnd)
         {
             var start = GetCurrentToken().Start;
             var directives = new TagDirectiveCollection();
@@ -459,7 +471,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
                     tags.Add(tag);
                 }
             }
-            else if (GetCurrentToken() is ReservedDirective)
+            else if (CurrentKind == TokenKind.ReservedDirective)
             {
                 // YAML 1.2.2 §6.8: unrecognized directives are ignored.
             }
@@ -499,12 +511,12 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     private Event ParseDocumentContent()
     {
         if (
-            GetCurrentToken() is VersionDirective ||
-            GetCurrentToken() is TagDirective ||
-            GetCurrentToken() is ReservedDirective ||
-            GetCurrentToken() is DocumentStart ||
-            GetCurrentToken() is DocumentEnd ||
-            GetCurrentToken() is StreamEnd
+            CurrentKind == TokenKind.VersionDirective ||
+            CurrentKind == TokenKind.TagDirective ||
+            CurrentKind == TokenKind.ReservedDirective ||
+            CurrentKind == TokenKind.DocumentStart ||
+            CurrentKind == TokenKind.DocumentEnd ||
+            CurrentKind == TokenKind.StreamEnd
         )
         {
             state = states.Pop();
@@ -554,8 +566,9 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     /// </summary>
     private Event ParseNode(bool isBlock, bool isIndentlessSequence)
     {
-        if (GetCurrentToken() is AnchorAlias alias)
+        if (CurrentKind == TokenKind.AnchorAlias)
         {
+            var alias = (AnchorAlias)GetCurrentToken();
             state = states.Pop();
             Event evt = new Events.AnchorAlias(alias.Value, alias.Start, alias.End);
             Skip();
@@ -570,12 +583,14 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         // The anchor and the tag can be in any order. This loop repeats at most twice.
         while (true)
         {
-            if (anchor == null && (anchor = GetCurrentToken() as Anchor) != null)
+            if (anchor == null && CurrentKind == TokenKind.Anchor)
             {
+                anchor = (Anchor)GetCurrentToken();
                 Skip();
             }
-            else if (tag == null && (tag = GetCurrentToken() as Tag) != null)
+            else if (tag == null && CurrentKind == TokenKind.Tag)
             {
+                tag = (Tag)GetCurrentToken();
                 Skip();
             }
             else
@@ -609,7 +624,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
         bool isImplicit = string.IsNullOrEmpty(tagName);
 
-        if (isIndentlessSequence && GetCurrentToken() is BlockEntry)
+        if (isIndentlessSequence && CurrentKind == TokenKind.BlockEntry)
         {
             state = ParserState.YAML_PARSE_INDENTLESS_SEQUENCE_ENTRY_STATE;
 
@@ -624,8 +639,10 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         }
         else
         {
-            if (GetCurrentToken() is Scalar scalar)
+            var kind = CurrentKind;
+            if (kind == TokenKind.Scalar)
             {
+                var scalar = (Scalar)GetCurrentToken();
                 bool isPlainImplicit = false;
                 bool isQuotedImplicit = false;
                 if ((scalar.Style == ScalarStyle.Plain && tagName == null) || tagName == Constants.DefaultHandle)
@@ -644,27 +661,27 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
                 return evt;
             }
 
-            if (GetCurrentToken() is FlowSequenceStart flowSequenceStart)
+            if (kind == TokenKind.FlowSequenceStart)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_FIRST_ENTRY_STATE;
-                return CreateSequenceStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowSequenceStart.End);
+                return CreateSequenceStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, GetCurrentToken().End);
             }
 
-            if (GetCurrentToken() is FlowMappingStart flowMappingStart)
+            if (kind == TokenKind.FlowMappingStart)
             {
                 state = ParserState.YAML_PARSE_FLOW_MAPPING_FIRST_KEY_STATE;
-                return CreateMappingStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, flowMappingStart.End);
+                return CreateMappingStart(anchorName, tagName, isImplicit, YamlStyle.Flow, start, GetCurrentToken().End);
             }
 
             if (isBlock)
             {
-                if (GetCurrentToken() is BlockSequenceStart blockSequenceStart)
+                if (kind == TokenKind.BlockSequenceStart)
                 {
                     state = ParserState.YAML_PARSE_BLOCK_SEQUENCE_FIRST_ENTRY_STATE;
-                    return CreateSequenceStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, blockSequenceStart.End);
+                    return CreateSequenceStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, GetCurrentToken().End);
                 }
 
-                if (GetCurrentToken() is BlockMappingStart blockMappingStart)
+                if (kind == TokenKind.BlockMappingStart)
                 {
                     state = ParserState.YAML_PARSE_BLOCK_MAPPING_FIRST_KEY_STATE;
                     return CreateMappingStart(anchorName, tagName, isImplicit, YamlStyle.Block, start, GetCurrentToken().End);
@@ -695,12 +712,12 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         var start = GetCurrentToken().Start;
         var end = start;
 
-        if (GetCurrentToken() is DocumentEnd)
+        if (CurrentKind == TokenKind.DocumentEnd)
         {
             var endLine = GetCurrentToken().Start.Line;
             end = GetCurrentToken().End;
             Skip();
-            if (GetCurrentToken() is not StreamEnd && GetCurrentToken().Start.Line == endLine)
+            if (CurrentKind != TokenKind.StreamEnd && GetCurrentToken().Start.Line == endLine)
             {
                 throw new SemanticErrorException(GetCurrentToken().Start, GetCurrentToken().End, "Document end markers must be followed by a line break.");
             }
@@ -730,12 +747,12 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             Skip();
         }
 
-        if (GetCurrentToken() is BlockEntry)
+        if (CurrentKind == TokenKind.BlockEntry)
         {
             var mark = GetCurrentToken().End;
 
             Skip();
-            if (!(GetCurrentToken() is BlockEntry || GetCurrentToken() is BlockEnd))
+            if (!(CurrentKind == TokenKind.BlockEntry || CurrentKind == TokenKind.BlockEnd))
             {
                 states.Push(ParserState.YAML_PARSE_BLOCK_SEQUENCE_ENTRY_STATE);
                 return ParseNode(true, false);
@@ -747,7 +764,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             }
         }
 
-        else if (GetCurrentToken() is BlockEnd)
+        else if (CurrentKind == TokenKind.BlockEnd)
         {
             state = states.Pop();
             Event evt = CreateSequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
@@ -769,12 +786,12 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     /// </summary>
     private Event ParseIndentlessSequenceEntry()
     {
-        if (GetCurrentToken() is BlockEntry)
+        if (CurrentKind == TokenKind.BlockEntry)
         {
             var mark = GetCurrentToken().End;
             Skip();
 
-            if (!(GetCurrentToken() is BlockEntry || GetCurrentToken() is Key || GetCurrentToken() is Value || GetCurrentToken() is BlockEnd))
+            if (!(CurrentKind == TokenKind.BlockEntry || CurrentKind == TokenKind.Key || CurrentKind == TokenKind.Value || CurrentKind == TokenKind.BlockEnd))
             {
                 states.Push(ParserState.YAML_PARSE_INDENTLESS_SEQUENCE_ENTRY_STATE);
                 return ParseNode(true, false);
@@ -811,11 +828,11 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             Skip();
         }
 
-        if (GetCurrentToken() is Key)
+        if (CurrentKind == TokenKind.Key)
         {
             var mark = GetCurrentToken().End;
             Skip();
-            if (!(GetCurrentToken() is Key || GetCurrentToken() is Value || GetCurrentToken() is BlockEnd))
+            if (!(CurrentKind == TokenKind.Key || CurrentKind == TokenKind.Value || CurrentKind == TokenKind.BlockEnd))
             {
                 states.Push(ParserState.YAML_PARSE_BLOCK_MAPPING_VALUE_STATE);
                 return ParseNode(true, true);
@@ -827,7 +844,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             }
         }
 
-        else if (GetCurrentToken() is BlockEnd)
+        else if (CurrentKind == TokenKind.BlockEnd)
         {
             state = states.Pop();
             Event evt = CreateMappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
@@ -860,12 +877,12 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     /// </summary>
     private Event ParseBlockMappingValue()
     {
-        if (GetCurrentToken() is Value)
+        if (CurrentKind == TokenKind.Value)
         {
             var mark = GetCurrentToken().End;
             Skip();
 
-            if (!(GetCurrentToken() is Key || GetCurrentToken() is Value || GetCurrentToken() is BlockEnd))
+            if (!(CurrentKind == TokenKind.Key || CurrentKind == TokenKind.Value || CurrentKind == TokenKind.BlockEnd))
             {
                 states.Push(ParserState.YAML_PARSE_BLOCK_MAPPING_KEY_STATE);
                 return ParseNode(true, true);
@@ -906,11 +923,11 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         }
 
         Event evt;
-        if (GetCurrentToken() is not FlowSequenceEnd)
+        if (CurrentKind != TokenKind.FlowSequenceEnd)
         {
             if (!isFirst)
             {
-                if (GetCurrentToken() is FlowEntry)
+                if (CurrentKind == TokenKind.FlowEntry)
                 {
                     Skip();
                 }
@@ -921,19 +938,19 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
                 }
             }
 
-            if (GetCurrentToken() is Value)
+            if (CurrentKind == TokenKind.Value)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_KEY_STATE;
                 return CreateMappingStart(null, null, true, YamlStyle.Flow);
             }
-            if (GetCurrentToken() is Key)
+            if (CurrentKind == TokenKind.Key)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_KEY_STATE;
                 evt = CreateMappingStart(null, null, true, YamlStyle.Flow);
                 Skip();
                 return evt;
             }
-            else if (GetCurrentToken() is not FlowSequenceEnd)
+            else if (CurrentKind != TokenKind.FlowSequenceEnd)
             {
                 states.Push(ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_STATE);
                 return ParseNode(false, false);
@@ -953,7 +970,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     /// </summary>
     private Event ParseFlowSequenceEntryMappingKey()
     {
-        if (!(GetCurrentToken() is Value || GetCurrentToken() is FlowEntry || GetCurrentToken() is FlowSequenceEnd))
+        if (!(CurrentKind == TokenKind.Value || CurrentKind == TokenKind.FlowEntry || CurrentKind == TokenKind.FlowSequenceEnd))
         {
             states.Push(ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_VALUE_STATE);
             return ParseNode(false, false);
@@ -973,10 +990,10 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     /// </summary>
     private Event ParseFlowSequenceEntryMappingValue()
     {
-        if (GetCurrentToken() is Value)
+        if (CurrentKind == TokenKind.Value)
         {
             Skip();
-            if (!(GetCurrentToken() is FlowEntry || GetCurrentToken() is FlowSequenceEnd))
+            if (!(CurrentKind == TokenKind.FlowEntry || CurrentKind == TokenKind.FlowSequenceEnd))
             {
                 states.Push(ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_END_STATE);
                 return ParseNode(false, false);
@@ -1018,11 +1035,11 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             Skip();
         }
 
-        if (GetCurrentToken() is not FlowMappingEnd)
+        if (CurrentKind != TokenKind.FlowMappingEnd)
         {
             if (!isFirst)
             {
-                if (GetCurrentToken() is FlowEntry)
+                if (CurrentKind == TokenKind.FlowEntry)
                 {
                     Skip();
                 }
@@ -1033,16 +1050,16 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
                 }
             }
 
-            if (GetCurrentToken() is Value)
+            if (CurrentKind == TokenKind.Value)
             {
                 state = ParserState.YAML_PARSE_FLOW_MAPPING_VALUE_STATE;
                 return ProcessEmptyScalar(GetCurrentToken().Start);
             }
-            if (GetCurrentToken() is Key)
+            if (CurrentKind == TokenKind.Key)
             {
                 Skip();
 
-                if (!(GetCurrentToken() is Value || GetCurrentToken() is FlowEntry || GetCurrentToken() is FlowMappingEnd))
+                if (!(CurrentKind == TokenKind.Value || CurrentKind == TokenKind.FlowEntry || CurrentKind == TokenKind.FlowMappingEnd))
                 {
                     states.Push(ParserState.YAML_PARSE_FLOW_MAPPING_VALUE_STATE);
                     return ParseNode(false, false);
@@ -1053,7 +1070,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
                     return ProcessEmptyScalar(GetCurrentToken().Start);
                 }
             }
-            else if (GetCurrentToken() is not FlowMappingEnd)
+            else if (CurrentKind != TokenKind.FlowMappingEnd)
             {
                 states.Push(ParserState.YAML_PARSE_FLOW_MAPPING_VALUE_STATE);
                 return ParseNode(false, false);
@@ -1079,10 +1096,10 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             return ProcessEmptyScalar(GetCurrentToken().Start);
         }
 
-        if (GetCurrentToken() is Value)
+        if (CurrentKind == TokenKind.Value)
         {
             Skip();
-            if (!(GetCurrentToken() is FlowEntry || GetCurrentToken() is FlowMappingEnd))
+            if (!(CurrentKind == TokenKind.FlowEntry || CurrentKind == TokenKind.FlowMappingEnd))
             {
                 states.Push(ParserState.YAML_PARSE_FLOW_MAPPING_KEY_STATE);
                 return ParseNode(false, false);

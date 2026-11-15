@@ -25,5 +25,6 @@ public class BlockSequenceStart : Token
     public BlockSequenceStart(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.BlockSequenceStart;
     }
 }

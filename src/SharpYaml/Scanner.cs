@@ -669,7 +669,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 #if NET8_0_OR_GREATER
         // The ASCII part of the run, several characters at a time.
         var remaining = text.AsSpan(start);
-        var ascii = remaining.IndexOfAnyExcept(flowLevel == 0 ? s_plainScalarRunInBlock : s_plainScalarRunInFlow);
+        var ascii = remaining.IndexOfAnyExcept(flowLevel == 0 ? ScannerCharacters.PlainScalarRunInBlock : ScannerCharacters.PlainScalarRunInFlow);
         position += ascii < 0 ? remaining.Length : ascii;
 #endif
         if (flowLevel == 0)
@@ -701,15 +701,6 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         return position - start;
     }
-
-#if NET8_0_OR_GREATER
-    // The ASCII characters of CountPlainScalarRun: the printable ones but the space and ':', and but the flow indicators in a flow collection.
-    private static readonly System.Buffers.SearchValues<char> s_plainScalarRunInBlock = System.Buffers.SearchValues.Create(
-        "!\"#$%&'()*+,-./0123456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~");
-
-    private static readonly System.Buffers.SearchValues<char> s_plainScalarRunInFlow = System.Buffers.SearchValues.Create(
-        "!\"#$%&'()*+-./0123456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\^_`abcdefghijklmnopqrstuvwxyz|~");
-#endif
 
     /// <summary>Gets whether a character above the ASCII range is printable (<see cref="Emitter.IsPrintable"/>) and not a surrogate.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2236,6 +2227,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     {
         bool hasLeadingBlanks = false;
         bool isFolded = false;
+        bool isKey = false;
         int currentIndent = indent + 1;
 
         // The blanks read since the last character of the value on its line, and the breaks read after the first one.
@@ -2281,6 +2273,8 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                     var next = Peek(1);
                     if (IsBlankOrBreakOrZero(next) || (flowLevel > 0 && IsFlowIndicator(next)))
                     {
+                        // A value indicator follows: the scalar is a mapping key.
+                        isKey = true;
                         break;
                     }
                 }
@@ -2423,8 +2417,50 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // Create a token.
 
-        var value = isFolded ? scanScalarValue.ToString() : text.Substring(valueStart, valueEnd - valueStart);
+        string value;
+        if (isFolded)
+        {
+            value = scanScalarValue.ToString();
+        }
+        else
+        {
+            var length = valueEnd - valueStart;
+            value = isKey && length <= MaxCachedKeyLength ? GetCachedKey(text, valueStart, length) : text.Substring(valueStart, length);
+        }
+
         return NewScalar(value, ScalarStyle.Plain, start, end);
+    }
+
+    private const int MaxCachedKeyLength = 32;
+    private const int KeyCacheSize = 64;
+
+    // The strings of the short plain mapping keys read last, by hash: a document repeats the keys of its mappings,
+    // so most keys are found here instead of being allocated again.
+    private string[] _keyCache;
+
+    private string GetCachedKey(string text, int start, int length)
+    {
+        if (length == 0)
+        {
+            return string.Empty;
+        }
+
+        var key = text.AsSpan(start, length);
+        var hash = (uint)length;
+        for (var i = 0; i < key.Length; i++)
+        {
+            hash = (hash * 31) + key[i];
+        }
+
+        var cache = _keyCache ??= new string[KeyCacheSize];
+        ref var entry = ref cache[(int)(hash & (KeyCacheSize - 1))];
+        var cached = entry;
+        if (cached != null && cached.Length == length && key.SequenceEqual(cached.AsSpan()))
+        {
+            return cached;
+        }
+
+        return entry = key.ToString();
     }
 
 
@@ -2918,3 +2954,20 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         }
     }
 }
+
+#if NET8_0_OR_GREATER
+/// <summary>
+/// The character sets of <see cref="Scanner{TBuffer}"/>, outside of it: a static field of a generic class is found
+/// through a lookup on every access.
+/// </summary>
+internal static class ScannerCharacters
+{
+    /// <summary>The ASCII characters a plain scalar takes as they are in the block context: the printable ones but the space and <c>:</c>.</summary>
+    public static readonly System.Buffers.SearchValues<char> PlainScalarRunInBlock = System.Buffers.SearchValues.Create(
+        "!\"#$%&'()*+,-./0123456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~");
+
+    /// <summary>The same in a flow collection, where the flow indicators end a plain scalar.</summary>
+    public static readonly System.Buffers.SearchValues<char> PlainScalarRunInFlow = System.Buffers.SearchValues.Create(
+        "!\"#$%&'()*+-./0123456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\^_`abcdefghijklmnopqrstuvwxyz|~");
+}
+#endif

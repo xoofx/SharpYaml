@@ -25,5 +25,6 @@ public class Key : Token
     public Key(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.Key;
     }
 }

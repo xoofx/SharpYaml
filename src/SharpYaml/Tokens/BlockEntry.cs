@@ -25,5 +25,6 @@ public class BlockEntry : Token
     public BlockEntry(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.BlockEntry;
     }
 }

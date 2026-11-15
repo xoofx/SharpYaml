@@ -25,5 +25,6 @@ public class Value : Token
     public Value(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.Value;
     }
 }

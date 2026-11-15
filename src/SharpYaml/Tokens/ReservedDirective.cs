@@ -8,5 +8,6 @@ internal sealed class ReservedDirective : Token
 {
     public ReservedDirective(Mark start, Mark end) : base(start, end)
     {
+        Kind = TokenKind.ReservedDirective;
     }
 }

@@ -25,5 +25,6 @@ public class StreamStart : Token
     public StreamStart(Mark start, Mark end)
         : base(start, end)
     {
+        Kind = TokenKind.StreamStart;
     }
 }
