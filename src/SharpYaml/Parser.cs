@@ -83,9 +83,10 @@ public static class Parser
             return new Parser<StringLookAheadBuffer>(new StringLookAheadBuffer(text), maxDepth, sourceName);
         }
 
-        // Any other reader is read in blocks into a window the scanner scans in place (ReaderLookAheadBuffer), a
-        // little slower than a string: a large stream, which would need a string of twice its size in memory, and a
-        // reader that may be a pipe or a socket delivering documents over time, which must not be read to its end.
+        // Any other reader is read into a window the scanner scans in place (ReaderLookAheadBuffer), slower than a
+        // string: a large stream, which would need a string of twice its size in memory and is read in blocks, and a
+        // reader that may be a pipe or a socket delivering documents over time, which must not be read to its end
+        // and is only asked for what the scanner needs.
         return new Parser<LookAheadBuffer>(new ReaderLookAheadBuffer(reader), maxDepth, sourceName);
     }
 
@@ -173,6 +174,8 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         get => _reuseEvents;
         set => _reuseEvents = value;
     }
+
+    void Events.IReusedEventSource.ReleaseInput() => scanner.ReleaseWindow();
 
     private Event CreateScalar(string? anchor, string? tag, string value, ScalarStyle style, bool isPlainImplicit, bool isQuotedImplicit, in Mark start, in Mark end)
     {

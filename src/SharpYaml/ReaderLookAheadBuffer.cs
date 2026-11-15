@@ -8,11 +8,12 @@ namespace SharpYaml;
 
 /// <summary>
 /// The buffer of a reader that the scanner reads itself: <see cref="Scanner{TBuffer}"/> takes <see cref="Reader"/> and
-/// reads it in blocks into a window it scans in place, instead of asking this buffer for one character at a time.
+/// reads it into a window it scans in place, instead of asking this buffer for one character at a time.
 /// </summary>
 /// <remarks>
-/// The scanner only asks the reader for more when it needs a character it does not have, so a document is still parsed
-/// as soon as it arrived from a pipe or a socket whose writer stays open.
+/// The scanner only asks the reader for more when it needs a character it does not have, and asks a reader that may
+/// wait for its input for no more than that, so a document is still parsed as soon as it arrived from a pipe or a
+/// socket whose writer stays open.
 /// </remarks>
 internal sealed class ReaderLookAheadBuffer : LookAheadBuffer
 {

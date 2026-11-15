@@ -207,6 +207,12 @@ public sealed class YamlReader : YamlReaderWriterBase
     internal bool FailsAtEnd => _state.Tracker is { Session.FailsAtEnd: true };
 
     /// <summary>
+    /// Returns what the parser of this reader took from a pool to read its input (see
+    /// <see cref="IReusedEventSource.ReleaseInput"/>). Called by the serializer once a read ended, in every case.
+    /// </summary>
+    internal void ReleaseInput() => _state.ReleaseInput();
+
+    /// <summary>
     /// Folds <paramref name="fatal"/>, which ended the read, into the <see cref="YamlInvalidValuesException"/> listing the values
     /// recovered so far. Call this only when <see cref="FailsAtEnd"/> is <see langword="true"/>.
     /// </summary>
@@ -873,6 +879,8 @@ public sealed class YamlReader : YamlReaderWriterBase
             _tokenType = YamlTokenType.None;
             SourceName = sourceName;
         }
+
+        public void ReleaseInput() => (_parser as IReusedEventSource)?.ReleaseInput();
 
         // Every token property resolves a pending alias first: see ResolvePendingAlias.
         public YamlTokenType TokenType

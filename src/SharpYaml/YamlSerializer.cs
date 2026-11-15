@@ -1158,7 +1158,37 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(typeInfo);
         ArgumentGuard.ThrowIfNull(yaml);
 
-        var reader = YamlReader.Create(yaml, typeInfo.Options);
+        return ReadDocument(typeInfo, YamlReader.Create(yaml, typeInfo.Options));
+    }
+
+    private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, string yaml)
+    {
+        ArgumentGuard.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(yaml);
+
+        return ReadDocument(typeInfo, YamlReader.Create(yaml, typeInfo.Options));
+    }
+
+    private static object? DeserializeCore(YamlTypeInfo typeInfo, TextReader reader)
+    {
+        ArgumentGuard.ThrowIfNull(typeInfo);
+        ArgumentGuard.ThrowIfNull(reader);
+
+        // The reader may stop before the end of its input, after the first document or on an error: what its parser
+        // took from a pool to read the input goes back to it in every case.
+        var yamlReader = YamlReader.Create(reader, typeInfo.Options);
+        try
+        {
+            return ReadDocument(typeInfo, yamlReader);
+        }
+        finally
+        {
+            yamlReader.ReleaseInput();
+        }
+    }
+
+    private static object? ReadDocument(YamlTypeInfo typeInfo, YamlReader reader)
+    {
         if (!reader.Read())
         {
             return null;
@@ -1183,12 +1213,24 @@ public static class YamlSerializer
         return result;
     }
 
-    private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, string yaml)
+    private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, TextReader reader)
     {
         ArgumentGuard.ThrowIfNull(typeInfo);
-        ArgumentGuard.ThrowIfNull(yaml);
+        ArgumentGuard.ThrowIfNull(reader);
 
-        var reader = YamlReader.Create(yaml, typeInfo.Options);
+        var yamlReader = YamlReader.Create(reader, typeInfo.Options);
+        try
+        {
+            return ReadDocument(typeInfo, yamlReader);
+        }
+        finally
+        {
+            yamlReader.ReleaseInput();
+        }
+    }
+
+    private static T? ReadDocument<T>(YamlTypeInfo<T> typeInfo, YamlReader reader)
+    {
         if (!reader.Read())
         {
             return default;
@@ -1210,66 +1252,6 @@ public static class YamlSerializer
         }
 
         reader.CompleteReports();
-        return result;
-    }
-
-    private static object? DeserializeCore(YamlTypeInfo typeInfo, TextReader reader)
-    {
-        ArgumentGuard.ThrowIfNull(typeInfo);
-        ArgumentGuard.ThrowIfNull(reader);
-
-        var yamlReader = YamlReader.Create(reader, typeInfo.Options);
-        if (!yamlReader.Read())
-        {
-            return null;
-        }
-
-        object? result;
-        try
-        {
-            result = typeInfo.ReadAsObject(yamlReader);
-        }
-        catch (YamlException exception) when (yamlReader.FailsAtEnd)
-        {
-            throw yamlReader.CreateFatalException(exception);
-        }
-        catch (Exception exception) when (IsWrappedReadException(exception))
-        {
-            var readException = CreateReadException(yamlReader, exception);
-            throw yamlReader.FailsAtEnd ? yamlReader.CreateFatalException(readException) : readException;
-        }
-
-        yamlReader.CompleteReports();
-        return result;
-    }
-
-    private static T? DeserializeCore<T>(YamlTypeInfo<T> typeInfo, TextReader reader)
-    {
-        ArgumentGuard.ThrowIfNull(typeInfo);
-        ArgumentGuard.ThrowIfNull(reader);
-
-        var yamlReader = YamlReader.Create(reader, typeInfo.Options);
-        if (!yamlReader.Read())
-        {
-            return default;
-        }
-
-        T? result;
-        try
-        {
-            result = typeInfo.Read(yamlReader);
-        }
-        catch (YamlException exception) when (yamlReader.FailsAtEnd)
-        {
-            throw yamlReader.CreateFatalException(exception);
-        }
-        catch (Exception exception) when (IsWrappedReadException(exception))
-        {
-            var readException = CreateReadException(yamlReader, exception);
-            throw yamlReader.FailsAtEnd ? yamlReader.CreateFatalException(readException) : readException;
-        }
-
-        yamlReader.CompleteReports();
         return result;
     }
 

@@ -48,7 +48,16 @@ public class YamlStream : YamlNode, IList<YamlDocument>
     /// <summary>Loads data.</summary>
     public static YamlStream Load(TextReader stream, YamlNodeTracker? tracker = null)
     {
-        return Load(new EventReader(Parser.CreateParser(stream)), tracker);
+        var parser = Parser.CreateParser(stream);
+        try
+        {
+            return Load(new EventReader(parser), tracker);
+        }
+        finally
+        {
+            // Nothing is read after an error: see IReusedEventSource.ReleaseInput.
+            (parser as IReusedEventSource)?.ReleaseInput();
+        }
     }
 
     /// <summary>Loads data.</summary>

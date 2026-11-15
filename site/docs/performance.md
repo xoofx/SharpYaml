@@ -16,9 +16,12 @@ SharpYaml is built for configuration workloads: fast parsing/emitting and low al
 
 The parser reads a `string` in place, which is its fastest path. To use that path for files as well, a `Stream` or a `StreamReader` over a **seekable** stream (a `FileStream`, a `MemoryStream`) of up to 1 MB is read to its end at once, into one string, before parsing starts.
 
-Any other input is read in blocks into a small pooled window that the parser scans in place: a larger seekable stream, so that parsing it does not need a string of twice its size, a stream that cannot seek (a pipe, a network stream), and any other `TextReader`. This path takes about 1.5 times as long as a string and allocates nothing for the text of the document.
+Any other input is read into a small pooled window that the parser scans in place, which allocates nothing for the text of the document:
 
-The window only asks for more input when the parser needs a character it does not have. A document is therefore parsed as soon as it arrived, while the writer of the stream is still open. A `StreamReader` is asked for a block and returns what it has; any other `TextReader`, which may block until it read all it was asked for, is only asked for the characters needed.
+- A larger seekable stream is read in blocks, so that parsing it does not need a string of twice its size. This takes about 1.5 times as long as a string.
+- A stream that cannot seek (a pipe, a network stream) and any other `TextReader` are only asked for the characters the parser needs. Such a reader may wait for its writer: asked for more than the document holds, it would wait for characters that are not coming. A document is therefore parsed as soon as it arrived, while the writer of the stream is still open. This takes about 3.5 times as long as a string.
+
+When the whole input is there, as the body of an HTTP response is once it was received, read it into a `string` or a `MemoryStream` first to get the fastest path.
 
 ## What the serializer reuses
 

@@ -91,6 +91,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private int _windowLength;
     private int _windowPin = int.MaxValue;
     private bool _readerEnded;
+
+    // Whether the reader is asked to fill the window, which only a reader that never waits for its input can be: one
+    // over a seekable stream, such as a file. Any other reader may be a pipe or a socket whose writer waits for an
+    // answer to the document it sent: asked for more characters than the scanner needs, it may wait for ever for
+    // characters that are not coming. That includes a StreamReader, which reads its stream again when the last read
+    // filled its buffer, whatever it was asked for.
     private bool _readInBlocks;
     private bool tokenAvailable;
 
@@ -242,14 +248,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                 {
                     var larger = ArrayPool<char>.Shared.Rent(checked(window.Length * 2));
                     Array.Copy(window, larger, _windowLength);
-                    Array.Clear(window, 0, _windowLength);
-                    ArrayPool<char>.Shared.Return(window);
+                    ArrayPool<char>.Shared.Return(window, clearArray: true);
                     _window = window = larger;
                 }
             }
 
-            // A StreamReader returns what it has without waiting for a full block; any other reader may block until
-            // it read all that is asked, so it is only asked for what the scanner needs now.
+            // A reader that may wait for its input is only asked for what the scanner needs now: see _readInBlocks.
             var available = _windowLength - (index - _windowStart);
             var count = _readInBlocks ? window.Length - _windowLength : Math.Min(window.Length - _windowLength, needed - available);
             var read = _reader.Read(window, _windowLength, count);
@@ -270,20 +274,27 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     }
 
     /// <summary>
-    /// Gives the window back to the pool once the end of the stream is produced. The scanner then sees an empty input.
+    /// Gives the window back to the pool: once the end of the stream is produced, or when the owner of the scanner
+    /// stops before that, after an error or after the document it wanted. The scanner then sees an empty input.
     /// </summary>
-    private void ReleaseWindow()
+    /// <remarks>
+    /// A scanner that is abandoned without this call, as one used directly that threw an error, keeps its window,
+    /// which is then collected as any other array. Returning it there would take a <c>try</c> around every move of
+    /// the parser, which was measured at 3% of the parse time of every document.
+    /// </remarks>
+    internal void ReleaseWindow()
     {
         var window = _window;
         if (window != null && window.Length != 0)
         {
-            // The window held a part of the document: do not leave it readable to the next renter.
-            Array.Clear(window, 0, _windowLength);
             _window = Array.Empty<char>();
             _windowStart = index;
             _windowLength = 0;
             _readerEnded = true;
-            ArrayPool<char>.Shared.Return(window);
+
+            // The window held parts of the document, also past its length where it was moved: all of it is cleared,
+            // so that none of the document is readable to the next renter.
+            ArrayPool<char>.Shared.Return(window, clearArray: true);
         }
     }
 
@@ -404,7 +415,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         else if (buffer is ReaderLookAheadBuffer readerBuffer)
         {
             _reader = readerBuffer.Reader;
-            _readInBlocks = _reader is StreamReader;
+            _readInBlocks = _reader is StreamReader { BaseStream.CanSeek: true };
             _window = ArrayPool<char>.Shared.Rent(readerBuffer.InitialWindowSize > 0 ? readerBuffer.InitialWindowSize : InitialWindowSize);
         }
     }
@@ -838,25 +849,24 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             return;
         }
 
-        var count = 0;
         for (; ; )
         {
             var window = _window;
-            var from = index + count - _windowStart;
+            var from = index - _windowStart;
             var position = from;
             while (position < _windowLength && window[position] == ' ')
             {
                 position++;
             }
 
-            count += position - from;
-            if (position < _windowLength || !FillWindow(count + 1))
+            // The spaces found are consumed before more is read: the window can then drop them, and a run of any
+            // length does not make it grow.
+            SkipSpaces(position - from);
+            if (position < _windowLength || !FillWindow(1))
             {
                 break;
             }
         }
-
-        SkipSpaces(count);
     }
 
     /// <summary>Consumes <paramref name="count"/> spaces at the current position: what <see cref="Skip"/> does for each of them.</summary>
@@ -2458,7 +2468,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     /// </summary>
     private Token ScanPlainScalarInWindow()
     {
-        // The window keeps the scalar from its start, where its value is sliced, until the token is created.
+        // The window keeps the scalar from its start, where its value is sliced, until its first line ends.
         _windowPin = index;
         var token = ScanPlainScalarInPlace();
         _windowPin = int.MaxValue;
@@ -2481,6 +2491,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         var end = start;
         int valueStart = index;
         int valueEnd = index;
+
+        // In a window, the first line of the value once the scanner went past its end: the window does not keep the
+        // value further than that (see where this is set).
+        string detachedValue = null;
 
         // Consume the content of the plain scalar.
 
@@ -2536,7 +2550,14 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                     {
                         isFolded = true;
                         scanScalarValue.Length = 0;
-                        AppendInput(scanScalarValue, valueStart, valueEnd - valueStart);
+                        if (detachedValue != null)
+                        {
+                            scanScalarValue.Append(detachedValue);
+                        }
+                        else
+                        {
+                            AppendInput(scanScalarValue, valueStart, valueEnd - valueStart);
+                        }
                     }
 
                     if (trailingBreaks == 0)
@@ -2590,6 +2611,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
                 valueEnd = index;
                 end = CurrentPosition;
+                if (isFolded && text == null)
+                {
+                    // The value read so far is in scanScalarValue: the window only keeps the blanks that follow it
+                    // on its line, which are appended if the value goes on after them.
+                    _windowPin = index;
+                }
             }
 
             // Is it the end?
@@ -2634,6 +2661,17 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                     {
                         pendingBlanks = 0;
                         hasLeadingBlanks = true;
+                        if (text == null)
+                        {
+                            // Blank lines of any length may follow before the scalar goes on or ends: the value
+                            // leaves the window, which then keeps none of them.
+                            if (!isFolded)
+                            {
+                                detachedValue = WindowSpan(valueStart, valueEnd - valueStart).ToString();
+                            }
+
+                            _windowPin = int.MaxValue;
+                        }
                     }
                     else
                     {
@@ -2673,7 +2711,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         else
         {
             var length = valueEnd - valueStart;
-            if (isKey && length <= MaxCachedKeyLength)
+            if (detachedValue != null)
+            {
+                value = detachedValue;
+            }
+            else if (isKey && length <= MaxCachedKeyLength)
             {
                 value = GetCachedKey(text != null ? text.AsSpan(valueStart, length) : WindowSpan(valueStart, length));
             }
