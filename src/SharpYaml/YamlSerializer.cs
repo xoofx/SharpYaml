@@ -1,4 +1,4 @@
-﻿// // Copyright (c) Alexandre Mutel. All rights reserved.
+// // Copyright (c) Alexandre Mutel. All rights reserved.
 // // Licensed under the MIT license.
 // // See LICENSE.txt file in the project root for full license information.
 
@@ -19,8 +19,6 @@ public static class YamlSerializer
     private const string ReflectionSwitchName = SharpYaml.Serialization.YamlSerializerFeatureSwitches.ReflectionSwitchName;
     private static readonly bool ReflectionEnabledByDefault = SharpYaml.Serialization.YamlSerializerFeatureSwitches.IsReflectionEnabledByDefaultCalculated;
     private static readonly Encoding DefaultStreamEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-    [ThreadStatic]
-    private static StringBuilder? s_cachedStringBuilder;
 
     /// <summary>
     /// Gets a value indicating whether reflection-based serialization is enabled by default.
@@ -1093,57 +1091,66 @@ public static class YamlSerializer
         ArgumentGuard.ThrowIfNull(writer);
 
         var yamlWriter = CreateWriter(typeInfo, value, writer);
-        typeInfo.Write(yamlWriter, value);
-        if (!yamlWriter.EndsWithNewLine)
+        try
         {
-            writer.Write('\n');
+            typeInfo.Write(yamlWriter, value);
+            yamlWriter.EnsureEndsWithNewLine();
+            yamlWriter.FlushBuffer();
+        }
+        finally
+        {
+            yamlWriter.ReleaseBuffer();
         }
     }
 
-    private static YamlWriter CreateWriter(YamlTypeInfo typeInfo, object? value, TextWriter writer)
+    /// <summary>
+    /// Creates the buffered writer of one document, over <paramref name="writer"/>, or over no writer when the document is
+    /// taken as a string. The caller releases its buffer once the document is written.
+    /// </summary>
+    private static YamlWriter CreateWriter(YamlTypeInfo typeInfo, object? value, TextWriter? writer)
     {
         if (typeInfo.Options.ReferenceHandling != YamlReferenceHandling.PreserveMinimal)
         {
-            return new YamlWriter(writer, typeInfo.Options);
+            return YamlWriter.CreateBuffered(writer, typeInfo.Options);
         }
 
         var referenceWriter = new YamlReferenceWriter(collectReferences: true);
         var collectingWriter = new YamlWriter(TextWriter.Null, typeInfo.Options, referenceWriter);
         typeInfo.Write(collectingWriter, value);
         referenceWriter.CompleteReferenceCollection();
-        return new YamlWriter(writer, typeInfo.Options, referenceWriter);
+        return YamlWriter.CreateBuffered(writer, typeInfo.Options, referenceWriter);
     }
 
     private static string SerializeCore(YamlTypeInfo typeInfo, object? value)
     {
         ArgumentGuard.ThrowIfNull(typeInfo);
-        var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
-        var writer = typeInfo.Options.ReferenceHandling == YamlReferenceHandling.PreserveMinimal
-            ? CreateWriter(typeInfo, value, new StringWriter(stringBuilder, System.Globalization.CultureInfo.InvariantCulture))
-            : new YamlWriter(stringBuilder, typeInfo.Options);
-        typeInfo.Write(writer, value);
-        if (!writer.EndsWithNewLine)
+        var writer = CreateWriter(typeInfo, value, writer: null);
+        try
         {
-            stringBuilder.Append('\n');
+            typeInfo.Write(writer, value);
+            writer.EnsureEndsWithNewLine();
+            return writer.GetBufferedString();
         }
-
-        return GetStringAndReleaseBuilder(stringBuilder);
+        finally
+        {
+            writer.ReleaseBuffer();
+        }
     }
 
     private static string SerializeCore<T>(YamlTypeInfo<T> typeInfo, T value)
     {
         ArgumentGuard.ThrowIfNull(typeInfo);
-        var stringBuilder = AcquireStringBuilder(minimumCapacity: 1024);
-        var writer = typeInfo.Options.ReferenceHandling == YamlReferenceHandling.PreserveMinimal
-            ? CreateWriter(typeInfo, value, new StringWriter(stringBuilder, System.Globalization.CultureInfo.InvariantCulture))
-            : new YamlWriter(stringBuilder, typeInfo.Options);
-        typeInfo.Write(writer, value);
-        if (!writer.EndsWithNewLine)
+        var writer = CreateWriter(typeInfo, value, writer: null);
+        try
         {
-            stringBuilder.Append('\n');
+            typeInfo.Write(writer, value);
+            writer.EnsureEndsWithNewLine();
+            return writer.GetBufferedString();
         }
-
-        return GetStringAndReleaseBuilder(stringBuilder);
+        finally
+        {
+            writer.ReleaseBuffer();
+        }
     }
 
     private static object? DeserializeCore(YamlTypeInfo typeInfo, string yaml)
@@ -1275,36 +1282,6 @@ public static class YamlSerializer
 
     private static YamlException CreateReadException(YamlReader reader, Exception exception)
         => new(reader.SourceName, reader.Start, reader.End, exception.Message, exception);
-
-    private static StringBuilder AcquireStringBuilder(int minimumCapacity)
-    {
-        var cached = s_cachedStringBuilder;
-        if (cached is not null)
-        {
-            s_cachedStringBuilder = null;
-            cached.Clear();
-            if (cached.Capacity < minimumCapacity)
-            {
-                cached.EnsureCapacity(minimumCapacity);
-            }
-
-            return cached;
-        }
-
-        return new StringBuilder(minimumCapacity);
-    }
-
-    private static string GetStringAndReleaseBuilder(StringBuilder builder)
-    {
-        var result = builder.ToString();
-        if (builder.Capacity <= 1024 * 1024)
-        {
-            builder.Clear();
-            s_cachedStringBuilder = builder;
-        }
-
-        return result;
-    }
 
     private static YamlTypeInfo ResolveTypeInfo(YamlSerializerContext context, Type requestedType)
     {

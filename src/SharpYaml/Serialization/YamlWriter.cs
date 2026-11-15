@@ -3,6 +3,7 @@
 // // See LICENSE.txt file in the project root for full license information.
 
 using System;
+using System.Buffers;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -19,6 +20,13 @@ public sealed class YamlWriter : YamlReaderWriterBase
     private readonly StringBuilder? _stringBuilder;
     private readonly YamlReferenceWriter? _referenceWriter;
     private readonly StringBuilder _indentBuilder = new();
+
+    // The output of a writer the serializer created (CreateBuffered): the characters go to this pooled buffer, which
+    // is flushed to _writer when it is full, or grows when there is no writer and the output is taken as a string.
+    // A writer created through a public constructor has no buffer and writes through, so that its destination is
+    // up to date after every call.
+    private char[]? _buffer;
+    private int _bufferPosition;
     private ContainerFrame[] _frames = new ContainerFrame[8];
     private int _depth;
     private string? _pendingAnchor;
@@ -64,6 +72,99 @@ public sealed class YamlWriter : YamlReaderWriterBase
         _writer = writer;
         _referenceWriter = referenceWriter;
         InitializeFormattingState();
+    }
+
+    private YamlWriter(TextWriter? writer, YamlSerializerOptions options, YamlReferenceWriter? referenceWriter, int bufferSize)
+        : base(options)
+    {
+        _writer = writer;
+        _referenceWriter = referenceWriter ?? (options.ReferenceHandling != YamlReferenceHandling.None ? new YamlReferenceWriter() : null);
+        _buffer = ArrayPool<char>.Shared.Rent(bufferSize);
+        InitializeFormattingState();
+    }
+
+    /// <summary>
+    /// Creates a writer whose output is buffered: flushed to <paramref name="writer"/>, or kept and taken with
+    /// <see cref="GetBufferedString"/> when <paramref name="writer"/> is <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// The caller owns the writer for one document: it calls <see cref="FlushBuffer"/> or <see cref="GetBufferedString"/>
+    /// once the document is written, then <see cref="ReleaseBuffer"/> in every case, which returns the pooled buffer.
+    /// </remarks>
+    internal static YamlWriter CreateBuffered(TextWriter? writer, YamlSerializerOptions options, YamlReferenceWriter? referenceWriter = null)
+        => new(writer, options, referenceWriter, writer is null ? Math.Max(InitialStringBufferSize, t_lastStringLength) : WriterBufferSize);
+
+    private const int InitialStringBufferSize = 1024;
+    private const int MaxInitialStringBufferSize = 1024 * 1024;
+    private const int WriterBufferSize = 4096;
+
+    // The length of the last string this thread serialized, with some room: an application tends to serialize
+    // documents of a similar size, and a buffer of the right size from the start is not copied while it grows.
+    [ThreadStatic]
+    private static int t_lastStringLength;
+
+    /// <summary>Ends the document with a line break when it has none.</summary>
+    internal void EnsureEndsWithNewLine()
+    {
+        if (!EndsWithNewLine)
+        {
+            Write('\n');
+        }
+    }
+
+    /// <summary>Writes the buffered characters to the destination writer.</summary>
+    internal void FlushBuffer()
+    {
+        if (_buffer is { } buffer && _writer is not null && _bufferPosition != 0)
+        {
+            _writer.Write(buffer, 0, _bufferPosition);
+
+            // The characters are in the destination now: do not leave them in a buffer that goes back to the pool.
+            Array.Clear(buffer, 0, _bufferPosition);
+            _bufferPosition = 0;
+        }
+    }
+
+    /// <summary>Gets the output of a writer created without a destination writer.</summary>
+    internal string GetBufferedString()
+    {
+        t_lastStringLength = Math.Min(_bufferPosition + (_bufferPosition >> 4), MaxInitialStringBufferSize);
+        return new string(_buffer!, 0, _bufferPosition);
+    }
+
+    /// <summary>Returns the buffer to the pool. The writer must not be used afterwards.</summary>
+    internal void ReleaseBuffer()
+    {
+        if (_buffer is { } buffer)
+        {
+            _buffer = null;
+
+            // The buffer held the document: do not leave it readable to the next renter.
+            Array.Clear(buffer, 0, _bufferPosition);
+            _bufferPosition = 0;
+            ArrayPool<char>.Shared.Return(buffer);
+        }
+    }
+
+    /// <summary>Makes room for <paramref name="count"/> more characters in the buffer: flushes it, or grows it.</summary>
+    private char[] MakeRoomInBuffer(int count)
+    {
+        var buffer = _buffer!;
+        if (_writer is not null)
+        {
+            FlushBuffer();
+            if (count <= buffer.Length)
+            {
+                return buffer;
+            }
+        }
+
+        var larger = ArrayPool<char>.Shared.Rent(Math.Max(checked(_bufferPosition + count), buffer.Length * 2));
+        Array.Copy(buffer, larger, _bufferPosition);
+        Array.Clear(buffer, 0, _bufferPosition);
+        ArrayPool<char>.Shared.Return(buffer);
+        _buffer = larger;
+        return larger;
     }
 
     internal YamlReferenceWriter? ReferenceWriter => _referenceWriter;
@@ -258,12 +359,38 @@ public sealed class YamlWriter : YamlReaderWriterBase
         {
             WriteIndent();
         }
-        WriteScalarCore(name, isKey: true);
+        WritePropertyNameText(name);
         Write(':');
 
         frame.HasContent = true;
         frame.ExpectingKey = false;
     }
+
+    // The property names written last that need no quotes, by identity: the names of the members of a type are the
+    // same string objects for every instance, so their text is checked once per document rather than once per instance.
+    private string?[]? _plainPropertyNames;
+
+    private void WritePropertyNameText(string name)
+    {
+        var names = _plainPropertyNames ??= new string?[PlainPropertyNameCount];
+        ref var slot = ref names[System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(name) & (PlainPropertyNameCount - 1)];
+        if (ReferenceEquals(slot, name))
+        {
+            Write(name.AsSpan());
+            return;
+        }
+
+        if (name.Length != 0 && IsPlainSafe(name.AsSpan(), isKey: true))
+        {
+            slot = name;
+            Write(name.AsSpan());
+            return;
+        }
+
+        WriteScalarCore(name, isKey: true);
+    }
+
+    private const int PlainPropertyNameCount = 16;
 
     internal void WriteComplexKey(object key, YamlConverter converter)
     {
@@ -456,7 +583,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(byte value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -465,7 +592,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(sbyte value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -474,7 +601,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(short value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -483,7 +610,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(ushort value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -492,7 +619,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(int value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -501,7 +628,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(uint value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -510,7 +637,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(long value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -519,7 +646,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(ulong value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -528,7 +655,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
     /// <param name="value">The value to write.</param>
     public void WriteScalar(decimal value)
     {
-        WriteFormattableScalar(value, format: default, plainSafe: true);
+        WritePlainFormattable(value, format: default);
     }
 
     /// <summary>
@@ -584,7 +711,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        WriteFormattableScalar(value, format: "R", plainSafe: true);
+        WritePlainFormattable(value, format: "R");
     }
 
     /// <summary>
@@ -611,7 +738,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        WriteFormattableScalar(value, format: "R", plainSafe: true);
+        WritePlainFormattable(value, format: "R");
     }
 
     /// <summary>
@@ -925,6 +1052,26 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
+        WriteSpaces(spaces);
+    }
+
+    private void WriteSpaces(int spaces)
+    {
+        var buffer = _buffer;
+        if (buffer is not null)
+        {
+            if (spaces > buffer.Length - _bufferPosition)
+            {
+                buffer = MakeRoomInBuffer(spaces);
+            }
+
+            buffer.AsSpan(_bufferPosition, spaces).Fill(' ');
+            _bufferPosition += spaces;
+            _hasWrittenChar = true;
+            _lastWrittenChar = ' ';
+            return;
+        }
+
         if (_indentBuilder.Length != spaces)
         {
             _indentBuilder.Clear();
@@ -963,6 +1110,53 @@ public sealed class YamlWriter : YamlReaderWriterBase
 
     private static YamlSequenceItemStyle ResolveOptionStyle(YamlSequenceItemStyle style, YamlSequenceItemStyle fallback)
         => style == YamlSequenceItemStyle.Default ? fallback : style;
+
+    // The longest text of a number: a decimal takes 31 characters, a double 24.
+    private const int MaxFormattedNumberLength = 64;
+
+#if NETSTANDARD2_0
+    private void WritePlainFormattable<T>(T value, ReadOnlySpan<char> format)
+        where T : IFormattable
+        => WriteFormattableScalar(value, format, plainSafe: true);
+#else
+    /// <summary>
+    /// Writes a number as a plain scalar. The type parameter is constrained, so the value is formatted without being
+    /// boxed, and straight into the output buffer when the writer has one.
+    /// </summary>
+    private void WritePlainFormattable<T>(T value, ReadOnlySpan<char> format)
+        where T : ISpanFormattable
+    {
+        WriteValuePrefixForScalar();
+        WriteNodeProperties(writeLeadingSpace: false, writeTrailingSpace: true);
+
+        var buffer = _buffer;
+        if (buffer is not null)
+        {
+            if (buffer.Length - _bufferPosition < MaxFormattedNumberLength)
+            {
+                buffer = MakeRoomInBuffer(MaxFormattedNumberLength);
+            }
+
+            if (value.TryFormat(buffer.AsSpan(_bufferPosition), out var formatted, format, CultureInfo.InvariantCulture) && formatted != 0)
+            {
+                _bufferPosition += formatted;
+                _hasWrittenChar = true;
+                _lastWrittenChar = buffer[_bufferPosition - 1];
+                CompleteValueAfterScalar();
+                return;
+            }
+        }
+
+        Span<char> text = stackalloc char[MaxFormattedNumberLength];
+        if (!value.TryFormat(text, out var written, format, CultureInfo.InvariantCulture))
+        {
+            throw new InvalidOperationException($"Unable to format scalar value of type '{typeof(T)}'.");
+        }
+
+        Write(text[..written]);
+        CompleteValueAfterScalar();
+    }
+#endif
 
     private void WriteFormattableScalar<T>(T value, ReadOnlySpan<char> format, bool plainSafe)
         where T : IFormattable
@@ -1315,13 +1509,7 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return;
         }
 
-        if (_indentBuilder.Length != spaces)
-        {
-            _indentBuilder.Clear();
-            _indentBuilder.Append(' ', spaces);
-        }
-
-        Write(_indentBuilder);
+        WriteSpaces(spaces);
     }
 
     /// <summary>
@@ -1588,6 +1776,12 @@ public sealed class YamlWriter : YamlReaderWriterBase
 
     private void Write(string value)
     {
+        if (_buffer is not null)
+        {
+            Write(value.AsSpan());
+            return;
+        }
+
         if (_stringBuilder is not null)
         {
             _stringBuilder.Append(value);
@@ -1601,6 +1795,23 @@ public sealed class YamlWriter : YamlReaderWriterBase
 
     private void Write(char value)
     {
+        var buffer = _buffer;
+        if (buffer is not null)
+        {
+            var position = _bufferPosition;
+            if ((uint)position >= (uint)buffer.Length)
+            {
+                buffer = MakeRoomInBuffer(1);
+                position = _bufferPosition;
+            }
+
+            buffer[position] = value;
+            _bufferPosition = position + 1;
+            _hasWrittenChar = true;
+            _lastWrittenChar = value;
+            return;
+        }
+
         if (_stringBuilder is not null)
         {
             _stringBuilder.Append(value);
@@ -1614,6 +1825,26 @@ public sealed class YamlWriter : YamlReaderWriterBase
 
     private void Write(ReadOnlySpan<char> value)
     {
+        var buffer = _buffer;
+        if (buffer is not null)
+        {
+            if (value.Length == 0)
+            {
+                return;
+            }
+
+            if (value.Length > buffer.Length - _bufferPosition)
+            {
+                buffer = MakeRoomInBuffer(value.Length);
+            }
+
+            value.CopyTo(buffer.AsSpan(_bufferPosition));
+            _bufferPosition += value.Length;
+            _hasWrittenChar = true;
+            _lastWrittenChar = value[value.Length - 1];
+            return;
+        }
+
         if (_stringBuilder is not null)
         {
 #if NETSTANDARD2_0
