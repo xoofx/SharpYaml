@@ -4301,8 +4301,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 {
                     builder.AppendLine("        var unknownDerivedTypeHandling = options.PolymorphismOptions.UnknownDerivedTypeHandling;");
                 }
-                builder.AppendLine("        var buffered = global::SharpYaml.Serialization.YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(reader, discriminatorPropertyName, out var discriminatorValue);");
-                builder.AppendLine("        var bufferedReader = reader.CreateReader(buffered);");
+                builder.AppendLine("        var bufferedReader = reader.BufferCurrentNodeAndFindDiscriminator(discriminatorPropertyName, out var discriminatorValue);");
                 builder.AppendLine("        if (!bufferedReader.Read()) { return default; }");
 
                 if (!hasDiscriminatorStyleOverride || readPropertyDiscriminatorForOverride)
@@ -4453,8 +4452,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             builder.AppendLine("        var unknownDerivedTypeHandling = options.PolymorphismOptions.UnknownDerivedTypeHandling;");
         }
 
-        builder.AppendLine("        var buffered = global::SharpYaml.Serialization.YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(reader, discriminatorPropertyName, out var discriminatorValue);");
-        builder.AppendLine("        var bufferedReader = reader.CreateReader(buffered);");
+        builder.AppendLine("        var bufferedReader = reader.BufferCurrentNodeAndFindDiscriminator(discriminatorPropertyName, out var discriminatorValue);");
         builder.AppendLine("        if (!bufferedReader.Read()) { return default; }");
 
         if (!hasDiscriminatorStyleOverride || readPropertyDiscriminatorForOverride)
@@ -7939,8 +7937,9 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     /// <summary>
     /// Emits the declaration of <c>explicitKeys</c>, the set of the explicit keys of the mapping being read, which a
     /// merged mapping must not override. Most mappings have no merge key, so the set is only created when one is read,
-    /// from the flags of the members that explicit keys matched, or when an explicit key matches no member, which no
-    /// flag records.
+    /// from the flags of the members that explicit keys matched, or when a second explicit key matches no member,
+    /// which no flag records: the first one, most often the discriminator of a polymorphic value, is kept in
+    /// <c>unmatchedKey</c>.
     /// </summary>
     /// <param name="builder">The builder of the generated source.</param>
     /// <param name="seenMembers">The flag variable and the serialized name expression of each member.</param>
@@ -7948,9 +7947,11 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     private static void EmitExplicitKeysDeclaration(StringBuilder builder, List<KeyValuePair<string, string>> seenMembers, string comparerExpression)
     {
         builder.AppendLine("        global::System.Collections.Generic.HashSet<string>? explicitKeys = null;");
+        builder.AppendLine("        string? unmatchedKey = null;");
         builder.AppendLine("        global::System.Collections.Generic.HashSet<string> CreateExplicitKeys()");
         builder.AppendLine("        {");
         builder.Append("            var keys = new global::System.Collections.Generic.HashSet<string>(").Append(comparerExpression).AppendLine(");");
+        builder.AppendLine("            if (unmatchedKey is not null) { keys.Add(unmatchedKey); }");
         foreach (var seenMember in seenMembers)
         {
             builder.Append("            if (").Append(seenMember.Key).Append(") { keys.Add(").Append(seenMember.Value).AppendLine("); }");
@@ -7965,8 +7966,15 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
     {
         builder.AppendLine("                if (isExplicitKey && mergeEnabled && explicitKeys is null)");
         builder.AppendLine("                {");
-        builder.AppendLine("                    explicitKeys = CreateExplicitKeys();");
-        builder.AppendLine("                    explicitKeys.Add(key);");
+        builder.AppendLine("                    if (unmatchedKey is null)");
+        builder.AppendLine("                    {");
+        builder.AppendLine("                        unmatchedKey = key;");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    else");
+        builder.AppendLine("                    {");
+        builder.AppendLine("                        explicitKeys = CreateExplicitKeys();");
+        builder.AppendLine("                        explicitKeys.Add(key);");
+        builder.AppendLine("                    }");
         builder.AppendLine("                }");
     }
 

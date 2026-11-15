@@ -24,6 +24,9 @@ public sealed class YamlReader : YamlReaderWriterBase
 {
     private readonly YamlReaderState _state;
 
+    // The number of events of the node buffered last by BufferCurrentNodeAndFindDiscriminator.
+    private int _recordedEventCount;
+
     internal YamlReader(YamlReaderState state, YamlSerializerOptions options)
         : base(options)
     {
@@ -93,10 +96,16 @@ public sealed class YamlReader : YamlReaderWriterBase
     public YamlReader CreateReader(string yaml)
     {
         ArgumentGuard.ThrowIfNull(yaml);
-        var session = _state.Tracker?.Session;
-        var tracker = session is null ? null : new YamlPathTracker(session, session.BufferedPath);
         var parser = SharpYaml.Parser.CreateParser(new StringReader(yaml), Options.EffectiveMaxDepth, _state.SourceName);
         ReuseEvents(parser);
+        return CreateBufferedReader(parser);
+    }
+
+    /// <summary>Creates the reader of a node buffered from this reader, whose events <paramref name="parser"/> gives.</summary>
+    private YamlReader CreateBufferedReader(IParser parser)
+    {
+        var session = _state.Tracker?.Session;
+        var tracker = session is null ? null : new YamlPathTracker(session, session.BufferedPath);
         var anchors = _state.CreateBufferedAnchors(out var nesting);
         return new YamlReader(new YamlReaderState(parser, anchors, nesting, _state.SourceName, tracker, _state.BufferedDiscriminator), Options);
     }
@@ -628,6 +637,151 @@ public sealed class YamlReader : YamlReaderWriterBase
         }
 
         Read();
+    }
+
+    /// <summary>
+    /// Buffers the current YAML node while extracting a discriminator value from its root mapping, and returns a reader
+    /// that reads the node again.
+    /// </summary>
+    /// <param name="discriminatorPropertyName">The mapping key name to treat as a discriminator.</param>
+    /// <param name="discriminatorValue">Receives the discriminator scalar value when present on the root mapping.</param>
+    /// <returns>
+    /// A reader over the node, which shares the reference anchor state of this reader and reports the positions of the
+    /// node in its document. Call <see cref="Read"/> on it to position it on the first token of the node.
+    /// </returns>
+    /// <remarks>
+    /// This method consumes the node from this reader and advances it past the node. It is what polymorphic
+    /// deserialization uses to read a value once its type is known: the events of the node are kept and read again, so
+    /// that the node is neither written back to text nor parsed a second time, as it is by
+    /// <see cref="BufferCurrentNodeToStringAndFindDiscriminator"/> followed by <see cref="CreateReader"/>.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="discriminatorPropertyName"/> is <see langword="null"/>.</exception>
+    /// <exception cref="YamlException">The value of the discriminator key is not a scalar.</exception>
+    public YamlReader BufferCurrentNodeAndFindDiscriminator(string discriminatorPropertyName, out string? discriminatorValue)
+    {
+        ArgumentGuard.ThrowIfNull(discriminatorPropertyName);
+
+        var comparison = Options.PropertyNameCaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        discriminatorValue = null;
+        CaptureBufferedNode(discriminatorPropertyName);
+
+        // The values of one type tend to have as many events as each other: the array of the last one fits the next.
+        var events = new RecordedParser(_recordedEventCount);
+        _state.PassAliasesThrough = true;
+        try
+        {
+            RecordBufferedNode(events, discriminatorPropertyName, comparison, ref discriminatorValue);
+        }
+        finally
+        {
+            _state.PassAliasesThrough = false;
+        }
+
+        _recordedEventCount = events.Count;
+        return CreateBufferedReader(events);
+    }
+
+    /// <summary>
+    /// Reads the current node to its end and keeps its events, the aliases of the parser as they are: the reader of
+    /// the recording resolves them against the anchors captured where the node starts, as the reader of buffered text does.
+    /// </summary>
+    private void RecordBufferedNode(RecordedParser events, string discriminatorPropertyName, StringComparison comparison, ref string? discriminatorValue)
+    {
+        // The entries of the root mapping are the nodes at depth 1, a key then its value: a scalar or an alias is a
+        // node by itself, and a mapping or a sequence is one once the depth is back to 1.
+        var isRootMapping = TokenType == YamlTokenType.StartMapping;
+        var isKey = false;
+        var isDiscriminatorValue = false;
+        var depth = 0;
+        do
+        {
+            var tokenType = TokenType;
+            if (isRootMapping && depth == 1 && tokenType != YamlTokenType.EndMapping)
+            {
+                if (isKey)
+                {
+                    isDiscriminatorValue = discriminatorValue is null
+                        && tokenType == YamlTokenType.Scalar
+                        && string.Equals(ScalarValue ?? string.Empty, discriminatorPropertyName, comparison);
+                }
+                else if (isDiscriminatorValue)
+                {
+                    if (tokenType != YamlTokenType.Scalar)
+                    {
+                        throw YamlThrowHelper.ThrowExpectedDiscriminatorScalar(this, discriminatorPropertyName);
+                    }
+
+                    discriminatorValue = ScalarValue ?? string.Empty;
+                    isDiscriminatorValue = false;
+                }
+            }
+
+            switch (tokenType)
+            {
+                case YamlTokenType.Scalar:
+                case YamlTokenType.Alias:
+                    break;
+
+                case YamlTokenType.StartMapping:
+                case YamlTokenType.StartSequence:
+                    depth++;
+                    break;
+
+                case YamlTokenType.EndMapping:
+                case YamlTokenType.EndSequence:
+                    depth--;
+                    break;
+
+                default:
+                    throw YamlThrowHelper.ThrowUnexpectedToken(this);
+            }
+
+            // An event the parser gives again for its next token is kept as a copy: see YamlReaderState.CurrentEvent.
+            events.Add(_state.CurrentEvent!);
+            if (isRootMapping && depth == 1)
+            {
+                // The start of the root mapping is followed by its first key; any other node at this depth just ended.
+                isKey = tokenType == YamlTokenType.StartMapping || !isKey;
+            }
+
+            Read();
+        }
+        while (depth > 0);
+    }
+
+    /// <summary>Keeps the events recorded by <see cref="RecordBufferedNode"/> and gives them again, as the parser of their reader.</summary>
+    private sealed class RecordedParser : IParser
+    {
+        private ParsingEvent[] _events;
+        private int _next;
+
+        public RecordedParser(int capacity) => _events = new ParsingEvent[Math.Max(capacity, 4)];
+
+        public int Count { get; private set; }
+
+        public ParsingEvent? Current { get; private set; }
+
+        public void Add(ParsingEvent parsingEvent)
+        {
+            if (Count == _events.Length)
+            {
+                Array.Resize(ref _events, _events.Length * 2);
+            }
+
+            _events[Count++] = parsingEvent;
+        }
+
+        public bool MoveNext()
+        {
+            if (_next < Count)
+            {
+                Current = _events[_next++];
+                return true;
+            }
+
+            Current = null;
+            return false;
+        }
     }
 
     /// <summary>

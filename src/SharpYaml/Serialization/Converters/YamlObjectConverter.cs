@@ -236,7 +236,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         // The members that explicit keys matched, as bits: for duplicate detection, and to list the explicit keys once a
         // merge key needs them (see CreateExplicitKeys). Most mappings have no merge key, so no set is allocated for them.
+        // No bit records an explicit key that set no member: the first one, most often the discriminator of a
+        // polymorphic value, is kept as it is, and the set is created for a second one.
         HashSet<string>? explicitKeys = null;
+        string? unmatchedKey = null;
         var detectDuplicates = options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins;
         var seenBits = 0UL;
         var seenMore = contract.MembersDeclaration.Length > 64 ? new bool[contract.MembersDeclaration.Length - 64] : null;
@@ -258,7 +261,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
                 ReadAndApplyMergeToInstance(reader, instance, contract, explicitKeys, requiredSeen);
                 continue;
             }
@@ -270,8 +273,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 // No bit records a key that matches no member.
                 if (mergeEnabled && explicitKeys is null)
                 {
-                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
-                    explicitKeys.Add(key);
+                    if (unmatchedKey is null)
+                    {
+                        unmatchedKey = key;
+                    }
+                    else
+                    {
+                        explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
+                        explicitKeys.Add(key);
+                    }
                 }
 
                 if (contract.ExtensionData is null)
@@ -300,8 +310,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 // Nor a key that matches an ignored member.
                 if (mergeEnabled && explicitKeys is null)
                 {
-                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
-                    explicitKeys.Add(key);
+                    if (unmatchedKey is null)
+                    {
+                        unmatchedKey = key;
+                    }
+                    else
+                    {
+                        explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
+                        explicitKeys.Add(key);
+                    }
                 }
 
                 reader.Skip();
@@ -383,15 +400,22 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
     /// <summary>
     /// Creates the set of the explicit keys read so far in a mapping, which a merged mapping must not override, from
-    /// the members that explicit keys matched. The caller adds the keys that matched no member or an ignored one.
+    /// the members that explicit keys matched and the first key that set no member. The caller adds the further keys
+    /// that matched no member or an ignored one.
     /// </summary>
     /// <param name="reader">The reader, for the comparer of property names.</param>
     /// <param name="contract">The contract of the type being read.</param>
     /// <param name="seenBits">A bit for each of the first 64 members of <see cref="Contract.MembersDeclaration"/>.</param>
     /// <param name="seenMore">A flag for each further member, when the type has more than 64.</param>
-    private static HashSet<string> CreateExplicitKeys(YamlReader reader, Contract contract, ulong seenBits, bool[]? seenMore)
+    /// <param name="unmatchedKey">The first explicit key that matched no member or an ignored one, if any.</param>
+    private static HashSet<string> CreateExplicitKeys(YamlReader reader, Contract contract, ulong seenBits, bool[]? seenMore, string? unmatchedKey)
     {
         var keys = new HashSet<string>(reader.PropertyNameComparer);
+        if (unmatchedKey is not null)
+        {
+            keys.Add(unmatchedKey);
+        }
+
         var members = contract.MembersDeclaration;
         for (var i = 0; i < members.Length; i++)
         {
@@ -431,7 +455,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         // The members that explicit keys matched, as bits: for duplicate detection, and to list the explicit keys once a
         // merge key needs them (see CreateExplicitKeys). Most mappings have no merge key, so no set is allocated for them.
+        // No bit records an explicit key that set no member: the first one, most often the discriminator of a
+        // polymorphic value, is kept as it is, and the set is created for a second one.
         HashSet<string>? explicitKeys = null;
+        string? unmatchedKey = null;
         var detectDuplicates = options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins;
         var seenBits = 0UL;
         var seenMore = contract.MembersDeclaration.Length > 64 ? new bool[contract.MembersDeclaration.Length - 64] : null;
@@ -453,7 +480,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
-                explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore);
+                explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
                 ReadAndApplyMergeToPopulatedInstance(reader, instance, contract, explicitKeys, requiredSeen);
                 continue;
             }
@@ -465,8 +492,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 // No bit records a key that matches no member.
                 if (mergeEnabled && explicitKeys is null)
                 {
-                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
-                    explicitKeys.Add(key);
+                    if (unmatchedKey is null)
+                    {
+                        unmatchedKey = key;
+                    }
+                    else
+                    {
+                        explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
+                        explicitKeys.Add(key);
+                    }
                 }
 
                 if (contract.ExtensionData is null)
@@ -496,8 +530,15 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
                 // Nor a key that matches an ignored member.
                 if (mergeEnabled && explicitKeys is null)
                 {
-                    explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore);
-                    explicitKeys.Add(key);
+                    if (unmatchedKey is null)
+                    {
+                        unmatchedKey = key;
+                    }
+                    else
+                    {
+                        explicitKeys = CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
+                        explicitKeys.Add(key);
+                    }
                 }
 
                 reader.Skip();
@@ -1483,7 +1524,7 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
         var polymorphism = contract.Polymorphism!;
         var rootTag = reader.Tag;
 
-        var buffered = YamlReader.BufferCurrentNodeToStringAndFindDiscriminator(reader, polymorphism.DiscriminatorPropertyName, out var discriminatorValue);
+        var bufferedReader = reader.BufferCurrentNodeAndFindDiscriminator(polymorphism.DiscriminatorPropertyName, out var discriminatorValue);
 
         Type? targetType = null;
         if (polymorphism.AcceptsPropertyDiscriminator && discriminatorValue is not null)
@@ -1520,7 +1561,6 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
 
         targetType ??= polymorphism.DefaultDerivedType ?? typeof(T);
 
-        var bufferedReader = reader.CreateReader(buffered);
         if (!bufferedReader.Read())
         {
             return default;

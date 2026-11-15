@@ -28,6 +28,7 @@ In each case a document is parsed as soon as it arrived, while the writer of the
 
 - Reading a document reuses the tokens and events of the parser, so they are not allocated once per scalar. This only applies to the serializer: `Parser.CreateParser` and `Scanner<T>` still return a new object per event and token, which you can keep.
 - The strings of short plain mapping keys are shared within a document: the keys that repeat in a list of mappings are one `string` instance.
+- A polymorphic value is read twice, once to find its discriminator and once as the type it names. The second time reads the events kept from the first, so the value is neither written back to text nor parsed again, and an error in it is reported at its position in the document.
 
 ## Benchmarks
 
