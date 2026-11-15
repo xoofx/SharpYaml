@@ -49,9 +49,15 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
         var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var dict = new Dictionary<string, object?>(comparer);
         var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
-        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
+        var detectDuplicates = options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins;
+
+        // The dictionary holds exactly the explicit keys read so far, until a merge key adds others or a rejected value
+        // leaves a key out: until then its own keys detect duplicates and no key set is allocated, as in
+        // YamlDictionaryConverterHelper.ReadStringDictionary.
+        var keysInDictionary = true;
+        HashSet<string>? explicitKeys = null;
         HashSet<string>? mergedKeys = null;
-        HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
+        HashSet<string>? seenKeys = null;
         if (reader.ReferenceReader is not null && anchor is not null)
         {
             reader.ReferenceReader.Register(anchor, dict);
@@ -69,6 +75,14 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
+                if (keysInDictionary)
+                {
+                    // The merge adds keys that are not explicit ones.
+                    keysInDictionary = false;
+                    explicitKeys = new HashSet<string>(dict.Keys, comparer);
+                    seenKeys = detectDuplicates ? new HashSet<string>(dict.Keys, comparer) : null;
+                }
+
                 if (options.InvalidValueHandling != YamlInvalidValueHandling.FailFast)
                 {
                     mergedKeys ??= new HashSet<string>(comparer);
@@ -80,7 +94,9 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
             explicitKeys?.Add(key);
             var wasMerged = mergedKeys?.Remove(key) == true;
 
-            var wasSeen = seenKeys is not null && !seenKeys.Add(key);
+            var wasSeen = keysInDictionary
+                ? detectDuplicates && dict.ContainsKey(key)
+                : seenKeys is not null && !seenKeys.Add(key);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
             {
                 throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
@@ -96,9 +112,20 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
             {
                 dict[key] = value;
             }
-            else if (wasMerged)
+            else
             {
-                dict.Remove(key);
+                if (keysInDictionary)
+                {
+                    // The rejected value leaves its key out of the dictionary: the key sets take over, with this key.
+                    keysInDictionary = false;
+                    explicitKeys = mergeEnabled ? new HashSet<string>(dict.Keys, comparer) { key } : null;
+                    seenKeys = detectDuplicates ? new HashSet<string>(dict.Keys, comparer) { key } : null;
+                }
+
+                if (wasMerged)
+                {
+                    dict.Remove(key);
+                }
             }
         }
 

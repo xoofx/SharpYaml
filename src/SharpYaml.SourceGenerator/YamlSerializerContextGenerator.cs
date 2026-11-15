@@ -3723,16 +3723,76 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             }
 
             var dictionaryTypePrefix = GetDictionaryTypePrefix(typeSymbol);
+
+            // A Dictionary<string, TValue> this reader creates holds exactly the explicit keys read so far, until a merge
+            // key adds others or a rejected value leaves a key out: until then its own keys detect duplicates, and no
+            // key set is allocated for it. Most dictionaries never need one.
+            var keysInDictionary = dictionaryKeyIsString && string.Equals(dictionaryTypePrefix, "global::System.Collections.Generic.Dictionary", StringComparison.Ordinal);
             if (dictionaryKeyIsString)
             {
                 builder.Append("        var dictionary = ").Append(mutableDictionary ? "existingValue ?? " : string.Empty).Append("new ").Append(dictionaryTypePrefix).Append("<string, ").Append(valueTypeName)
                     .Append(">(").Append(propertyNameComparerExpression).AppendLine(");");
                 builder.Append("        var mergeEnabled = ").Append(mergeEnabledExpression).AppendLine(";");
-                builder.AppendLine("        global::System.Collections.Generic.ISet<string>? explicitKeys = mergeEnabled");
-                builder.Append("            ? CreateDictionaryKeySet(dictionary) ?? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
-                builder.AppendLine("            : null;");
-                builder.AppendLine("        global::System.Collections.Generic.ISet<string>? mergedKeys = null;");
-                EmitDictionarySeenKeys(builder, duplicateKeyHandling, propertyNameComparerExpression, "seenKeys", "        ", "string", "dictionary");
+                if (keysInDictionary)
+                {
+                    builder.AppendLine("        global::System.Collections.Generic.ISet<string>? explicitKeys = null;");
+                    builder.AppendLine("        global::System.Collections.Generic.ISet<string>? mergedKeys = null;");
+                    if (detectsDuplicateKeys)
+                    {
+                        builder.AppendLine("        global::System.Collections.Generic.ISet<string>? seenKeys = null;");
+                        builder.AppendLine("        var seenKeysUseDictionary = false;");
+                    }
+
+                    // An existing dictionary may hold entries that are not keys of this mapping.
+                    builder.Append("        var keysInDictionary = ").Append(mutableDictionary ? "existingValue is null" : "true").AppendLine(";");
+                    builder.AppendLine("        void TrackKeys(bool addDictionaryKeys)");
+                    builder.AppendLine("        {");
+                    builder.AppendLine("            keysInDictionary = false;");
+                    builder.AppendLine("            explicitKeys = mergeEnabled");
+                    builder.Append("                ? CreateDictionaryKeySet(dictionary) ?? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
+                    builder.AppendLine("                : null;");
+                    if (detectsDuplicateKeys)
+                    {
+                        builder.Append("            seenKeys = ");
+                        if (duplicateKeyHandling is null)
+                        {
+                            builder.Append("options.DuplicateKeyHandling == global::SharpYaml.YamlDuplicateKeyHandling.LastWins ? null : ");
+                        }
+
+                        builder.AppendLine("CreateDictionaryKeySet(dictionary);");
+                        builder.Append("            seenKeysUseDictionary = ");
+                        if (duplicateKeyHandling is null)
+                        {
+                            builder.Append("options.DuplicateKeyHandling != global::SharpYaml.YamlDuplicateKeyHandling.LastWins && ");
+                        }
+
+                        builder.AppendLine("seenKeys is null;");
+                        builder.AppendLine("            if (seenKeysUseDictionary) { seenKeys = new global::System.Collections.Generic.HashSet<string>(); }");
+                    }
+
+                    builder.AppendLine("            if (addDictionaryKeys)");
+                    builder.AppendLine("            {");
+                    builder.AppendLine("                foreach (var explicitKey in dictionary.Keys)");
+                    builder.AppendLine("                {");
+                    builder.AppendLine("                    explicitKeys?.Add(explicitKey);");
+                    if (detectsDuplicateKeys)
+                    {
+                        builder.AppendLine("                    seenKeys?.Add(explicitKey);");
+                    }
+
+                    builder.AppendLine("                }");
+                    builder.AppendLine("            }");
+                    builder.AppendLine("        }");
+                    builder.AppendLine("        if (!keysInDictionary) { TrackKeys(addDictionaryKeys: false); }");
+                }
+                else
+                {
+                    builder.AppendLine("        global::System.Collections.Generic.ISet<string>? explicitKeys = mergeEnabled");
+                    builder.Append("            ? CreateDictionaryKeySet(dictionary) ?? new global::System.Collections.Generic.HashSet<string>(").Append(propertyNameComparerExpression).AppendLine(")");
+                    builder.AppendLine("            : null;");
+                    builder.AppendLine("        global::System.Collections.Generic.ISet<string>? mergedKeys = null;");
+                    EmitDictionarySeenKeys(builder, duplicateKeyHandling, propertyNameComparerExpression, "seenKeys", "        ", "string", "dictionary");
+                }
             }
             else
             {
@@ -3781,6 +3841,12 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
                 builder.AppendLine("            {");
+                if (keysInDictionary)
+                {
+                    // The merge adds keys that are not explicit ones.
+                    builder.AppendLine("                if (keysInDictionary) { TrackKeys(addDictionaryKeys: true); }");
+                }
+
                 builder.Append("                if (reader.Options.InvalidValueHandling != global::SharpYaml.YamlInvalidValueHandling.FailFast")
                     .Append(detectsDuplicateKeys ? " || seenKeysUseDictionary" : string.Empty).AppendLine(")");
                 builder.AppendLine("                {");
@@ -3845,13 +3911,26 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             {
                 if (detectsDuplicateKeys)
                 {
-                    builder.AppendLine("            if (seenKeys is not null && (!seenKeys.Add(key) || (seenKeysUseDictionary && !wasMerged && dictionary.ContainsKey(key))))");
+                    if (keysInDictionary)
+                    {
+                        var detectsAtRuntime = duplicateKeyHandling is null ? "options.DuplicateKeyHandling != global::SharpYaml.YamlDuplicateKeyHandling.LastWins && " : string.Empty;
+                        builder.Append("            if (keysInDictionary ? ").Append(detectsAtRuntime).AppendLine("dictionary.ContainsKey(key) : seenKeys is not null && (!seenKeys.Add(key) || (seenKeysUseDictionary && !wasMerged && dictionary.ContainsKey(key))))");
+                    }
+                    else
+                    {
+                        builder.AppendLine("            if (seenKeys is not null && (!seenKeys.Add(key) || (seenKeysUseDictionary && !wasMerged && dictionary.ContainsKey(key))))");
+                    }
+
                     builder.AppendLine("            {");
                     EmitDuplicateKeyHandling(builder, duplicateKeyHandling, "key", indent: "                ");
                     builder.AppendLine("            }");
                 }
 
-                EmitRecoverableItemRead(builder, sourceGenerationOptions, dictionaryValueType, indexByType, "value", "dictionary[key] = value;", typeName, "dictionary", indent: "            ", recoveredStatement: "if (wasMerged) { dictionary.Remove(key); }");
+                // A rejected value leaves its key out of the dictionary: the key sets take over, with this key.
+                var recoveredStatement = keysInDictionary
+                    ? "if (keysInDictionary) { TrackKeys(addDictionaryKeys: true); explicitKeys?.Add(key); " + (detectsDuplicateKeys ? "seenKeys?.Add(key); " : string.Empty) + "} if (wasMerged) { dictionary.Remove(key); }"
+                    : "if (wasMerged) { dictionary.Remove(key); }";
+                EmitRecoverableItemRead(builder, sourceGenerationOptions, dictionaryValueType, indexByType, "value", "dictionary[key] = value;", typeName, "dictionary", indent: "            ", recoveredStatement: recoveredStatement);
             }
             else
             {

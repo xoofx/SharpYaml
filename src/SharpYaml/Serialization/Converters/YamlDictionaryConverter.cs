@@ -205,12 +205,26 @@ internal static class YamlDictionaryConverterHelper
         valueConverter ??= reader.GetConverter(typeof(TValue));
 
         var options = reader.Options;
+        var isNewDictionary = dictionary is null;
         dictionary ??= createDictionary(options);
         var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
-        ISet<string>? explicitKeys = mergeEnabled ? CreateSeenKeySet(dictionary) ?? new HashSet<string>(comparer) : null;
+        var detectDuplicates = options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins;
+
+        // A Dictionary<string, TValue> created here holds exactly the explicit keys read so far, until a merge key adds
+        // others or a rejected value leaves a key out: until then its own keys detect duplicates, and no key set is
+        // allocated for it. Most dictionaries never need one. An existing dictionary may hold entries that are not keys
+        // of this mapping, and another dictionary type may compare keys in a way a set cannot reproduce.
+        var keysInDictionary = isNewDictionary && dictionary is Dictionary<string, TValue>;
+        ISet<string>? explicitKeys = null;
         ISet<string>? mergedKeys = null;
-        var seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : CreateSeenKeySet(dictionary) ?? new HashSet<string>(comparer);
+        ISet<string>? seenKeys = null;
+        if (!keysInDictionary)
+        {
+            explicitKeys = mergeEnabled ? CreateSeenKeySet(dictionary) ?? new HashSet<string>(comparer) : null;
+            seenKeys = detectDuplicates ? CreateSeenKeySet(dictionary) ?? new HashSet<string>(comparer) : null;
+        }
+
         if (reader.ReferenceReader is not null && reader.Anchor is not null)
         {
             reader.ReferenceReader.Register(reader.Anchor, dictionary);
@@ -229,6 +243,14 @@ internal static class YamlDictionaryConverterHelper
 
             if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
             {
+                if (keysInDictionary)
+                {
+                    // The merge adds keys that are not explicit ones.
+                    keysInDictionary = false;
+                    explicitKeys = CreateKeySetWithKeys(dictionary, comparer);
+                    seenKeys = detectDuplicates ? CreateKeySetWithKeys(dictionary, comparer) : null;
+                }
+
                 if (options.InvalidValueHandling != YamlInvalidValueHandling.FailFast)
                 {
                     mergedKeys ??= CreateSeenKeySet(dictionary) ?? new HashSet<string>(comparer);
@@ -240,7 +262,9 @@ internal static class YamlDictionaryConverterHelper
             explicitKeys?.Add(key);
             var wasMerged = mergedKeys?.Remove(key) == true;
 
-            var wasSeen = seenKeys is not null && !seenKeys.Add(key);
+            var wasSeen = keysInDictionary
+                ? detectDuplicates && dictionary.ContainsKey(key)
+                : seenKeys is not null && !seenKeys.Add(key);
             if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
             {
                 throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, key);
@@ -256,14 +280,46 @@ internal static class YamlDictionaryConverterHelper
             {
                 dictionary[key] = (TValue)value!;
             }
-            else if (wasMerged)
+            else
             {
-                dictionary.Remove(key);
+                if (keysInDictionary)
+                {
+                    // The rejected value leaves its key out of the dictionary: the key sets take over, with this key.
+                    keysInDictionary = false;
+                    if (mergeEnabled)
+                    {
+                        explicitKeys = CreateKeySetWithKeys(dictionary, comparer);
+                        explicitKeys.Add(key);
+                    }
+
+                    if (detectDuplicates)
+                    {
+                        seenKeys = CreateKeySetWithKeys(dictionary, comparer);
+                        seenKeys.Add(key);
+                    }
+                }
+
+                if (wasMerged)
+                {
+                    dictionary.Remove(key);
+                }
             }
         }
 
         reader.Read();
         return dictionary;
+    }
+
+    /// <summary>Creates a key set for <paramref name="dictionary"/> that holds its keys: see <see cref="ReadStringDictionary"/>.</summary>
+    private static ISet<string> CreateKeySetWithKeys<TValue>(IDictionary<string, TValue> dictionary, StringComparer comparer)
+    {
+        var keys = CreateSeenKeySet(dictionary) ?? new HashSet<string>(comparer);
+        foreach (var key in dictionary.Keys)
+        {
+            keys.Add(key);
+        }
+
+        return keys;
     }
 
     internal static TDictionary? ReadDictionary<TDictionary, TKey, TValue>(

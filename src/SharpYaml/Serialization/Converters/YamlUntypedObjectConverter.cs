@@ -1,4 +1,4 @@
-﻿// // Copyright (c) Alexandre Mutel. All rights reserved.
+// // Copyright (c) Alexandre Mutel. All rights reserved.
 // // Licensed under the MIT license.
 // // See LICENSE.txt file in the project root for full license information.
 
@@ -111,10 +111,17 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
         var anchor = reader.Anchor;
         var options = reader.Options;
         var comparer = options.PropertyNameCaseInsensitive ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        IDictionary dictionary = new Dictionary<string, object?>(comparer);
+        var stringDictionary = new Dictionary<string, object?>(comparer);
+        IDictionary dictionary = stringDictionary;
         var mergeEnabled = options.Schema is YamlSchemaKind.Core or YamlSchemaKind.Extended;
-        HashSet<string>? explicitKeys = mergeEnabled ? new HashSet<string>(comparer) : null;
-        HashSet<string>? seenKeys = options.DuplicateKeyHandling == YamlDuplicateKeyHandling.LastWins ? null : new HashSet<string>(comparer);
+        var detectDuplicates = options.DuplicateKeyHandling != YamlDuplicateKeyHandling.LastWins;
+
+        // While the mapping only has scalar keys and no merge key, stringDictionary holds exactly the explicit keys read
+        // so far: its own keys detect duplicates and no key set is allocated. A merge key adds other keys, and a complex
+        // key replaces the dictionary (PromoteMapping): the sets then take over, with the keys read until there.
+        var keysInDictionary = true;
+        HashSet<string>? explicitKeys = null;
+        HashSet<string>? seenKeys = null;
         if (anchor is not null) reader.RegisterAnchor(anchor, dictionary);
         reader.Read();
 
@@ -129,12 +136,21 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
                 reader.Read();
                 if (isMerge)
                 {
+                    if (keysInDictionary)
+                    {
+                        keysInDictionary = false;
+                        explicitKeys = new HashSet<string>(stringDictionary.Keys, comparer);
+                        seenKeys = detectDuplicates ? new HashSet<string>(stringDictionary.Keys, comparer) : null;
+                    }
+
                     ReadAndApplyMerge(reader, ref dictionary, explicitKeys, anchor);
                     continue;
                 }
 
                 explicitKeys?.Add((string)key);
-                var wasSeen = seenKeys is not null && !seenKeys.Add((string)key);
+                var wasSeen = keysInDictionary
+                    ? detectDuplicates && stringDictionary.ContainsKey((string)key)
+                    : seenKeys is not null && !seenKeys.Add((string)key);
                 if (wasSeen && options.DuplicateKeyHandling == YamlDuplicateKeyHandling.Error)
                 {
                     throw YamlThrowHelper.ThrowDuplicateMappingKey(reader, (string)key);
@@ -147,6 +163,13 @@ internal sealed class YamlUntypedObjectConverter : YamlConverter
             }
             else
             {
+                if (keysInDictionary)
+                {
+                    keysInDictionary = false;
+                    explicitKeys = mergeEnabled ? new HashSet<string>(stringDictionary.Keys, comparer) : null;
+                    seenKeys = detectDuplicates ? new HashSet<string>(stringDictionary.Keys, comparer) : null;
+                }
+
                 PromoteMapping(reader, ref dictionary, anchor);
                 key = Read(reader, typeof(object))
                     ?? throw new YamlException(reader.SourceName, reader.Start, reader.End, "A complex mapping key cannot be null.");
