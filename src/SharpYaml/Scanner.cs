@@ -27,15 +27,9 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private int simpleKeyCount;
 
     // The tokens the parser handed back with Recycle, which the scanner uses again instead of allocating.
+    // One stack per kind of token (Token.PoolSlot), the kinds that only carry their marks sharing the code.
     private bool _recycleTokens;
-    private TokenStack<Scalar> _freeScalars;
-    private TokenStack<Key> _freeKeys;
-    private TokenStack<Value> _freeValues;
-    private TokenStack<BlockEntry> _freeBlockEntries;
-    private TokenStack<BlockEnd> _freeBlockEnds;
-    private TokenStack<BlockMappingStart> _freeBlockMappingStarts;
-    private TokenStack<BlockSequenceStart> _freeBlockSequenceStarts;
-    private TokenStack<FlowEntry> _freeFlowEntries;
+    private readonly TokenStack[] _freeTokens = new TokenStack[PoolSlotCount];
 
     // Used by ScanFlowScalar, this will reduce memory usage by /2
     private readonly StringBuilder scanScalarValue = new StringBuilder();
@@ -309,17 +303,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             {
                 // Check if any potential simple key may occupy the head position.
 
-                StaleSimpleKeys();
-
-                for (var i = 0; i < simpleKeyCount; i++)
-                {
-                    ref var simpleKey = ref simpleKeys[i];
-                    if (simpleKey.IsPossible && simpleKey.TokenNumber == tokensParsed)
-                    {
-                        needsMoreTokens = true;
-                        break;
-                    }
-                }
+                needsMoreTokens = StaleSimpleKeys(tokensParsed);
             }
 
             // We are finished.
@@ -344,13 +328,20 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     /// Check the list of potential simple keys and remove the positions that
     /// cannot contain simple keys anymore.
     /// </summary>
-    private void StaleSimpleKeys()
+    /// <param name="tokenNumber">A token number, or -1.</param>
+    /// <returns><see langword="true"/> when a simple key is still possible at <paramref name="tokenNumber"/>.</returns>
+    private bool StaleSimpleKeys(int tokenNumber = -1)
     {
         // Check for a potential simple key for each flow level.
 
+        var isPossibleAtToken = false;
         for (var i = 0; i < simpleKeyCount; i++)
         {
             ref var key = ref simpleKeys[i];
+            if (!key.IsPossible)
+            {
+                continue;
+            }
 
             // The specification requires that a simple key
 
@@ -358,7 +349,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             //  - is shorter than 1024 characters.
 
 
-            if (key.IsPossible && (key.Mark.Line < line || key.Mark.Index + 1024 < index))
+            if (key.Mark.Line < line || key.Mark.Index + 1024 < index)
             {
                 // Check if the potential simple key to be removed is required.
 
@@ -369,7 +360,13 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
                 key.IsPossible = false;
             }
+            else if (key.TokenNumber == tokenNumber)
+            {
+                isPossibleAtToken = true;
+            }
         }
+
+        return isPossibleAtToken;
     }
 
     private void FetchNextToken()
@@ -564,7 +561,8 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // if it is followed by a non-space character.
 
-        bool isInvalidPlainScalarCharacter = IsBlankOrBreakOrZero(character) || "-?:,[]{}#&*!|>'\"%@`".IndexOf(character) >= 0;
+        bool isInvalidPlainScalarCharacter = character is ' ' or '\t' or '\r' or '\n' or '\0'
+            or '-' or '?' or ':' or ',' or '[' or ']' or '{' or '}' or '#' or '&' or '*' or '!' or '|' or '>' or '\'' or '"' or '%' or '@' or '`';
 
         bool isPlainScalar =
             !isInvalidPlainScalarCharacter ||
@@ -668,6 +666,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private int CountPlainScalarRun(string text, int start)
     {
         var position = start;
+#if NET8_0_OR_GREATER
+        // The ASCII part of the run, several characters at a time.
+        var remaining = text.AsSpan(start);
+        var ascii = remaining.IndexOfAnyExcept(flowLevel == 0 ? s_plainScalarRunInBlock : s_plainScalarRunInFlow);
+        position += ascii < 0 ? remaining.Length : ascii;
+#endif
         if (flowLevel == 0)
         {
             while ((uint)position < (uint)text.Length)
@@ -697,6 +701,15 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         return position - start;
     }
+
+#if NET8_0_OR_GREATER
+    // The ASCII characters of CountPlainScalarRun: the printable ones but the space and ':', and but the flow indicators in a flow collection.
+    private static readonly System.Buffers.SearchValues<char> s_plainScalarRunInBlock = System.Buffers.SearchValues.Create(
+        "!\"#$%&'()*+,-./0123456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~");
+
+    private static readonly System.Buffers.SearchValues<char> s_plainScalarRunInFlow = System.Buffers.SearchValues.Create(
+        "!\"#$%&'()*+-./0123456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\^_`abcdefghijklmnopqrstuvwxyz|~");
+#endif
 
     /// <summary>Gets whether a character above the ASCII range is printable (<see cref="Emitter.IsPrintable"/>) and not a surrogate.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2805,32 +2818,10 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     /// <summary>Hands back a token the caller consumed and keeps no reference to.</summary>
     internal void Recycle(Token token)
     {
-        switch (token.PoolSlot)
+        var slot = token.PoolSlot;
+        if (slot != 0)
         {
-            case PoolSlotScalar:
-                _freeScalars.Push((Scalar)token);
-                break;
-            case PoolSlotKey:
-                _freeKeys.Push((Key)token);
-                break;
-            case PoolSlotValue:
-                _freeValues.Push((Value)token);
-                break;
-            case PoolSlotBlockEntry:
-                _freeBlockEntries.Push((BlockEntry)token);
-                break;
-            case PoolSlotBlockEnd:
-                _freeBlockEnds.Push((BlockEnd)token);
-                break;
-            case PoolSlotBlockMappingStart:
-                _freeBlockMappingStarts.Push((BlockMappingStart)token);
-                break;
-            case PoolSlotBlockSequenceStart:
-                _freeBlockSequenceStarts.Push((BlockSequenceStart)token);
-                break;
-            case PoolSlotFlowEntry:
-                _freeFlowEntries.Push((FlowEntry)token);
-                break;
+            _freeTokens[slot].Push(token);
         }
     }
 
@@ -2842,102 +2833,59 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
     private const byte PoolSlotBlockMappingStart = 6;
     private const byte PoolSlotBlockSequenceStart = 7;
     private const byte PoolSlotFlowEntry = 8;
+    private const int PoolSlotCount = 9;
 
-    private Scalar NewScalar(string value, ScalarStyle style, Mark start, Mark end)
+    private Token NewScalar(string value, ScalarStyle style, Mark start, Mark end)
     {
-        if (_freeScalars.TryPop(out var token))
+        if (_freeTokens[PoolSlotScalar].TryPop(out var token))
         {
-            token.Reset(value, style, start, end);
+            // Only scalars go to this slot.
+            ((Scalar)token).Reset(value, style, start, end);
             return token;
         }
 
         return new Scalar(value, style, start, end) { PoolSlot = _recycleTokens ? PoolSlotScalar : (byte)0 };
     }
 
-    private Key NewKey(Mark start, Mark end)
+    private Token NewKey(Mark start, Mark end)
+        => TryReuse(PoolSlotKey, start, end) ?? new Key(start, end) { PoolSlot = _recycleTokens ? PoolSlotKey : (byte)0 };
+
+    private Token NewValue(Mark start, Mark end)
+        => TryReuse(PoolSlotValue, start, end) ?? new Value(start, end) { PoolSlot = _recycleTokens ? PoolSlotValue : (byte)0 };
+
+    private Token NewBlockEntry(Mark start, Mark end)
+        => TryReuse(PoolSlotBlockEntry, start, end) ?? new BlockEntry(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockEntry : (byte)0 };
+
+    private Token NewBlockEnd(Mark start, Mark end)
+        => TryReuse(PoolSlotBlockEnd, start, end) ?? new BlockEnd(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockEnd : (byte)0 };
+
+    private Token NewBlockMappingStart(Mark start, Mark end)
+        => TryReuse(PoolSlotBlockMappingStart, start, end) ?? new BlockMappingStart(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockMappingStart : (byte)0 };
+
+    private Token NewBlockSequenceStart(Mark start, Mark end)
+        => TryReuse(PoolSlotBlockSequenceStart, start, end) ?? new BlockSequenceStart(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockSequenceStart : (byte)0 };
+
+    private Token NewFlowEntry(Mark start, Mark end)
+        => TryReuse(PoolSlotFlowEntry, start, end) ?? new FlowEntry(start, end) { PoolSlot = _recycleTokens ? PoolSlotFlowEntry : (byte)0 };
+
+    /// <summary>Takes a free token of a kind that only carries its marks, or returns <see langword="null"/>.</summary>
+    private Token TryReuse(byte slot, Mark start, Mark end)
     {
-        if (_freeKeys.TryPop(out var token))
+        if (_freeTokens[slot].TryPop(out var token))
         {
             token.Reset(start, end);
-            return token;
         }
 
-        return new Key(start, end) { PoolSlot = _recycleTokens ? PoolSlotKey : (byte)0 };
+        return token;
     }
 
-    private Value NewValue(Mark start, Mark end)
+    /// <summary>A stack of the tokens of one kind that are free to use again.</summary>
+    private struct TokenStack
     {
-        if (_freeValues.TryPop(out var token))
-        {
-            token.Reset(start, end);
-            return token;
-        }
-
-        return new Value(start, end) { PoolSlot = _recycleTokens ? PoolSlotValue : (byte)0 };
-    }
-
-    private BlockEntry NewBlockEntry(Mark start, Mark end)
-    {
-        if (_freeBlockEntries.TryPop(out var token))
-        {
-            token.Reset(start, end);
-            return token;
-        }
-
-        return new BlockEntry(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockEntry : (byte)0 };
-    }
-
-    private BlockEnd NewBlockEnd(Mark start, Mark end)
-    {
-        if (_freeBlockEnds.TryPop(out var token))
-        {
-            token.Reset(start, end);
-            return token;
-        }
-
-        return new BlockEnd(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockEnd : (byte)0 };
-    }
-
-    private BlockMappingStart NewBlockMappingStart(Mark start, Mark end)
-    {
-        if (_freeBlockMappingStarts.TryPop(out var token))
-        {
-            token.Reset(start, end);
-            return token;
-        }
-
-        return new BlockMappingStart(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockMappingStart : (byte)0 };
-    }
-
-    private BlockSequenceStart NewBlockSequenceStart(Mark start, Mark end)
-    {
-        if (_freeBlockSequenceStarts.TryPop(out var token))
-        {
-            token.Reset(start, end);
-            return token;
-        }
-
-        return new BlockSequenceStart(start, end) { PoolSlot = _recycleTokens ? PoolSlotBlockSequenceStart : (byte)0 };
-    }
-
-    private FlowEntry NewFlowEntry(Mark start, Mark end)
-    {
-        if (_freeFlowEntries.TryPop(out var token))
-        {
-            token.Reset(start, end);
-            return token;
-        }
-
-        return new FlowEntry(start, end) { PoolSlot = _recycleTokens ? PoolSlotFlowEntry : (byte)0 };
-    }
-
-    /// <summary>A stack of the tokens of one type that are free to use again.</summary>
-    private struct TokenStack<T> where T : Token
-    {
-        private T[] _items;
+        private Slot[] _items;
         private int _count;
 
-        public bool TryPop(out T token)
+        public bool TryPop(out Token token)
         {
             if (_count == 0)
             {
@@ -2945,22 +2893,28 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                 return false;
             }
 
-            token = _items[--_count];
+            token = _items[--_count].Token;
             return true;
         }
 
-        public void Push(T token)
+        public void Push(Token token)
         {
             if (_items == null)
             {
-                _items = new T[4];
+                _items = new Slot[4];
             }
             else if (_count == _items.Length)
             {
                 Array.Resize(ref _items, _count * 2);
             }
 
-            _items[_count++] = token;
+            _items[_count++].Token = token;
+        }
+
+        /// <summary>A token in a struct: an array of references checks the type of every reference stored into it.</summary>
+        private struct Slot
+        {
+            public Token Token;
         }
     }
 }
