@@ -272,7 +272,7 @@ namespace SharpYaml.Tests
 
             seq[0] = new YamlValue("New item 2");
 
-            Assert.AreEqual(seq, modifiedPath.Resolve());
+            Assert.AreSame(seq, modifiedPath.Resolve());
             Assert.AreEqual(2, modifiedPath.Indices.Last().Index); // Index of the sequence is now 2.
 
             ((YamlMapping)stream[0].Contents).Insert(1, new KeyValuePair<YamlElement, YamlElement>(new YamlValue("a mapping 1"), new YamlMapping()));
@@ -280,7 +280,7 @@ namespace SharpYaml.Tests
 
             seq[0] = new YamlValue("New item 3");
 
-            Assert.AreEqual(seq, modifiedPath.Resolve());
+            Assert.AreSame(seq, modifiedPath.Resolve());
             Assert.AreEqual(4, modifiedPath.Indices.Last().Index); // Index of the sequence is now 4.
         }
 
@@ -309,7 +309,7 @@ namespace SharpYaml.Tests
 
             seq[0] = new YamlValue("New item 2");
 
-            Assert.AreEqual(seq, modifiedPath.Resolve());
+            Assert.AreSame(seq, modifiedPath.Resolve());
             Assert.AreEqual(1, modifiedPath.Indices.Last().Index); // Index of the sequence is now 1.
 
             ((YamlSequence)stream[0].Contents).Insert(1, new YamlValue("value 1"));
@@ -317,7 +317,7 @@ namespace SharpYaml.Tests
 
             seq[0] = new YamlValue("New item 3");
 
-            Assert.AreEqual(seq, modifiedPath.Resolve());
+            Assert.AreSame(seq, modifiedPath.Resolve());
             Assert.AreEqual(3, modifiedPath.Indices.Last().Index); // Index of the sequence is now 3.
         }
 
