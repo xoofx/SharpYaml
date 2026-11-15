@@ -423,165 +423,131 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             return;
         }
 
-        // Is it a directive?
+        // Find what the next character starts. It is read once: most tokens are plain scalars, which no case below takes.
 
-        if (column == 0 && Check('%'))
+        var character = Peek(0);
+        switch (character)
         {
-            FetchDirective();
-            return;
+            case '%':
+                // Is it a directive?
+                if (column == 0)
+                {
+                    FetchDirective();
+                    return;
+                }
+                break;
+
+            case '-':
+                // Is it the document start indicator?
+                if (column == 0 && Check('-', 1) && Check('-', 2) && IsBlankOrBreakOrZero(3))
+                {
+                    FetchDocumentIndicator(true);
+                    return;
+                }
+
+                // Is it the block entry indicator?
+                if (IsBlankOrBreakOrZero(1))
+                {
+                    FetchBlockEntry();
+                    return;
+                }
+                break;
+
+            case '.':
+                // Is it the document end indicator?
+                if (column == 0 && Check('.', 1) && Check('.', 2) && IsBlankOrBreakOrZero(3))
+                {
+                    FetchDocumentIndicator(false);
+                    return;
+                }
+                break;
+
+            case '[':
+                // The flow sequence start indicator.
+                FetchFlowCollectionStart(true);
+                return;
+
+            case '{':
+                // The flow mapping start indicator.
+                FetchFlowCollectionStart(false);
+                return;
+
+            case ']':
+                // The flow sequence end indicator.
+                FetchFlowCollectionEnd(true);
+                return;
+
+            case '}':
+                // The flow mapping end indicator.
+                FetchFlowCollectionEnd(false);
+                return;
+
+            case ',':
+                // The flow entry indicator.
+                FetchFlowEntry();
+                return;
+
+            case '?':
+                // Is it the key indicator?
+                if (IsBlankOrBreakOrZero(1))
+                {
+                    FetchKey();
+                    return;
+                }
+                break;
+
+            case ':':
+                // Is it the value indicator?
+                if (IsBlankOrBreakOrZero(1) || (flowLevel > 0 && (flowValueAllowed || IsFlowIndicator(Peek(1)))))
+                {
+                    FetchValue();
+                    return;
+                }
+                break;
+
+            case '*':
+                // An alias.
+                FetchAnchor(true);
+                return;
+
+            case '&':
+                // An anchor.
+                FetchAnchor(false);
+                return;
+
+            case '!':
+                // A tag.
+                FetchTag();
+                return;
+
+            case '|':
+                // Is it a literal scalar?
+                if (flowLevel == 0)
+                {
+                    FetchBlockScalar(true);
+                    return;
+                }
+                break;
+
+            case '>':
+                // Is it a folded scalar?
+                if (flowLevel == 0)
+                {
+                    FetchBlockScalar(false);
+                    return;
+                }
+                break;
+
+            case '\'':
+                // A single-quoted scalar.
+                FetchFlowScalar(true);
+                return;
+
+            case '"':
+                // A double-quoted scalar.
+                FetchFlowScalar(false);
+                return;
         }
-
-        // Is it the document start indicator?
-
-        bool isDocumentStart =
-            column == 0 &&
-            Check('-', 0) &&
-            Check('-', 1) &&
-            Check('-', 2) &&
-            IsBlankOrBreakOrZero(3);
-
-        if (isDocumentStart)
-        {
-            FetchDocumentIndicator(true);
-            return;
-        }
-
-        // Is it the document end indicator?
-
-        bool isDocumentEnd =
-            column == 0 &&
-            Check('.', 0) &&
-            Check('.', 1) &&
-            Check('.', 2) &&
-            IsBlankOrBreakOrZero(3);
-
-        if (isDocumentEnd)
-        {
-            FetchDocumentIndicator(false);
-            return;
-        }
-
-        // Is it the flow sequence start indicator?
-
-        if (Check('['))
-        {
-            FetchFlowCollectionStart(true);
-            return;
-        }
-
-        // Is it the flow mapping start indicator?
-
-        if (Check('{'))
-        {
-            FetchFlowCollectionStart(false);
-            return;
-        }
-
-        // Is it the flow sequence end indicator?
-
-        if (Check(']'))
-        {
-            FetchFlowCollectionEnd(true);
-            return;
-        }
-
-        // Is it the flow mapping end indicator?
-
-        if (Check('}'))
-        {
-            FetchFlowCollectionEnd(false);
-            return;
-        }
-
-        // Is it the flow entry indicator?
-
-        if (Check(','))
-        {
-            FetchFlowEntry();
-            return;
-        }
-
-        // Is it the block entry indicator?
-
-        if (Check('-') && IsBlankOrBreakOrZero(1))
-        {
-            FetchBlockEntry();
-            return;
-        }
-
-        // Is it the key indicator?
-
-        if (Check('?') && IsBlankOrBreakOrZero(1))
-        {
-            FetchKey();
-            return;
-        }
-
-        // Is it the value indicator?
-
-        if (Check(':') && (IsBlankOrBreakOrZero(1) ||
-            (flowLevel > 0 && (flowValueAllowed || Check(",[]{}", 1)))))
-        {
-            FetchValue();
-            return;
-        }
-
-        // Is it an alias?
-
-        if (Check('*'))
-        {
-            FetchAnchor(true);
-            return;
-        }
-
-        // Is it an anchor?
-
-        if (Check('&'))
-        {
-            FetchAnchor(false);
-            return;
-        }
-
-        // Is it a tag?
-
-        if (Check('!'))
-        {
-            FetchTag();
-            return;
-        }
-
-        // Is it a literal scalar?
-
-        if (Check('|') && flowLevel == 0)
-        {
-            FetchBlockScalar(true);
-            return;
-        }
-
-        // Is it a folded scalar?
-
-        if (Check('>') && flowLevel == 0)
-        {
-            FetchBlockScalar(false);
-            return;
-        }
-
-        // Is it a single-quoted scalar?
-
-        if (Check('\''))
-        {
-            FetchFlowScalar(true);
-            return;
-        }
-
-        // Is it a double-quoted scalar?
-
-        if (Check('"'))
-        {
-            FetchFlowScalar(false);
-            return;
-        }
-
 
         // Is it a plain scalar?
 
@@ -598,12 +564,12 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
 
         // if it is followed by a non-space character.
 
-        bool isInvalidPlainScalarCharacter = IsBlankOrBreakOrZero() || Check("-?:,[]{}#&*!|>'\"%@`");
+        bool isInvalidPlainScalarCharacter = IsBlankOrBreakOrZero(character) || "-?:,[]{}#&*!|>'\"%@`".IndexOf(character) >= 0;
 
         bool isPlainScalar =
             !isInvalidPlainScalarCharacter ||
-            (Check("-?:") && !IsBlankOrBreakOrZero(1) &&
-                (flowLevel == 0 || !Check(",[]{}", 1)));
+            (character is '-' or '?' or ':' && !IsBlankOrBreakOrZero(1) &&
+                (flowLevel == 0 || !IsFlowIndicator(Peek(1))));
 
         if (isPlainScalar)
         {
@@ -2383,9 +2349,20 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             for (; ; )
             {
                 var character = Peek(0);
-                if (character is ' ' or '\t')
+                if (character == ' ')
                 {
-                    // Consume a space or a tab character.
+                    // Consume the spaces: the ones that follow the value, or the indentation of the next line.
+
+                    var spaces = index;
+                    SkipSpaces();
+                    if (!hasLeadingBlanks)
+                    {
+                        pendingBlanks += index - spaces;
+                    }
+                }
+                else if (character == '\t')
+                {
+                    // Consume a tab character.
 
                     if (!hasLeadingBlanks)
                     {
