@@ -44,6 +44,19 @@ public sealed class Yaml122SchemaTests
     }
 
     [TestMethod]
+    [DataRow("0.12345678901234567890123")]
+    [DataRow("1234567890.123456789")]
+    [DataRow("79228162514264337593543950335")]
+    public void DecimalKeepsItsPrecisionInBothPaths(string text)
+    {
+        var expected = decimal.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var useSchema in new[] { false, true })
+        {
+            Assert.AreEqual(expected, YamlSerializer.Deserialize<decimal>(text, new YamlSerializerOptions { UseSchema = useSchema }));
+        }
+    }
+
+    [TestMethod]
     [DataRow("! 12", "12")]
     [DataRow("!!str 12", "12")]
     [DataRow("!!int '12'", 12)]

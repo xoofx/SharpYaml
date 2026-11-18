@@ -576,10 +576,18 @@ public static class YamlScalar
         {
             if (TryResolveSchemaScalar(reader, out var defaultTag, out var value) &&
                 (string.Equals(defaultTag, JsonSchema.FloatShortTag, StringComparison.Ordinal) ||
-                 string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal)) &&
-                TryConvertToDecimal(value, out result))
+                 string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal)))
             {
-                return true;
+                // A float resolves to a double, which keeps only about 15 significant digits: read the decimal from the text when it can.
+                if (value is double or float && TryParseDecimal(reader.ScalarValueSpan, out result))
+                {
+                    return true;
+                }
+
+                if (TryConvertToDecimal(value, out result))
+                {
+                    return true;
+                }
             }
 
             result = default;
