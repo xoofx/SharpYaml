@@ -54,13 +54,18 @@ internal static class YamlEditableLayout
         }
 
         EnsureEndsWithNewLine(entry, newLine);
+        UseNewLine(entry, newLine.Text);
     }
 
     /// <summary>
     /// Prepares <paramref name="entry"/> to be inserted before <paramref name="next"/>.
     /// </summary>
-    public static void PrepareInsert(YamlEditableNode next, YamlEditableNode entry) =>
-        EnsureEndsWithNewLine(entry, FindNewLine(GetLastLineOwner(next).EndOfLineTrivia)?.Text ?? DefaultNewLine);
+    public static void PrepareInsert(YamlEditableNode next, YamlEditableNode entry)
+    {
+        var newLine = FindNewLine(GetLastLineOwner(next).EndOfLineTrivia)?.Text ?? DefaultNewLine;
+        EnsureEndsWithNewLine(entry, newLine);
+        UseNewLine(entry, newLine);
+    }
 
     /// <summary>
     /// Moves the line break of an entry after its value changed from <paramref name="oldValue"/>
@@ -91,6 +96,50 @@ internal static class YamlEditableLayout
         if (newLine is not null)
         {
             EnsureEndsWithNewLine(entry, newLine);
+            UseNewLine(entry, newLine.Text);
+        }
+    }
+
+    /// <summary>
+    /// Writes every line break of <paramref name="node"/> and of its nested entries as
+    /// <paramref name="newLine"/>, the line break of the document. A map or a list built in memory
+    /// gets "\n" between its entries, and "key:" before a nested block gets an explicit line break.
+    /// </summary>
+    private static void UseNewLine(YamlEditableNode node, string newLine)
+    {
+        UseNewLine(node.LeadingTrivia, newLine);
+        UseNewLine(node.TrailingTrivia, newLine);
+        UseNewLine(node.EndOfLineTrivia, newLine);
+
+        if (node is YamlEditableMapEntry { TrailingTrivia: null } mapEntry && IsBlock(mapEntry.Value))
+        {
+            mapEntry.TrailingTrivia = [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine)];
+        }
+
+        if (GetValue(node) is { } value)
+        {
+            UseNewLine(value, newLine);
+        }
+
+        foreach (var child in GetEntries(node))
+        {
+            UseNewLine(child, newLine);
+        }
+    }
+
+    private static void UseNewLine(List<YamlEditableTrivia>? trivia, string newLine)
+    {
+        if (trivia is null)
+        {
+            return;
+        }
+
+        for (var index = 0; index < trivia.Count; index++)
+        {
+            if (trivia[index].Kind == YamlEditableTriviaKind.NewLine && trivia[index].Text != newLine)
+            {
+                trivia[index] = new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine);
+            }
         }
     }
 

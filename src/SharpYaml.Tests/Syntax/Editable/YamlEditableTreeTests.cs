@@ -685,4 +685,30 @@ public class YamlEditableTreeTests
 
         AssertEdited("Servers:\n  - Name: prod\n  - Name: test\n    Port: 1523\n", tree);
     }
+
+    [TestMethod]
+    public void SetValue_NewKeyWithMapInCrLfDocument_UsesCrLf()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\r\nb: 2\r\n");
+        var map = new YamlEditableMap();
+        map.SetValue("x", new YamlEditableScalar("1"), "  ");
+        map.SetValue("y", new YamlEditableScalar("2"));
+
+        RootOf(tree).SetValue("c", map);
+
+        AssertEdited("a: 1\r\nb: 2\r\nc:\r\n  x: 1\r\n  y: 2\r\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ReplaceScalarWithMapInCrLfDocument_UsesCrLf()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\r\nb: 2\r\n");
+        var map = new YamlEditableMap();
+        map.SetValue("x", new YamlEditableScalar("1"), "  ");
+        map.SetValue("y", new YamlEditableScalar("2"));
+
+        RootOf(tree).SetValue("a", map);
+
+        AssertEdited("a:\r\n  x: 1\r\n  y: 2\r\nb: 2\r\n", tree);
+    }
 }
