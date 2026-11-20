@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using SharpYaml.Tokens;
 
 namespace SharpYaml.Syntax.Editable;
 
@@ -30,15 +31,17 @@ public sealed class YamlEditableMap : YamlEditableNode
 
     /// <summary>
     /// Gets the value for <paramref name="key"/>, or <see langword="null"/> if the key is not
-    /// present.
+    /// present. <paramref name="key"/> is compared with the value of each key, so it also finds a
+    /// quoted key: <c>name</c> finds <c>"name": x</c> and <c>'name': x</c>.
     /// </summary>
     public YamlEditableNode? GetValue(string key) =>
-        _entries.FirstOrDefault(entry => entry.Key == key)?.Value;
+        _entries.FirstOrDefault(entry => HasKey(entry, key))?.Value;
 
     /// <summary>
-    /// Sets the value for <paramref name="key"/>. If the key already exists, its value node is
-    /// replaced in place, keeping the entry's original indentation and surrounding comments. If
-    /// the key does not exist yet, a new entry is appended using <paramref name="indent"/>
+    /// Sets the value for <paramref name="key"/>. If the key already exists (compared as in
+    /// <see cref="GetValue"/>), its value node is replaced in place, keeping the entry's original
+    /// key text, indentation and surrounding comments. If the key does not exist yet, a new entry
+    /// is appended with <paramref name="key"/> as its raw key text, using <paramref name="indent"/>
     /// (defaults to the column of the last existing key, or an empty string for the root).
     /// </summary>
     public void SetValue(string key, YamlEditableNode value, string? indent = null)
@@ -51,7 +54,7 @@ public sealed class YamlEditableMap : YamlEditableNode
 
         ArgumentGuard.ThrowIfNull(value);
 
-        var existing = _entries.FirstOrDefault(entry => entry.Key == key);
+        var existing = _entries.FirstOrDefault(entry => HasKey(entry, key));
         if (existing != null)
         {
             existing.Value = value;
@@ -108,9 +111,10 @@ public sealed class YamlEditableMap : YamlEditableNode
     }
 
     /// <summary>
-    /// Removes the entry for <paramref name="key"/>, with its comment lines and its line.
-    /// Returns <see langword="false"/> if the key was not present. If this mapping is a list item
-    /// and the removed key was on the same line as the "-", the next key moves to that line.
+    /// Removes the entry for <paramref name="key"/> (compared as in <see cref="GetValue"/>), with
+    /// its comment lines and its line. Returns <see langword="false"/> if the key was not present.
+    /// If this mapping is a list item and the removed key was on the same line as the "-", the
+    /// next key moves to that line.
     /// </summary>
     /// <remarks>
     /// Removing the only entry of a mapping that is a list item leaves an empty item; remove the
@@ -118,7 +122,7 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// </remarks>
     public bool RemoveEntry(string key)
     {
-        var index = _entries.FindIndex(entry => entry.Key == key);
+        var index = _entries.FindIndex(entry => HasKey(entry, key));
         if (index < 0)
         {
             return false;
@@ -144,6 +148,29 @@ public sealed class YamlEditableMap : YamlEditableNode
         ThrowIfParented(entry);
         entry.Parent = this;
         _entries.Add(entry);
+    }
+
+    private static bool HasKey(YamlEditableMapEntry entry, string key) =>
+        entry.Key == key || (IsQuoted(entry.Key) && string.Equals(GetQuotedKeyValue(entry.Key), key, StringComparison.Ordinal));
+
+    private static bool IsQuoted(string rawKey) => rawKey.Length >= 2 && rawKey[0] is '"' or '\'';
+
+    /// <summary>
+    /// Returns the value of a quoted key read by the parser: without the quotes, with the escapes
+    /// of a double-quoted key and the doubled quotes of a single-quoted key resolved.
+    /// </summary>
+    private static string GetQuotedKeyValue(string rawKey)
+    {
+        var scanner = new Scanner<StringLookAheadBuffer>(new StringLookAheadBuffer(rawKey));
+        while (scanner.MoveNext())
+        {
+            if (scanner.Current is Scalar scalar)
+            {
+                return scalar.Value;
+            }
+        }
+
+        return rawKey;
     }
 
     private static void ThrowIfParented(YamlEditableMapEntry entry)

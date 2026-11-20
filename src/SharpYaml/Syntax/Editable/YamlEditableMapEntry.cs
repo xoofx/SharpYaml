@@ -9,8 +9,8 @@ namespace SharpYaml.Syntax.Editable;
 
 /// <summary>
 /// A single "key: value" entry of a <see cref="YamlEditableMap"/>. Mirrors
-/// Tomlyn.Syntax.KeyValueSyntax: the key is kept as plain text (bare keys only, matching the
-/// bounded scope of this editable tree), and the value is reparented through
+/// Tomlyn.Syntax.KeyValueSyntax: the key is kept as its raw source text, with any quotes
+/// (<see cref="YamlEditableMap.GetValue"/> compares by the key's value), and the value is reparented through
 /// <see cref="Value"/> like any other <see cref="YamlEditableNode"/> child.
 /// </summary>
 public sealed class YamlEditableMapEntry : YamlEditableNode
@@ -32,7 +32,7 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     }
 
     /// <summary>
-    /// Gets or sets the entry's key text (the part before ": ").
+    /// Gets or sets the entry's raw key text (the part before ": "), including any quotes.
     /// </summary>
     public string Key { get; set; }
 

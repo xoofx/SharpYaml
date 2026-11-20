@@ -560,4 +560,34 @@ public class YamlEditableTreeTests
     {
         Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
     }
+
+    [TestMethod]
+    public void GetValue_QuotedKeys_FindsThemByTheirValue()
+    {
+        var root = RootOf(YamlEditableTree.Parse("\"name\": x\n'other': y\n\"a\\tb\": z\n"));
+
+        Assert.AreEqual("x", ((YamlEditableScalar)root.GetValue("name")!).Text);
+        Assert.AreEqual("y", ((YamlEditableScalar)root.GetValue("other")!).Text);
+        Assert.AreEqual("z", ((YamlEditableScalar)root.GetValue("a\tb")!).Text);
+    }
+
+    [TestMethod]
+    public void SetValue_QuotedExistingKey_ReplacesItsValue()
+    {
+        var tree = YamlEditableTree.Parse("\"name\": x\n");
+
+        RootOf(tree).SetValue("name", new YamlEditableScalar("z"));
+
+        AssertEdited("\"name\": z\n", tree);
+    }
+
+    [TestMethod]
+    public void RemoveEntry_QuotedKey_RemovesTheEntry()
+    {
+        var tree = YamlEditableTree.Parse("'a': 1\nb: 2\n");
+
+        Assert.IsTrue(RootOf(tree).RemoveEntry("a"));
+
+        AssertEdited("b: 2\n", tree);
+    }
 }
