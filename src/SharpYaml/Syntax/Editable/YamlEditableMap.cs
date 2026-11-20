@@ -75,6 +75,7 @@ public sealed class YamlEditableMap : YamlEditableNode
         ThrowIfParented(entry);
         YamlEditableLayout.PrepareAppend(_entries.Count > 0 ? _entries[_entries.Count - 1] : null, entry);
         AddParsedEntry(entry);
+        YamlEditableLayout.IndentValue(entry);
     }
 
     /// <summary>
@@ -108,6 +109,7 @@ public sealed class YamlEditableMap : YamlEditableNode
         YamlEditableLayout.PrepareInsert(next, entry);
         entry.Parent = this;
         _entries.Insert(index, entry);
+        YamlEditableLayout.IndentValue(entry);
     }
 
     /// <summary>

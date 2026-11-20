@@ -95,7 +95,9 @@ var edited = tree.ToSyntaxTree();
 
 A same-line comment stays with the entry on its line, and comment lines stay with the entry
 below them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`RemoveAt` keep
-each entry on its own line, so removing an entry removes its comments and nothing else.
+each entry on its own line, so removing an entry removes its comments and nothing else. A new
+map or list that is not indented under its key (or after its `-`) is indented when it is set as a
+value.
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
 `GetValue("name")` also finds `"name": x`; a new key is written as given. The scope is bounded:

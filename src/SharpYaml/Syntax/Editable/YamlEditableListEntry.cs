@@ -29,11 +29,12 @@ public sealed class YamlEditableListEntry : YamlEditableNode
     /// <summary>
     /// Gets the indentation text written before the "-" marker.
     /// </summary>
-    public string Indent { get; }
+    public string Indent { get; internal set; }
 
     /// <summary>
     /// Gets or sets this entry's value. Assigning a new value detaches the previous one and
-    /// reparents the new node to this entry.
+    /// reparents the new node to this entry. A nested map whose keys are not after the "-" is
+    /// indented to the column of its first key.
     /// </summary>
     public YamlEditableNode Value
     {
@@ -46,6 +47,8 @@ public sealed class YamlEditableListEntry : YamlEditableNode
             {
                 YamlEditableLayout.AfterValueChanged(this, oldValue, value, isMapEntry: false);
             }
+
+            YamlEditableLayout.IndentValue(this);
         }
     }
 

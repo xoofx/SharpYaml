@@ -45,7 +45,8 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     /// Gets or sets the entry's value. Assigning a new value detaches the previous one and
     /// reparents the new node to this entry, following the same convention as
     /// Tomlyn.Syntax.KeyValueSyntax.Value. The line break and the same-line comment of the entry
-    /// are kept: a nested map or list goes on the next line, after "key:" and the comment.
+    /// are kept: a nested map or list goes on the next line, after "key:" and the comment. A nested
+    /// map or list whose entries are not indented past the key is indented by two spaces.
     /// </summary>
     public YamlEditableNode Value
     {
@@ -58,6 +59,8 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
             {
                 YamlEditableLayout.AfterValueChanged(this, oldValue, value, isMapEntry: true);
             }
+
+            YamlEditableLayout.IndentValue(this);
         }
     }
 

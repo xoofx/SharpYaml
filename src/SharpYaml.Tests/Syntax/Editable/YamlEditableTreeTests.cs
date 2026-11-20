@@ -633,4 +633,56 @@ public class YamlEditableTreeTests
     {
         Assert.AreEqual(yaml, YamlEditableTree.Parse(yaml).Serialize());
     }
+
+    [TestMethod]
+    public void SetValue_NewKeyWithMapWithoutIndent_IndentsTheMapUnderTheKey()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\n");
+        var map = new YamlEditableMap();
+        map.SetValue("x", new YamlEditableScalar("1"));
+        map.SetValue("y", new YamlEditableScalar("2"));
+
+        RootOf(tree).SetValue("c", map);
+
+        AssertEdited("a: 1\nc:\n  x: 1\n  y: 2\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_NewKeyWithNestedMapsWithoutIndent_IndentsEachLevel()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\n");
+        var inner = new YamlEditableMap();
+        inner.SetValue("y", new YamlEditableScalar("1"));
+        var outer = new YamlEditableMap();
+        outer.SetValue("x", inner);
+
+        RootOf(tree).SetValue("c", outer);
+
+        AssertEdited("a: 1\nc:\n  x:\n    y: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ReplaceNestedScalarWithMapWithoutIndent_IndentsTheMapUnderTheKey()
+    {
+        var tree = YamlEditableTree.Parse("m:\n  a: 1\n");
+        var map = new YamlEditableMap();
+        map.SetValue("x", new YamlEditableScalar("1"));
+
+        ((YamlEditableMap)RootOf(tree).GetValue("m")!).SetValue("a", map);
+
+        AssertEdited("m:\n  a:\n    x: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void AddEntry_ListItemMapWithoutIndent_AlignsTheKeysUnderTheFirstKey()
+    {
+        var tree = YamlEditableTree.Parse("Servers:\n  - Name: prod\n");
+        var map = new YamlEditableMap();
+        map.SetValue("Name", new YamlEditableScalar("test"));
+        map.SetValue("Port", new YamlEditableScalar("1523"));
+
+        ServersOf(tree).AddEntry(new YamlEditableListEntry(map, "  "));
+
+        AssertEdited("Servers:\n  - Name: prod\n  - Name: test\n    Port: 1523\n", tree);
+    }
 }
