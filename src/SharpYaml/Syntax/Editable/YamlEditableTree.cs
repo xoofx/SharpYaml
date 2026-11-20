@@ -15,8 +15,8 @@ namespace SharpYaml.Syntax.Editable;
 /// Scope is intentionally bounded to editing hand-written configuration files: block-style maps
 /// and sequences, plain/quoted scalars, "#" comments, keys and list items without a value
 /// ("key:", "-"), and empty flow collections ("[]", "{}"), the only form of an empty map or list.
-/// Flow style with content, anchors, aliases and tags are not supported and cause
-/// <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
+/// Flow style with content, anchors, aliases, tags, directives and document markers ("---",
+/// "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
 /// </summary>
 /// <remarks>
 /// Edits are applied to the source snapshot through <see cref="YamlSyntaxTree.WithTextChange"/>
@@ -54,7 +54,8 @@ public sealed class YamlEditableTree
     /// </summary>
     /// <exception cref="NotSupportedException">
     /// The document uses a construct outside the bounded scope of this editable tree (flow
-    /// style with content, anchors, aliases, tags, or multiple documents).
+    /// style with content, anchors, aliases, tags, directives, or document markers such as
+    /// "---" and "...", which also covers multiple documents).
     /// </exception>
     public static YamlEditableTree Parse(string yaml)
     {
@@ -194,8 +195,16 @@ public sealed class YamlEditableTree
                     continue;
                 }
 
+                if (token.Kind is YamlSyntaxKind.DocumentStart or YamlSyntaxKind.DocumentEnd)
+                {
+                    // The scanner only emits these for an explicit "---" or "...". The tree has no
+                    // node for them, so dropping them would lose their text (and join the documents).
+                    throw new NotSupportedException(
+                        $"YamlEditableTree does not support document markers ('{token.Kind}'). Only a single " +
+                        "document without \"---\" or \"...\" is supported.");
+                }
+
                 if (token.Kind is YamlSyntaxKind.StreamStart or YamlSyntaxKind.StreamEnd
-                    or YamlSyntaxKind.DocumentStart or YamlSyntaxKind.DocumentEnd
                     or YamlSyntaxKind.Key or YamlSyntaxKind.BlockMappingStart or YamlSyntaxKind.BlockEnd)
                 {
                     // Zero-width structural noise: not represented as nodes in the editable tree.

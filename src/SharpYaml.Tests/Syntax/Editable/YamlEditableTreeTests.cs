@@ -551,4 +551,13 @@ public class YamlEditableTreeTests
         const string yaml = "node: &n1 value\nalias: *n1\n";
         Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
     }
+
+    [TestMethod]
+    [DataRow("---\na: 1\n")]
+    [DataRow("a: 1\n...\n")]
+    [DataRow("a: 1\n---\nb: 2\n")]
+    public void Parse_DocumentMarker_ThrowsNotSupportedException(string yaml)
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
+    }
 }

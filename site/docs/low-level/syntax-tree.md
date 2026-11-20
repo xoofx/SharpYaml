@@ -103,7 +103,8 @@ plain and quoted scalars, and `#` comments. A key or a list item without a value
 is a scalar with empty text. An empty mapping or sequence has no block form: it is read from and
 written as `{}` or `[]`.
 `YamlEditableTree.Parse` throws `NotSupportedException` for flow style with content, anchors,
-aliases, tags, and directives, so a document that uses them is never edited partially.
+aliases, tags, directives, and document markers (`---`, `...`, so also for a stream of several
+documents), so a document that uses them is never edited partially.
 
 ## Which API should I use?
 
