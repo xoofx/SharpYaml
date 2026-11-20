@@ -590,4 +590,47 @@ public class YamlEditableTreeTests
 
         AssertEdited("b: 2\n", tree);
     }
+
+    [TestMethod]
+    public void SetValue_ReplaceLiteralScalar_KeepsTheLineBreak()
+    {
+        var tree = YamlEditableTree.Parse("a: |\n  line1\nb: 2\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("x"));
+
+        AssertEdited("a: x\nb: 2\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ReplaceLiteralScalarBeforeCommentLine_KeepsTheCommentLine()
+    {
+        var tree = YamlEditableTree.Parse("a: |\n  x\n# c\nb: 1\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("y"));
+
+        AssertEdited("a: y\n# c\nb: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_NewKeyAfterFoldedScalarAtTheEnd_AddsNoBlankLine()
+    {
+        var tree = YamlEditableTree.Parse("b: 2\na: >\n  folded\n");
+
+        RootOf(tree).SetValue("c", new YamlEditableScalar("4"));
+
+        AssertEdited("b: 2\na: >\n  folded\nc: 4\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a: |\n  line1\n\nb: 2\n")]
+    [DataRow("a: |+\n  x\n\nb: 1\n")]
+    [DataRow("a: |\n  x\n# c\nb: 1\n")]
+    [DataRow("m:\n  a: |\n    x\n  b: 1\n")]
+    [DataRow("- |\n  x\n- y\n")]
+    [DataRow("a: |\n  x")]
+    [DataRow("a: |\r\n  x\r\nb: 1\r\n")]
+    public void Parse_BlockScalar_RoundTrips(string yaml)
+    {
+        Assert.AreEqual(yaml, YamlEditableTree.Parse(yaml).Serialize());
+    }
 }

@@ -13,7 +13,7 @@ namespace SharpYaml.Syntax.Editable;
 /// An editable YAML document: a <see cref="YamlSyntaxTree"/> grouped into a mutable tree of
 /// maps, lists and scalars with attached comments, in the spirit of Tomlyn.Syntax.DocumentSyntax.
 /// Scope is intentionally bounded to editing hand-written configuration files: block-style maps
-/// and sequences, plain/quoted scalars, "#" comments, keys and list items without a value
+/// and sequences, plain/quoted/block scalars, "#" comments, keys and list items without a value
 /// ("key:", "-"), and empty flow collections ("[]", "{}"), the only form of an empty map or list.
 /// Flow style with content, anchors, aliases, tags, directives and document markers ("---",
 /// "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
@@ -262,6 +262,74 @@ public sealed class YamlEditableTree
             {
                 var rest = SplitEndOfLine(pendingTrivia, _significant.Count);
                 TrailingTrivia = rest.Count > 0 ? rest : null;
+            }
+
+            SplitBlockScalarLineBreaks();
+        }
+
+        /// <summary>
+        /// The text of a block scalar ("|" or ">") ends with the line break of its last line and the
+        /// blank lines after it, and the trivia tokens for them are skipped. Moves them out of the
+        /// scalar, as for any other scalar: the first line break ends the scalar's line, and the blank
+        /// lines go before the next token, which then starts a line with its own indentation. So a
+        /// new value or a new entry after the scalar keeps the line structure.
+        /// </summary>
+        private void SplitBlockScalarLineBreaks()
+        {
+            for (var index = 0; index < _significant.Count; index++)
+            {
+                var token = _significant[index];
+                if (token.Kind != YamlSyntaxKind.Scalar || token.Text.Length == 0 || token.Text[0] is not ('|' or '>'))
+                {
+                    continue;
+                }
+
+                var text = token.Text;
+                var lineBreaks = new List<YamlEditableTrivia>();
+                var end = text.Length;
+                while (end > 0 && text[end - 1] is '\n' or '\r')
+                {
+                    var start = end - 1;
+                    if (text[start] == '\n' && start > 0 && text[start - 1] == '\r')
+                    {
+                        start--;
+                    }
+
+                    lineBreaks.Insert(0, new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, text.Substring(start, end - start)));
+                    end = start;
+                }
+
+                if (lineBreaks.Count == 0)
+                {
+                    continue;
+                }
+
+                _significant[index] = new YamlSyntaxToken(token.Kind, token.Span, text.Substring(0, end));
+
+                // In source order: the blank lines of the scalar, then what the constructor attached
+                // after the scalar (its "end of line", in fact the next whole lines), then the
+                // leading trivia of the next token.
+                var moved = lineBreaks.GetRange(1, lineBreaks.Count - 1);
+                if (_endOfLineByTokenIndex.TryGetValue(index, out var endOfLine))
+                {
+                    moved.AddRange(endOfLine);
+                }
+
+                _endOfLineByTokenIndex[index] = [lineBreaks[0]];
+                if (index + 1 < _significant.Count)
+                {
+                    if (_leadingTriviaByTokenIndex.TryGetValue(index + 1, out var leading) && leading.Trivia is not null)
+                    {
+                        moved.AddRange(leading.Trivia);
+                    }
+
+                    _leadingTriviaByTokenIndex[index + 1] = (moved.Count > 0 ? moved : null, true);
+                }
+                else
+                {
+                    moved.AddRange(TrailingTrivia ?? []);
+                    TrailingTrivia = moved.Count > 0 ? moved : null;
+                }
             }
         }
 
