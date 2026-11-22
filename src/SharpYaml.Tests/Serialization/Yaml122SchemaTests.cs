@@ -44,6 +44,31 @@ public sealed class Yaml122SchemaTests
     }
 
     [TestMethod]
+    [DataRow("0.12345678901234567890123")]
+    [DataRow("1234567890.123456789")]
+    [DataRow("79228162514264337593543950335")]
+    public void DecimalKeepsItsPrecisionInBothPaths(string text)
+    {
+        var expected = decimal.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var useSchema in new[] { false, true })
+        {
+            Assert.AreEqual(expected, YamlSerializer.Deserialize<decimal>(text, new YamlSerializerOptions { UseSchema = useSchema }));
+        }
+    }
+
+    [TestMethod]
+    [DataRow(YamlSchemaKind.Extended, "!!float 017", "15")]
+    [DataRow(YamlSchemaKind.Extended, "!!float '017'", "15")]
+    [DataRow(YamlSchemaKind.Core, "!!float 0o17", "15")]
+    [DataRow(YamlSchemaKind.Core, "!!float 12345678901234567890123", "12345678901234567890123")]
+    [DataRow(YamlSchemaKind.Core, "!!float 1234567890.123456789", "1234567890.123456789")]
+    public void DecimalWithExplicitFloatTagKeepsTheValueOfTheSchema(YamlSchemaKind schema, string yaml, string expected)
+    {
+        var options = new YamlSerializerOptions { Schema = schema, UseSchema = true };
+        Assert.AreEqual(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), YamlSerializer.Deserialize<decimal>(yaml, options));
+    }
+
+    [TestMethod]
     [DataRow("! 12", "12")]
     [DataRow("!!str 12", "12")]
     [DataRow("!!int '12'", 12)]
