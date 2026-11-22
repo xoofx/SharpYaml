@@ -63,10 +63,13 @@ internal static class YamlEditableLayout
             else if (GetEmptyFlowText(collection) is not null && collection.LeadingTrivia is { Count: > 0 } flowLeading
                 && flowLeading[flowLeading.Count - 1] is { Kind: YamlEditableTriviaKind.Whitespace } flowIndent)
             {
-                // A root read from an indented "{}" or "[]": its first entry takes that indentation, which its next
-                // entries then share.
+                // A root read from an indented "{}" or "[]": its first entry takes that indentation, unless it has its
+                // own, and its next entries then share it.
                 flowLeading.RemoveAt(flowLeading.Count - 1);
-                SetIndent(entry, flowIndent.Text + GetIndent(entry));
+                if (GetIndent(entry).Length == 0)
+                {
+                    SetIndent(entry, flowIndent.Text);
+                }
             }
             else if (collection.Parent is null && GetEmptyFlowText(collection) is { } flowText && GetEndLineBreak(flowText) is { } flowLineBreak)
             {
@@ -77,6 +80,25 @@ internal static class YamlEditableLayout
             if (GetEmptyFlowText(collection) is not null)
             {
                 UseNewLine(entry, GetDocumentNewLine(collection));
+
+                // The comment on the line of a root "{} # comment" goes to the line of its first entry.
+                if (collection.Tree?.TrailingTrivia is { } rootTrailing
+                    && rootTrailing.FindIndex(t => t.Kind == YamlEditableTriviaKind.Comment) is var rootComment and >= 0
+                    && rootTrailing.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) is var rootBreak
+                    && (rootBreak < 0 || rootComment < rootBreak))
+                {
+                    var start = rootComment;
+                    while (start > 0 && rootTrailing[start - 1].Kind == YamlEditableTriviaKind.Whitespace)
+                    {
+                        start--;
+                    }
+
+                    var comment = rootTrailing.GetRange(start, rootComment - start + 1);
+                    rootTrailing.RemoveRange(start, rootComment - start + 1);
+                    var endOfLine = GetLastLineOwner(entry).EndOfLineTrivia ??= [];
+                    var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
+                    endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, comment);
+                }
             }
 
             KeepCommentsOutOfBlockScalars(entry);
@@ -267,9 +289,17 @@ internal static class YamlEditableLayout
         else if (entry is YamlEditableListEntry && wasBlock && !isBlock && entry.TrailingTrivia is { } dashSeparator
             && dashSeparator.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) is var dashBreak and >= 0)
         {
-            // "-\n  key: value" becomes "- {}": the end of the line of the "-", with its comment, ends the line.
-            entry.EndOfLineTrivia = dashSeparator.GetRange(0, dashBreak + 1);
-            entry.TrailingTrivia = null;
+            if (!HasComment(dashSeparator))
+            {
+                // "-\n  key: value" becomes "- {}": the line break of the "-" ends the line.
+                entry.EndOfLineTrivia = dashSeparator.GetRange(dashBreak, 1);
+                entry.TrailingTrivia = null;
+            }
+            else if (dashSeparator[dashSeparator.Count - 1].Kind == YamlEditableTriviaKind.NewLine)
+            {
+                // The comment lines after the "-" stay: "{}" goes on the next line, indented past the "-".
+                dashSeparator.Add(new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, new string(' ', GetColumn(entry).Length + 2)));
+            }
         }
         else if (entry is YamlEditableListEntry && !wasBlock && isBlock && entry.EndOfLineTrivia is not null)
         {
@@ -866,11 +896,20 @@ internal static class YamlEditableLayout
     /// </summary>
     private static void MoveHeaderComment(YamlEditableNode entry, YamlEditableNode oldValue)
     {
-        if (oldValue is YamlEditableScalar scalar && GetHeaderComment(scalar.Text) is { } comment)
+        if (oldValue is YamlEditableScalar scalar && GetHeaderComment(scalar.Text) is { } comment
+            && !(GetValue(entry) is YamlEditableScalar newScalar && HasSameHeaderComment(comment, newScalar.Text)))
         {
             (entry.EndOfLineTrivia ??= []).InsertRange(0, comment);
         }
     }
+
+    /// <summary>
+    /// Returns <see langword="true"/> if the block scalar <paramref name="text"/> has <paramref name="comment"/> as the comment
+    /// of its header line.
+    /// </summary>
+    internal static bool HasSameHeaderComment(List<YamlEditableTrivia> comment, string text) =>
+        GetHeaderComment(text) is { } other
+        && string.Equals(comment[comment.Count - 1].Text, other[other.Count - 1].Text, StringComparison.Ordinal);
 
     /// <summary>
     /// Returns the comment of the header line of the block scalar <paramref name="text"/>, with the spaces before it, as

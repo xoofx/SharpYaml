@@ -1430,6 +1430,75 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
+    public void Text_RejectedText_KeepsTheValueCheckOfTheScalar()
+    {
+        var tree = YamlEditableTree.Parse("- a\n- |\n  hi");
+        var list = (YamlEditableList)tree.Root;
+        var item = list.Items[1];
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => ((YamlEditableScalar)item.Value).Text = "|+\n  hi");
+        list.RemoveAt(1);
+        list.InsertEntry(0, item);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    [DataRow("-\n  # c\n  {}\n", "-\n  # c\n  {}\n")]
+    [DataRow("- # c\n  {}\n", "- # c\n  {}\n")]
+    [DataRow("-\n  # c\n  []\n", "-\n  # c\n  []\n")]
+    [DataRow("- # dash\n  # keep\n  {}\n- tail\n", "- # dash\n  # keep\n  {}\n- tail\n")]
+    public void AddThenRemove_EmptyCollectionOfListItemAfterComments_KeepsTheComments(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        switch (((YamlEditableList)tree.Root).Items[0].Value)
+        {
+            case YamlEditableMap map:
+                map.SetValue("x", new YamlEditableScalar("1"));
+                map.RemoveEntry("x");
+                break;
+            case YamlEditableList list:
+                list.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("1"), ""));
+                list.RemoveAt(0);
+                break;
+        }
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void SetValue_KeysInEmptyRootWithComment_PutTheCommentOnTheFirstLine()
+    {
+        var tree = YamlEditableTree.Parse("{} # keep\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("1"));
+        RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+
+        AssertEdited("a: 1 # keep\nb: 2\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_BlockScalarWithTheSameHeaderComment_DoesNotRepeatIt()
+    {
+        var tree = YamlEditableTree.Parse("a: | # keep\n  hi\nb: 2\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("| # keep\n  hi"));
+
+        AssertEdited("a: | # keep\n  hi\nb: 2\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValueThenRemoveEntry_IndentedKeyInIndentedEmptyRoot_KeepsTheIndentation()
+    {
+        var tree = YamlEditableTree.Parse("  { }\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("1"), "  ");
+        RootOf(tree).RemoveEntry("a");
+
+        Assert.AreEqual("  { }\n", tree.Serialize());
+    }
+
+    [TestMethod]
     public void RemoveEntry_FirstThenNextKeyOfListItemBeforeCommentLines_LeavesAnEmptyMap()
     {
         var tree = YamlEditableTree.Parse("- a: 1\n  # keep\n  b: 2\n");

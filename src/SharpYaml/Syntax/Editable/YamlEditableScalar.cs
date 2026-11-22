@@ -41,6 +41,11 @@ public sealed class YamlEditableScalar : YamlEditableNode
         set
         {
             ArgumentGuard.ThrowIfNull(value);
+            if (Parent is not null || Tree is not null)
+            {
+                YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
+            }
+
             if (!string.Equals(value, _text, StringComparison.Ordinal))
             {
                 // A new text has a new value, which the tree cannot check.
@@ -53,13 +58,10 @@ public sealed class YamlEditableScalar : YamlEditableNode
                 return;
             }
 
-            YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
-
             // The comment of the header line of a block scalar goes to the line of its entry, or after the root, unless
             // the new text has the same one.
-            var newComment = YamlEditableLayout.GetHeaderComment(value);
             if (YamlEditableLayout.GetHeaderComment(_text) is { } headerComment
-                && !string.Equals(headerComment[headerComment.Count - 1].Text, newComment?[newComment.Count - 1].Text, StringComparison.Ordinal))
+                && !YamlEditableLayout.HasSameHeaderComment(headerComment, value))
             {
                 var target = Parent is not null ? Parent.EndOfLineTrivia ??= [] : Tree!.TrailingTrivia ??= [];
                 target.InsertRange(0, headerComment);
