@@ -34,17 +34,43 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// present. <paramref name="key"/> is compared with the value of each key, so it also finds a
     /// quoted key: <c>name</c> finds <c>"name": x</c> and <c>'name': x</c>.
     /// </summary>
-    public YamlEditableNode? GetValue(string key) =>
-        _entries.FirstOrDefault(entry => HasKey(entry, key))?.Value;
+    /// <param name="key">The key to find.</param>
+    /// <returns>The value of the entry for <paramref name="key"/>, or <see langword="null"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    public YamlEditableNode? GetValue(string key)
+    {
+        ArgumentGuard.ThrowIfNull(key);
+        return _entries.FirstOrDefault(entry => HasKey(entry, key))?.Value;
+    }
 
     /// <summary>
     /// Sets the value for <paramref name="key"/>. If the key already exists (compared as in
     /// <see cref="GetValue"/>), its value node is replaced in place, keeping the entry's original
     /// key text, indentation and surrounding comments. If the key does not exist yet, a new entry
-    /// is appended with <paramref name="key"/> as its raw key text, using <paramref name="indent"/>
-    /// (defaults to the column of the last existing key, or an empty string for the root).
+    /// is appended with <paramref name="key"/> as its raw key text, at the column of the last
+    /// existing key (no indentation for the first key of the root).
     /// </summary>
-    public void SetValue(string key, YamlEditableNode value, string? indent = null)
+    /// <param name="key">The key to find, or the raw text of the new key.</param>
+    /// <param name="value">The new value.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> or <paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/> is empty.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent.</exception>
+    public void SetValue(string key, YamlEditableNode value) => SetValue(key, value, null);
+
+    /// <summary>
+    /// Sets the value for <paramref name="key"/>, as <see cref="SetValue(string, YamlEditableNode)"/> does, and
+    /// writes a new key after <paramref name="indent"/>.
+    /// </summary>
+    /// <param name="key">The key to find, or the raw text of the new key.</param>
+    /// <param name="value">The new value.</param>
+    /// <param name="indent">
+    /// The indentation text of a new key, or <see langword="null"/> for the column of the last existing key.
+    /// Ignored when the key exists.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> or <paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="key"/> is empty.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent.</exception>
+    public void SetValue(string key, YamlEditableNode value, string? indent)
     {
         ArgumentGuard.ThrowIfNull(key);
         if (key.Length == 0)
@@ -68,14 +94,23 @@ public sealed class YamlEditableMap : YamlEditableNode
 
     /// <summary>
     /// Appends an already-constructed entry, reparenting it to this mapping. The previous last
-    /// line keeps its comment, and the new entry starts on its own line.
+    /// line keeps its comment, and the new entry starts on its own line. An empty mapping that
+    /// is a value, written as <c>{}</c>, becomes a block on the lines after its key.
     /// </summary>
+    /// <param name="entry">The entry to append.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent.</exception>
     public void AddEntry(YamlEditableMapEntry entry)
     {
         ThrowIfParented(entry);
-        YamlEditableLayout.PrepareAppend(_entries.Count > 0 ? _entries[_entries.Count - 1] : null, entry);
+        var previous = _entries.Count > 0 ? _entries[_entries.Count - 1] : null;
+        YamlEditableLayout.PrepareAppend(this, previous, entry);
         AddParsedEntry(entry);
         YamlEditableLayout.IndentValue(entry);
+        if (previous is null)
+        {
+            YamlEditableLayout.AfterEmptinessChanged(this, removedEntry: null);
+        }
     }
 
     /// <summary>
@@ -84,7 +119,11 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// is at <paramref name="index"/> now. If this mapping is a list item whose first key is on
     /// the same line as the "-", an entry inserted at index 0 takes that place.
     /// </summary>
+    /// <param name="index">The index of the new entry.</param>
+    /// <param name="entry">The entry to insert.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is less than 0 or greater than the number of entries.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent.</exception>
     public void InsertEntry(int index, YamlEditableMapEntry entry)
     {
         if (index < 0 || index > _entries.Count)
@@ -119,11 +158,15 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// next key moves to that line.
     /// </summary>
     /// <remarks>
-    /// Removing the only entry of a mapping that is a list item leaves an empty item; remove the
-    /// list item instead.
+    /// Removing the only entry of a mapping that is a value leaves an empty mapping, written as
+    /// <c>{}</c> on the line of its key or "-".
     /// </remarks>
+    /// <param name="key">The key of the entry to remove.</param>
+    /// <returns><see langword="true"/> if the entry was removed.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
     public bool RemoveEntry(string key)
     {
+        ArgumentGuard.ThrowIfNull(key);
         var index = _entries.FindIndex(entry => HasKey(entry, key));
         if (index < 0)
         {
@@ -139,6 +182,11 @@ public sealed class YamlEditableMap : YamlEditableNode
 
         existing.Parent = null;
         _entries.RemoveAt(index);
+        if (_entries.Count == 0)
+        {
+            YamlEditableLayout.AfterEmptinessChanged(this, existing);
+        }
+
         return true;
     }
 

@@ -29,13 +29,22 @@ public sealed class YamlEditableList : YamlEditableNode
 
     /// <summary>
     /// Appends an already-constructed entry, reparenting it to this list. The previous last line
-    /// keeps its comment, and the new entry starts on its own line.
+    /// keeps its comment, and the new entry starts on its own line. An empty list that is a value,
+    /// written as <c>[]</c>, becomes a block on the lines after its key.
     /// </summary>
+    /// <param name="entry">The entry to append.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent.</exception>
     public void AddEntry(YamlEditableListEntry entry)
     {
         ThrowIfParented(entry);
-        YamlEditableLayout.PrepareAppend(_items.Count > 0 ? _items[_items.Count - 1] : null, entry);
+        var previous = _items.Count > 0 ? _items[_items.Count - 1] : null;
+        YamlEditableLayout.PrepareAppend(this, previous, entry);
         AddParsedEntry(entry);
+        if (previous is null)
+        {
+            YamlEditableLayout.AfterEmptinessChanged(this, removedEntry: null);
+        }
     }
 
     /// <summary>
@@ -43,7 +52,11 @@ public sealed class YamlEditableList : YamlEditableNode
     /// list. The new entry starts on its own line, before the comment lines of the entry that is
     /// at <paramref name="index"/> now.
     /// </summary>
+    /// <param name="index">The index of the new entry.</param>
+    /// <param name="entry">The entry to insert.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is less than 0 or greater than the number of entries.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent.</exception>
     public void InsertEntry(int index, YamlEditableListEntry entry)
     {
         if (index < 0 || index > _items.Count)
@@ -84,12 +97,20 @@ public sealed class YamlEditableList : YamlEditableNode
 
     /// <summary>
     /// Removes the entry at <paramref name="index"/>, with its comment lines and its lines.
+    /// Removing the only entry of a list that is a value leaves an empty list, written as
+    /// <c>[]</c> on the line of its key or "-".
     /// </summary>
+    /// <param name="index">The index of the entry to remove.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is less than 0, or not less than the number of entries.</exception>
     public void RemoveAt(int index)
     {
         var entry = _items[index];
         entry.Parent = null;
         _items.RemoveAt(index);
+        if (_items.Count == 0)
+        {
+            YamlEditableLayout.AfterEmptinessChanged(this, entry);
+        }
     }
 
     /// <inheritdoc />

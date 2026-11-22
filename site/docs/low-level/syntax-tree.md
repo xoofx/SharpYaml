@@ -104,10 +104,12 @@ Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by 
 block-style mappings and sequences (also a sequence at the column of its key, `key:\n- a`),
 plain, quoted and block (`|`, `>`) scalars, and `#` comments. A key or a list item without a value (`key:`, `-`)
 is a scalar with empty text. An empty mapping or sequence has no block form: it is read from and
-written as `{}` or `[]`.
+written as `{}` or `[]` on the line of its key, so removing its last entry writes `{}` or `[]`, and
+adding an entry to it writes it as a block again.
 `YamlEditableTree.Parse` throws `NotSupportedException` for flow style with content, anchors,
 aliases, tags, directives, and document markers (`---`, `...`, so also for a stream of several
-documents), so a document that uses them is never edited partially.
+documents), and for any document whose text the tree would not write back exactly (a byte order
+mark is kept), so a document that uses them is never edited partially.
 
 ## Which API should I use?
 

@@ -711,4 +711,171 @@ public class YamlEditableTreeTests
 
         AssertEdited("a:\r\n  x: 1\r\n  y: 2\r\nb: 2\r\n", tree);
     }
+
+    [TestMethod]
+    public void Parse_ByteOrderMark_IsKeptWithAndWithoutEdits()
+    {
+        var tree = YamlEditableTree.Parse("\uFEFFa: 1\n");
+        Assert.AreEqual("\uFEFFa: 1\n", tree.Serialize());
+        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("2"));
+
+        AssertEdited("\uFEFFa: 2\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("# only\n", "# only\na: 1\n")]
+    [DataRow("# only", "# only\na: 1")]
+    [DataRow("# one\r\n\r\n# two\r\n", "# one\r\n\r\n# two\r\na: 1\r\n")]
+    public void SetValue_DocumentWithOnlyComments_AddsTheKeyOnItsOwnLine(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("1"));
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void SetValue_NewKeyAfterCommentWithoutFinalNewLine_KeepsTheCommentOnItsLine()
+    {
+        var tree = YamlEditableTree.Parse("a: 1 # one");
+
+        RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+
+        AssertEdited("a: 1 # one\nb: 2", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_NewKeyInCrLfDocumentWithoutFinalNewLine_UsesCrLf()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\r\nb: 2");
+
+        RootOf(tree).SetValue("c", new YamlEditableScalar("3"));
+
+        AssertEdited("a: 1\r\nb: 2\r\nc: 3", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a:\n  b: 1\nc: 2\n", "a: {}\nc: 2\n")]
+    [DataRow("a: # one\n  b: 1\nc: 2\n", "a: {} # one\nc: 2\n")]
+    [DataRow("a:\r\n  b: 1\r\n", "a: {}\r\n")]
+    public void RemoveEntry_OnlyKeyOfNestedMap_WritesAnEmptyMapOnTheKeyLine(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        ((YamlEditableMap)RootOf(tree).GetValue("a")!).RemoveEntry("b");
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void RemoveEntry_OnlyKeyOfListItem_WritesAnEmptyMapAfterTheDash()
+    {
+        var tree = YamlEditableTree.Parse("- x: 1\n- b\n");
+
+        ((YamlEditableMap)((YamlEditableList)tree.Root).Items[0].Value).RemoveEntry("x");
+
+        AssertEdited("- {}\n- b\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a:\n  - x\nb: 1\n", "a: []\nb: 1\n")]
+    [DataRow("a:\n- x\n", "a: []\n")]
+    public void RemoveAt_OnlyItemOfNestedList_WritesAnEmptyListOnTheKeyLine(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        ((YamlEditableList)RootOf(tree).GetValue("a")!).RemoveAt(0);
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void RemoveAt_OnlyItemOfListInListItem_WritesAnEmptyListAfterTheDash()
+    {
+        var tree = YamlEditableTree.Parse("- - a\n- b\n");
+
+        ((YamlEditableList)((YamlEditableList)tree.Root).Items[0].Value).RemoveAt(0);
+
+        AssertEdited("- []\n- b\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a: {}\nb: 1\n", "a:\n  x: 1\nb: 1\n")]
+    [DataRow("a: {} # one\n", "a: # one\n  x: 1\n")]
+    [DataRow("a:\n  b: 1\nc: 2\n", "a:\n  x: 1\nc: 2\n")]
+    public void SetValue_NewKeyInEmptyNestedMap_WritesTheMapAsABlock(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        var map = (YamlEditableMap)RootOf(tree).GetValue("a")!;
+        map.RemoveEntry("b");
+
+        map.SetValue("x", new YamlEditableScalar("1"));
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void AddEntry_EmptyNestedList_WritesTheListAsABlock()
+    {
+        var tree = YamlEditableTree.Parse("a: []\nb: 1\n");
+
+        ((YamlEditableList)RootOf(tree).GetValue("a")!).AddEntry(new YamlEditableListEntry(new YamlEditableScalar("x"), "  "));
+
+        AssertEdited("a:\n  - x\nb: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void AddEntry_EmptyListInListItem_WritesTheItemAfterTheDash()
+    {
+        var tree = YamlEditableTree.Parse("- []\n- b\n");
+
+        ((YamlEditableList)((YamlEditableList)tree.Root).Items[0].Value).AddEntry(new YamlEditableListEntry(new YamlEditableScalar("x"), ""));
+
+        AssertEdited("- - x\n- b\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ListItemScalarToMap_KeepsTheCommentOnTheDashLine()
+    {
+        var tree = YamlEditableTree.Parse("- a # one\n- b\n");
+        var map = new YamlEditableMap();
+        map.SetValue("x", new YamlEditableScalar("1"));
+        map.SetValue("y", new YamlEditableScalar("2"));
+
+        ((YamlEditableList)tree.Root).Items[0].Value = map;
+
+        AssertEdited("- x: 1 # one\n  y: 2\n- b\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_NewKeyInListItemStartingOnTheNextLine_AlignsUnderTheFirstKey()
+    {
+        var tree = YamlEditableTree.Parse("- # one\n  a: 1\n");
+
+        ((YamlEditableMap)((YamlEditableList)tree.Root).Items[0].Value).SetValue("b", new YamlEditableScalar("2"));
+
+        AssertEdited("- # one\n  a: 1\n  b: 2\n", tree);
+    }
+
+    [TestMethod]
+    public void InsertEntry_AtStartOfListItemStartingOnTheNextLine_AlignsUnderTheFirstKey()
+    {
+        var tree = YamlEditableTree.Parse("-\n  a: 1\n");
+
+        ((YamlEditableMap)((YamlEditableList)tree.Root).Items[0].Value).InsertEntry(0, new YamlEditableMapEntry("z", new YamlEditableScalar("0"), ""));
+
+        AssertEdited("-\n  z: 0\n  a: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void GetValueAndRemoveEntry_NullKey_ThrowArgumentNullException()
+    {
+        var map = RootOf(YamlEditableTree.Parse("a: 1\n"));
+
+        Assert.ThrowsExactly<ArgumentNullException>(() => map.GetValue(null!));
+        Assert.ThrowsExactly<ArgumentNullException>(() => map.RemoveEntry(null!));
+    }
 }

@@ -34,12 +34,30 @@ internal static class YamlEditableLayout
         node is YamlEditableScalar { Text.Length: 0 };
 
     /// <summary>
-    /// Prepares <paramref name="entry"/> to be appended after <paramref name="previous"/>.
+    /// Prepares <paramref name="entry"/> to be appended to <paramref name="collection"/>, after
+    /// <paramref name="previous"/>, its last entry if it has one.
     /// </summary>
-    public static void PrepareAppend(YamlEditableNode? previous, YamlEditableNode entry)
+    public static void PrepareAppend(YamlEditableNode collection, YamlEditableNode? previous, YamlEditableNode entry)
     {
         if (previous is null)
         {
+            // The first entry of a document without content goes on a line of its own after the comments and blank
+            // lines of the document, and ends with a line break if the document did.
+            if (collection.LeadingTrivia is { Count: > 0 } leading)
+            {
+                var lineBreak = FindNewLine(leading)?.Text ?? DefaultNewLine;
+                if (leading[leading.Count - 1].Kind != YamlEditableTriviaKind.NewLine)
+                {
+                    leading.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, lineBreak));
+                }
+                else
+                {
+                    EnsureEndsWithNewLine(entry, lineBreak);
+                }
+
+                UseNewLine(entry, lineBreak);
+            }
+
             return;
         }
 
@@ -49,7 +67,9 @@ internal static class YamlEditableLayout
         {
             // The document has no final line break: end the previous line, and leave the new last
             // line without one, as the document was.
-            (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, DefaultNewLine));
+            var documentNewLine = GetDocumentNewLine(previous);
+            (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, documentNewLine));
+            UseNewLine(entry, documentNewLine);
             return;
         }
 
@@ -62,35 +82,67 @@ internal static class YamlEditableLayout
     /// </summary>
     public static void PrepareInsert(YamlEditableNode next, YamlEditableNode entry)
     {
-        var newLine = FindNewLine(GetLastLineOwner(next).EndOfLineTrivia)?.Text ?? DefaultNewLine;
+        var newLine = FindNewLine(GetLastLineOwner(next).EndOfLineTrivia)?.Text ?? GetDocumentNewLine(next);
         EnsureEndsWithNewLine(entry, newLine);
         UseNewLine(entry, newLine);
     }
 
     /// <summary>
     /// Moves the line break of an entry after its value changed from <paramref name="oldValue"/>
-    /// to <paramref name="entry"/>'s current value. <paramref name="isMapEntry"/> is
-    /// <see langword="true"/> for a map entry, whose nested block goes on the next line.
+    /// to <paramref name="entry"/>'s current value.
     /// </summary>
-    public static void AfterValueChanged(YamlEditableNode entry, YamlEditableNode oldValue, YamlEditableNode newValue, bool isMapEntry)
+    public static void AfterValueChanged(YamlEditableNode entry, YamlEditableNode oldValue) =>
+        AfterLayoutChanged(entry, IsBlock(oldValue), GetLastEntry(oldValue));
+
+    /// <summary>
+    /// Moves the line break of the entry whose value is <paramref name="collection"/>, a map or a list that got its
+    /// first entry or lost its last one, <paramref name="removedEntry"/>: an empty map or list is written as "{}" or
+    /// "[]" on the line of "key:" or "-", and a map or list with entries as a block.
+    /// </summary>
+    public static void AfterEmptinessChanged(YamlEditableNode collection, YamlEditableNode? removedEntry)
     {
-        var oldLastEntry = GetLastEntry(oldValue);
+        if (collection.Parent is YamlEditableMapEntry or YamlEditableListEntry)
+        {
+            AfterLayoutChanged(collection.Parent, wasBlock: removedEntry is not null, removedEntry);
+            IndentValue(collection.Parent);
+        }
+    }
+
+    /// <summary>
+    /// Moves the line break of <paramref name="entry"/> after its value changed from a block, whose last entry was
+    /// <paramref name="oldLastEntry"/>, or from a value on its line, to its current value.
+    /// </summary>
+    private static void AfterLayoutChanged(YamlEditableNode entry, bool wasBlock, YamlEditableNode? oldLastEntry)
+    {
+        var value = GetValue(entry);
+        var isBlock = IsBlock(value);
         var oldOwner = oldLastEntry is null ? entry : GetLastLineOwner(oldLastEntry);
         var newLine = FindNewLine(oldOwner.EndOfLineTrivia) ?? (oldLastEntry is null ? null : FindNewLine(oldOwner.TrailingTrivia));
 
-        if (isMapEntry && !IsBlock(oldValue) && IsBlock(newValue))
+        if (entry is YamlEditableMapEntry && !wasBlock && isBlock)
         {
             // "key: value # comment\n" becomes "key: # comment\n" followed by the nested block.
             entry.TrailingTrivia = FindNewLine(entry.EndOfLineTrivia) is not null
                 ? entry.EndOfLineTrivia
-                : [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? DefaultNewLine)];
+                : [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? GetDocumentNewLine(entry))];
             entry.EndOfLineTrivia = null;
         }
-        else if (isMapEntry && IsBlock(oldValue) && !IsBlock(newValue))
+        else if (entry is YamlEditableMapEntry && wasBlock && !isBlock)
         {
             // "key: # comment\n" followed by a nested block becomes "key: value # comment\n".
             entry.EndOfLineTrivia = entry.TrailingTrivia is { } separator && FindNewLine(separator) is not null ? separator : null;
             entry.TrailingTrivia = null;
+        }
+        else if (entry is YamlEditableListEntry && !wasBlock && isBlock && FindNewLine(entry.EndOfLineTrivia) is not null)
+        {
+            // "- value # comment\n" becomes "- key: value # comment\n" followed by the other lines of the block: the
+            // first line of the block is the line of the "-".
+            var first = GetEntries(value!)[0];
+            if (!IsBlock(GetValue(first)) && !HasComment(first.EndOfLineTrivia))
+            {
+                first.EndOfLineTrivia = entry.EndOfLineTrivia;
+                entry.EndOfLineTrivia = null;
+            }
         }
 
         if (newLine is not null)
@@ -161,14 +213,10 @@ internal static class YamlEditableLayout
         }
         else
         {
+            // The key follows the "-" on its line, or starts the line after a comment ("- # comment\n  key: value").
             foreach (var trivia in listEntry.TrailingTrivia)
             {
-                if (trivia.Kind != YamlEditableTriviaKind.Whitespace)
-                {
-                    return entry.Indent;
-                }
-
-                width += trivia.Text.Length;
+                width = trivia.Kind == YamlEditableTriviaKind.NewLine ? 0 : width + trivia.Text.Length;
             }
         }
 
@@ -311,6 +359,39 @@ internal static class YamlEditableLayout
 
     private static YamlEditableTrivia? FindNewLine(List<YamlEditableTrivia>? trivia) =>
         trivia?.Find(t => t.Kind == YamlEditableTriviaKind.NewLine);
+
+    private static bool HasComment(List<YamlEditableTrivia>? trivia) =>
+        trivia is not null && trivia.Exists(t => t.Kind == YamlEditableTriviaKind.Comment);
+
+    /// <summary>
+    /// Returns the line break of the document of <paramref name="node"/>: the first one of its tree, or "\n" if it has none.
+    /// </summary>
+    private static string GetDocumentNewLine(YamlEditableNode node)
+    {
+        var root = node;
+        while (root.Parent is not null)
+        {
+            root = root.Parent;
+        }
+
+        return FindNewLineInTree(root)?.Text ?? DefaultNewLine;
+    }
+
+    private static YamlEditableTrivia? FindNewLineInTree(YamlEditableNode node)
+    {
+        var newLine = FindNewLine(node.LeadingTrivia) ?? FindNewLine(node.TrailingTrivia) ?? FindNewLine(node.EndOfLineTrivia);
+        if (newLine is null && GetValue(node) is { } value)
+        {
+            newLine = FindNewLineInTree(value);
+        }
+
+        foreach (var child in GetEntries(node))
+        {
+            newLine ??= FindNewLineInTree(child);
+        }
+
+        return newLine;
+    }
 
     private static YamlEditableNode? GetLastEntry(YamlEditableNode? value) => value switch
     {

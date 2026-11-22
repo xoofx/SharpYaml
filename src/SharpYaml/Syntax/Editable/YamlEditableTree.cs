@@ -25,11 +25,17 @@ namespace SharpYaml.Syntax.Editable;
 /// </remarks>
 public sealed class YamlEditableTree
 {
-    private YamlEditableTree(YamlSyntaxTree syntaxTree, YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia)
+    private const char ByteOrderMark = '\uFEFF';
+
+    // The scanner skips a byte order mark at the start of the text, and no token holds it.
+    private readonly bool _startsWithByteOrderMark;
+
+    private YamlEditableTree(YamlSyntaxTree syntaxTree, YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia, bool startsWithByteOrderMark)
     {
         SyntaxTree = syntaxTree;
         Root = root;
         TrailingTrivia = trailingTrivia;
+        _startsWithByteOrderMark = startsWithByteOrderMark;
     }
 
     /// <summary>
@@ -52,10 +58,15 @@ public sealed class YamlEditableTree
     /// <summary>
     /// Parses YAML text into an editable tree.
     /// </summary>
+    /// <param name="yaml">The YAML text of a single document.</param>
+    /// <returns>The editable tree, which serializes back to <paramref name="yaml"/> exactly.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="yaml"/> is <see langword="null"/>.</exception>
+    /// <exception cref="YamlException"><paramref name="yaml"/> is not valid YAML.</exception>
     /// <exception cref="NotSupportedException">
     /// The document uses a construct outside the bounded scope of this editable tree (flow
     /// style with content, anchors, aliases, tags, directives, or document markers such as
-    /// "---" and "...", which also covers multiple documents).
+    /// "---" and "...", which also covers multiple documents), or the tree cannot write its text
+    /// back exactly.
     /// </exception>
     public static YamlEditableTree Parse(string yaml)
     {
@@ -64,7 +75,16 @@ public sealed class YamlEditableTree
         var syntaxTree = YamlSyntaxTree.Parse(yaml);
         var builder = new Builder(syntaxTree.Tokens);
         var root = builder.BuildRoot();
-        return new YamlEditableTree(syntaxTree, root, builder.TrailingTrivia);
+        var tree = new YamlEditableTree(syntaxTree, root, builder.TrailingTrivia, yaml.Length > 0 && yaml[0] == ByteOrderMark);
+
+        // Every character that is not edited must be written back as it was read, so a document whose text the tree
+        // does not reproduce is not edited at all.
+        if (!string.Equals(tree.Serialize(), yaml, StringComparison.Ordinal))
+        {
+            throw new NotSupportedException("YamlEditableTree cannot write the text of this document back exactly.");
+        }
+
+        return tree;
     }
 
     /// <summary>
@@ -118,9 +138,16 @@ public sealed class YamlEditableTree
     /// <summary>
     /// Writes the tree back to YAML text.
     /// </summary>
+    /// <param name="writer">The destination writer.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
     public void WriteTo(TextWriter writer)
     {
         ArgumentGuard.ThrowIfNull(writer);
+        if (_startsWithByteOrderMark)
+        {
+            writer.Write(ByteOrderMark);
+        }
+
         Root.WriteTo(writer);
         if (TrailingTrivia != null)
         {
@@ -260,8 +287,17 @@ public sealed class YamlEditableTree
 
             if (pendingTrivia.Count > 0)
             {
-                var rest = SplitEndOfLine(pendingTrivia, _significant.Count);
-                TrailingTrivia = rest.Count > 0 ? rest : null;
+                if (_significant.Count > 0 && !pendingTrivia.Exists(t => t.Kind == YamlEditableTriviaKind.NewLine))
+                {
+                    // The last line has no line break: a comment after the last token ends that line, and stays
+                    // on it when an entry is added after it.
+                    _endOfLineByTokenIndex[_significant.Count - 1] = pendingTrivia;
+                }
+                else
+                {
+                    var rest = SplitEndOfLine(pendingTrivia, _significant.Count);
+                    TrailingTrivia = rest.Count > 0 ? rest : null;
+                }
             }
 
             SplitBlockScalarLineBreaks();
@@ -383,7 +419,10 @@ public sealed class YamlEditableTree
         {
             if (_significant.Count == 0)
             {
-                return new YamlEditableMap();
+                // A document without content: its comments and blank lines go before the first entry added to it.
+                var empty = new YamlEditableMap { LeadingTrivia = TrailingTrivia };
+                TrailingTrivia = null;
+                return empty;
             }
 
             var node = ParseValue(string.Empty);

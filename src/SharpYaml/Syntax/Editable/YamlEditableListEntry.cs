@@ -45,7 +45,7 @@ public sealed class YamlEditableListEntry : YamlEditableNode
             ParentToThis(ref _value, value ?? throw new ArgumentNullException(nameof(value)), this);
             if (oldValue is not null)
             {
-                YamlEditableLayout.AfterValueChanged(this, oldValue, value, isMapEntry: false);
+                YamlEditableLayout.AfterValueChanged(this, oldValue);
             }
 
             YamlEditableLayout.IndentValue(this);
