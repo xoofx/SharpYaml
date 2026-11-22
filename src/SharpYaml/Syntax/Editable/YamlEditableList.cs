@@ -153,7 +153,9 @@ public sealed class YamlEditableList : YamlEditableNode
             // An empty list that is the value of an entry has no block form: it is written in flow style.
             if (Parent is not null || EmptyFlowText is not null)
             {
-                writer.Write(EmptyFlowText ?? "[]");
+                var text = EmptyFlowText ?? "[]";
+                (writer as YamlEditableTextWriter)?.Record(text);
+                writer.Write(text);
             }
 
             return;

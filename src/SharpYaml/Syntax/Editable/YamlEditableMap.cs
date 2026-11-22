@@ -357,7 +357,9 @@ public sealed class YamlEditableMap : YamlEditableNode
             // style. The root of a document without content is written as nothing.
             if (Parent is not null || EmptyFlowText is not null)
             {
-                writer.Write(EmptyFlowText ?? "{}");
+                var text = EmptyFlowText ?? "{}";
+                (writer as YamlEditableTextWriter)?.Record(text);
+                writer.Write(text);
             }
 
             return;

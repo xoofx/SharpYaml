@@ -100,7 +100,10 @@ map or list that is not indented under its key (or after its `-`) is indented wh
 value. An entry cannot be added after a block scalar (`|` or `>`, but `|-` is fine) that ends the
 document without a line break (`InvalidOperationException`): the line break would become part of the
 scalar's value. A comment is never written after the last line of a block scalar, where it would be
-part of its value: it goes on the header line of the scalar (`key: | # comment`).
+part of its value: it goes on the header line of the scalar (`key: | # comment`). `ToSyntaxTree`
+also checks that the edited text reads back as the edited tree, and throws `InvalidOperationException`
+when it would not (for example, when removing an entry would put an indented comment line after a
+block scalar), without changing `SyntaxTree`.
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
 `GetValue("name")` also finds `"name": x`. `SetValue` writes a new key as a plain scalar and throws

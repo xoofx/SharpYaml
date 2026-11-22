@@ -1236,6 +1236,71 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
+    public void SetValue_ListItemToNestedMapWithBlockScalar_PutsTheCommentOnTheFirstLine()
+    {
+        var tree = YamlEditableTree.Parse("- old      # keep\n- tail\n");
+        var inner = new YamlEditableMap();
+        inner.SetValue("z", new YamlEditableScalar("|-\n  hi"));
+        var outer = new YamlEditableMap();
+        outer.SetValue("x", inner);
+
+        ((YamlEditableList)tree.Root).Items[0].Value = outer;
+
+        AssertEdited("- x:      # keep\n    z: |-\n      hi\n- tail\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a: |- # keep\n  hi\nb: 2\n", "changed", "a: changed # keep\nb: 2\n")]
+    [DataRow("- |- # keep\n  hi\n- b\n", "x", "- x # keep\n- b\n")]
+    [DataRow("| # keep\n  hi\n", "plain", "plain # keep\n")]
+    [DataRow("a: | # keep\n  hi\nb: 2\n", ">-\n  new", "a: >- # keep\n  new\nb: 2\n")]
+    public void Text_BlockScalarReplaced_KeepsItsHeaderComment(string yaml, string text, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        var scalar = tree.Root switch
+        {
+            YamlEditableMap map => (YamlEditableScalar)map.Entries[0].Value,
+            YamlEditableList list => (YamlEditableScalar)list.Items[0].Value,
+            _ => (YamlEditableScalar)tree.Root,
+        };
+
+        scalar.Text = text;
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void SetValue_KeepIndicatorAfterSpaces_ThrowsInvalidOperationException()
+    {
+        var tree = YamlEditableTree.Parse("a: old\nb: 2\n");
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => RootOf(tree).SetValue("a", new YamlEditableScalar(" |+\n  hi")));
+        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    public void ToSyntaxTree_CommentLineThatWouldJoinABlockScalar_ThrowsAndKeepsTheSnapshot()
+    {
+        var tree = YamlEditableTree.Parse("a: |\n  hi\nb: 1\n    # deep\nc: 2\n");
+        var snapshot = tree.SyntaxTree;
+
+        RootOf(tree).RemoveEntry("b");
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+        Assert.AreSame(snapshot, tree.SyntaxTree);
+    }
+
+    [TestMethod]
+    public void ToSyntaxTree_ScalarTextThatWouldBeReadAsAKey_ThrowsInvalidOperationException()
+    {
+        var tree = YamlEditableTree.Parse("a: v\n");
+
+        ((YamlEditableScalar)RootOf(tree).GetValue("a")!).Text = "|\nx: 1";
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
     public void Text_PlainScalarBecomesBlockScalar_MovesTheCommentToItsHeader()
     {
         var tree = YamlEditableTree.Parse("- a # keep\n- b\n");

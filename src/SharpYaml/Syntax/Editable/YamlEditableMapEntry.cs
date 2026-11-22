@@ -24,7 +24,10 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     /// <param name="value">The entry's value.</param>
     /// <param name="indent">The indentation text written before the key on its own line.</param>
     /// <exception cref="ArgumentNullException"><paramref name="key"/>, <paramref name="value"/> or <paramref name="indent"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent, or is the root of a tree.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="value"/> already has a parent, or is the root of a tree, or holds a block scalar with the keep
+    /// indicator or an indentation indicator ("|+", "|2").
+    /// </exception>
     /// <remarks>The key text is checked when the entry is added to a <see cref="YamlEditableMap"/>.</remarks>
     public YamlEditableMapEntry(string key, YamlEditableNode value, string indent)
         : base(YamlEditableKind.MapEntry)
@@ -103,6 +106,7 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     protected override void WriteCore(TextWriter writer)
     {
         writer.Write(Indent);
+        (writer as YamlEditableTextWriter)?.Record(Key);
         writer.Write(Key);
         writer.Write(':');
 

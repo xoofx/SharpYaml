@@ -48,6 +48,14 @@ public sealed class YamlEditableScalar : YamlEditableNode
             }
 
             YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
+
+            // The comment of the header line of a block scalar goes to the line of its entry, or after the root.
+            if (YamlEditableLayout.GetHeaderComment(_text) is { } headerComment)
+            {
+                var target = Parent is not null ? Parent.EndOfLineTrivia ??= [] : Tree!.TrailingTrivia ??= [];
+                target.InsertRange(0, headerComment);
+            }
+
             _text = value;
 
             // A comment on the line of the entry, or after a scalar at the root, would follow the last line of a
@@ -72,6 +80,7 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// <inheritdoc />
     protected override void WriteCore(TextWriter writer)
     {
+        (writer as YamlEditableTextWriter)?.Record(_text);
         writer.Write(_text);
     }
 }

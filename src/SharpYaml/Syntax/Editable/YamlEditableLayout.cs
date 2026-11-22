@@ -267,8 +267,15 @@ internal static class YamlEditableLayout
             if (!IsBlock(GetValue(first)) && !HasComment(first.EndOfLineTrivia))
             {
                 first.EndOfLineTrivia = entry.EndOfLineTrivia;
-                entry.EndOfLineTrivia = null;
             }
+            else
+            {
+                // The first line of the block ends deeper ("- key:" followed by a nested block) or has a comment: only
+                // the comment goes there.
+                MoveCommentToFirstLine(entry.EndOfLineTrivia!, first, newLine?.Text ?? GetDocumentNewLine(entry));
+            }
+
+            entry.EndOfLineTrivia = null;
         }
 
         if (newLine is not null)
@@ -643,7 +650,21 @@ internal static class YamlEditableLayout
         return false;
     }
 
-    private static bool IsBlockScalar(string text) => text.Length > 0 && text[0] is '|' or '>';
+    private static bool IsBlockScalar(string text) => GetIndicatorIndex(text) >= 0;
+
+    /// <summary>
+    /// Returns the index of the "|" or ">" that starts the block scalar <paramref name="text"/>, after spaces, or -1.
+    /// </summary>
+    private static int GetIndicatorIndex(string text)
+    {
+        var index = 0;
+        while (index < text.Length && text[index] is ' ' or '\t')
+        {
+            index++;
+        }
+
+        return index < text.Length && text[index] is '|' or '>' ? index : -1;
+    }
 
     internal static bool IsBlockScalarText(string text) => IsBlockScalar(text);
 
@@ -653,13 +674,14 @@ internal static class YamlEditableLayout
     /// </summary>
     private static string GetHeaderIndicators(string text)
     {
-        var end = 1;
+        var start = GetIndicatorIndex(text) + 1;
+        var end = start;
         while (end < text.Length && text[end] is not (' ' or '\t' or '\r' or '\n' or '#'))
         {
             end++;
         }
 
-        return text.Substring(1, end - 1);
+        return text.Substring(start, end - start);
     }
 
     /// <summary>
@@ -723,6 +745,48 @@ internal static class YamlEditableLayout
         }
     }
 
+    /// <summary>
+    /// Moves the comment of <paramref name="trivia"/>, with the spaces before it, to the end of the first line of
+    /// <paramref name="entry"/>: after the value of its first entry, or after the "key:" of a nested block.
+    /// </summary>
+    private static void MoveCommentToFirstLine(List<YamlEditableTrivia> trivia, YamlEditableNode entry, string newLine)
+    {
+        var commentIndex = trivia.FindIndex(t => t.Kind == YamlEditableTriviaKind.Comment);
+        if (commentIndex < 0)
+        {
+            return;
+        }
+
+        var start = commentIndex;
+        while (start > 0 && trivia[start - 1].Kind == YamlEditableTriviaKind.Whitespace)
+        {
+            start--;
+        }
+
+        var comment = trivia.GetRange(start, commentIndex - start + 1);
+        if (start == commentIndex)
+        {
+            comment.Insert(0, new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, " "));
+        }
+
+        while (entry is YamlEditableListEntry { Value: var nested } && IsBlock(nested))
+        {
+            entry = GetEntries(nested)[0];
+        }
+
+        if (entry is YamlEditableMapEntry { Value: var block } mapEntry && IsBlock(block))
+        {
+            var separator = mapEntry.TrailingTrivia ??= [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine)];
+            var lineBreak = separator.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
+            separator.InsertRange(lineBreak < 0 ? separator.Count : lineBreak, comment);
+            return;
+        }
+
+        var endOfLine = entry.EndOfLineTrivia ??= [];
+        var end = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
+        endOfLine.InsertRange(end < 0 ? endOfLine.Count : end, comment);
+    }
+
     internal static void MoveCommentToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)
     {
         var commentIndex = trivia?.FindIndex(t => t.Kind == YamlEditableTriviaKind.Comment) ?? -1;
@@ -749,22 +813,34 @@ internal static class YamlEditableLayout
     /// </summary>
     private static void MoveHeaderComment(YamlEditableNode entry, YamlEditableNode oldValue)
     {
-        if (oldValue is not YamlEditableScalar scalar || !IsBlockScalar(scalar.Text))
+        if (oldValue is YamlEditableScalar scalar && GetHeaderComment(scalar.Text) is { } comment)
         {
-            return;
+            (entry.EndOfLineTrivia ??= []).InsertRange(0, comment);
+        }
+    }
+
+    /// <summary>
+    /// Returns the comment of the header line of the block scalar <paramref name="text"/>, with the spaces before it, as
+    /// trivia, or <see langword="null"/>.
+    /// </summary>
+    internal static List<YamlEditableTrivia>? GetHeaderComment(string text)
+    {
+        var indicator = GetIndicatorIndex(text);
+        if (indicator < 0)
+        {
+            return null;
         }
 
-        var text = scalar.Text;
         var headerEnd = text.IndexOfAny(['\r', '\n']);
         headerEnd = headerEnd < 0 ? text.Length : headerEnd;
-        var hash = text.IndexOf('#', 1, headerEnd - 1);
+        var hash = text.IndexOf('#', indicator + 1, headerEnd - indicator - 1);
         if (hash < 0)
         {
-            return;
+            return null;
         }
 
         var start = hash;
-        while (start > 1 && text[start - 1] is ' ' or '\t')
+        while (start > indicator + 1 && text[start - 1] is ' ' or '\t')
         {
             start--;
         }
@@ -776,7 +852,7 @@ internal static class YamlEditableLayout
         }
 
         comment.Add(new YamlEditableTrivia(YamlEditableTriviaKind.Comment, text.Substring(hash, headerEnd - hash)));
-        (entry.EndOfLineTrivia ??= []).InsertRange(0, comment);
+        return comment;
     }
 
     private static bool HasComment(List<YamlEditableTrivia>? trivia) =>

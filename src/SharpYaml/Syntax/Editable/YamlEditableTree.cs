@@ -55,7 +55,7 @@ public sealed class YamlEditableTree
     /// Gets trivia (typically the final newline, or trailing comments/blank lines) that follows
     /// the last significant token of the document. Might be <see langword="null"/>.
     /// </summary>
-    public List<YamlEditableTrivia>? TrailingTrivia { get; }
+    public List<YamlEditableTrivia>? TrailingTrivia { get; internal set; }
 
     /// <summary>
     /// Parses YAML text into an editable tree.
@@ -102,15 +102,30 @@ public sealed class YamlEditableTree
     /// </summary>
     /// <returns>A syntax tree whose text equals <see cref="Serialize"/>.</returns>
     /// <exception cref="YamlException">The edited text is not valid YAML.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The edited text would not be read back as this tree: a scalar or a key would not be read where it is written, for
+    /// example a comment or a line that would become part of a block scalar. <see cref="SyntaxTree"/> is not changed.
+    /// </exception>
     public YamlSyntaxTree ToSyntaxTree()
     {
         var oldText = SyntaxTree.Text;
-        var newText = Serialize();
+        using var writer = new YamlEditableTextWriter();
+        WriteTo(writer);
+        var newText = writer.ToString();
         if (string.Equals(oldText, newText, StringComparison.Ordinal))
         {
             return SyntaxTree;
         }
 
+        // The text must be valid YAML, and every node must be read back as the node it was written for: the edits
+        // must not change what an untouched node is.
+        var changed = ApplyTextChange(oldText, newText);
+        writer.Verify();
+        return changed;
+    }
+
+    private YamlSyntaxTree ApplyTextChange(string oldText, string newText)
+    {
         var prefix = 0;
         var maxPrefix = Math.Min(oldText.Length, newText.Length);
         while (prefix < maxPrefix && oldText[prefix] == newText[prefix])

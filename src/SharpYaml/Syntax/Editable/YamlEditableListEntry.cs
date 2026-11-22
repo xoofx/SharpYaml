@@ -20,7 +20,10 @@ public sealed class YamlEditableListEntry : YamlEditableNode
     /// <param name="value">The entry's value.</param>
     /// <param name="indent">The indentation text written before the "-" marker.</param>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> or <paramref name="indent"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent, or is the root of a tree.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="value"/> already has a parent, or is the root of a tree, or holds a block scalar with the keep
+    /// indicator or an indentation indicator ("|+", "|2").
+    /// </exception>
     public YamlEditableListEntry(YamlEditableNode value, string indent)
         : base(YamlEditableKind.ListEntry)
     {
