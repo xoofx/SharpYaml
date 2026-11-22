@@ -76,6 +76,10 @@ public sealed class YamlEditableTree
         var syntaxTree = YamlSyntaxTree.Parse(yaml);
         var builder = new Builder(syntaxTree.Tokens);
         var root = builder.BuildRoot();
+        var lineBreak = yaml.IndexOfAny(['\r', '\n']);
+        root.DocumentNewLine = lineBreak < 0 ? null
+            : yaml[lineBreak] == '\r' && lineBreak + 1 < yaml.Length && yaml[lineBreak + 1] == '\n' ? "\r\n"
+            : yaml.Substring(lineBreak, 1);
         var tree = new YamlEditableTree(syntaxTree, root, builder.TrailingTrivia, yaml.Length > 0 && yaml[0] == ByteOrderMark);
 
         // Every character that is not edited must be written back as it was read, so a document whose text the tree

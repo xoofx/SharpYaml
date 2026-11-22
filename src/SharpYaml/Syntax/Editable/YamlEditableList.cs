@@ -61,7 +61,10 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <param name="entry">The entry to insert.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is less than 0 or greater than the number of entries.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent, or contains this list.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="entry"/> already has a parent or contains this list, or <paramref name="index"/> is the number of
+    /// entries and the entry cannot be added there (see <see cref="AddEntry"/>).
+    /// </exception>
     public void InsertEntry(int index, YamlEditableListEntry entry)
     {
         if (index < 0 || index > _items.Count)

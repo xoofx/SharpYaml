@@ -41,6 +41,11 @@ public abstract class YamlEditableNode
     internal bool IsTreeRoot { get; set; }
 
     /// <summary>
+    /// Gets or sets the first line break of the text that a root was read from, for the line breaks of new entries.
+    /// </summary>
+    internal string? DocumentNewLine { get; set; }
+
+    /// <summary>
     /// Gets comment lines and blank lines that appear before this node, in source order.
     /// Might be <see langword="null"/> if there is no leading trivia.
     /// </summary>

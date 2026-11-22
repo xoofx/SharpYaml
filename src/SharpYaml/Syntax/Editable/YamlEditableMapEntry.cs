@@ -73,7 +73,7 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     /// entry is in a map.
     /// </summary>
     /// <exception cref="ArgumentNullException">The value is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException">The value already has a parent, or is this entry or one of its ancestors.</exception>
+    /// <exception cref="InvalidOperationException">The value already has a parent, is this entry or one of its ancestors, or is the root of a tree.</exception>
     public YamlEditableNode Value
     {
         get => _value!;

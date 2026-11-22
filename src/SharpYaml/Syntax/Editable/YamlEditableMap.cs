@@ -101,6 +101,8 @@ public sealed class YamlEditableMap : YamlEditableNode
                 nameof(key));
         }
 
+        // Checked before the entry is built, which parents the value.
+        YamlEditableLayout.ThrowIfCannotAppend(this);
         var resolvedIndent = indent
             ?? (_entries.Count > 0 ? YamlEditableLayout.GetKeyColumn(_entries[_entries.Count - 1]) : string.Empty);
         AddEntry(new YamlEditableMapEntry(key, value, resolvedIndent));
@@ -148,7 +150,10 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// The key text of <paramref name="entry"/> is not one plain or quoted scalar on one line, or the mapping already has an
     /// entry with that key.
     /// </exception>
-    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent, or contains this mapping.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="entry"/> already has a parent or contains this mapping, or <paramref name="index"/> is the number of
+    /// entries and the entry cannot be added there (see <see cref="AddEntry"/>).
+    /// </exception>
     public void InsertEntry(int index, YamlEditableMapEntry entry)
     {
         if (index < 0 || index > _entries.Count)
@@ -254,13 +259,13 @@ public sealed class YamlEditableMap : YamlEditableNode
 
     /// <summary>
     /// Reads <paramref name="rawKey"/> as the text of an implicit key: one plain or quoted scalar on one line, of at
-    /// most 1024 characters (YAML 1.2.2, 7.4), that is all of the text.
+    /// most 1024 characters (YAML 1.2.2, 7.4, counted in UTF-16 code units as the scanner does), that is all of the text.
     /// </summary>
     private static bool TryReadKey(string rawKey, out string value, out ScalarStyle style)
     {
         value = string.Empty;
         style = ScalarStyle.Any;
-        if (rawKey.Length == 0 || CountCharacters(rawKey) > 1024)
+        if (rawKey.Length is 0 or > 1024 || rawKey.IndexOfAny(['\r', '\n']) >= 0)
         {
             return false;
         }
@@ -278,9 +283,10 @@ public sealed class YamlEditableMap : YamlEditableNode
                         continue;
                     case Scalar scalar when scalar.Start.Index == 0 && scalar.End.Index == rawKey.Length
                         && scalar.Style is ScalarStyle.Plain or ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted:
+                        // The scanner reads the ":" after the scalar as the indicator of an implicit key.
                         value = scalar.Value;
                         style = scalar.Style;
-                        return true;
+                        return scanner.MoveNext() && scanner.Current is Value;
                     default:
                         return false;
                 }
@@ -292,20 +298,6 @@ public sealed class YamlEditableMap : YamlEditableNode
         }
 
         return false;
-    }
-
-    private static int CountCharacters(string text)
-    {
-        var count = 0;
-        foreach (var c in text)
-        {
-            if (!char.IsLowSurrogate(c))
-            {
-                count++;
-            }
-        }
-
-        return count;
     }
 
     /// <summary>

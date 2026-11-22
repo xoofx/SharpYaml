@@ -97,8 +97,9 @@ A same-line comment stays with the entry on its line, and comment lines stay wit
 below them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`RemoveAt` keep
 each entry on its own line, so removing an entry removes its comments and nothing else. A new
 map or list that is not indented under its key (or after its `-`) is indented when it is set as a
-value. An entry cannot be added after a block scalar that ends the document without a line break
-(`InvalidOperationException`): the line break would become part of the scalar's value.
+value. An entry cannot be added after a block scalar (`|`, `|+` or `>`, but `|-` is fine) that ends
+the document without a line break (`InvalidOperationException`): the line break would become part
+of the scalar's value.
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
 `GetValue("name")` also finds `"name": x`. `SetValue` writes a new key as a plain scalar and throws
