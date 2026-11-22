@@ -115,6 +115,7 @@ public sealed class YamlEditableList : YamlEditableNode
         }
 
         ThrowIfSelfOrAncestor(entry, this);
+        YamlEditableLayout.ThrowIfUnsupportedValue(entry);
     }
 
     /// <summary>

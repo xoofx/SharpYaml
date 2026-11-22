@@ -72,9 +72,14 @@ internal static class YamlEditableLayout
             {
                 // A root whose entries were all removed was written "{}" with the line break of its last line.
                 EnsureEndsWithNewLine(entry, flowLineBreak);
-                UseNewLine(entry, flowLineBreak);
             }
 
+            if (GetEmptyFlowText(collection) is not null)
+            {
+                UseNewLine(entry, GetDocumentNewLine(collection));
+            }
+
+            KeepCommentsOutOfBlockScalars(entry);
             return;
         }
 
@@ -90,16 +95,19 @@ internal static class YamlEditableLayout
             var documentNewLine = GetDocumentNewLine(previous);
             (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, documentNewLine));
             UseNewLine(entry, documentNewLine);
-            return;
+        }
+        else
+        {
+            EnsureEndsWithNewLine(entry, newLine);
+            UseNewLine(entry, newLine.Text);
         }
 
-        EnsureEndsWithNewLine(entry, newLine);
-        UseNewLine(entry, newLine.Text);
+        KeepCommentsOutOfBlockScalars(entry);
     }
 
     /// <summary>
     /// Throws if an entry cannot be appended to <paramref name="collection"/>: its last line is the last line of a
-    /// block scalar ("|", "|+", ">") that ends the document without a line break, and the line break that the new
+    /// block scalar ("|", ">") that ends the document without a line break, and the line break that the new
     /// entry needs would become part of the value of that scalar.
     /// </summary>
     public static void ThrowIfCannotAppend(YamlEditableNode collection)
@@ -136,14 +144,19 @@ internal static class YamlEditableLayout
         var newLine = FindNewLine(GetLastLineOwner(next).EndOfLineTrivia)?.Text ?? GetDocumentNewLine(next);
         EnsureEndsWithNewLine(entry, newLine);
         UseNewLine(entry, newLine);
+        KeepCommentsOutOfBlockScalars(entry);
     }
 
     /// <summary>
     /// Moves the line break of an entry after its value changed from <paramref name="oldValue"/>
     /// to <paramref name="entry"/>'s current value.
     /// </summary>
-    public static void AfterValueChanged(YamlEditableNode entry, YamlEditableNode oldValue) =>
+    public static void AfterValueChanged(YamlEditableNode entry, YamlEditableNode oldValue)
+    {
+        MoveHeaderComment(entry, oldValue);
         AfterLayoutChanged(entry, IsBlock(oldValue), GetLastEntry(oldValue));
+        KeepCommentsOutOfBlockScalars(entry);
+    }
 
     /// <summary>
     /// Moves the line break of the entry whose value is <paramref name="collection"/>, a map or a list that got its
@@ -605,24 +618,165 @@ internal static class YamlEditableLayout
 
     /// <summary>
     /// Returns <see langword="true"/> if <paramref name="text"/> is a block scalar whose value ends with the line break
-    /// of its last line ("|", "|+", ">"), unlike the strip indicator ("|-").
+    /// of its last line ("|", ">"), unlike the strip indicator ("|-").
     /// </summary>
-    private static bool KeepsFinalLineBreak(string text)
+    private static bool KeepsFinalLineBreak(string text) => IsBlockScalar(text) && GetHeaderIndicators(text).IndexOf('-') < 0;
+
+    /// <summary>
+    /// Returns <see langword="true"/> if the header of the block scalar <paramref name="text"/> has the keep indicator
+    /// ("|+") or an indentation indicator ("|2"). The value of such a scalar depends on the lines after it or on the
+    /// column of its parent, so the editable tree does not support it.
+    /// </summary>
+    internal static bool HasKeepOrIndentationIndicator(string text)
     {
-        if (text.Length == 0 || text[0] is not ('|' or '>'))
+        if (!IsBlockScalar(text))
         {
             return false;
         }
 
-        for (var index = 1; index < text.Length && text[index] is not (' ' or '\t' or '\r' or '\n' or '#'); index++)
+        foreach (var c in GetHeaderIndicators(text))
         {
-            if (text[index] == '-')
+            if (c == '+' || c is >= '0' and <= '9')
             {
-                return false;
+                return true;
             }
         }
 
-        return true;
+        return false;
+    }
+
+    private static bool IsBlockScalar(string text) => text.Length > 0 && text[0] is '|' or '>';
+
+    /// <summary>
+    /// Returns the indicators of the header of a block scalar: the characters after "|" or ">" up to a space, a
+    /// comment or the end of the line.
+    /// </summary>
+    private static string GetHeaderIndicators(string text)
+    {
+        var end = 1;
+        while (end < text.Length && text[end] is not (' ' or '\t' or '\r' or '\n' or '#'))
+        {
+            end++;
+        }
+
+        return text.Substring(1, end - 1);
+    }
+
+    /// <summary>
+    /// Throws if <paramref name="node"/>, a value or an entry to attach, holds a block scalar that the editable tree does
+    /// not support (see <see cref="HasKeepOrIndentationIndicator"/>). Called before anything is changed.
+    /// </summary>
+    public static void ThrowIfUnsupportedValue(YamlEditableNode node)
+    {
+        if (node is YamlEditableScalar scalar)
+        {
+            ThrowIfUnsupportedScalarText(scalar.Text);
+            return;
+        }
+
+        if (GetValue(node) is { } value)
+        {
+            ThrowIfUnsupportedValue(value);
+        }
+
+        foreach (var child in GetEntries(node))
+        {
+            ThrowIfUnsupportedValue(child);
+        }
+    }
+
+    /// <summary>
+    /// Throws if <paramref name="text"/> is a block scalar that the editable tree does not support.
+    /// </summary>
+    public static void ThrowIfUnsupportedScalarText(string text)
+    {
+        if (HasKeepOrIndentationIndicator(text))
+        {
+            throw new InvalidOperationException(
+                "The editable tree does not support block scalars with the keep indicator ('|+') or an indentation indicator ('|2').");
+        }
+    }
+
+    /// <summary>
+    /// Moves a comment that would be written right after the last line of a block scalar, where it would be part of
+    /// the scalar's value, to the header line of the scalar ("| # comment"), for <paramref name="entry"/> and the entries
+    /// below it.
+    /// </summary>
+    public static void KeepCommentsOutOfBlockScalars(YamlEditableNode entry)
+    {
+        var owner = GetLastLineOwner(entry);
+        if (GetValue(owner) is YamlEditableScalar scalar && IsBlockScalar(scalar.Text))
+        {
+            MoveCommentToHeader(owner.EndOfLineTrivia, scalar);
+            if (!ReferenceEquals(owner, entry) && FindNewLine(owner.EndOfLineTrivia) is null)
+            {
+                MoveCommentToHeader(entry.EndOfLineTrivia, scalar);
+            }
+        }
+
+        if (GetValue(entry) is { } value)
+        {
+            foreach (var child in GetEntries(value))
+            {
+                KeepCommentsOutOfBlockScalars(child);
+            }
+        }
+    }
+
+    private static void MoveCommentToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)
+    {
+        var commentIndex = trivia?.FindIndex(t => t.Kind == YamlEditableTriviaKind.Comment) ?? -1;
+        if (commentIndex < 0)
+        {
+            return;
+        }
+
+        var start = commentIndex;
+        while (start > 0 && trivia![start - 1].Kind == YamlEditableTriviaKind.Whitespace)
+        {
+            start--;
+        }
+
+        var comment = string.Concat(trivia!.GetRange(start, commentIndex - start + 1).Select(t => t.Text));
+        trivia.RemoveRange(start, commentIndex - start + 1);
+        var headerEnd = scalar.Text.IndexOfAny(['\r', '\n']);
+        scalar.Text = scalar.Text.Insert(headerEnd < 0 ? scalar.Text.Length : headerEnd, start == commentIndex ? " " + comment : comment);
+    }
+
+    /// <summary>
+    /// Moves the comment of the header line of <paramref name="oldValue"/>, a block scalar replaced as the value of
+    /// <paramref name="entry"/>, to the end of the line of the entry ("key: | # comment" becomes "key: new # comment").
+    /// </summary>
+    private static void MoveHeaderComment(YamlEditableNode entry, YamlEditableNode oldValue)
+    {
+        if (oldValue is not YamlEditableScalar scalar || !IsBlockScalar(scalar.Text))
+        {
+            return;
+        }
+
+        var text = scalar.Text;
+        var headerEnd = text.IndexOfAny(['\r', '\n']);
+        headerEnd = headerEnd < 0 ? text.Length : headerEnd;
+        var hash = text.IndexOf('#', 1, headerEnd - 1);
+        if (hash < 0)
+        {
+            return;
+        }
+
+        var start = hash;
+        while (start > 1 && text[start - 1] is ' ' or '\t')
+        {
+            start--;
+        }
+
+        var comment = new List<YamlEditableTrivia>();
+        if (start < hash)
+        {
+            comment.Add(new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, text.Substring(start, hash - start)));
+        }
+
+        comment.Add(new YamlEditableTrivia(YamlEditableTriviaKind.Comment, text.Substring(hash, headerEnd - hash)));
+        (entry.EndOfLineTrivia ??= []).InsertRange(0, comment);
     }
 
     private static bool HasComment(List<YamlEditableTrivia>? trivia) =>

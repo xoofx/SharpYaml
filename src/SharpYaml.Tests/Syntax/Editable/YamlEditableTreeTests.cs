@@ -633,7 +633,7 @@ public class YamlEditableTreeTests
 
     [TestMethod]
     [DataRow("a: |\n  line1\n\nb: 2\n")]
-    [DataRow("a: |+\n  x\n\nb: 1\n")]
+    [DataRow("a: |- # c\n  x\nb: 1\n")]
     [DataRow("a: |\n  x\n# c\nb: 1\n")]
     [DataRow("m:\n  a: |\n    x\n  b: 1\n")]
     [DataRow("- |\n  x\n- y\n")]
@@ -901,33 +901,29 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    public void RemoveEntry_AfterKeepBlockScalar_KeepsTheTrailingLinesOfTheScalar()
+    [DataRow("a: |+\n  x\n\nb: 1\n")]
+    [DataRow("a: >2+\n  x\n\n")]
+    [DataRow("a: |2\n    x\n")]
+    public void Parse_BlockScalarWithKeepOrIndentationIndicator_ThrowsNotSupportedException(string yaml)
     {
-        var tree = YamlEditableTree.Parse("a: |+\n  x\n\n\nb: 1\n");
-
-        RootOf(tree).RemoveEntry("b");
-
-        AssertEdited("a: |+\n  x\n\n\n", tree);
+        Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
     }
 
     [TestMethod]
-    public void SetValue_NewKeyAfterKeepBlockScalarAtTheEnd_KeepsTheTrailingLinesOfTheScalar()
+    [DataRow("|2-\n    hi")]
+    [DataRow("|+\n  hi\n")]
+    public void Edit_BlockScalarWithKeepOrIndentationIndicator_ThrowsAndChangesNothing(string text)
     {
-        var tree = YamlEditableTree.Parse("a: >2+\n  x\n\n");
+        var tree = YamlEditableTree.Parse("a: 1\nb: 2\n");
+        var root = RootOf(tree);
+        var scalar = new YamlEditableScalar(text);
 
-        RootOf(tree).SetValue("b", new YamlEditableScalar("1"));
+        Assert.ThrowsExactly<InvalidOperationException>(() => root.SetValue("a", scalar));
+        Assert.ThrowsExactly<InvalidOperationException>(() => new YamlEditableMapEntry("c", scalar, ""));
+        Assert.ThrowsExactly<InvalidOperationException>(() => ((YamlEditableScalar)root.GetValue("b")!).Text = text);
 
-        AssertEdited("a: >2+\n  x\n\nb: 1\n", tree);
-    }
-
-    [TestMethod]
-    public void SetValue_ReplaceKeepBlockScalar_RemovesItsTrailingLines()
-    {
-        var tree = YamlEditableTree.Parse("a: |+\n  x\n\nb: 1\n");
-
-        RootOf(tree).SetValue("a", new YamlEditableScalar("v"));
-
-        AssertEdited("a: v\nb: 1\n", tree);
+        Assert.IsNull(scalar.Parent);
+        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
     }
 
     [TestMethod]
@@ -1128,7 +1124,7 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    [DataRow("a: |+\n  hi")]
+    [DataRow("a: |\n  hi")]
     [DataRow("a: >\n  hi")]
     [DataRow("x:\n  a: |\n    hi")]
     public void SetValue_NewKeyAfterBlockScalarEndingTheDocumentWithoutLineBreak_ThrowsAndChangesNothing(string yaml)
@@ -1199,16 +1195,40 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    public void SetValue_NewMapWithIndentationIndicatorBlockScalar_KeepsItsValue()
+    [DataRow("a: | # keep\n  hi\nb: 2\n", "changed", "a: changed # keep\nb: 2\n", "changed")]
+    [DataRow("a: | # keep\n  hi\nb: 2\n", "|-\n  new", "a: |- # keep\n  new\nb: 2\n", "new")]
+    [DataRow("a: x # keep\nb: 2\n", "|\n  hi", "a: | # keep\n  hi\nb: 2\n", "hi\n")]
+    [DataRow("a: x # keep", ">\n  hi", "a: > # keep\n  hi", "hi")]
+    public void SetValue_BlockScalarReplacedOrSet_KeepsTheCommentOnTheLineOfTheKey(string yaml, string text, string expected, string expectedValue)
     {
-        var tree = YamlEditableTree.Parse("a: 1\n");
+        var tree = YamlEditableTree.Parse(yaml);
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar(text));
+
+        AssertEdited(expected, tree);
+        Assert.AreEqual(expectedValue, YamlSerializer.Deserialize<Dictionary<string, string>>(tree.Serialize())!["a"]);
+    }
+
+    [TestMethod]
+    public void Text_PlainScalarBecomesBlockScalar_MovesTheCommentToItsHeader()
+    {
+        var tree = YamlEditableTree.Parse("- a # keep\n- b\n");
+
+        ((YamlEditableScalar)((YamlEditableList)tree.Root).Items[0].Value).Text = "|\n  hi";
+
+        AssertEdited("- | # keep\n  hi\n- b\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_NewBlockMapInEmptyCrLfRoot_UsesCrLf()
+    {
+        var tree = YamlEditableTree.Parse("{}\r\n");
         var map = new YamlEditableMap();
-        map.SetValue("b", new YamlEditableScalar("|2-\n    hi"));
+        map.SetValue("x", new YamlEditableScalar("1"));
 
         RootOf(tree).SetValue("a", map);
 
-        AssertEdited("a:\n  b: |2-\n      hi\n", tree);
-        Assert.AreEqual("  hi", YamlSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(tree.Serialize())!["a"]["b"]);
+        AssertEdited("a:\r\n  x: 1\r\n", tree);
     }
 
     [TestMethod]
@@ -1228,7 +1248,7 @@ public class YamlEditableTreeTests
     [TestMethod]
     public void SetValue_RejectedAfterBlockScalarAtTheEnd_LeavesTheValueWithoutParent()
     {
-        var tree = YamlEditableTree.Parse("a: |+\n  hi");
+        var tree = YamlEditableTree.Parse("a: |\n  hi");
         var value = new YamlEditableScalar("2");
 
         Assert.ThrowsExactly<InvalidOperationException>(() => RootOf(tree).SetValue("b", value));

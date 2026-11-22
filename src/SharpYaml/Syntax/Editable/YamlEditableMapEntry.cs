@@ -73,14 +73,18 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     /// entry is in a map.
     /// </summary>
     /// <exception cref="ArgumentNullException">The value is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException">The value already has a parent, is this entry or one of its ancestors, or is the root of a tree.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The value already has a parent, is this entry or one of its ancestors, or is the root of a tree; or it holds a block
+    /// scalar with the keep indicator or an indentation indicator ("|+", "|2"), which the editable tree does not support.
+    /// </exception>
     public YamlEditableNode Value
     {
         get => _value!;
         set
         {
             var oldValue = _value;
-            ParentToThis(ref _value, value ?? throw new ArgumentNullException(nameof(value)), this);
+            YamlEditableLayout.ThrowIfUnsupportedValue(value ?? throw new ArgumentNullException(nameof(value)));
+            ParentToThis(ref _value, value, this);
             if (oldValue is not null)
             {
                 YamlEditableLayout.AfterValueChanged(this, oldValue);

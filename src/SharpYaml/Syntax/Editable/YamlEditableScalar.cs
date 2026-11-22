@@ -31,10 +31,28 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// while keeping every other node's original text untouched.
     /// </summary>
     /// <exception cref="ArgumentNullException">The text is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The scalar is the value of an entry, and the text is a block scalar with the keep indicator or an indentation
+    /// indicator ("|+", "|2"), which the editable tree does not support.
+    /// </exception>
     public string Text
     {
         get => _text;
-        set => _text = value ?? throw new ArgumentNullException(nameof(value));
+        set
+        {
+            ArgumentGuard.ThrowIfNull(value);
+            if (Parent is null)
+            {
+                _text = value;
+                return;
+            }
+
+            YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
+            _text = value;
+
+            // A comment on the line of the entry would follow the last line of a block scalar.
+            YamlEditableLayout.KeepCommentsOutOfBlockScalars(Parent);
+        }
     }
 
     /// <inheritdoc />

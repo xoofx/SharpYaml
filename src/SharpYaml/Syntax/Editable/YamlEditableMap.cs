@@ -345,6 +345,7 @@ public sealed class YamlEditableMap : YamlEditableNode
 
         ThrowIfSelfOrAncestor(entry, this);
         ThrowIfInvalidKey(entry.Key, entry);
+        YamlEditableLayout.ThrowIfUnsupportedValue(entry);
     }
 
     /// <inheritdoc />

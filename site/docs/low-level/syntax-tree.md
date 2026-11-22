@@ -97,22 +97,24 @@ A same-line comment stays with the entry on its line, and comment lines stay wit
 below them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`RemoveAt` keep
 each entry on its own line, so removing an entry removes its comments and nothing else. A new
 map or list that is not indented under its key (or after its `-`) is indented when it is set as a
-value. An entry cannot be added after a block scalar (`|`, `|+` or `>`, but `|-` is fine) that ends
-the document without a line break (`InvalidOperationException`): the line break would become part
-of the scalar's value.
+value. An entry cannot be added after a block scalar (`|` or `>`, but `|-` is fine) that ends the
+document without a line break (`InvalidOperationException`): the line break would become part of the
+scalar's value. A comment is never written after the last line of a block scalar, where it would be
+part of its value: it goes on the header line of the scalar (`key: | # comment`).
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
 `GetValue("name")` also finds `"name": x`. `SetValue` writes a new key as a plain scalar and throws
 `ArgumentException` for a key that needs quotes: add a `YamlEditableMapEntry` with the quoted text of the
 key instead. `AddEntry` and `InsertEntry` reject a key that the mapping already has. The scope is bounded:
 block-style mappings and sequences (also a sequence at the column of its key, `key:\n- a`),
-plain, quoted and block (`|`, `>`) scalars, and `#` comments. A key or a list item without a value (`key:`, `-`)
+plain, quoted and block (`|`, `>`, also with `-`) scalars, and `#` comments. A key or a list item without a value (`key:`, `-`)
 is a scalar with empty text. An empty mapping or sequence has no block form: it is read from and
 written as `{}` or `[]` (also with spaces inside) on the line of its key, so removing its last entry
 writes `{}` or `[]`, also at the root, and adding an entry to it writes it as a block again.
 `YamlEditableTree.Parse` throws `NotSupportedException` for flow style with content or on several
-lines, explicit keys (`?`), spaces between a key and its `:` (`a : b`), anchors, aliases, tags,
-directives, and document markers (`---`, `...`, so also for a stream of several documents), and for
+lines, explicit keys (`?`), spaces between a key and its `:` (`a : b`), block scalars with the keep
+indicator or an indentation indicator (`|+`, `|2`, whose value depends on the lines around them), anchors,
+aliases, tags, directives, and document markers (`---`, `...`, so also for a stream of several documents), and for
 any document whose text the tree would not write back exactly (a byte order mark is kept), so a
 document that uses them is never edited partially.
 

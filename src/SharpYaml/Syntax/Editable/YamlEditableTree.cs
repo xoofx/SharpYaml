@@ -15,8 +15,9 @@ namespace SharpYaml.Syntax.Editable;
 /// Scope is intentionally bounded to editing hand-written configuration files: block-style maps
 /// and sequences, plain/quoted/block scalars, "#" comments, keys and list items without a value
 /// ("key:", "-"), and empty flow collections ("[]", "{}"), the only form of an empty map or list.
-/// Flow style with content, explicit keys ("?"), spaces between a key and its ":", anchors, aliases, tags,
-/// directives and document markers ("---", "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
+/// Flow style with content, explicit keys ("?"), spaces between a key and its ":", block scalars with the keep
+/// indicator or an indentation indicator ("|+", "|2"), anchors, aliases, tags, directives and document markers
+/// ("---", "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
 /// </summary>
 /// <remarks>
 /// Edits are applied to the source snapshot through <see cref="YamlSyntaxTree.WithTextChange"/>
@@ -65,7 +66,8 @@ public sealed class YamlEditableTree
     /// <exception cref="YamlException"><paramref name="yaml"/> is not valid YAML.</exception>
     /// <exception cref="NotSupportedException">
     /// The document uses a construct outside the bounded scope of this editable tree (flow
-    /// style with content, explicit keys, spaces before the ":" of a key, anchors, aliases, tags, directives, or document markers such as
+    /// style with content, explicit keys, spaces before the ":" of a key, block scalars with the keep indicator or an
+    /// indentation indicator, anchors, aliases, tags, directives, or document markers such as
     /// "---" and "...", which also covers multiple documents), or the tree cannot write its text
     /// back exactly.
     /// </exception>
@@ -341,6 +343,14 @@ public sealed class YamlEditableTree
                 }
 
                 var text = token.Text;
+                if (YamlEditableLayout.HasKeepOrIndentationIndicator(text))
+                {
+                    // The value of such a scalar depends on the lines after it or on the column of its parent, which
+                    // edits around it change.
+                    throw new NotSupportedException(
+                        "YamlEditableTree does not support block scalars with the keep indicator ('|+') or an indentation indicator ('|2').");
+                }
+
                 var lineBreaks = new List<YamlEditableTrivia>();
                 var end = text.Length;
                 while (end > 0 && text[end - 1] is '\n' or '\r')
@@ -360,15 +370,6 @@ public sealed class YamlEditableTree
                     continue;
                 }
 
-                // With the keep indicator ("|+", ">+") the line breaks at the end are part of the value: only the
-                // last one leaves the scalar, to end its line, so that an edit next to the scalar does not change it.
-                var firstMoved = IsKeepChomping(text) ? lineBreaks.Count - 1 : 0;
-                for (var kept = 0; kept < firstMoved; kept++)
-                {
-                    end += lineBreaks[kept].Text.Length;
-                }
-
-                lineBreaks.RemoveRange(0, firstMoved);
                 _significant[index] = new YamlSyntaxToken(token.Kind, token.Span, text.Substring(0, end));
 
                 // In source order: the blank lines of the scalar, then what the constructor attached
@@ -396,23 +397,6 @@ public sealed class YamlEditableTree
                     TrailingTrivia = moved.Count > 0 ? moved : null;
                 }
             }
-        }
-
-        /// <summary>
-        /// Returns <see langword="true"/> if the header of the block scalar <paramref name="text"/> ("|+", ">2+")
-        /// has the keep chomping indicator.
-        /// </summary>
-        private static bool IsKeepChomping(string text)
-        {
-            for (var index = 1; index < text.Length && text[index] is not (' ' or '\t' or '\r' or '\n' or '#'); index++)
-            {
-                if (text[index] == '+')
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private static NotSupportedException UnsupportedFlowCollection(YamlSyntaxKind start) => new(
