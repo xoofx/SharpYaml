@@ -81,7 +81,7 @@ internal static class YamlEditableLayout
             {
                 UseNewLine(entry, GetDocumentNewLine(collection));
 
-                // The comment on the line of a root "{} # comment" goes to the line of its first entry.
+                // The comment on the line of a root "{} # comment" stays with the root: a comment line above its entries.
                 if (collection.Tree?.TrailingTrivia is { } rootTrailing
                     && rootTrailing.FindIndex(t => t.Kind == YamlEditableTriviaKind.Comment) is var rootComment and >= 0
                     && rootTrailing.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) is var rootBreak
@@ -93,11 +93,11 @@ internal static class YamlEditableLayout
                         start--;
                     }
 
-                    var comment = rootTrailing.GetRange(start, rootComment - start + 1);
+                    var comment = rootTrailing[rootComment];
                     rootTrailing.RemoveRange(start, rootComment - start + 1);
-                    var endOfLine = GetLastLineOwner(entry).EndOfLineTrivia ??= [];
-                    var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
-                    endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, comment);
+                    var rootLeading = collection.LeadingTrivia ??= [];
+                    rootLeading.Add(comment);
+                    rootLeading.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection)));
                 }
             }
 
@@ -176,7 +176,7 @@ internal static class YamlEditableLayout
     public static void AfterValueChanged(YamlEditableNode entry, YamlEditableNode oldValue)
     {
         MoveHeaderComment(entry, oldValue);
-        AfterLayoutChanged(entry, IsBlock(oldValue), GetLastEntry(oldValue));
+        AfterLayoutChanged(entry, IsBlock(oldValue), GetLastEntry(oldValue), expanded: false);
         KeepCommentsOutOfBlockScalars(entry);
     }
 
@@ -189,7 +189,7 @@ internal static class YamlEditableLayout
     {
         if (collection.Parent is YamlEditableMapEntry or YamlEditableListEntry)
         {
-            AfterLayoutChanged(collection.Parent, wasBlock: removedEntry is not null, removedEntry);
+            AfterLayoutChanged(collection.Parent, wasBlock: removedEntry is not null, removedEntry, expanded: removedEntry is null);
             IndentValue(collection.Parent);
         }
         else if (collection.Parent is null && removedEntry is not null)
@@ -228,9 +228,11 @@ internal static class YamlEditableLayout
 
     /// <summary>
     /// Moves the line break of <paramref name="entry"/> after its value changed from a block, whose last entry was
-    /// <paramref name="oldLastEntry"/>, or from a value on its line, to its current value.
+    /// <paramref name="oldLastEntry"/>, or from a value on its line, to its current value. <paramref name="expanded"/> is
+    /// <see langword="true"/> when the value is an empty map or list that got its first entry: a comment on its line
+    /// belongs to <paramref name="entry"/> and stays in its trivia, so that removing that entry again keeps it.
     /// </summary>
-    private static void AfterLayoutChanged(YamlEditableNode entry, bool wasBlock, YamlEditableNode? oldLastEntry)
+    private static void AfterLayoutChanged(YamlEditableNode entry, bool wasBlock, YamlEditableNode? oldLastEntry, bool expanded)
     {
         var value = GetValue(entry);
         var isBlock = IsBlock(value);
@@ -247,23 +249,12 @@ internal static class YamlEditableLayout
                 // "key: # comment\n  # more\n  {}" already ends the line of the key and keeps the comment lines
                 // below it: the block replaces the indentation of the old value, and a comment after the old value
                 // goes to the last line of the block.
-                var separator = entry.TrailingTrivia!;
-                var kept = separator.GetRange(0, separatorBreak + 1);
-                var lastOwner = GetLastLineOwner(entry);
-                if (HasComment(oldEndOfLine) && !HasComment(lastOwner.EndOfLineTrivia))
+                var kept = entry.TrailingTrivia!.GetRange(0, separatorBreak + 1);
+                if (HasComment(oldEndOfLine))
                 {
-                    lastOwner.EndOfLineTrivia = oldEndOfLine;
-                }
-                else if (HasComment(oldEndOfLine))
-                {
-                    // The last line of the block has its own comment: the comment of the old value becomes a comment
-                    // line above the block, at the indentation of the old value.
-                    kept.AddRange(separator.GetRange(separatorBreak + 1, separator.Count - separatorBreak - 1));
-                    kept.AddRange(oldEndOfLine!.SkipWhile(t => t.Kind == YamlEditableTriviaKind.Whitespace));
-                    if (kept[kept.Count - 1].Kind != YamlEditableTriviaKind.NewLine)
-                    {
-                        kept.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? GetDocumentNewLine(entry)));
-                    }
+                    // The comment after the old value stays with the entry, on the line of its key: a comment line above
+                    // the block would belong to its first entry once the text is read again.
+                    AddCommentToLine(kept, oldEndOfLine!);
                 }
 
                 entry.TrailingTrivia = kept;
@@ -289,7 +280,7 @@ internal static class YamlEditableLayout
         else if (entry is YamlEditableListEntry && wasBlock && !isBlock && entry.TrailingTrivia is { } dashSeparator
             && dashSeparator.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) is var dashBreak and >= 0)
         {
-            if (!HasComment(dashSeparator))
+            if (dashSeparator.Count == 1)
             {
                 // "-\n  key: value" becomes "- {}": the line break of the "-" ends the line.
                 entry.EndOfLineTrivia = dashSeparator.GetRange(dashBreak, 1);
@@ -297,9 +288,25 @@ internal static class YamlEditableLayout
             }
             else if (dashSeparator[dashSeparator.Count - 1].Kind == YamlEditableTriviaKind.NewLine)
             {
-                // The comment lines after the "-" stay: "{}" goes on the next line, indented past the "-".
+                // The comment lines, blank lines and spaces after the "-" stay: "{}" goes on the next line, indented past
+                // the "-".
                 dashSeparator.Add(new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, new string(' ', GetColumn(entry).Length + 2)));
             }
+        }
+        else if (entry is YamlEditableListEntry && expanded && isBlock && HasComment(entry.EndOfLineTrivia))
+        {
+            // "- {} # comment" or "-\n  {} # comment": the comment stays with the list item, on the line of the "-"; the
+            // block then starts on the next line.
+            var dashTrivia = entry.TrailingTrivia;
+            if (FindNewLine(dashTrivia) is null)
+            {
+                dashTrivia = [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? GetDocumentNewLine(entry))];
+                SetIndent(GetEntries(value!)[0], new string(' ', GetColumn(entry).Length + 2));
+            }
+
+            AddCommentToLine(dashTrivia!, entry.EndOfLineTrivia!);
+            entry.TrailingTrivia = dashTrivia;
+            entry.EndOfLineTrivia = null;
         }
         else if (entry is YamlEditableListEntry && !wasBlock && isBlock && entry.EndOfLineTrivia is not null)
         {
@@ -945,6 +952,25 @@ internal static class YamlEditableLayout
 
         comment.Add(new YamlEditableTrivia(YamlEditableTriviaKind.Comment, text.Substring(hash, headerEnd - hash)));
         return comment;
+    }
+
+    /// <summary>
+    /// Adds the comment of <paramref name="endOfLine"/> to the first line of <paramref name="separator"/>, before its line
+    /// break: after the comment already there, in the same comment, or after a space.
+    /// </summary>
+    private static void AddCommentToLine(List<YamlEditableTrivia> separator, List<YamlEditableTrivia> endOfLine)
+    {
+        var comment = endOfLine.Find(t => t.Kind == YamlEditableTriviaKind.Comment)!;
+        var lineBreak = separator.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
+        lineBreak = lineBreak < 0 ? separator.Count : lineBreak;
+        var existing = separator.FindIndex(0, lineBreak, t => t.Kind == YamlEditableTriviaKind.Comment);
+        if (existing >= 0)
+        {
+            separator[existing] = new YamlEditableTrivia(YamlEditableTriviaKind.Comment, separator[existing].Text + " " + comment.Text);
+            return;
+        }
+
+        separator.InsertRange(lineBreak, [new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, " "), comment]);
     }
 
     private static bool HasComment(List<YamlEditableTrivia>? trivia) =>

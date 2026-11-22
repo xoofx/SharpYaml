@@ -1148,7 +1148,7 @@ public class YamlEditableTreeTests
     [TestMethod]
     [DataRow("a: old # keep", "a: # keep\n  x: 1")]
     [DataRow("a: # keep\n  {}\nb: 2\n", "a: # keep\n  x: 1\nb: 2\n")]
-    [DataRow("a: # keep\n  {} # two\nb: 2\n", "a: # keep\n  x: 1 # two\nb: 2\n")]
+    [DataRow("a: # keep\n  {} # two\nb: 2\n", "a: # keep # two\n  x: 1\nb: 2\n")]
     [DataRow("a: # keep\n  # between\n  {}\nb: 2\n", "a: # keep\n  # between\n  x: 1\nb: 2\n")]
     public void SetValue_ValueBecomesABlock_KeepsTheComments(string yaml, string expected)
     {
@@ -1467,14 +1467,43 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    public void SetValue_KeysInEmptyRootWithComment_PutTheCommentOnTheFirstLine()
+    public void SetValueThenRemoveEntry_EmptyRootWithComment_KeepsTheCommentOfTheRoot()
     {
         var tree = YamlEditableTree.Parse("{} # keep\n");
+        var nested = new YamlEditableMap();
+        nested.SetValue("x", new YamlEditableScalar("1"));
+        nested.SetValue("y", new YamlEditableScalar("2"));
 
-        RootOf(tree).SetValue("a", new YamlEditableScalar("1"));
+        RootOf(tree).SetValue("a", nested);
         RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+        AssertEdited("# keep\na:\n  x: 1\n  y: 2\nb: 2\n", tree);
 
-        AssertEdited("a: 1 # keep\nb: 2\n", tree);
+        RootOf(tree).RemoveEntry("a");
+        RootOf(tree).RemoveEntry("b");
+        AssertEdited("# keep\n{}\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("- # dash\n  {} # keep\n- tail\n", "- # dash # keep\n  x: 1\n- tail\n", "- # dash # keep\n  {}\n- tail\n", "- # dash # keep\n  {}\n- tail\n")]
+    [DataRow("- {} # keep\n", "- # keep\n  x: 1\n", "- # keep\n  {}\n", "- # keep\n  {}\n")]
+    [DataRow("a:\n  {} # keep\nb: 2\n", "a: # keep\n  x: 1\nb: 2\n", "a: {} # keep\nb: 2\n", "a: {} # keep\nb: 2\n")]
+    // Read again, the blank line above the key is the key's, and goes with it.
+    [DataRow("-\n\n  {}\n- tail\n", "-\n\n  x: 1\n- tail\n", "-\n\n  {}\n- tail\n", "- {}\n- tail\n")]
+    public void AddThenRemove_CommentOnTheLineOfAnEmptyMap_StaysWithItsOwner(string yaml, string added, string removed, string removedAfterReopen)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        GetMap(tree).SetValue("x", new YamlEditableScalar("1"));
+        AssertEdited(added, tree);
+
+        var reopened = YamlEditableTree.Parse(added);
+        GetMap(reopened).RemoveEntry("x");
+        AssertEdited(removedAfterReopen, reopened);
+
+        GetMap(tree).RemoveEntry("x");
+        AssertEdited(removed, tree);
+
+        static YamlEditableMap GetMap(YamlEditableTree tree) =>
+            tree.Root is YamlEditableList list ? (YamlEditableMap)list.Items[0].Value : (YamlEditableMap)((YamlEditableMap)tree.Root).GetValue("a")!;
     }
 
     [TestMethod]
@@ -1609,7 +1638,7 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    public void AddEntry_EmptyMapWhoseNewLastLineHasAComment_KeepsTheOldCommentAboveTheBlock()
+    public void AddEntry_EmptyMapWhoseNewLastLineHasAComment_KeepsTheOldCommentOnTheKeyLine()
     {
         var tree = YamlEditableTree.Parse("a: # keep\n  {} # two\nb: 2\n");
         var map = (YamlEditableMap)RootOf(tree).GetValue("a")!;
@@ -1619,7 +1648,7 @@ public class YamlEditableTreeTests
             EndOfLineTrivia = [new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, " "), new YamlEditableTrivia(YamlEditableTriviaKind.Comment, "# own")],
         });
 
-        AssertEdited("a: # keep\n  # two\n  x: 1 # own\nb: 2\n", tree);
+        AssertEdited("a: # keep # two\n  x: 1 # own\nb: 2\n", tree);
     }
 
     [TestMethod]

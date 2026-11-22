@@ -94,10 +94,13 @@ var edited = tree.ToSyntaxTree();
 ```
 
 A same-line comment stays with the entry on its line, and comment lines stay with the entry
-below them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`RemoveAt` keep
+below them. The comment on the line of an empty mapping or sequence (`key: {} # comment`) stays with
+its key or `-` when entries are added to it, on the line of the key or the `-`; at the root, it becomes
+a comment line above them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`RemoveAt` keep
 each entry on its own line, so removing an entry removes its comments and nothing else. A new
 map or list that is not indented under its key (or after its `-`) is indented when it is set as a
-value. An entry cannot be added after a block scalar (`|` or `>`, but `|-` is fine) that ends the
+value, except under a list item whose block starts on the line after the `-`: give its keys their
+indentation (`ToSyntaxTree` rejects them at the column of the `-`). An entry cannot be added after a block scalar (`|` or `>`, but `|-` is fine) that ends the
 document without a line break (`InvalidOperationException`): the line break would become part of the
 scalar's value. A comment is never written after the last line of a block scalar, where it would be
 part of its value: it goes on the header line of the scalar (`key: | # comment`). `ToSyntaxTree`
