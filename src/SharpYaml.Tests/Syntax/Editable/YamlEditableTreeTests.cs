@@ -39,6 +39,14 @@ public class YamlEditableTreeTests
         {
             "key:\n  value # on the next line\nlast: 1",
         };
+        yield return new object[] { "{}\n" };
+        yield return new object[] { "[]" };
+        yield return new object[] { "[ ]\n" };
+        yield return new object[] { "# one\n{ }\n" };
+        yield return new object[] { "a: [ ]\nb: {  } # two\n" };
+        yield return new object[] { "# one\nvalue\n" };
+        yield return new object[] { "\n# one\n  value # two" };
+        yield return new object[] { "k:\n  - - a\n    - b\n" };
     }
 
     private const string ServersYaml =
@@ -467,7 +475,7 @@ public class YamlEditableTreeTests
     [TestMethod]
     [DataRow("A: [1]\n")]
     [DataRow("A: {x: 1}\n")]
-    [DataRow("A: [ ]\n")]
+    [DataRow("A: [\n  ]\n")]
     public void Parse_NonEmptyFlowCollection_ThrowsNotSupportedException(string yaml)
     {
         Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
@@ -871,17 +879,6 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    [DataRow("{}\n")]
-    [DataRow("[]")]
-    public void Parse_EmptyFlowCollectionAtTheRoot_RoundTrips(string yaml)
-    {
-        var tree = YamlEditableTree.Parse(yaml);
-
-        Assert.AreEqual(yaml, tree.Serialize());
-        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
-    }
-
-    [TestMethod]
     public void SetValue_EmptyFlowMapAtTheRoot_WritesTheMapAsABlock()
     {
         var tree = YamlEditableTree.Parse("{}\n");
@@ -895,6 +892,7 @@ public class YamlEditableTreeTests
     [DataRow("? a\n: b\n")]
     [DataRow("? a\n")]
     [DataRow("x: 1\n? a\n")]
+    [DataRow("? - a\n")]
     public void Parse_ExplicitKey_ThrowsNotSupportedException(string yaml)
     {
         Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
@@ -928,6 +926,138 @@ public class YamlEditableTreeTests
         RootOf(tree).SetValue("a", new YamlEditableScalar("v"));
 
         AssertEdited("a: v\nb: 1\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a: 1\n", "{}\n")]
+    [DataRow("# one\na: 1", "{}")]
+    public void RemoveEntry_LastKeyOfTheRoot_WritesAnEmptyMap(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        RootOf(tree).RemoveEntry("a");
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void RemoveAt_LastItemOfTheRoot_WritesAnEmptyListThatTakesNewItems()
+    {
+        var tree = YamlEditableTree.Parse("- a\r\n");
+        var root = (YamlEditableList)tree.Root;
+
+        root.RemoveAt(0);
+        AssertEdited("[]\r\n", tree);
+
+        root.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("b"), ""));
+        AssertEdited("- b\r\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_EmptyFlowMapAtTheRootAfterAComment_ReplacesTheBraces()
+    {
+        var tree = YamlEditableTree.Parse("# one\n{}\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("1"));
+
+        AssertEdited("# one\na: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void GetValueAndSetValue_KeysWithQuotesInTheirValue_FindTheEntryWithThatValue()
+    {
+        var tree = YamlEditableTree.Parse("\"name\": 1\n'\"name\"': 2\n");
+        var root = RootOf(tree);
+
+        Assert.AreEqual("1", ((YamlEditableScalar)root.GetValue("name")!).Text);
+        Assert.AreEqual("2", ((YamlEditableScalar)root.GetValue("\"name\"")!).Text);
+
+        root.SetValue("\"name\"", new YamlEditableScalar("3"));
+
+        AssertEdited("\"name\": 1\n'\"name\"': 3\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ExistingEmptyKey_ReplacesItsValue()
+    {
+        var tree = YamlEditableTree.Parse("\"\": 1\n");
+
+        RootOf(tree).SetValue("", new YamlEditableScalar("2"));
+
+        AssertEdited("\"\": 2\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("\"name\"")]
+    [DataRow("")]
+    [DataRow("a: b")]
+    [DataRow("# a")]
+    [DataRow(" a")]
+    [DataRow("- a")]
+    [DataRow("? a")]
+    public void SetValue_NewKeyThatIsNotAPlainScalar_ThrowsArgumentException(string key)
+    {
+        var tree = YamlEditableTree.Parse("name: 1\n");
+
+        Assert.ThrowsExactly<ArgumentException>(() => RootOf(tree).SetValue(key, new YamlEditableScalar("2")));
+        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    public void AddEntry_KeyThatTheMapAlreadyHas_ThrowsArgumentException()
+    {
+        var root = RootOf(YamlEditableTree.Parse("name: 1\n"));
+
+        Assert.ThrowsExactly<ArgumentException>(() => root.AddEntry(new YamlEditableMapEntry("'name'", new YamlEditableScalar("2"), "")));
+        Assert.ThrowsExactly<ArgumentException>(() => root.InsertEntry(0, new YamlEditableMapEntry("\"name\"", new YamlEditableScalar("2"), "")));
+    }
+
+    [TestMethod]
+    public void AddEntry_ToNestedListInListItem_AlignsTheNewItem()
+    {
+        var tree = YamlEditableTree.Parse("k:\n  - - a\n    - b\n");
+        var inner = (YamlEditableList)((YamlEditableList)RootOf(tree).GetValue("k")!).Items[0].Value;
+
+        inner.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("c"), "    "));
+
+        AssertEdited("k:\n  - - a\n    - b\n    - c\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ListItemToNewList_IndentsTheItemsOfTheNewList()
+    {
+        var tree = YamlEditableTree.Parse("- old\n- next\n");
+        var list = new YamlEditableList();
+        list.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("a"), ""));
+        list.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("b"), ""));
+
+        ((YamlEditableList)tree.Root).Items[0].Value = list;
+
+        AssertEdited("- - a\n  - b\n- next\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ValueAfterCommentInDocumentWithMixedLineBreaks_KeepsTheLineBreakAfterTheComment()
+    {
+        var tree = YamlEditableTree.Parse("a: # keep\r\n  x\nb: 2\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("y"));
+
+        AssertEdited("a: # keep\r\n  y\nb: 2\n", tree);
+    }
+
+    [TestMethod]
+    public void AddEntryAndValue_NodeUnderItself_ThrowInvalidOperationException()
+    {
+        var list = new YamlEditableList();
+        Assert.ThrowsExactly<InvalidOperationException>(() => list.AddEntry(new YamlEditableListEntry(list, "")));
+
+        var map = new YamlEditableMap();
+        Assert.ThrowsExactly<InvalidOperationException>(() => map.AddEntry(new YamlEditableMapEntry("k", map, "")));
+
+        var root = RootOf(YamlEditableTree.Parse("a: 1\n"));
+        Assert.ThrowsExactly<InvalidOperationException>(() => root.Entries[0].Value = root);
+        Assert.AreEqual("a: 1\n", root.ToString());
     }
 
     [TestMethod]

@@ -105,6 +105,21 @@ public abstract class YamlEditableNode
     }
 
     /// <summary>
+    /// Throws if <paramref name="node"/> is <paramref name="owner"/> or one of its ancestors: attaching it under
+    /// <paramref name="owner"/> would make the tree a cycle.
+    /// </summary>
+    private protected static void ThrowIfSelfOrAncestor(YamlEditableNode node, YamlEditableNode owner)
+    {
+        for (var current = owner; current is not null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, node))
+            {
+                throw new InvalidOperationException("A node cannot be attached under itself or one of its descendants.");
+            }
+        }
+    }
+
+    /// <summary>
     /// Reparents <paramref name="node"/> to this instance, detaching it from any previous
     /// parent slot and throwing if it is already parented elsewhere. Mirrors
     /// Tomlyn.Syntax.SyntaxNode.ParentToThis.
@@ -115,6 +130,11 @@ public abstract class YamlEditableNode
         if (node?.Parent != null)
         {
             throw new InvalidOperationException("The node is already parented to another node.");
+        }
+
+        if (node is not null)
+        {
+            ThrowIfSelfOrAncestor(node, owner);
         }
 
         if (slot != null)

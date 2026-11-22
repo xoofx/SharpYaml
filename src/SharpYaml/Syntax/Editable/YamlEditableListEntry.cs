@@ -36,6 +36,8 @@ public sealed class YamlEditableListEntry : YamlEditableNode
     /// reparents the new node to this entry. A nested map whose keys are not after the "-" is
     /// indented to the column of its first key.
     /// </summary>
+    /// <exception cref="ArgumentNullException">The value is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The value already has a parent, or is this entry or one of its ancestors.</exception>
     public YamlEditableNode Value
     {
         get => _value!;

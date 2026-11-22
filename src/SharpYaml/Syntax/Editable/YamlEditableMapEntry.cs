@@ -48,6 +48,8 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     /// are kept: a nested map or list goes on the next line, after "key:" and the comment. A nested
     /// map or list whose entries are not indented past the key is indented by two spaces.
     /// </summary>
+    /// <exception cref="ArgumentNullException">The value is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The value already has a parent, or is this entry or one of its ancestors.</exception>
     public YamlEditableNode Value
     {
         get => _value!;

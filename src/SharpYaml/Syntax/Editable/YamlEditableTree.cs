@@ -15,8 +15,8 @@ namespace SharpYaml.Syntax.Editable;
 /// Scope is intentionally bounded to editing hand-written configuration files: block-style maps
 /// and sequences, plain/quoted/block scalars, "#" comments, keys and list items without a value
 /// ("key:", "-"), and empty flow collections ("[]", "{}"), the only form of an empty map or list.
-/// Flow style with content, explicit keys ("?"), anchors, aliases, tags, directives and document markers
-/// ("---", "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
+/// Flow style with content, explicit keys ("?"), spaces between a key and its ":", anchors, aliases, tags,
+/// directives and document markers ("---", "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
 /// </summary>
 /// <remarks>
 /// Edits are applied to the source snapshot through <see cref="YamlSyntaxTree.WithTextChange"/>
@@ -64,7 +64,7 @@ public sealed class YamlEditableTree
     /// <exception cref="YamlException"><paramref name="yaml"/> is not valid YAML.</exception>
     /// <exception cref="NotSupportedException">
     /// The document uses a construct outside the bounded scope of this editable tree (flow
-    /// style with content, explicit keys, anchors, aliases, tags, directives, or document markers such as
+    /// style with content, explicit keys, spaces before the ":" of a key, anchors, aliases, tags, directives, or document markers such as
     /// "---" and "...", which also covers multiple documents), or the tree cannot write its text
     /// back exactly.
     /// </exception>
@@ -251,9 +251,10 @@ public sealed class YamlEditableTree
 
                 if (openFlowCollection)
                 {
-                    // Only an empty flow collection is supported: its end must follow its start at once.
+                    // Only an empty flow collection is supported: its end must follow its start, with at most
+                    // spaces between them ("[ ]").
                     var start = _significant[_significant.Count - 1];
-                    var closes = pendingTrivia.Count == 0
+                    var closes = pendingTrivia.TrueForAll(t => t.Kind == YamlEditableTriviaKind.Whitespace)
                         && (token.Kind, start.Kind) is (YamlSyntaxKind.FlowSequenceEnd, YamlSyntaxKind.FlowSequenceStart)
                             or (YamlSyntaxKind.FlowMappingEnd, YamlSyntaxKind.FlowMappingStart);
                     if (!closes)
@@ -261,7 +262,14 @@ public sealed class YamlEditableTree
                         throw UnsupportedFlowCollection(start.Kind);
                     }
 
-                    // The start token stands for the whole "[]" or "{}".
+                    // The start token stands for the whole "[]" or "{}", with the spaces between them. The tokens of
+                    // the flow indicators have no text of their own.
+                    var isSequence = start.Kind == YamlSyntaxKind.FlowSequenceStart;
+                    _significant[_significant.Count - 1] = new YamlSyntaxToken(
+                        start.Kind,
+                        new YamlSourceSpan(start.Span.Start, token.Span.End),
+                        (isSequence ? "[" : "{") + string.Concat(pendingTrivia.Select(t => t.Text)) + (isSequence ? "]" : "}"));
+                    pendingTrivia = [];
                     openFlowCollection = false;
                     continue;
                 }
@@ -458,7 +466,14 @@ public sealed class YamlEditableTree
                 return empty;
             }
 
+            // The comments and blank lines above a scalar or an empty collection at the root go before it; a map or a
+            // list gives them to its first entry.
+            var rootLeading = Current.Kind is YamlSyntaxKind.FlowSequenceStart or YamlSyntaxKind.FlowMappingStart
+                || (Current.Kind == YamlSyntaxKind.Scalar && !IsMapKeyAhead())
+                ? TakeLeadingTrivia().Trivia
+                : null;
             var node = ParseValue(string.Empty);
+            node.LeadingTrivia ??= rootLeading;
             if (_position != _significant.Count)
             {
                 throw new NotSupportedException(
@@ -500,14 +515,12 @@ public sealed class YamlEditableTree
 
             if (Current.Kind == YamlSyntaxKind.FlowSequenceStart)
             {
-                Take();
-                return new YamlEditableList { WritesEmptyAsFlow = true };
+                return new YamlEditableList { EmptyFlowText = Take().Text };
             }
 
             if (Current.Kind == YamlSyntaxKind.FlowMappingStart)
             {
-                Take();
-                return new YamlEditableMap { WritesEmptyAsFlow = true };
+                return new YamlEditableMap { EmptyFlowText = Take().Text };
             }
 
             if (Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead())
@@ -683,7 +696,9 @@ public sealed class YamlEditableTree
                     endOfLine = YamlEditableLayout.IsBlock(itemNode) ? null : TakeEndOfLine(_position - 1);
                 }
 
-                var entry = new YamlEditableListEntry(itemNode, indent)
+                // An entry with no indentation of its own shares its line with the "-" of an outer list ("- - a"),
+                // which already writes the whitespace before it.
+                var entry = new YamlEditableListEntry(itemNode, indentOrNull ?? string.Empty)
                 {
                     LeadingTrivia = entryLeading,
                     TrailingTrivia = itemLeading,

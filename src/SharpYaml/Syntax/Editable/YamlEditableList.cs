@@ -34,10 +34,10 @@ public sealed class YamlEditableList : YamlEditableNode
     /// </summary>
     /// <param name="entry">The entry to append.</param>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent, or contains this list.</exception>
     public void AddEntry(YamlEditableListEntry entry)
     {
-        ThrowIfParented(entry);
+        ThrowIfCannotAdd(entry);
         var previous = _items.Count > 0 ? _items[_items.Count - 1] : null;
         YamlEditableLayout.PrepareAppend(this, previous, entry);
         AddParsedEntry(entry);
@@ -56,7 +56,7 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <param name="entry">The entry to insert.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is less than 0 or greater than the number of entries.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent, or contains this list.</exception>
     public void InsertEntry(int index, YamlEditableListEntry entry)
     {
         if (index < 0 || index > _items.Count)
@@ -70,34 +70,37 @@ public sealed class YamlEditableList : YamlEditableNode
             return;
         }
 
-        ThrowIfParented(entry);
+        ThrowIfCannotAdd(entry);
         YamlEditableLayout.PrepareInsert(_items[index], entry);
         entry.Parent = this;
         _items.Insert(index, entry);
     }
 
     /// <summary>
-    /// Gets or sets whether this list is written as "[]" when it is empty and has no parent: it was read from "[]".
+    /// Gets or sets the text this list is written as when it is empty ("[]" or "[ ]"): the text it was read from, or
+    /// "[]" for a root list whose last entry was removed. An empty list that is a value is always written in flow style.
     /// </summary>
-    internal bool WritesEmptyAsFlow { get; set; }
+    internal string? EmptyFlowText { get; set; }
 
     /// <summary>
     /// Appends an entry read by the parser, without changing its trivia.
     /// </summary>
     internal void AddParsedEntry(YamlEditableListEntry entry)
     {
-        ThrowIfParented(entry);
+        ArgumentGuard.ThrowIfNull(entry);
         entry.Parent = this;
         _items.Add(entry);
     }
 
-    private static void ThrowIfParented(YamlEditableListEntry entry)
+    private void ThrowIfCannotAdd(YamlEditableListEntry entry)
     {
         ArgumentGuard.ThrowIfNull(entry);
         if (entry.Parent != null)
         {
             throw new InvalidOperationException("The entry is already parented to another node.");
         }
+
+        ThrowIfSelfOrAncestor(entry, this);
     }
 
     /// <summary>
@@ -123,11 +126,10 @@ public sealed class YamlEditableList : YamlEditableNode
     {
         if (_items.Count == 0)
         {
-            // An empty list that is the value of an entry has no block form: it is written in flow style, as an
-            // empty root list read from "[]".
-            if (Parent is not null || WritesEmptyAsFlow)
+            // An empty list that is the value of an entry has no block form: it is written in flow style.
+            if (Parent is not null || EmptyFlowText is not null)
             {
-                writer.Write("[]");
+                writer.Write(EmptyFlowText ?? "[]");
             }
 
             return;

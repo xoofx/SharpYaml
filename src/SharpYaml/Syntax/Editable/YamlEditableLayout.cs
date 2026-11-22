@@ -42,8 +42,9 @@ internal static class YamlEditableLayout
         if (previous is null)
         {
             // The first entry of a document without content goes on a line of its own after the comments and blank
-            // lines of the document, and ends with a line break if the document did.
-            if (collection.LeadingTrivia is { Count: > 0 } leading)
+            // lines of the document, and ends with a line break if the document did. A root read from "{}" or "[]"
+            // is replaced where it was, and the line break after it stays.
+            if (collection.LeadingTrivia is { Count: > 0 } leading && GetEmptyFlowText(collection) is null)
             {
                 var lineBreak = FindNewLine(leading)?.Text ?? DefaultNewLine;
                 if (leading[leading.Count - 1].Kind != YamlEditableTriviaKind.NewLine)
@@ -56,6 +57,12 @@ internal static class YamlEditableLayout
                 }
 
                 UseNewLine(entry, lineBreak);
+            }
+            else if (collection.Parent is null && GetEmptyFlowText(collection) is { } flowText && GetEndLineBreak(flowText) is { } flowLineBreak)
+            {
+                // A root whose entries were all removed was written "{}" with the line break of its last line.
+                EnsureEndsWithNewLine(entry, flowLineBreak);
+                UseNewLine(entry, flowLineBreak);
             }
 
             return;
@@ -106,7 +113,34 @@ internal static class YamlEditableLayout
             AfterLayoutChanged(collection.Parent, wasBlock: removedEntry is not null, removedEntry);
             IndentValue(collection.Parent);
         }
+        else if (collection.Parent is null && removedEntry is not null && GetEmptyFlowText(collection) is null)
+        {
+            // The root of the document stays a mapping or a list: empty, it is written as "{}" or "[]" on the line
+            // of the removed entry.
+            var lineBreak = FindNewLine(GetLastLineOwner(removedEntry).EndOfLineTrivia)?.Text;
+            switch (collection)
+            {
+                case YamlEditableMap map:
+                    map.EmptyFlowText = "{}" + lineBreak;
+                    break;
+                case YamlEditableList list:
+                    list.EmptyFlowText = "[]" + lineBreak;
+                    break;
+            }
+        }
     }
+
+    private static string? GetEndLineBreak(string text) =>
+        text.EndsWith("\r\n", System.StringComparison.Ordinal) ? "\r\n"
+        : text.Length > 0 && text[text.Length - 1] is '\n' or '\r' ? text.Substring(text.Length - 1)
+        : null;
+
+    private static string? GetEmptyFlowText(YamlEditableNode collection) => collection switch
+    {
+        YamlEditableMap map => map.EmptyFlowText,
+        YamlEditableList list => list.EmptyFlowText,
+        _ => null,
+    };
 
     /// <summary>
     /// Moves the line break of <paramref name="entry"/> after its value changed from a block, whose last entry was
@@ -147,8 +181,12 @@ internal static class YamlEditableLayout
 
         if (newLine is not null)
         {
+            // Only what is new takes the line break of the document: the trivia of the entry keeps its text.
             EnsureEndsWithNewLine(entry, newLine);
-            UseNewLine(entry, newLine.Text);
+            if (value is not null)
+            {
+                UseNewLine(value, newLine.Text);
+            }
         }
     }
 
@@ -199,11 +237,18 @@ internal static class YamlEditableLayout
     /// Returns the indentation of <paramref name="entry"/>'s key as a column, also when the key
     /// shares its line with the "-" of a list entry and so has no indentation text of its own.
     /// </summary>
-    public static string GetKeyColumn(YamlEditableMapEntry entry)
+    public static string GetKeyColumn(YamlEditableMapEntry entry) => GetColumn(entry);
+
+    /// <summary>
+    /// Returns the indentation of <paramref name="entry"/>, a map or a list entry, as a column, also when it shares its
+    /// line with the "-" of a list entry ("- key: value", "- - item") and so has no indentation text of its own.
+    /// </summary>
+    private static string GetColumn(YamlEditableNode entry)
     {
-        if (entry.Indent.Length > 0 || entry.Parent?.Parent is not YamlEditableListEntry listEntry)
+        var indent = GetIndent(entry);
+        if (indent.Length > 0 || entry.Parent?.Parent is not YamlEditableListEntry listEntry)
         {
-            return entry.Indent;
+            return indent;
         }
 
         var width = listEntry.Indent.Length + 1;
@@ -228,7 +273,14 @@ internal static class YamlEditableLayout
     /// is a list item, written on the same line as the "-".
     /// </summary>
     public static bool SharesLineWithDash(YamlEditableMapEntry entry, YamlEditableMap map) =>
-        entry.Indent.Length == 0 && map.Parent is YamlEditableListEntry && map.Entries.Count > 0 && map.Entries[0] == entry;
+        map.Entries.Count > 0 && map.Entries[0] == entry && SharesLineWithDash(map);
+
+    /// <summary>
+    /// Returns <see langword="true"/> if the first entry of <paramref name="collection"/>, a map or a list that is a
+    /// list item, follows the "-" of that item, without indentation of its own.
+    /// </summary>
+    private static bool SharesLineWithDash(YamlEditableNode collection) =>
+        collection.Parent is YamlEditableListEntry && GetEntries(collection) is { Count: > 0 } entries && GetIndent(entries[0]).Length == 0;
 
     /// <summary>
     /// Indents the nested map or list of <paramref name="entry"/> if its entries are not at a column
@@ -239,9 +291,8 @@ internal static class YamlEditableLayout
     public static void IndentValue(YamlEditableNode entry)
     {
         var value = GetValue(entry);
-        if (!IsBlock(value) || (entry is YamlEditableListEntry && value is YamlEditableList))
+        if (!IsBlock(value))
         {
-            // A list directly in a list item ("- - a") keeps the layout it was given.
             return;
         }
 
@@ -255,10 +306,10 @@ internal static class YamlEditableLayout
             }
 
             int target;
-            if (entry is YamlEditableListEntry && value is YamlEditableMap itemMap)
+            if (entry is YamlEditableListEntry)
             {
-                // The keys of a list item are at the column of its first key, after the "-".
-                target = GetKeyColumn(itemMap.Entries[0]).Length;
+                // The keys or the items of a list item are at the column of its first one, after the "-".
+                target = GetColumn(GetEntries(value!)[0]).Length;
             }
             else
             {
@@ -297,12 +348,12 @@ internal static class YamlEditableLayout
 
     /// <summary>
     /// Returns the entries of <paramref name="value"/> that start their own line: all of them, except
-    /// the first key of a list item, which is on the line of the "-".
+    /// the first key or item of a list item, which is on the line of the "-".
     /// </summary>
     private static List<YamlEditableNode> GetOwnLineEntries(YamlEditableNode value)
     {
         var entries = GetEntries(value);
-        if (value is YamlEditableMap map && entries.Count > 0 && SharesLineWithDash(map.Entries[0], map))
+        if (SharesLineWithDash(value))
         {
             entries.RemoveAt(0);
         }
