@@ -15,8 +15,8 @@ namespace SharpYaml.Syntax.Editable;
 /// Scope is intentionally bounded to editing hand-written configuration files: block-style maps
 /// and sequences, plain/quoted/block scalars, "#" comments, keys and list items without a value
 /// ("key:", "-"), and empty flow collections ("[]", "{}"), the only form of an empty map or list.
-/// Flow style with content, anchors, aliases, tags, directives and document markers ("---",
-/// "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
+/// Flow style with content, explicit keys ("?"), anchors, aliases, tags, directives and document markers
+/// ("---", "...") are not supported and cause <see cref="Parse"/> to throw <see cref="NotSupportedException"/>.
 /// </summary>
 /// <remarks>
 /// Edits are applied to the source snapshot through <see cref="YamlSyntaxTree.WithTextChange"/>
@@ -64,7 +64,7 @@ public sealed class YamlEditableTree
     /// <exception cref="YamlException"><paramref name="yaml"/> is not valid YAML.</exception>
     /// <exception cref="NotSupportedException">
     /// The document uses a construct outside the bounded scope of this editable tree (flow
-    /// style with content, anchors, aliases, tags, directives, or document markers such as
+    /// style with content, explicit keys, anchors, aliases, tags, directives, or document markers such as
     /// "---" and "...", which also covers multiple documents), or the tree cannot write its text
     /// back exactly.
     /// </exception>
@@ -231,6 +231,13 @@ public sealed class YamlEditableTree
                         "document without \"---\" or \"...\" is supported.");
                 }
 
+                if (token.Kind == YamlSyntaxKind.Key && token.Text.Length > 0)
+                {
+                    // An implicit key is a zero-width marker; an explicit key has the text "?", which the tree has no
+                    // node for.
+                    throw new NotSupportedException("YamlEditableTree does not support explicit keys ('?').");
+                }
+
                 if (token.Kind is YamlSyntaxKind.StreamStart or YamlSyntaxKind.StreamEnd
                     or YamlSyntaxKind.Key or YamlSyntaxKind.BlockMappingStart or YamlSyntaxKind.BlockEnd)
                 {
@@ -340,6 +347,15 @@ public sealed class YamlEditableTree
                     continue;
                 }
 
+                // With the keep indicator ("|+", ">+") the line breaks at the end are part of the value: only the
+                // last one leaves the scalar, to end its line, so that an edit next to the scalar does not change it.
+                var firstMoved = IsKeepChomping(text) ? lineBreaks.Count - 1 : 0;
+                for (var kept = 0; kept < firstMoved; kept++)
+                {
+                    end += lineBreaks[kept].Text.Length;
+                }
+
+                lineBreaks.RemoveRange(0, firstMoved);
                 _significant[index] = new YamlSyntaxToken(token.Kind, token.Span, text.Substring(0, end));
 
                 // In source order: the blank lines of the scalar, then what the constructor attached
@@ -367,6 +383,23 @@ public sealed class YamlEditableTree
                     TrailingTrivia = moved.Count > 0 ? moved : null;
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns <see langword="true"/> if the header of the block scalar <paramref name="text"/> ("|+", ">2+")
+        /// has the keep chomping indicator.
+        /// </summary>
+        private static bool IsKeepChomping(string text)
+        {
+            for (var index = 1; index < text.Length && text[index] is not (' ' or '\t' or '\r' or '\n' or '#'); index++)
+            {
+                if (text[index] == '+')
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static NotSupportedException UnsupportedFlowCollection(YamlSyntaxKind start) => new(
@@ -468,13 +501,13 @@ public sealed class YamlEditableTree
             if (Current.Kind == YamlSyntaxKind.FlowSequenceStart)
             {
                 Take();
-                return new YamlEditableList();
+                return new YamlEditableList { WritesEmptyAsFlow = true };
             }
 
             if (Current.Kind == YamlSyntaxKind.FlowMappingStart)
             {
                 Take();
-                return new YamlEditableMap();
+                return new YamlEditableMap { WritesEmptyAsFlow = true };
             }
 
             if (Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead())

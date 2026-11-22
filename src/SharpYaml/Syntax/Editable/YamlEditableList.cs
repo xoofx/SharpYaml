@@ -77,6 +77,11 @@ public sealed class YamlEditableList : YamlEditableNode
     }
 
     /// <summary>
+    /// Gets or sets whether this list is written as "[]" when it is empty and has no parent: it was read from "[]".
+    /// </summary>
+    internal bool WritesEmptyAsFlow { get; set; }
+
+    /// <summary>
     /// Appends an entry read by the parser, without changing its trivia.
     /// </summary>
     internal void AddParsedEntry(YamlEditableListEntry entry)
@@ -118,8 +123,9 @@ public sealed class YamlEditableList : YamlEditableNode
     {
         if (_items.Count == 0)
         {
-            // An empty list that is the value of an entry has no block form: it is written in flow style.
-            if (Parent is not null)
+            // An empty list that is the value of an entry has no block form: it is written in flow style, as an
+            // empty root list read from "[]".
+            if (Parent is not null || WritesEmptyAsFlow)
             {
                 writer.Write("[]");
             }

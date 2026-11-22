@@ -871,6 +871,66 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
+    [DataRow("{}\n")]
+    [DataRow("[]")]
+    public void Parse_EmptyFlowCollectionAtTheRoot_RoundTrips(string yaml)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        Assert.AreEqual(yaml, tree.Serialize());
+        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    public void SetValue_EmptyFlowMapAtTheRoot_WritesTheMapAsABlock()
+    {
+        var tree = YamlEditableTree.Parse("{}\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("1"));
+
+        AssertEdited("a: 1\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("? a\n: b\n")]
+    [DataRow("? a\n")]
+    [DataRow("x: 1\n? a\n")]
+    public void Parse_ExplicitKey_ThrowsNotSupportedException(string yaml)
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
+    }
+
+    [TestMethod]
+    public void RemoveEntry_AfterKeepBlockScalar_KeepsTheTrailingLinesOfTheScalar()
+    {
+        var tree = YamlEditableTree.Parse("a: |+\n  x\n\n\nb: 1\n");
+
+        RootOf(tree).RemoveEntry("b");
+
+        AssertEdited("a: |+\n  x\n\n\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_NewKeyAfterKeepBlockScalarAtTheEnd_KeepsTheTrailingLinesOfTheScalar()
+    {
+        var tree = YamlEditableTree.Parse("a: >2+\n  x\n\n");
+
+        RootOf(tree).SetValue("b", new YamlEditableScalar("1"));
+
+        AssertEdited("a: >2+\n  x\n\nb: 1\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ReplaceKeepBlockScalar_RemovesItsTrailingLines()
+    {
+        var tree = YamlEditableTree.Parse("a: |+\n  x\n\nb: 1\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("v"));
+
+        AssertEdited("a: v\nb: 1\n", tree);
+    }
+
+    [TestMethod]
     public void GetValueAndRemoveEntry_NullKey_ThrowArgumentNullException()
     {
         var map = RootOf(YamlEditableTree.Parse("a: 1\n"));

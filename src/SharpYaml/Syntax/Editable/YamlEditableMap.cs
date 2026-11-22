@@ -191,6 +191,12 @@ public sealed class YamlEditableMap : YamlEditableNode
     }
 
     /// <summary>
+    /// Gets or sets whether this mapping is written as "{}" when it is empty and has no parent: it was read from
+    /// "{}", unlike the root of an empty document.
+    /// </summary>
+    internal bool WritesEmptyAsFlow { get; set; }
+
+    /// <summary>
     /// Appends an entry read by the parser, without changing its trivia.
     /// </summary>
     internal void AddParsedEntry(YamlEditableMapEntry entry)
@@ -238,8 +244,8 @@ public sealed class YamlEditableMap : YamlEditableNode
         if (_entries.Count == 0)
         {
             // An empty map that is the value of an entry has no block form: it is written in flow
-            // style. An empty document (the root map) is written as nothing.
-            if (Parent is not null)
+            // style. An empty document (the root map) is written as nothing, unless it was "{}".
+            if (Parent is not null || WritesEmptyAsFlow)
             {
                 writer.Write("{}");
             }
