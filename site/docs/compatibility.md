@@ -38,9 +38,9 @@ hexadecimal and octal identifiers, so untyped round trips preserve their text an
 
 By default, untyped `object` values use a span-based Core resolver. Typed numeric conversion helpers
 also accept convenient .NET spellings, including numeric underscores. Set `UseSchema = true` to
-resolve typed values through the selected schema. A `decimal` then keeps every digit of a float scalar
-rather than the 15 or so of its `double`, and under an explicit `!!float` tag an integer keeps the value
-the schema reads (`017` is octal 15 in `Extended`). `Extended` retains additional scalar forms for
+resolve typed values through the selected schema. A `decimal` then reads a float scalar from its text,
+within the precision and range of `decimal`, rather than from its rounded `double`, and under an explicit
+`!!float` tag an integer keeps the value the schema reads (`017` is octal 15 in `Extended`). `Extended` retains additional scalar forms for
 applications that need them. The JSON schema does not implicitly resolve `.inf` or `.nan` as numbers.
 
 ## Parsing and conformance tests
