@@ -57,6 +57,18 @@ public sealed class Yaml122SchemaTests
     }
 
     [TestMethod]
+    [DataRow(YamlSchemaKind.Extended, "!!float 017", "15")]
+    [DataRow(YamlSchemaKind.Extended, "!!float '017'", "15")]
+    [DataRow(YamlSchemaKind.Core, "!!float 0o17", "15")]
+    [DataRow(YamlSchemaKind.Core, "!!float 12345678901234567890123", "12345678901234567890123")]
+    [DataRow(YamlSchemaKind.Core, "!!float 1234567890.123456789", "1234567890.123456789")]
+    public void DecimalWithExplicitFloatTagKeepsTheValueOfTheSchema(YamlSchemaKind schema, string yaml, string expected)
+    {
+        var options = new YamlSerializerOptions { Schema = schema, UseSchema = true };
+        Assert.AreEqual(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), YamlSerializer.Deserialize<decimal>(yaml, options));
+    }
+
+    [TestMethod]
     [DataRow("! 12", "12")]
     [DataRow("!!str 12", "12")]
     [DataRow("!!int '12'", 12)]

@@ -578,10 +578,21 @@ public static class YamlScalar
                 (string.Equals(defaultTag, JsonSchema.FloatShortTag, StringComparison.Ordinal) ||
                  string.Equals(defaultTag, JsonSchema.IntShortTag, StringComparison.Ordinal)))
             {
-                // A float resolves to a double, which keeps only about 15 significant digits: read the decimal from the text when it can.
-                if (value is double or float && TryParseDecimal(reader.ScalarValueSpan, out result))
+                // A float resolves to a double, which keeps only about 15 significant digits: read the decimal from what the
+                // schema reads in the text instead. An explicit !!float converts an integer text to a double, and that
+                // integer is not always the decimal number of its digits (017 is octal 15 in the Extended schema).
+                if (value is double or float)
                 {
-                    return true;
+                    if (reader.Tag is not null &&
+                        GetSchema(reader.Options.Schema).TryParse(AsPlain(CreateScalar(reader)), true, out var textTag, out var textValue) &&
+                        string.Equals(textTag, JsonSchema.IntShortTag, StringComparison.Ordinal))
+                    {
+                        value = textValue;
+                    }
+                    else if (TryParseDecimal(reader.ScalarValueSpan, out result))
+                    {
+                        return true;
+                    }
                 }
 
                 if (TryConvertToDecimal(value, out result))
@@ -740,19 +751,7 @@ public static class YamlScalar
             return true;
         }
 
-        var plainScalar = IsPlainStyle(scalar.Style)
-            ? scalar
-            : new ScalarEvent(
-                scalar.Anchor,
-                scalar.Tag,
-                scalar.Value,
-                ScalarStyle.Plain,
-                scalar.IsPlainImplicit,
-                scalar.IsQuotedImplicit,
-                scalar.Start,
-                scalar.End);
-
-        if (schema.TryParse(plainScalar, true, out var resolvedTag, out value) && string.Equals(resolvedTag, shortTag, StringComparison.Ordinal))
+        if (schema.TryParse(AsPlain(scalar), true, out var resolvedTag, out value) && string.Equals(resolvedTag, shortTag, StringComparison.Ordinal))
         {
             return true;
         }
@@ -772,6 +771,20 @@ public static class YamlScalar
         value = null;
         return false;
     }
+
+    /// <summary>Returns <paramref name="scalar"/> as a plain scalar, so that the schema resolves its text whatever its quotes.</summary>
+    private static ScalarEvent AsPlain(ScalarEvent scalar)
+        => IsPlainStyle(scalar.Style)
+            ? scalar
+            : new ScalarEvent(
+                scalar.Anchor,
+                scalar.Tag,
+                scalar.Value,
+                ScalarStyle.Plain,
+                scalar.IsPlainImplicit,
+                scalar.IsQuotedImplicit,
+                scalar.Start,
+                scalar.End);
 
     private static ScalarEvent CreateScalar(YamlReader reader)
         => new(
