@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using SharpYaml.Tokens;
 
@@ -15,18 +16,20 @@ namespace SharpYaml.Syntax.Editable;
 public sealed class YamlEditableMap : YamlEditableNode
 {
     private readonly List<YamlEditableMapEntry> _entries = [];
+    private readonly ReadOnlyCollection<YamlEditableMapEntry> _entriesView;
 
     /// <summary>
     /// Initializes a new, empty instance of the <see cref="YamlEditableMap"/> class.
     /// </summary>
     public YamlEditableMap() : base(YamlEditableKind.Map)
     {
+        _entriesView = _entries.AsReadOnly();
     }
 
     /// <summary>
     /// Gets the entries of this mapping, in source order.
     /// </summary>
-    public IReadOnlyList<YamlEditableMapEntry> Entries => _entries;
+    public IReadOnlyList<YamlEditableMapEntry> Entries => _entriesView;
 
     /// <summary>
     /// Gets the value for <paramref name="key"/>, or <see langword="null"/> if the key is not
@@ -203,10 +206,9 @@ public sealed class YamlEditableMap : YamlEditableNode
         }
 
         var existing = _entries[index];
-        if (index == 0 && YamlEditableLayout.SharesLineWithDash(existing, this)
-            && _entries.Count > 1 && _entries[1].LeadingTrivia is null)
+        if (index == 0 && _entries.Count > 1)
         {
-            _entries[1].Indent = string.Empty;
+            YamlEditableLayout.PrepareRemoveFirst(this, _entries[1]);
         }
 
         existing.Parent = null;
@@ -237,6 +239,23 @@ public sealed class YamlEditableMap : YamlEditableNode
     }
 
     private YamlEditableMapEntry? FindEntry(string key) => _entries.Find(entry => HasKey(entry, key));
+
+    /// <summary>
+    /// Returns <see langword="true"/> if two entries of this mapping have the same key.
+    /// </summary>
+    internal bool HasDuplicateKeys()
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in _entries)
+        {
+            if (!keys.Add(GetKeyValue(entry.Key)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Returns <see langword="true"/> if the value of the key of <paramref name="entry"/> is <paramref name="key"/>.

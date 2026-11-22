@@ -108,13 +108,14 @@ internal sealed class YamlEditableTextWriter : StringWriter
                 reader.ExpectEmptyScalar();
                 break;
             case YamlEditableScalar scalar:
-                reader.ExpectWritten(_spans[scalar]);
+                // A scalar must be read as a scalar: raw text with a flow collection is a sequence or a mapping.
+                reader.ExpectWritten(_spans[scalar], asScalar: true);
                 break;
             case YamlEditableMap { Entries.Count: 0 } map:
-                reader.ExpectWritten(_spans[map]);
+                reader.ExpectWritten(_spans[map], asScalar: false);
                 break;
             case YamlEditableList { Items.Count: 0 } list:
-                reader.ExpectWritten(_spans[list]);
+                reader.ExpectWritten(_spans[list], asScalar: false);
                 break;
             case YamlEditableMap map:
                 reader.Expect<MappingStart>();
@@ -122,7 +123,7 @@ internal sealed class YamlEditableTextWriter : StringWriter
                 {
                     if (_keys.TryGetValue(entry, out var key))
                     {
-                        reader.ExpectWritten(key);
+                        reader.ExpectWritten(key, asScalar: true);
                     }
                     else
                     {
@@ -176,9 +177,10 @@ internal sealed class YamlEditableTextWriter : StringWriter
 
         /// <summary>
         /// Reads the node written as <paramref name="span"/>: a scalar read from exactly that text (a block scalar also
-        /// takes the line breaks after its last line, and nothing else), or a flow collection that starts and ends there.
+        /// takes the line breaks after its last line, and nothing else), or an empty flow collection that starts and ends
+        /// there.
         /// </summary>
-        public void ExpectWritten(Span span)
+        public void ExpectWritten(Span span, bool asScalar)
         {
             var current = Next();
             if (current.Start.Index != span.Start)
@@ -186,7 +188,7 @@ internal sealed class YamlEditableTextWriter : StringWriter
                 throw Mismatch(current.Start);
             }
 
-            if (span.IsFlow && current is SequenceStart or MappingStart)
+            if (!asScalar && current is SequenceStart or MappingStart)
             {
                 var depth = 1;
                 while (depth > 0)

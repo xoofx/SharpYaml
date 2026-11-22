@@ -44,10 +44,12 @@ public sealed class YamlEditableScalar : YamlEditableNode
             if (Parent is null && Tree is null)
             {
                 _text = value;
+                EndsDocumentWithoutLineBreak = false;
                 return;
             }
 
             YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
+            EndsDocumentWithoutLineBreak = false;
 
             // The comment of the header line of a block scalar goes to the line of its entry, or after the root, unless
             // the new text has the same one.
@@ -85,6 +87,12 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// moves a comment to the header line.
     /// </summary>
     internal void SetTextUnchecked(string text) => _text = text;
+
+    /// <summary>
+    /// Gets or sets whether this scalar is a block scalar that was read at the end of the document without a line break
+    /// after it: its value has no final line break, which it would get anywhere else, so it cannot be moved.
+    /// </summary>
+    internal bool EndsDocumentWithoutLineBreak { get; set; }
 
     /// <inheritdoc />
     protected override void WriteCore(TextWriter writer)

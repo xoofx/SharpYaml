@@ -104,7 +104,7 @@ part of its value: it goes on the header line of the scalar (`key: | # comment`)
 also checks that the edited text reads back as the edited tree, and throws `InvalidOperationException`
 when it would not (for example, when removing an entry would put an indented comment line after a
 block scalar, or when an entry moved to another map would still be read in its old place), without
-changing `SyntaxTree`.
+changing `SyntaxTree`. `Serialize`, `WriteTo` and `ToString` write the same text without these checks.
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
 `GetValue("name")` also finds `"name": x`. `SetValue` writes a new key as a plain scalar and throws
@@ -117,10 +117,10 @@ written as `{}` or `[]` (also with spaces inside) on the line of its key, so rem
 writes `{}` or `[]`, also at the root, and adding an entry to it writes it as a block again.
 `YamlEditableTree.Parse` throws `NotSupportedException` for flow style with content or on several
 lines, explicit keys (`?`), spaces between a key and its `:` (`a : b`), block scalars with the keep
-indicator or an indentation indicator (`|+`, `|2`, whose value depends on the lines around them), anchors,
-aliases, tags, directives, and document markers (`---`, `...`, so also for a stream of several documents), and for
-any document whose text the tree would not write back exactly (a byte order mark is kept), so a
-document that uses them is never edited partially.
+indicator or an indentation indicator (`|+`, `|2`, whose value depends on the lines around them),
+anchors, aliases, tags, directives, document markers (`---`, `...`, so also for a stream of several
+documents), a mapping with the same key twice, and any document whose text the tree would not write
+back exactly (a byte order mark is kept), so a document that uses them is never edited partially.
 
 ## Which API should I use?
 

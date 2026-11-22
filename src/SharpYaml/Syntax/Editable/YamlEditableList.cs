@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 
 namespace SharpYaml.Syntax.Editable;
@@ -14,18 +15,20 @@ namespace SharpYaml.Syntax.Editable;
 public sealed class YamlEditableList : YamlEditableNode
 {
     private readonly List<YamlEditableListEntry> _items = [];
+    private readonly ReadOnlyCollection<YamlEditableListEntry> _itemsView;
 
     /// <summary>
     /// Initializes a new, empty instance of the <see cref="YamlEditableList"/> class.
     /// </summary>
     public YamlEditableList() : base(YamlEditableKind.List)
     {
+        _itemsView = _items.AsReadOnly();
     }
 
     /// <summary>
     /// Gets the entries of this sequence, in source order.
     /// </summary>
-    public IReadOnlyList<YamlEditableListEntry> Items => _items;
+    public IReadOnlyList<YamlEditableListEntry> Items => _itemsView;
 
     /// <summary>
     /// Appends an already-constructed entry, reparenting it to this list. The previous last line
@@ -130,11 +133,10 @@ public sealed class YamlEditableList : YamlEditableNode
         var entry = _items[index];
 
         // The first item of a list that is a list item follows the "-" of that item ("- - a"): the next item takes
-        // that place, unless comment lines are above it.
-        if (index == 0 && entry.Indent.Length == 0 && Parent is YamlEditableListEntry
-            && _items.Count > 1 && _items[1].LeadingTrivia is null)
+        // that place.
+        if (index == 0 && _items.Count > 1)
         {
-            _items[1].Indent = string.Empty;
+            YamlEditableLayout.PrepareRemoveFirst(this, _items[1]);
         }
 
         entry.Parent = null;

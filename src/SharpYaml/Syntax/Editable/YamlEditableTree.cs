@@ -79,6 +79,7 @@ public sealed class YamlEditableTree
         var builder = new Builder(syntaxTree.Tokens);
         var root = builder.BuildRoot();
         var lineBreak = yaml.IndexOfAny(['\r', '\n']);
+        YamlEditableLayout.MarkScalarEndingDocument(root, builder.TrailingTrivia);
         root.DocumentNewLine = lineBreak < 0 ? null
             : yaml[lineBreak] == '\r' && lineBreak + 1 < yaml.Length && yaml[lineBreak + 1] == '\n' ? "\r\n"
             : yaml.Substring(lineBreak, 1);
@@ -163,6 +164,9 @@ public sealed class YamlEditableTree
     /// Serializes the tree back to YAML text. Parts of the document that were not edited
     /// reproduce their original text exactly, including comments and formatting.
     /// </summary>
+    /// <remarks>
+    /// The text is not checked: <see cref="ToSyntaxTree"/> checks that it is valid YAML and that it reads back as this tree.
+    /// </remarks>
     public string Serialize()
     {
         using var writer = new StringWriter();
@@ -171,7 +175,7 @@ public sealed class YamlEditableTree
     }
 
     /// <summary>
-    /// Writes the tree back to YAML text.
+    /// Writes the tree back to YAML text, as <see cref="Serialize"/> does, without checking it.
     /// </summary>
     /// <param name="writer">The destination writer.</param>
     /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
@@ -656,6 +660,12 @@ public sealed class YamlEditableTree
                     EndOfLineTrivia = endOfLine,
                 };
                 map.AddParsedEntry(entry);
+            }
+
+            if (map.HasDuplicateKeys())
+            {
+                // The keys of a mapping are unique (YAML 1.2.2, 3.2.1.1): a key-based edit could not tell the entries apart.
+                throw new NotSupportedException("YamlEditableTree does not support a mapping with the same key twice.");
             }
 
             return map;

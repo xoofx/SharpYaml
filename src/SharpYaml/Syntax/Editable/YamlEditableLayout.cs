@@ -126,6 +126,21 @@ internal static class YamlEditableLayout
         }
     }
 
+    /// <summary>
+    /// Marks the block scalar ("|", ">") that ends the document of <paramref name="root"/> without a line break after it,
+    /// if there is one (see <see cref="YamlEditableScalar.EndsDocumentWithoutLineBreak"/>).
+    /// </summary>
+    public static void MarkScalarEndingDocument(YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia)
+    {
+        var owner = GetLastEntry(root) is { } last ? GetLastLineOwner(last) : root;
+        var scalar = owner as YamlEditableScalar ?? GetValue(owner) as YamlEditableScalar;
+        if (scalar is not null && KeepsFinalLineBreak(scalar.Text) && FindNewLine(owner.EndOfLineTrivia) is null
+            && FindNewLine(trailingTrivia) is null)
+        {
+            scalar.EndsDocumentWithoutLineBreak = true;
+        }
+    }
+
     private static YamlEditableNode GetRoot(YamlEditableNode node)
     {
         while (node.Parent is not null)
@@ -373,6 +388,32 @@ internal static class YamlEditableLayout
     /// </summary>
     public static bool SharesLineWithDash(YamlEditableMapEntry entry, YamlEditableMap map) =>
         map.Entries.Count > 0 && map.Entries[0] == entry && SharesLineWithDash(map);
+
+    /// <summary>
+    /// Prepares the removal of the first entry of <paramref name="collection"/>, a map or a list that is a list item, when
+    /// that entry follows the "-" of the item: the next entry, <paramref name="next"/>, takes its place on the line of the
+    /// "-", or, when comment lines or blank lines are above it, the "-" stays alone on its line and they stay with it.
+    /// </summary>
+    public static void PrepareRemoveFirst(YamlEditableNode collection, YamlEditableNode next)
+    {
+        if (!SharesLineWithDash(collection))
+        {
+            return;
+        }
+
+        if (next.LeadingTrivia is null)
+        {
+            SetIndent(next, string.Empty);
+            return;
+        }
+
+        var dashEntry = collection.Parent!;
+        var separator = dashEntry.TrailingTrivia;
+        var lineBreak = separator?.FindLastIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) ?? -1;
+        dashEntry.TrailingTrivia = lineBreak >= 0
+            ? separator!.GetRange(0, lineBreak + 1)
+            : [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection))];
+    }
 
     /// <summary>
     /// Prepares <paramref name="entry"/> to be inserted at the start of <paramref name="collection"/>, before
@@ -653,12 +694,13 @@ internal static class YamlEditableLayout
     private static bool IsBlockScalar(string text) => GetIndicatorIndex(text) >= 0;
 
     /// <summary>
-    /// Returns the index of the "|" or ">" that starts the block scalar <paramref name="text"/>, after spaces, or -1.
+    /// Returns the index of the "|" or ">" that starts the block scalar <paramref name="text"/>, after spaces and line
+    /// breaks, or -1.
     /// </summary>
     private static int GetIndicatorIndex(string text)
     {
         var index = 0;
-        while (index < text.Length && text[index] is ' ' or '\t')
+        while (index < text.Length && text[index] is ' ' or '\t' or '\r' or '\n')
         {
             index++;
         }
@@ -693,6 +735,12 @@ internal static class YamlEditableLayout
         if (node is YamlEditableScalar scalar)
         {
             ThrowIfUnsupportedScalarText(scalar.Text);
+            if (scalar.EndsDocumentWithoutLineBreak)
+            {
+                throw new InvalidOperationException(
+                    "A block scalar that ends the document without a line break cannot be moved: the line break after it would become part of its value.");
+            }
+
             return;
         }
 
@@ -803,7 +851,7 @@ internal static class YamlEditableLayout
 
         var comment = string.Concat(trivia!.GetRange(start, commentIndex - start + 1).Select(t => t.Text));
         trivia.RemoveRange(start, commentIndex - start + 1);
-        var headerEnd = scalar.Text.IndexOfAny(['\r', '\n']);
+        var headerEnd = scalar.Text.IndexOfAny(['\r', '\n'], Math.Max(0, GetIndicatorIndex(scalar.Text)));
         scalar.SetTextUnchecked(scalar.Text.Insert(headerEnd < 0 ? scalar.Text.Length : headerEnd, start == commentIndex ? " " + comment : comment));
     }
 
@@ -831,7 +879,7 @@ internal static class YamlEditableLayout
             return null;
         }
 
-        var headerEnd = text.IndexOfAny(['\r', '\n']);
+        var headerEnd = text.IndexOfAny(['\r', '\n'], indicator);
         headerEnd = headerEnd < 0 ? text.Length : headerEnd;
         var hash = text.IndexOf('#', indicator + 1, headerEnd - indicator - 1);
         if (hash < 0)
