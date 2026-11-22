@@ -154,7 +154,7 @@ public sealed class YamlEditableList : YamlEditableNode
             if (Parent is not null || EmptyFlowText is not null)
             {
                 var text = EmptyFlowText ?? "[]";
-                (writer as YamlEditableTextWriter)?.Record(text);
+                (writer as YamlEditableTextWriter)?.Record(this, text);
                 writer.Write(text);
             }
 

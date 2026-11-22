@@ -804,7 +804,7 @@ internal static class YamlEditableLayout
         var comment = string.Concat(trivia!.GetRange(start, commentIndex - start + 1).Select(t => t.Text));
         trivia.RemoveRange(start, commentIndex - start + 1);
         var headerEnd = scalar.Text.IndexOfAny(['\r', '\n']);
-        scalar.Text = scalar.Text.Insert(headerEnd < 0 ? scalar.Text.Length : headerEnd, start == commentIndex ? " " + comment : comment);
+        scalar.SetTextUnchecked(scalar.Text.Insert(headerEnd < 0 ? scalar.Text.Length : headerEnd, start == commentIndex ? " " + comment : comment));
     }
 
     /// <summary>

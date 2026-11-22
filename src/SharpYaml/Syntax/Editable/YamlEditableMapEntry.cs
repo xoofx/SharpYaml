@@ -106,7 +106,7 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     protected override void WriteCore(TextWriter writer)
     {
         writer.Write(Indent);
-        (writer as YamlEditableTextWriter)?.Record(Key);
+        (writer as YamlEditableTextWriter)?.RecordKey(this);
         writer.Write(Key);
         writer.Write(':');
 

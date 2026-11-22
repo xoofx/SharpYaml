@@ -103,7 +103,8 @@ scalar's value. A comment is never written after the last line of a block scalar
 part of its value: it goes on the header line of the scalar (`key: | # comment`). `ToSyntaxTree`
 also checks that the edited text reads back as the edited tree, and throws `InvalidOperationException`
 when it would not (for example, when removing an entry would put an indented comment line after a
-block scalar), without changing `SyntaxTree`.
+block scalar, or when an entry moved to another map would still be read in its old place), without
+changing `SyntaxTree`.
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
 `GetValue("name")` also finds `"name": x`. `SetValue` writes a new key as a plain scalar and throws

@@ -84,11 +84,22 @@ public sealed class YamlEditableTree
             : yaml.Substring(lineBreak, 1);
         var tree = new YamlEditableTree(syntaxTree, root, builder.TrailingTrivia, yaml.Length > 0 && yaml[0] == ByteOrderMark);
 
-        // Every character that is not edited must be written back as it was read, so a document whose text the tree
-        // does not reproduce is not edited at all.
-        if (!string.Equals(tree.Serialize(), yaml, StringComparison.Ordinal))
+        // Every character that is not edited must be written back as it was read, and read back as the same tree, so a
+        // document that the tree does not reproduce is not edited at all.
+        using var writer = new YamlEditableTextWriter();
+        tree.WriteTo(writer);
+        if (!string.Equals(writer.ToString(), yaml, StringComparison.Ordinal))
         {
             throw new NotSupportedException("YamlEditableTree cannot write the text of this document back exactly.");
+        }
+
+        try
+        {
+            writer.Verify(root);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new NotSupportedException("YamlEditableTree cannot read this document as the maps, lists and scalars it writes.", exception);
         }
 
         return tree;
@@ -114,13 +125,15 @@ public sealed class YamlEditableTree
         var newText = writer.ToString();
         if (string.Equals(oldText, newText, StringComparison.Ordinal))
         {
+            // An entry moved to another map can leave the text as it was: the tree must still be what the text reads.
+            writer.Verify(Root);
             return SyntaxTree;
         }
 
         // The text must be valid YAML, and every node must be read back as the node it was written for: the edits
         // must not change what an untouched node is.
         var changed = ApplyTextChange(oldText, newText);
-        writer.Verify();
+        writer.Verify(Root);
         return changed;
     }
 

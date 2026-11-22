@@ -49,8 +49,11 @@ public sealed class YamlEditableScalar : YamlEditableNode
 
             YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
 
-            // The comment of the header line of a block scalar goes to the line of its entry, or after the root.
-            if (YamlEditableLayout.GetHeaderComment(_text) is { } headerComment)
+            // The comment of the header line of a block scalar goes to the line of its entry, or after the root, unless
+            // the new text has the same one.
+            var newComment = YamlEditableLayout.GetHeaderComment(value);
+            if (YamlEditableLayout.GetHeaderComment(_text) is { } headerComment
+                && !string.Equals(headerComment[headerComment.Count - 1].Text, newComment?[newComment.Count - 1].Text, StringComparison.Ordinal))
             {
                 var target = Parent is not null ? Parent.EndOfLineTrivia ??= [] : Tree!.TrailingTrivia ??= [];
                 target.InsertRange(0, headerComment);
@@ -77,10 +80,16 @@ public sealed class YamlEditableScalar : YamlEditableNode
         }
     }
 
+    /// <summary>
+    /// Sets the text without the checks and the moves of comments of <see cref="Text"/>, for the layout code that
+    /// moves a comment to the header line.
+    /// </summary>
+    internal void SetTextUnchecked(string text) => _text = text;
+
     /// <inheritdoc />
     protected override void WriteCore(TextWriter writer)
     {
-        (writer as YamlEditableTextWriter)?.Record(_text);
+        (writer as YamlEditableTextWriter)?.Record(this, _text);
         writer.Write(_text);
     }
 }

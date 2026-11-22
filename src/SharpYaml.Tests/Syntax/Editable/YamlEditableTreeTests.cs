@@ -1301,6 +1301,55 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
+    [DataRow("one: 1\nnested:\n  two: 2\n", 0)]
+    [DataRow("nested:\n  two: 2\none: 1\n", 1)]
+    public void ToSyntaxTree_EntryMovedToAMapItIsNotReadIn_ThrowsInvalidOperationException(string yaml, int index)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        var root = RootOf(tree);
+        var entry = root.Entries[index];
+        root.RemoveEntry("one");
+
+        ((YamlEditableMap)root.GetValue("nested")!).AddEntry(entry);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    public void ToSyntaxTree_SpacesLineThatWouldJoinABlockScalar_ThrowsInvalidOperationException()
+    {
+        var tree = YamlEditableTree.Parse("a: |-\n  hi\nb: 1\n    \nc: 2\n");
+
+        RootOf(tree).RemoveEntry("b");
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    public void Text_BlockScalarSetToItsOwnText_ChangesNothing()
+    {
+        var tree = YamlEditableTree.Parse("a: |- # keep\n  hi\n");
+        var scalar = (YamlEditableScalar)RootOf(tree).GetValue("a")!;
+
+        scalar.Text = scalar.Text;
+
+        Assert.AreEqual("a: |- # keep\n  hi\n", tree.Serialize());
+        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    [DataRow("y ", "a: y \n")]
+    [DataRow("\n  y", "a: \n  y\n")]
+    public void Text_WithSpacesAroundTheScalar_IsAccepted(string text, string expected)
+    {
+        var tree = YamlEditableTree.Parse("a: x\n");
+
+        ((YamlEditableScalar)RootOf(tree).GetValue("a")!).Text = text;
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
     public void Text_PlainScalarBecomesBlockScalar_MovesTheCommentToItsHeader()
     {
         var tree = YamlEditableTree.Parse("- a # keep\n- b\n");
