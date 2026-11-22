@@ -47,6 +47,7 @@ public class YamlEditableTreeTests
         yield return new object[] { "# one\nvalue\n" };
         yield return new object[] { "\n# one\n  value # two" };
         yield return new object[] { "k:\n  - - a\n    - b\n" };
+        yield return new object[] { "-\n a: 1\n b: 2\n" };
     }
 
     private const string ServersYaml =
@@ -476,7 +477,8 @@ public class YamlEditableTreeTests
     [DataRow("A: [1]\n")]
     [DataRow("A: {x: 1}\n")]
     [DataRow("A: [\n  ]\n")]
-    public void Parse_NonEmptyFlowCollection_ThrowsNotSupportedException(string yaml)
+    [DataRow("A: [ # one\n  ]\n")]
+    public void Parse_FlowCollectionWithContentOrOnSeveralLines_ThrowsNotSupportedException(string yaml)
     {
         Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
     }
@@ -1081,6 +1083,146 @@ public class YamlEditableTreeTests
         RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
 
         AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    [DataRow("k: \"a#b\"  # keep\n")]
+    [DataRow("color: '#fff' # white\n")]
+    [DataRow("a : b\n")]
+    public void Parse_DocumentThatTheTreeWouldNotWriteBackExactly_ThrowsNotSupportedException(string yaml)
+    {
+        Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
+    }
+
+    [TestMethod]
+    public void AddEntry_AfterListItemOnTheNextLineWithoutFinalNewLine_EndsTheItemLine()
+    {
+        var tree = YamlEditableTree.Parse("-\n  old");
+
+        ((YamlEditableList)tree.Root).AddEntry(new YamlEditableListEntry(new YamlEditableScalar("new"), ""));
+
+        AssertEdited("-\n  old\n- new", tree);
+    }
+
+    [TestMethod]
+    public void RemoveAt_FirstItemOfListInListItem_MovesTheNextItemToTheDashLine()
+    {
+        var tree = YamlEditableTree.Parse("- - a\n  - b\n  - c\n- tail\n");
+
+        ((YamlEditableList)((YamlEditableList)tree.Root).Items[0].Value).RemoveAt(0);
+
+        AssertEdited("- - b\n  - c\n- tail\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ListInListInListItem_IndentsTheItemsAfterTheInnerDash()
+    {
+        var tree = YamlEditableTree.Parse("- - x\n- tail\n");
+        var list = new YamlEditableList();
+        list.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("a"), ""));
+        list.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("b"), ""));
+
+        ((YamlEditableList)((YamlEditableList)tree.Root).Items[0].Value).Items[0].Value = list;
+
+        AssertEdited("- - - a\n    - b\n- tail\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a: |+\n  hi")]
+    [DataRow("a: >\n  hi")]
+    [DataRow("x:\n  a: |\n    hi")]
+    public void SetValue_NewKeyAfterBlockScalarEndingTheDocumentWithoutLineBreak_ThrowsAndChangesNothing(string yaml)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => RootOf(tree).SetValue("b", new YamlEditableScalar("2")));
+        Assert.AreEqual(yaml, tree.Serialize());
+    }
+
+    [TestMethod]
+    public void SetValue_NewKeyAfterStripBlockScalarEndingTheDocument_EndsItsLine()
+    {
+        var tree = YamlEditableTree.Parse("a: |-\r\n  hi");
+
+        RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+
+        AssertEdited("a: |-\r\n  hi\r\nb: 2", tree);
+    }
+
+    [TestMethod]
+    [DataRow("a: old # keep", "a: # keep\n  x: 1")]
+    [DataRow("a: # keep\n  {}\nb: 2\n", "a: # keep\n  x: 1\nb: 2\n")]
+    [DataRow("a: # keep\n  {} # two\nb: 2\n", "a: # keep\n  x: 1 # two\nb: 2\n")]
+    public void SetValue_ValueBecomesABlock_KeepsTheComments(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        var root = RootOf(tree);
+
+        if (root.GetValue("a") is YamlEditableMap empty)
+        {
+            empty.SetValue("x", new YamlEditableScalar("1"));
+        }
+        else
+        {
+            var map = new YamlEditableMap();
+            map.SetValue("x", new YamlEditableScalar("1"));
+            root.SetValue("a", map);
+        }
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void SetValue_IndentedEmptyMapAtTheRoot_KeepsTheIndentationForEveryKey()
+    {
+        var tree = YamlEditableTree.Parse("  {}\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("1"));
+        RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+
+        AssertEdited("  a: 1\n  b: 2\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_RootAsItsOwnValue_ThrowsAndChangesNothing()
+    {
+        var tree = YamlEditableTree.Parse("");
+        var root = RootOf(tree);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => root.SetValue("new", root));
+        Assert.ThrowsExactly<InvalidOperationException>(() => root.AddEntry(new YamlEditableMapEntry("k", root, "")));
+        Assert.IsNull(root.Parent);
+        Assert.AreEqual("", tree.Serialize());
+    }
+
+    [TestMethod]
+    public void SetValue_KeyLongerThanAnImplicitKey_ThrowsArgumentException()
+    {
+        var root = RootOf(YamlEditableTree.Parse("a: 1\n"));
+
+        root.SetValue(new string('k', 1024), new YamlEditableScalar("2"));
+        Assert.ThrowsExactly<ArgumentException>(() => root.SetValue(new string('k', 1025), new YamlEditableScalar("3")));
+    }
+
+    [TestMethod]
+    [DataRow("name ")]
+    [DataRow("a: b")]
+    [DataRow("'name' # c")]
+    public void AddEntry_KeyTextThatIsNotOneScalarOrADuplicate_ThrowsArgumentException(string rawKey)
+    {
+        var root = RootOf(YamlEditableTree.Parse("name: 1\n"));
+
+        Assert.ThrowsExactly<ArgumentException>(() => root.AddEntry(new YamlEditableMapEntry(rawKey, new YamlEditableScalar("2"), "")));
+    }
+
+    [TestMethod]
+    public void Key_RenamedToTheKeyOfAnotherEntry_ThrowsArgumentException()
+    {
+        var root = RootOf(YamlEditableTree.Parse("a: 1\nb: 2\n"));
+
+        Assert.ThrowsExactly<ArgumentException>(() => root.Entries[1].Key = "'a'");
+        root.Entries[1].Key = "\"c\"";
+        Assert.AreEqual("2", ((YamlEditableScalar)root.GetValue("c")!).Text);
     }
 
     [TestMethod]

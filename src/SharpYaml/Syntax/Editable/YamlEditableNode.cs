@@ -36,6 +36,11 @@ public abstract class YamlEditableNode
     public YamlEditableNode? Parent { get; internal set; }
 
     /// <summary>
+    /// Gets or sets whether this node is the root of a <see cref="YamlEditableTree"/>, which cannot become a value.
+    /// </summary>
+    internal bool IsTreeRoot { get; set; }
+
+    /// <summary>
     /// Gets comment lines and blank lines that appear before this node, in source order.
     /// Might be <see langword="null"/> if there is no leading trivia.
     /// </summary>
@@ -74,6 +79,7 @@ public abstract class YamlEditableNode
     /// Writes this node back to YAML text.
     /// </summary>
     /// <param name="writer">The destination writer.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null"/>.</exception>
     public void WriteTo(TextWriter writer)
     {
         ArgumentGuard.ThrowIfNull(writer);
@@ -134,6 +140,11 @@ public abstract class YamlEditableNode
 
         if (node is not null)
         {
+            if (node.IsTreeRoot)
+            {
+                throw new InvalidOperationException("The root of a YamlEditableTree cannot be the value of an entry.");
+            }
+
             ThrowIfSelfOrAncestor(node, owner);
         }
 

@@ -18,6 +18,7 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// Initializes a new instance of the <see cref="YamlEditableScalar"/> class.
     /// </summary>
     /// <param name="text">The verbatim scalar text, including any quotes.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="text"/> is <see langword="null"/>.</exception>
     public YamlEditableScalar(string text) : base(YamlEditableKind.Scalar)
     {
         _text = text ?? throw new ArgumentNullException(nameof(text));
@@ -29,6 +30,7 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// Setting this value edits the node; reserializing the owning tree reflects the change
     /// while keeping every other node's original text untouched.
     /// </summary>
+    /// <exception cref="ArgumentNullException">The text is <see langword="null"/>.</exception>
     public string Text
     {
         get => _text;

@@ -19,6 +19,8 @@ public sealed class YamlEditableListEntry : YamlEditableNode
     /// </summary>
     /// <param name="value">The entry's value.</param>
     /// <param name="indent">The indentation text written before the "-" marker.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> or <paramref name="indent"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent, or is the root of a tree.</exception>
     public YamlEditableListEntry(YamlEditableNode value, string indent)
         : base(YamlEditableKind.ListEntry)
     {
@@ -33,8 +35,8 @@ public sealed class YamlEditableListEntry : YamlEditableNode
 
     /// <summary>
     /// Gets or sets this entry's value. Assigning a new value detaches the previous one and
-    /// reparents the new node to this entry. A nested map whose keys are not after the "-" is
-    /// indented to the column of its first key.
+    /// reparents the new node to this entry. A nested map or list whose entries are not after the "-"
+    /// is indented to the column of its first entry, when this entry is in a list.
     /// </summary>
     /// <exception cref="ArgumentNullException">The value is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">The value already has a parent, or is this entry or one of its ancestors.</exception>
@@ -50,7 +52,12 @@ public sealed class YamlEditableListEntry : YamlEditableNode
                 YamlEditableLayout.AfterValueChanged(this, oldValue);
             }
 
-            YamlEditableLayout.IndentValue(this);
+            // An entry that is not in a map or a list yet is indented when it is added to one; the parser, which
+            // builds the entries before their trivia, keeps the layout it read.
+            if (Parent is not null)
+            {
+                YamlEditableLayout.IndentValue(this);
+            }
         }
     }
 

@@ -56,7 +56,10 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// The key does not exist and cannot be written as a plain scalar (for example an empty key, or one that needs
     /// quotes): add a <see cref="YamlEditableMapEntry"/> with the quoted text of the key instead.
     /// </exception>
-    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent, or is this mapping or one of its ancestors.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="value"/> already has a parent, is this mapping or one of its ancestors, or is the root of a tree;
+    /// or the new entry would follow a block scalar that ends the document without a line break.
+    /// </exception>
     public void SetValue(string key, YamlEditableNode value) => SetValue(key, value, null);
 
     /// <summary>
@@ -74,11 +77,15 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// The key does not exist and cannot be written as a plain scalar (for example an empty key, or one that needs
     /// quotes): add a <see cref="YamlEditableMapEntry"/> with the quoted text of the key instead.
     /// </exception>
-    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent, or is this mapping or one of its ancestors.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="value"/> already has a parent, is this mapping or one of its ancestors, or is the root of a tree;
+    /// or the new entry would follow a block scalar that ends the document without a line break.
+    /// </exception>
     public void SetValue(string key, YamlEditableNode value, string? indent)
     {
         ArgumentGuard.ThrowIfNull(key);
         ArgumentGuard.ThrowIfNull(value);
+        ThrowIfSelfOrAncestor(value, this);
 
         var existing = FindEntry(key);
         if (existing != null)
@@ -106,8 +113,14 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// </summary>
     /// <param name="entry">The entry to append.</param>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">The mapping already has an entry with the key of <paramref name="entry"/>.</exception>
-    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent, or contains this mapping.</exception>
+    /// <exception cref="ArgumentException">
+    /// The key text of <paramref name="entry"/> is not one plain or quoted scalar on one line, or the mapping already has an
+    /// entry with that key.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="entry"/> already has a parent or contains this mapping, or the line before it is the last line of
+    /// a block scalar that ends the document without a line break (adding one would change its value).
+    /// </exception>
     public void AddEntry(YamlEditableMapEntry entry)
     {
         ThrowIfCannotAdd(entry);
@@ -131,7 +144,10 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// <param name="entry">The entry to insert.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is less than 0 or greater than the number of entries.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">The mapping already has an entry with the key of <paramref name="entry"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// The key text of <paramref name="entry"/> is not one plain or quoted scalar on one line, or the mapping already has an
+    /// entry with that key.
+    /// </exception>
     /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent, or contains this mapping.</exception>
     public void InsertEntry(int index, YamlEditableMapEntry entry)
     {
@@ -233,16 +249,25 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// Returns <see langword="true"/> if <paramref name="key"/> can be written as a plain key: written before ": ",
     /// it reads back as one plain scalar whose value is <paramref name="key"/>.
     /// </summary>
-    private static bool IsPlainKey(string key)
+    private static bool IsPlainKey(string key) =>
+        TryReadKey(key, out var value, out var style) && style == ScalarStyle.Plain && string.Equals(value, key, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Reads <paramref name="rawKey"/> as the text of an implicit key: one plain or quoted scalar on one line, of at
+    /// most 1024 characters (YAML 1.2.2, 7.4), that is all of the text.
+    /// </summary>
+    private static bool TryReadKey(string rawKey, out string value, out ScalarStyle style)
     {
-        if (key.Length == 0)
+        value = string.Empty;
+        style = ScalarStyle.Any;
+        if (rawKey.Length == 0 || CountCharacters(rawKey) > 1024)
         {
             return false;
         }
 
         try
         {
-            var scanner = new Scanner<StringLookAheadBuffer>(new StringLookAheadBuffer(key + ": x"));
+            var scanner = new Scanner<StringLookAheadBuffer>(new StringLookAheadBuffer(rawKey + ": x"));
             while (scanner.MoveNext())
             {
                 switch (scanner.Current)
@@ -251,9 +276,11 @@ public sealed class YamlEditableMap : YamlEditableNode
                         continue;
                     case Key { Start.Index: 0, End.Index: 0 }:
                         continue;
-                    case Scalar scalar:
-                        return scalar.Style == ScalarStyle.Plain && scalar.Start.Index == 0 && scalar.End.Index == key.Length
-                            && string.Equals(scalar.Value, key, StringComparison.Ordinal);
+                    case Scalar scalar when scalar.Start.Index == 0 && scalar.End.Index == rawKey.Length
+                        && scalar.Style is ScalarStyle.Plain or ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted:
+                        value = scalar.Value;
+                        style = scalar.Style;
+                        return true;
                     default:
                         return false;
                 }
@@ -261,10 +288,41 @@ public sealed class YamlEditableMap : YamlEditableNode
         }
         catch (YamlException)
         {
-            // The key is not valid YAML as a plain key.
+            // The text is not valid YAML as a key.
         }
 
         return false;
+    }
+
+    private static int CountCharacters(string text)
+    {
+        var count = 0;
+        foreach (var c in text)
+        {
+            if (!char.IsLowSurrogate(c))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Throws if <paramref name="rawKey"/> cannot be the key text of <paramref name="entry"/> in this map: it must be
+    /// one scalar key, and no other entry may have the same key.
+    /// </summary>
+    internal void ThrowIfInvalidKey(string rawKey, YamlEditableMapEntry entry)
+    {
+        if (!TryReadKey(rawKey, out var value, out _))
+        {
+            throw new ArgumentException($"The key text '{rawKey}' is not one plain or quoted scalar on one line.", nameof(entry));
+        }
+
+        if (_entries.Find(other => !ReferenceEquals(other, entry) && HasKey(other, value)) is not null)
+        {
+            throw new ArgumentException($"The mapping already has an entry with the key '{value}'.", nameof(entry));
+        }
     }
 
     /// <summary>
@@ -294,10 +352,7 @@ public sealed class YamlEditableMap : YamlEditableNode
         }
 
         ThrowIfSelfOrAncestor(entry, this);
-        if (FindEntry(GetKeyValue(entry.Key)) is not null)
-        {
-            throw new ArgumentException($"The mapping already has an entry with the key '{entry.Key}'.", nameof(entry));
-        }
+        ThrowIfInvalidKey(entry.Key, entry);
     }
 
     /// <inheritdoc />

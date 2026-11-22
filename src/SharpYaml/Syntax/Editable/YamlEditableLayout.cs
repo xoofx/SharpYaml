@@ -2,6 +2,7 @@
 // // Licensed under the MIT license.
 // // See LICENSE.txt file in the project root for full license information.
 
+using System;
 using System.Collections.Generic;
 
 namespace SharpYaml.Syntax.Editable;
@@ -58,6 +59,14 @@ internal static class YamlEditableLayout
 
                 UseNewLine(entry, lineBreak);
             }
+            else if (GetEmptyFlowText(collection) is not null && collection.LeadingTrivia is { Count: > 0 } flowLeading
+                && flowLeading[flowLeading.Count - 1] is { Kind: YamlEditableTriviaKind.Whitespace } flowIndent)
+            {
+                // A root read from an indented "{}" or "[]": its first entry takes that indentation, which its next
+                // entries then share.
+                flowLeading.RemoveAt(flowLeading.Count - 1);
+                SetIndent(entry, flowIndent.Text + GetIndent(entry));
+            }
             else if (collection.Parent is null && GetEmptyFlowText(collection) is { } flowText && GetEndLineBreak(flowText) is { } flowLineBreak)
             {
                 // A root whose entries were all removed was written "{}" with the line break of its last line.
@@ -74,6 +83,12 @@ internal static class YamlEditableLayout
         var newLine = FindNewLine(owner.EndOfLineTrivia);
         if (newLine is null)
         {
+            if (GetValue(owner) is YamlEditableScalar scalar && KeepsFinalLineBreak(scalar.Text))
+            {
+                throw new InvalidOperationException(
+                    "An entry cannot be added after a block scalar that ends the document without a line break: the line break would become part of its value.");
+            }
+
             // The document has no final line break: end the previous line, and leave the new last
             // line without one, as the document was.
             var documentNewLine = GetDocumentNewLine(previous);
@@ -157,11 +172,31 @@ internal static class YamlEditableLayout
 
         if (entry is YamlEditableMapEntry && !wasBlock && isBlock)
         {
-            // "key: value # comment\n" becomes "key: # comment\n" followed by the nested block.
-            entry.TrailingTrivia = FindNewLine(entry.EndOfLineTrivia) is not null
-                ? entry.EndOfLineTrivia
-                : [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? GetDocumentNewLine(entry))];
+            var oldEndOfLine = entry.EndOfLineTrivia;
             entry.EndOfLineTrivia = null;
+            var separatorBreak = entry.TrailingTrivia?.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) ?? -1;
+            if (separatorBreak >= 0)
+            {
+                // "key: # comment\n  {}" already ends the line of the key: the block replaces the rest, and a comment
+                // after the old value goes to the last line of the block.
+                entry.TrailingTrivia = entry.TrailingTrivia!.GetRange(0, separatorBreak + 1);
+                var lastOwner = GetLastLineOwner(entry);
+                if (HasComment(oldEndOfLine) && !HasComment(lastOwner.EndOfLineTrivia))
+                {
+                    lastOwner.EndOfLineTrivia = oldEndOfLine;
+                }
+            }
+            else
+            {
+                // "key: value # comment\n" becomes "key: # comment\n" followed by the nested block.
+                var separator = oldEndOfLine ?? [];
+                if (FindNewLine(separator) is null)
+                {
+                    separator.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? GetDocumentNewLine(entry)));
+                }
+
+                entry.TrailingTrivia = separator;
+            }
         }
         else if (entry is YamlEditableMapEntry && wasBlock && !isBlock)
         {
@@ -253,7 +288,7 @@ internal static class YamlEditableLayout
             return indent;
         }
 
-        var width = listEntry.Indent.Length + 1;
+        var width = GetColumn(listEntry).Length + 1;
         if (listEntry.TrailingTrivia is null)
         {
             width++;
@@ -341,7 +376,7 @@ internal static class YamlEditableLayout
             }
             else
             {
-                var column = entry is YamlEditableMapEntry mapEntry ? GetKeyColumn(mapEntry).Length : ((YamlEditableListEntry)entry).Indent.Length;
+                var column = GetColumn(entry).Length;
 
                 // A nested map is indented past its key; a sequence may also be at the key's column.
                 var isValid = value is YamlEditableList ? current >= column : current > column;
@@ -439,6 +474,41 @@ internal static class YamlEditableLayout
     private static YamlEditableTrivia? FindNewLine(List<YamlEditableTrivia>? trivia) =>
         trivia?.Find(t => t.Kind == YamlEditableTriviaKind.NewLine);
 
+    private static void SetIndent(YamlEditableNode entry, string indent)
+    {
+        switch (entry)
+        {
+            case YamlEditableMapEntry mapEntry:
+                mapEntry.Indent = indent;
+                break;
+            case YamlEditableListEntry listEntry:
+                listEntry.Indent = indent;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> if <paramref name="text"/> is a block scalar whose value ends with the line break
+    /// of its last line ("|", "|+", ">"), unlike the strip indicator ("|-").
+    /// </summary>
+    private static bool KeepsFinalLineBreak(string text)
+    {
+        if (text.Length == 0 || text[0] is not ('|' or '>'))
+        {
+            return false;
+        }
+
+        for (var index = 1; index < text.Length && text[index] is not (' ' or '\t' or '\r' or '\n' or '#'); index++)
+        {
+            if (text[index] == '-')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static bool HasComment(List<YamlEditableTrivia>? trivia) =>
         trivia is not null && trivia.Exists(t => t.Kind == YamlEditableTriviaKind.Comment);
 
@@ -459,6 +529,14 @@ internal static class YamlEditableLayout
     private static YamlEditableTrivia? FindNewLineInTree(YamlEditableNode node)
     {
         var newLine = FindNewLine(node.LeadingTrivia) ?? FindNewLine(node.TrailingTrivia) ?? FindNewLine(node.EndOfLineTrivia);
+        if (newLine is null && node is YamlEditableScalar scalar && scalar.Text.IndexOfAny(['\r', '\n']) is var index and >= 0)
+        {
+            // A quoted or block scalar on several lines holds its line breaks in its text.
+            var text = scalar.Text;
+            var length = text[index] == '\r' && index + 1 < text.Length && text[index + 1] == '\n' ? 2 : 1;
+            newLine = new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, text.Substring(index, length));
+        }
+
         if (newLine is null && GetValue(node) is { } value)
         {
             newLine = FindNewLineInTree(value);

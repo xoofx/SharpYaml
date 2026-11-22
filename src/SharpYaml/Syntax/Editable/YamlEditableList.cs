@@ -34,13 +34,17 @@ public sealed class YamlEditableList : YamlEditableNode
     /// </summary>
     /// <param name="entry">The entry to append.</param>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><paramref name="entry"/> already has a parent, or contains this list.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="entry"/> already has a parent or contains this list, or the line before it is the last line of a
+    /// block scalar that ends the document without a line break (adding one would change its value).
+    /// </exception>
     public void AddEntry(YamlEditableListEntry entry)
     {
         ThrowIfCannotAdd(entry);
         var previous = _items.Count > 0 ? _items[_items.Count - 1] : null;
         YamlEditableLayout.PrepareAppend(this, previous, entry);
         AddParsedEntry(entry);
+        YamlEditableLayout.IndentValue(entry);
         if (previous is null)
         {
             YamlEditableLayout.AfterEmptinessChanged(this, removedEntry: null);
@@ -80,6 +84,7 @@ public sealed class YamlEditableList : YamlEditableNode
         YamlEditableLayout.PrepareInsert(_items[index], entry);
         entry.Parent = this;
         _items.Insert(index, entry);
+        YamlEditableLayout.IndentValue(entry);
     }
 
     /// <summary>
@@ -119,6 +124,15 @@ public sealed class YamlEditableList : YamlEditableNode
     public void RemoveAt(int index)
     {
         var entry = _items[index];
+
+        // The first item of a list that is a list item follows the "-" of that item ("- - a"): the next item takes
+        // that place, unless comment lines are above it.
+        if (index == 0 && entry.Indent.Length == 0 && Parent is YamlEditableListEntry
+            && _items.Count > 1 && _items[1].LeadingTrivia is null)
+        {
+            _items[1].Indent = string.Empty;
+        }
+
         entry.Parent = null;
         _items.RemoveAt(index);
         if (_items.Count == 0)

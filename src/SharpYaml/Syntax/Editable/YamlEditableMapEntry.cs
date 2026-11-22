@@ -23,18 +23,41 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     /// <param name="key">The entry's key text (the part before ": ").</param>
     /// <param name="value">The entry's value.</param>
     /// <param name="indent">The indentation text written before the key on its own line.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/>, <paramref name="value"/> or <paramref name="indent"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><paramref name="value"/> already has a parent, or is the root of a tree.</exception>
+    /// <remarks>The key text is checked when the entry is added to a <see cref="YamlEditableMap"/>.</remarks>
     public YamlEditableMapEntry(string key, YamlEditableNode value, string indent)
         : base(YamlEditableKind.MapEntry)
     {
-        Key = key ?? throw new ArgumentNullException(nameof(key));
+        _key = key ?? throw new ArgumentNullException(nameof(key));
         Indent = indent ?? throw new ArgumentNullException(nameof(indent));
         Value = value;
     }
 
+    private string _key;
+
     /// <summary>
     /// Gets or sets the entry's raw key text (the part before ": "), including any quotes.
     /// </summary>
-    public string Key { get; set; }
+    /// <exception cref="ArgumentNullException">The key text is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// The entry is in a map, and the text is not one plain or quoted scalar on one line, or the map has another entry
+    /// with the same key.
+    /// </exception>
+    public string Key
+    {
+        get => _key;
+        set
+        {
+            ArgumentGuard.ThrowIfNull(value);
+            if (Parent is YamlEditableMap map)
+            {
+                map.ThrowIfInvalidKey(value, this);
+            }
+
+            _key = value;
+        }
+    }
 
     /// <summary>
     /// Gets the indentation text written before the key on its own line.
@@ -46,7 +69,8 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     /// reparents the new node to this entry, following the same convention as
     /// Tomlyn.Syntax.KeyValueSyntax.Value. The line break and the same-line comment of the entry
     /// are kept: a nested map or list goes on the next line, after "key:" and the comment. A nested
-    /// map or list whose entries are not indented past the key is indented by two spaces.
+    /// map or list whose entries are not indented past the key is indented by two spaces, when the
+    /// entry is in a map.
     /// </summary>
     /// <exception cref="ArgumentNullException">The value is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">The value already has a parent, or is this entry or one of its ancestors.</exception>
@@ -62,7 +86,12 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
                 YamlEditableLayout.AfterValueChanged(this, oldValue);
             }
 
-            YamlEditableLayout.IndentValue(this);
+            // An entry that is not in a map or a list yet is indented when it is added to one; the parser, which
+            // builds the entries before their trivia, keeps the layout it read.
+            if (Parent is not null)
+            {
+                YamlEditableLayout.IndentValue(this);
+            }
         }
     }
 
