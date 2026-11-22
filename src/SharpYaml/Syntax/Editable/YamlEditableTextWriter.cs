@@ -20,6 +20,7 @@ internal sealed class YamlEditableTextWriter : StringWriter
     // The nodes do not override Equals: they are compared by reference.
     private readonly Dictionary<YamlEditableNode, Span> _spans = [];
     private readonly Dictionary<YamlEditableMapEntry, Span> _keys = [];
+    private bool _recordValues;
 
     /// <summary>
     /// Records that <paramref name="text"/>, the text of <paramref name="node"/> (a scalar, or an empty map or list in
@@ -72,11 +73,15 @@ internal sealed class YamlEditableTextWriter : StringWriter
 
     /// <summary>
     /// Parses the text written for <paramref name="root"/> and throws unless it reads back as the same tree: the same
-    /// maps, lists and scalars, nested the same way, each scalar and key read exactly from the text written for it.
+    /// maps, lists and scalars, nested the same way, each scalar and key read exactly from the text written for it,
+    /// without a tag or an anchor, and each scalar whose text was not set read as the value it was read as by
+    /// <see cref="YamlEditableTree.Parse"/>. With <paramref name="recordValues"/>, for the parsed document, records these
+    /// values instead.
     /// </summary>
     /// <exception cref="InvalidOperationException">The text does not read back as the tree.</exception>
-    public void Verify(YamlEditableNode root)
+    public void Verify(YamlEditableNode root, bool recordValues)
     {
+        _recordValues = recordValues;
         var events = new List<ParsingEvent>();
         var parser = Parser.CreateParser(new StringReader(ToString()));
         while (parser.MoveNext())
@@ -103,13 +108,24 @@ internal sealed class YamlEditableTextWriter : StringWriter
     {
         switch (node)
         {
-            case YamlEditableScalar scalar when !_spans.ContainsKey(scalar):
-                // A key or a list item without a value is read as an empty scalar.
-                reader.ExpectEmptyScalar();
-                break;
             case YamlEditableScalar scalar:
-                // A scalar must be read as a scalar: raw text with a flow collection is a sequence or a mapping.
-                reader.ExpectWritten(_spans[scalar], asScalar: true);
+                // A key or a list item without a value is read as an empty scalar; a scalar must be read as a scalar:
+                // raw text with a flow collection is a sequence or a mapping.
+                var value = _spans.TryGetValue(scalar, out var span)
+                    ? ((Scalar)reader.ExpectWritten(span, asScalar: true)).Value
+                    : reader.ExpectEmptyScalar();
+                if (_recordValues)
+                {
+                    scalar.ReadValue = value;
+                }
+                else if (scalar.ReadValue is not null && !string.Equals(scalar.ReadValue, value, StringComparison.Ordinal))
+                {
+                    // An untouched scalar keeps its value: a line break, a blank line or a column that changes around it
+                    // can change the value of a block scalar.
+                    throw new InvalidOperationException(
+                        "The edits cannot be applied: they would change the value of a scalar whose text was not changed.");
+                }
+
                 break;
             case YamlEditableMap { Entries.Count: 0 } map:
                 reader.ExpectWritten(_spans[map], asScalar: false);
@@ -167,12 +183,14 @@ internal sealed class YamlEditableTextWriter : StringWriter
             }
         }
 
-        public void ExpectEmptyScalar()
+        public string ExpectEmptyScalar()
         {
-            if (Next() is not Scalar { Value.Length: 0 })
+            if (Next() is not Scalar { Value.Length: 0, Tag: null, Anchor: null } scalar)
             {
                 throw Mismatch(_events[_index - 1].Start);
             }
+
+            return scalar.Value;
         }
 
         /// <summary>
@@ -180,13 +198,15 @@ internal sealed class YamlEditableTextWriter : StringWriter
         /// takes the line breaks after its last line, and nothing else), or an empty flow collection that starts and ends
         /// there.
         /// </summary>
-        public void ExpectWritten(Span span, bool asScalar)
+        public ParsingEvent ExpectWritten(Span span, bool asScalar)
         {
             var current = Next();
             if (current.Start.Index != span.Start)
             {
                 throw Mismatch(current.Start);
             }
+
+            var first = current;
 
             if (!asScalar && current is SequenceStart or MappingStart)
             {
@@ -204,13 +224,16 @@ internal sealed class YamlEditableTextWriter : StringWriter
                     throw Mismatch(current.Start);
                 }
 
-                return;
+                return first;
             }
 
-            if (current is not Scalar scalar || !EndsAt(scalar.End.Index, span))
+            // The tree has no node for a tag or an anchor written in the raw text of a scalar.
+            if (current is not Scalar { Tag: null, Anchor: null } scalar || !EndsAt(scalar.End.Index, span))
             {
                 throw Mismatch(current.Start);
             }
+
+            return first;
         }
 
         private bool EndsAt(int end, Span span)

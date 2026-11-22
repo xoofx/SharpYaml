@@ -126,21 +126,6 @@ internal static class YamlEditableLayout
         }
     }
 
-    /// <summary>
-    /// Marks the block scalar ("|", ">") that ends the document of <paramref name="root"/> without a line break after it,
-    /// if there is one (see <see cref="YamlEditableScalar.EndsDocumentWithoutLineBreak"/>).
-    /// </summary>
-    public static void MarkScalarEndingDocument(YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia)
-    {
-        var owner = GetLastEntry(root) is { } last ? GetLastLineOwner(last) : root;
-        var scalar = owner as YamlEditableScalar ?? GetValue(owner) as YamlEditableScalar;
-        if (scalar is not null && KeepsFinalLineBreak(scalar.Text) && FindNewLine(owner.EndOfLineTrivia) is null
-            && FindNewLine(trailingTrivia) is null)
-        {
-            scalar.EndsDocumentWithoutLineBreak = true;
-        }
-    }
-
     private static YamlEditableNode GetRoot(YamlEditableNode node)
     {
         while (node.Parent is not null)
@@ -185,17 +170,22 @@ internal static class YamlEditableLayout
             AfterLayoutChanged(collection.Parent, wasBlock: removedEntry is not null, removedEntry);
             IndentValue(collection.Parent);
         }
-        else if (collection.Parent is null && removedEntry is not null && GetEmptyFlowText(collection) is null)
+        else if (collection.Parent is null && removedEntry is not null)
         {
             // The root of the document stays a mapping or a list: empty, it is written as "{}" or "[]" on the line
-            // of the removed entry.
+            // of the removed entry, at its indentation.
+            if (GetIndent(removedEntry) is { Length: > 0 } indent)
+            {
+                (collection.LeadingTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, indent));
+            }
+
             var lineBreak = FindNewLine(GetLastLineOwner(removedEntry).EndOfLineTrivia)?.Text;
             switch (collection)
             {
-                case YamlEditableMap map:
+                case YamlEditableMap { EmptyFlowText: null } map:
                     map.EmptyFlowText = "{}" + lineBreak;
                     break;
-                case YamlEditableList list:
+                case YamlEditableList { EmptyFlowText: null } list:
                     list.EmptyFlowText = "[]" + lineBreak;
                     break;
             }
@@ -274,12 +264,19 @@ internal static class YamlEditableLayout
             entry.EndOfLineTrivia = entry.TrailingTrivia is { } separator && FindNewLine(separator) is not null ? separator : null;
             entry.TrailingTrivia = null;
         }
-        else if (entry is YamlEditableListEntry && !wasBlock && isBlock && FindNewLine(entry.EndOfLineTrivia) is not null)
+        else if (entry is YamlEditableListEntry && wasBlock && !isBlock && entry.TrailingTrivia is { } dashSeparator
+            && dashSeparator.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) is var dashBreak and >= 0)
+        {
+            // "-\n  key: value" becomes "- {}": the end of the line of the "-", with its comment, ends the line.
+            entry.EndOfLineTrivia = dashSeparator.GetRange(0, dashBreak + 1);
+            entry.TrailingTrivia = null;
+        }
+        else if (entry is YamlEditableListEntry && !wasBlock && isBlock && entry.EndOfLineTrivia is not null)
         {
             // "- value # comment\n" becomes "- key: value # comment\n" followed by the other lines of the block: the
             // first line of the block is the line of the "-".
             var first = GetEntries(value!)[0];
-            if (!IsBlock(GetValue(first)) && !HasComment(first.EndOfLineTrivia))
+            if (!IsBlock(GetValue(first)) && !HasComment(first.EndOfLineTrivia) && FindNewLine(entry.EndOfLineTrivia) is not null)
             {
                 first.EndOfLineTrivia = entry.EndOfLineTrivia;
             }
@@ -420,11 +417,11 @@ internal static class YamlEditableLayout
     /// <paramref name="next"/>: if <paramref name="next"/> follows the "-" of a list item ("- key: value",
     /// "- - item"), <paramref name="entry"/> takes its place there and <paramref name="next"/> goes to the column it had.
     /// </summary>
-    public static void PrepareInsertFirst(YamlEditableNode collection, YamlEditableNode next, YamlEditableNode entry)
+    public static bool PrepareInsertFirst(YamlEditableNode collection, YamlEditableNode next, YamlEditableNode entry)
     {
         if (!SharesLineWithDash(collection))
         {
-            return;
+            return false;
         }
 
         var column = GetColumn(next);
@@ -438,6 +435,20 @@ internal static class YamlEditableLayout
                 listEntry.Indent = column;
                 ((YamlEditableListEntry)entry).Indent = string.Empty;
                 break;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gives <paramref name="entry"/>, inserted before <paramref name="next"/> without indentation of its own, the column
+    /// of <paramref name="next"/>: the entries of a map or a list share their column.
+    /// </summary>
+    public static void AlignWith(YamlEditableNode entry, YamlEditableNode next)
+    {
+        if (GetIndent(entry).Length == 0)
+        {
+            SetIndent(entry, GetColumn(next));
         }
     }
 
@@ -462,7 +473,7 @@ internal static class YamlEditableLayout
             return;
         }
 
-        if (entry is YamlEditableListEntry)
+        if (entry is YamlEditableListEntry && FindNewLine(entry.TrailingTrivia) is null)
         {
             // The first entry of a list item is written right after the "-" and its trivia, which give its column:
             // indentation of its own would move it past the column of the other entries.
@@ -572,7 +583,7 @@ internal static class YamlEditableLayout
                 case YamlEditableScalar scalar:
                     // The lines of a block or multi-line scalar move with its entry, so that their indentation
                     // relative to it, and so the value, stay the same.
-                    scalar.Text = ReindentLines(scalar.Text, delta);
+                    scalar.SetTextUnchecked(ReindentLines(scalar.Text, delta));
                     break;
                 case { } nested when IsBlock(nested):
                     Shift(nested, delta);
@@ -735,12 +746,6 @@ internal static class YamlEditableLayout
         if (node is YamlEditableScalar scalar)
         {
             ThrowIfUnsupportedScalarText(scalar.Text);
-            if (scalar.EndsDocumentWithoutLineBreak)
-            {
-                throw new InvalidOperationException(
-                    "A block scalar that ends the document without a line break cannot be moved: the line break after it would become part of its value.");
-            }
-
             return;
         }
 

@@ -1360,18 +1360,110 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    public void InsertEntry_BlockScalarThatEndedTheDocumentWithoutLineBreak_ThrowsAndChangesNothing()
+    [DataRow(false)]
+    [DataRow(true)]
+    public void ToSyntaxTree_BlockScalarMovedFromTheEndOfTheDocument_ThrowsBecauseItsValueWouldChange(bool setItsOwnText)
     {
         var tree = YamlEditableTree.Parse("- a\n- |\n  hi");
         var list = (YamlEditableList)tree.Root;
         var item = list.Items[1];
+        if (setItsOwnText)
+        {
+            var scalar = (YamlEditableScalar)item.Value;
+            scalar.Text = scalar.Text;
+        }
+
         list.RemoveAt(1);
-        var text = tree.Serialize();
+        list.InsertEntry(0, item);
 
-        Assert.ThrowsExactly<InvalidOperationException>(() => list.InsertEntry(0, item));
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
 
-        Assert.AreEqual(text, tree.Serialize());
-        Assert.IsNull(item.Parent);
+    [TestMethod]
+    public void ToSyntaxTree_TriviaEditThatChangesTheValueOfABlockScalar_ThrowsInvalidOperationException()
+    {
+        var tree = YamlEditableTree.Parse("a: |\n  hi\n");
+
+        RootOf(tree).Entries[0].EndOfLineTrivia!.Clear();
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    [DataRow("!!str |+\n  hi")]
+    [DataRow("&label |2\n  hi")]
+    [DataRow("!!str old")]
+    public void ToSyntaxTree_ScalarTextWithATagOrAnAnchor_ThrowsInvalidOperationException(string text)
+    {
+        var tree = YamlEditableTree.Parse("a: old");
+
+        ((YamlEditableScalar)RootOf(tree).GetValue("a")!).Text = text;
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    [DataRow("- a: 1\n  # about b\n  b: 2\n", "- {}\n")]
+    [DataRow("- - a\n  # about b\n  - b\n", "- []\n")]
+    public void RemoveFirstThenReopenAndRemoveNext_RemovesTheCommentOfTheNext(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        RemoveFirstOfTheItem(tree);
+        var reopened = YamlEditableTree.Parse(tree.ToSyntaxTree().ToFullString());
+
+        RemoveFirstOfTheItem(reopened);
+
+        AssertEdited(expected, reopened);
+
+        static void RemoveFirstOfTheItem(YamlEditableTree tree)
+        {
+            switch (((YamlEditableList)tree.Root).Items[0].Value)
+            {
+                case YamlEditableMap map:
+                    map.RemoveEntry(map.Entries[0].Key);
+                    break;
+                case YamlEditableList list:
+                    list.RemoveAt(0);
+                    break;
+            }
+        }
+    }
+
+    [TestMethod]
+    public void RemoveEntry_FirstThenNextKeyOfListItemBeforeCommentLines_LeavesAnEmptyMap()
+    {
+        var tree = YamlEditableTree.Parse("- a: 1\n  # keep\n  b: 2\n");
+        var map = (YamlEditableMap)((YamlEditableList)tree.Root).Items[0].Value;
+
+        map.RemoveEntry("a");
+        map.RemoveEntry("b");
+
+        AssertEdited("- {}\n", tree);
+    }
+
+    [TestMethod]
+    public void SetValue_ListItemWithCommentWithoutFinalNewLineToMap_KeepsTheCommentOnTheDashLine()
+    {
+        var tree = YamlEditableTree.Parse("- old # keep");
+        var map = new YamlEditableMap();
+        map.SetValue("x", new YamlEditableScalar("1"));
+        map.SetValue("y", new YamlEditableScalar("2"));
+
+        ((YamlEditableList)tree.Root).Items[0].Value = map;
+
+        AssertEdited("- x: 1 # keep\n  y: 2", tree);
+    }
+
+    [TestMethod]
+    public void RemoveEntry_OnlyKeyOfIndentedEmptyRoot_KeepsTheIndentation()
+    {
+        var tree = YamlEditableTree.Parse("  { }\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("1"));
+        RootOf(tree).RemoveEntry("a");
+
+        Assert.AreEqual("  { }\n", tree.Serialize());
+        Assert.AreSame(tree.SyntaxTree, tree.ToSyntaxTree());
     }
 
     [TestMethod]

@@ -172,9 +172,9 @@ public sealed class YamlEditableMap : YamlEditableNode
 
         ThrowIfCannotAdd(entry);
         var next = _entries[index];
-        if (index == 0)
+        if (index != 0 || !YamlEditableLayout.PrepareInsertFirst(this, next, entry))
         {
-            YamlEditableLayout.PrepareInsertFirst(this, next, entry);
+            YamlEditableLayout.AlignWith(entry, next);
         }
 
         YamlEditableLayout.PrepareInsert(next, entry);

@@ -79,7 +79,6 @@ public sealed class YamlEditableTree
         var builder = new Builder(syntaxTree.Tokens);
         var root = builder.BuildRoot();
         var lineBreak = yaml.IndexOfAny(['\r', '\n']);
-        YamlEditableLayout.MarkScalarEndingDocument(root, builder.TrailingTrivia);
         root.DocumentNewLine = lineBreak < 0 ? null
             : yaml[lineBreak] == '\r' && lineBreak + 1 < yaml.Length && yaml[lineBreak + 1] == '\n' ? "\r\n"
             : yaml.Substring(lineBreak, 1);
@@ -96,7 +95,7 @@ public sealed class YamlEditableTree
 
         try
         {
-            writer.Verify(root);
+            writer.Verify(root, recordValues: true);
         }
         catch (InvalidOperationException exception)
         {
@@ -127,14 +126,14 @@ public sealed class YamlEditableTree
         if (string.Equals(oldText, newText, StringComparison.Ordinal))
         {
             // An entry moved to another map can leave the text as it was: the tree must still be what the text reads.
-            writer.Verify(Root);
+            writer.Verify(Root, recordValues: false);
             return SyntaxTree;
         }
 
         // The text must be valid YAML, and every node must be read back as the node it was written for: the edits
         // must not change what an untouched node is.
         var changed = ApplyTextChange(oldText, newText);
-        writer.Verify(Root);
+        writer.Verify(Root, recordValues: false);
         return changed;
     }
 
@@ -718,7 +717,12 @@ public sealed class YamlEditableTree
                 }
                 else
                 {
-                    itemLeading = TakeSeparator();
+                    // A nested map or list on the lines after the "-" gives its comment lines and its indentation to
+                    // its first entry, as a nested block after "key:" does.
+                    var nestedBlockOnNextLine = Current.Span.Start.Line != dashToken.Span.Start.Line
+                        && (Current.Kind is YamlSyntaxKind.BlockSequenceStart or YamlSyntaxKind.BlockEntry
+                            || (Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead()));
+                    itemLeading = nestedBlockOnNextLine ? TakeEndOfLine(_position - 1) : TakeSeparator();
                     itemNode = ParseValue(indent);
                     endOfLine = YamlEditableLayout.IsBlock(itemNode) ? null : TakeEndOfLine(_position - 1);
                 }

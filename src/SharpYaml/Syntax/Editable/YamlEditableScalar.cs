@@ -41,15 +41,19 @@ public sealed class YamlEditableScalar : YamlEditableNode
         set
         {
             ArgumentGuard.ThrowIfNull(value);
+            if (!string.Equals(value, _text, StringComparison.Ordinal))
+            {
+                // A new text has a new value, which the tree cannot check.
+                ReadValue = null;
+            }
+
             if (Parent is null && Tree is null)
             {
                 _text = value;
-                EndsDocumentWithoutLineBreak = false;
                 return;
             }
 
             YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
-            EndsDocumentWithoutLineBreak = false;
 
             // The comment of the header line of a block scalar goes to the line of its entry, or after the root, unless
             // the new text has the same one.
@@ -89,10 +93,11 @@ public sealed class YamlEditableScalar : YamlEditableNode
     internal void SetTextUnchecked(string text) => _text = text;
 
     /// <summary>
-    /// Gets or sets whether this scalar is a block scalar that was read at the end of the document without a line break
-    /// after it: its value has no final line break, which it would get anywhere else, so it cannot be moved.
+    /// Gets or sets the value this scalar was read as when the document was parsed, or <see langword="null"/> once its
+    /// text is set: <see cref="YamlEditableTree.ToSyntaxTree"/> checks that a scalar whose text was not set keeps it,
+    /// wherever it is moved and whatever changes around it.
     /// </summary>
-    internal bool EndsDocumentWithoutLineBreak { get; set; }
+    internal string? ReadValue { get; set; }
 
     /// <inheritdoc />
     protected override void WriteCore(TextWriter writer)

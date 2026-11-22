@@ -82,9 +82,9 @@ public sealed class YamlEditableList : YamlEditableNode
         }
 
         ThrowIfCannotAdd(entry);
-        if (index == 0)
+        if (index != 0 || !YamlEditableLayout.PrepareInsertFirst(this, _items[0], entry))
         {
-            YamlEditableLayout.PrepareInsertFirst(this, _items[0], entry);
+            YamlEditableLayout.AlignWith(entry, _items[index]);
         }
 
         YamlEditableLayout.PrepareInsert(_items[index], entry);

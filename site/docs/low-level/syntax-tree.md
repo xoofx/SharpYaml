@@ -104,10 +104,14 @@ part of its value: it goes on the header line of the scalar (`key: | # comment`)
 also checks that the edited text reads back as the edited tree, and throws `InvalidOperationException`
 when it would not (for example, when removing an entry would put an indented comment line after a
 block scalar, or when an entry moved to another map would still be read in its old place), without
-changing `SyntaxTree`. `Serialize`, `WriteTo` and `ToString` write the same text without these checks.
+changing `SyntaxTree`. A scalar whose text was not set must also keep the value it was read as, wherever
+it is moved: a block scalar at the end of a document without a line break has no final line break in
+its value, which it would get anywhere else. `Serialize`, `WriteTo` and `ToString` write the same text
+without these checks.
 
 Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
-`GetValue("name")` also finds `"name": x`. `SetValue` writes a new key as a plain scalar and throws
+`GetValue("name")` also finds `"name": x`; keys are compared by this text value, not by the value a
+schema resolves (`1` and `0x1` are two keys). `SetValue` writes a new key as a plain scalar and throws
 `ArgumentException` for a key that needs quotes: add a `YamlEditableMapEntry` with the quoted text of the
 key instead. `AddEntry` and `InsertEntry` reject a key that the mapping already has. The scope is bounded:
 block-style mappings and sequences (also a sequence at the column of its key, `key:\n- a`),
