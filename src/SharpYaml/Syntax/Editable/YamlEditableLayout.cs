@@ -420,17 +420,15 @@ internal static class YamlEditableLayout
             // indentation of its own would move it past the column of the other entries.
             var first = GetEntries(value!)[0];
             var firstIndent = GetIndent(first).Length;
-            if (firstIndent > 0)
+            SetIndent(first, string.Empty);
+            if (GetOwnLineEntries(value!).Count == 0)
             {
-                SetIndent(first, string.Empty);
-                if (GetOwnLineEntries(value!).Count == 0)
+                // A single entry: its lines (of a multi-line scalar, of a nested block) move from the column it had to
+                // the column after the "-". Indenting more the lines of a supported scalar never changes its value.
+                var delta = GetColumn(first).Length - firstIndent;
+                if (delta > 0)
                 {
-                    // A single entry: its lines move from the column it had to the column after the "-".
-                    var delta = GetColumn(first).Length - firstIndent;
-                    if (delta != 0)
-                    {
-                        Shift(value!, delta);
-                    }
+                    Shift(value!, delta);
                 }
             }
         }
@@ -647,6 +645,8 @@ internal static class YamlEditableLayout
 
     private static bool IsBlockScalar(string text) => text.Length > 0 && text[0] is '|' or '>';
 
+    internal static bool IsBlockScalarText(string text) => IsBlockScalar(text);
+
     /// <summary>
     /// Returns the indicators of the header of a block scalar: the characters after "|" or ">" up to a space, a
     /// comment or the end of the line.
@@ -723,7 +723,7 @@ internal static class YamlEditableLayout
         }
     }
 
-    private static void MoveCommentToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)
+    internal static void MoveCommentToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)
     {
         var commentIndex = trivia?.FindIndex(t => t.Kind == YamlEditableTriviaKind.Comment) ?? -1;
         if (commentIndex < 0)

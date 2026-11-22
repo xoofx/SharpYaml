@@ -32,8 +32,8 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// </summary>
     /// <exception cref="ArgumentNullException">The text is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">
-    /// The scalar is the value of an entry, and the text is a block scalar with the keep indicator or an indentation
-    /// indicator ("|+", "|2"), which the editable tree does not support.
+    /// The scalar is the value of an entry or the root of a tree, and the text is a block scalar with the keep indicator or
+    /// an indentation indicator ("|+", "|2"), which the editable tree does not support.
     /// </exception>
     public string Text
     {
@@ -41,7 +41,7 @@ public sealed class YamlEditableScalar : YamlEditableNode
         set
         {
             ArgumentGuard.ThrowIfNull(value);
-            if (Parent is null)
+            if (Parent is null && Tree is null)
             {
                 _text = value;
                 return;
@@ -50,8 +50,22 @@ public sealed class YamlEditableScalar : YamlEditableNode
             YamlEditableLayout.ThrowIfUnsupportedScalarText(value);
             _text = value;
 
-            // A comment on the line of the entry would follow the last line of a block scalar.
-            YamlEditableLayout.KeepCommentsOutOfBlockScalars(Parent);
+            // A comment on the line of the entry, or after a scalar at the root, would follow the last line of a
+            // block scalar.
+            if (Parent is not null)
+            {
+                YamlEditableLayout.KeepCommentsOutOfBlockScalars(Parent);
+            }
+            else if (Tree!.TrailingTrivia is { } trailing && YamlEditableLayout.IsBlockScalarText(value))
+            {
+                // The comment is removed from the trivia before the text is set again, which ends the recursion.
+                var lineBreak = trailing.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
+                var comment = trailing.FindIndex(t => t.Kind == YamlEditableTriviaKind.Comment);
+                if (comment >= 0 && (lineBreak < 0 || comment < lineBreak))
+                {
+                    YamlEditableLayout.MoveCommentToHeader(trailing, this);
+                }
+            }
         }
     }
 

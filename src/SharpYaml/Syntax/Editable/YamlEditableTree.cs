@@ -35,7 +35,7 @@ public sealed class YamlEditableTree
     {
         SyntaxTree = syntaxTree;
         Root = root;
-        root.IsTreeRoot = true;
+        root.Tree = this;
         TrailingTrivia = trailingTrivia;
         _startsWithByteOrderMark = startsWithByteOrderMark;
     }

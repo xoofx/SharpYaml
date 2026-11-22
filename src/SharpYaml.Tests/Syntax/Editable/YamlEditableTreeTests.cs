@@ -1210,6 +1210,32 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
+    public void SetValue_ListItemToOneKeyMapWithBlockScalar_IndentsTheLinesOfTheScalar()
+    {
+        var tree = YamlEditableTree.Parse("- old\n- tail\n");
+        var map = new YamlEditableMap();
+        map.SetValue("x", new YamlEditableScalar("|\n  y: 1"));
+
+        ((YamlEditableList)tree.Root).Items[0].Value = map;
+
+        AssertEdited("- x: |\n    y: 1\n- tail\n", tree);
+        Assert.AreEqual("y: 1\n", YamlSerializer.Deserialize<List<Dictionary<string, string>>>("- x: |\n    y: 1\n")![0]["x"]);
+    }
+
+    [TestMethod]
+    [DataRow("hello # keep", "| # keep\n  hi")]
+    [DataRow("hello # keep\n# end\n", "| # keep\n  hi\n# end\n")]
+    public void Text_RootScalarBecomesBlockScalar_MovesTheCommentToItsHeader(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        ((YamlEditableScalar)tree.Root).Text = "|\n  hi";
+
+        AssertEdited(expected, tree);
+        Assert.ThrowsExactly<InvalidOperationException>(() => ((YamlEditableScalar)tree.Root).Text = "|+\n  hi");
+    }
+
+    [TestMethod]
     public void Text_PlainScalarBecomesBlockScalar_MovesTheCommentToItsHeader()
     {
         var tree = YamlEditableTree.Parse("- a # keep\n- b\n");

@@ -38,7 +38,12 @@ public abstract class YamlEditableNode
     /// <summary>
     /// Gets or sets whether this node is the root of a <see cref="YamlEditableTree"/>, which cannot become a value.
     /// </summary>
-    internal bool IsTreeRoot { get; set; }
+    internal bool IsTreeRoot => Tree is not null;
+
+    /// <summary>
+    /// Gets or sets the tree whose root this node is, or <see langword="null"/>.
+    /// </summary>
+    internal YamlEditableTree? Tree { get; set; }
 
     /// <summary>
     /// Gets or sets the first line break of the text that a root was read from, for the line breaks of new entries.
