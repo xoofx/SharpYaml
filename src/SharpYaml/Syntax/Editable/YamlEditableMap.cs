@@ -148,10 +148,9 @@ public sealed class YamlEditableMap : YamlEditableNode
 
         ThrowIfCannotAdd(entry);
         var next = _entries[index];
-        if (index == 0 && YamlEditableLayout.SharesLineWithDash(next, this))
+        if (index == 0)
         {
-            next.Indent = YamlEditableLayout.GetKeyColumn(next);
-            entry.Indent = string.Empty;
+            YamlEditableLayout.PrepareInsertFirst(this, next, entry);
         }
 
         YamlEditableLayout.PrepareInsert(next, entry);

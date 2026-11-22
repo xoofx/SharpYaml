@@ -1061,6 +1061,29 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
+    public void InsertEntry_AtStartOfListInListItem_TakesTheDashLine()
+    {
+        var tree = YamlEditableTree.Parse("- - a\n  - b\n- c\n");
+        var inner = (YamlEditableList)((YamlEditableList)tree.Root).Items[0].Value;
+
+        inner.InsertEntry(0, new YamlEditableListEntry(new YamlEditableScalar("z"), "  "));
+
+        AssertEdited("- - z\n  - a\n  - b\n- c\n", tree);
+    }
+
+    [TestMethod]
+    [DataRow("key:\n  value", "key:\n  value\nb: 2")]
+    [DataRow("key: # one\r\n  value", "key: # one\r\n  value\r\nb: 2")]
+    public void SetValue_NewKeyAfterValueOnTheNextLineWithoutFinalNewLine_EndsTheValueLine(string yaml, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
     public void GetValueAndRemoveEntry_NullKey_ThrowArgumentNullException()
     {
         var map = RootOf(YamlEditableTree.Parse("a: 1\n"));

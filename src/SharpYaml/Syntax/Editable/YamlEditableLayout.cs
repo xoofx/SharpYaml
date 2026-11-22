@@ -68,8 +68,10 @@ internal static class YamlEditableLayout
             return;
         }
 
+        // The last line ends in the end of line of its owner: a line break in its trailing trivia comes before its
+        // value ("key:\n  value").
         var owner = GetLastLineOwner(previous);
-        var newLine = FindNewLine(owner.EndOfLineTrivia) ?? FindNewLine(owner.TrailingTrivia);
+        var newLine = FindNewLine(owner.EndOfLineTrivia);
         if (newLine is null)
         {
             // The document has no final line break: end the previous line, and leave the new last
@@ -151,7 +153,7 @@ internal static class YamlEditableLayout
         var value = GetValue(entry);
         var isBlock = IsBlock(value);
         var oldOwner = oldLastEntry is null ? entry : GetLastLineOwner(oldLastEntry);
-        var newLine = FindNewLine(oldOwner.EndOfLineTrivia) ?? (oldLastEntry is null ? null : FindNewLine(oldOwner.TrailingTrivia));
+        var newLine = FindNewLine(oldOwner.EndOfLineTrivia);
 
         if (entry is YamlEditableMapEntry && !wasBlock && isBlock)
         {
@@ -274,6 +276,32 @@ internal static class YamlEditableLayout
     /// </summary>
     public static bool SharesLineWithDash(YamlEditableMapEntry entry, YamlEditableMap map) =>
         map.Entries.Count > 0 && map.Entries[0] == entry && SharesLineWithDash(map);
+
+    /// <summary>
+    /// Prepares <paramref name="entry"/> to be inserted at the start of <paramref name="collection"/>, before
+    /// <paramref name="next"/>: if <paramref name="next"/> follows the "-" of a list item ("- key: value",
+    /// "- - item"), <paramref name="entry"/> takes its place there and <paramref name="next"/> goes to the column it had.
+    /// </summary>
+    public static void PrepareInsertFirst(YamlEditableNode collection, YamlEditableNode next, YamlEditableNode entry)
+    {
+        if (!SharesLineWithDash(collection))
+        {
+            return;
+        }
+
+        var column = GetColumn(next);
+        switch (next)
+        {
+            case YamlEditableMapEntry mapEntry:
+                mapEntry.Indent = column;
+                ((YamlEditableMapEntry)entry).Indent = string.Empty;
+                break;
+            case YamlEditableListEntry listEntry:
+                listEntry.Indent = column;
+                ((YamlEditableListEntry)entry).Indent = string.Empty;
+                break;
+        }
+    }
 
     /// <summary>
     /// Returns <see langword="true"/> if the first entry of <paramref name="collection"/>, a map or a list that is a

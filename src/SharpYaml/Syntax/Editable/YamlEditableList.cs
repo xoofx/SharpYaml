@@ -50,7 +50,8 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <summary>
     /// Inserts an already-constructed entry at <paramref name="index"/>, reparenting it to this
     /// list. The new entry starts on its own line, before the comment lines of the entry that is
-    /// at <paramref name="index"/> now.
+    /// at <paramref name="index"/> now. If this list is a list item whose first item is on the same
+    /// line as the "-" ("- - a"), an entry inserted at index 0 takes that place.
     /// </summary>
     /// <param name="index">The index of the new entry.</param>
     /// <param name="entry">The entry to insert.</param>
@@ -71,6 +72,11 @@ public sealed class YamlEditableList : YamlEditableNode
         }
 
         ThrowIfCannotAdd(entry);
+        if (index == 0)
+        {
+            YamlEditableLayout.PrepareInsertFirst(this, _items[0], entry);
+        }
+
         YamlEditableLayout.PrepareInsert(_items[index], entry);
         entry.Parent = this;
         _items.Insert(index, entry);
