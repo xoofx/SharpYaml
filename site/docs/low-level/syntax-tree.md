@@ -86,6 +86,7 @@ var tree = YamlEditableTree.Parse(text);
 
 var servers = (YamlEditableList)((YamlEditableMap)tree.Root).GetValue("Servers")!;
 var prod = (YamlEditableMap)servers.Items[0].Value;
+var name = ((YamlEditableScalar)prod.GetValue("Name")!).Value; // "prod"
 prod.SetValue("Port", new YamlEditableScalar("1522"));
 prod.SetValue("Host", new YamlEditableScalar("db1"));
 
@@ -93,35 +94,61 @@ var edited = tree.ToSyntaxTree();
 // # servers\nServers:\n  - Name: prod # main\n    Port: 1522\n    Host: db1\n
 ```
 
-A same-line comment stays with the entry on its line, and comment lines stay with the entry
-below them. The comment on the line of an empty mapping or sequence (`key: {} # comment`) stays with
-its key or `-` when entries are added to it, on the line of the key or the `-`; at the root, it becomes
-a comment line above them. `AddEntry` and `InsertEntry` (on maps and lists) and `RemoveEntry`/`RemoveAt` keep
-each entry on its own line, so removing an entry removes its comments and nothing else. A new
-map or list that is not indented under its key (or after its `-`) is indented when it is set as a
-value, except under a list item whose block starts on the line after the `-`: give its keys their
-indentation (`ToSyntaxTree` rejects them at the column of the `-`). An entry cannot be added after a block scalar (`|` or `>`, but `|-` is fine) that ends the
-document without a line break (`InvalidOperationException`): the line break would become part of the
-scalar's value. A comment is never written after the last line of a block scalar, where it would be
-part of its value: it goes on the header line of the scalar (`key: | # comment`). `ToSyntaxTree`
-also checks that the edited text reads back as the edited tree, and throws `InvalidOperationException`
-when it would not (for example, when removing an entry would put an indented comment line after a
-block scalar, or when an entry moved to another map would still be read in its old place), without
-changing `SyntaxTree`. A scalar whose text was not set must also keep the value it was read as, wherever
-it is moved: a block scalar at the end of a document without a line break has no final line break in
-its value, which it would get anywhere else. `Serialize`, `WriteTo` and `ToString` write the same text
-without these checks.
+### Comments and layout
 
-Scalar text is **raw YAML source**, as with `WithTextChange`. A key is found by its value, so
-`GetValue("name")` also finds `"name": x`; keys are compared by this text value, not by the value a
-schema resolves (`1` and `0x1` are two keys). `SetValue` writes a new key as a plain scalar and throws
-`ArgumentException` for a key that needs quotes: add a `YamlEditableMapEntry` with the quoted text of the
-key instead. `AddEntry` and `InsertEntry` reject a key that the mapping already has. The scope is bounded:
-block-style mappings and sequences (also a sequence at the column of its key, `key:\n- a`),
-plain, quoted and block (`|`, `>`, also with `-`) scalars, and `#` comments. A key or a list item without a value (`key:`, `-`)
-is a scalar with empty text. An empty mapping or sequence has no block form: it is read from and
-written as `{}` or `[]` (also with spaces inside) on the line of its key, so removing its last entry
-writes `{}` or `[]`, also at the root, and adding an entry to it writes it as a block again.
+- Each comment belongs to an entry, or to the document: a comment on the line of an entry is
+  the entry's, and comment lines are the entry's below them. Comment lines at the start of the
+  document that a blank line separates from the first entry are the document's header, and
+  comment lines after the last entry are the document's.
+- Removing an entry removes its lines and its comments, and nothing else. Edits keep every other
+  comment with its owner: the comment on the line of `key: {} # comment` or `- value # comment`
+  stays on the line of the key or the `-` when the value becomes a block, and a blank line
+  separates the comments of a document without content from the first entry added to it.
+- `AddEntry`, `InsertEntry` and `SetValue` write a new entry on its own line, at the column of
+  the other entries, with the line break of the document. An entry moved from another map or list
+  takes that column too, with the lines of its value. A new map, list or scalar on several lines
+  whose lines are not indented under their key or `-` is indented when it is set as a value.
+- Undoing an edit gives back the text: adding an entry to an empty map or list and removing it, or
+  removing the first entry of a list item and inserting an entry first again. A document read
+  without a final line break keeps ending without one.
+- A comment is never written after the last line of a block scalar, where it would be part of its
+  value: it goes on the header line of the scalar (`key: | # comment`).
+
+### Checks
+
+`ToSyntaxTree` reads the edited text back and throws `InvalidOperationException`, without
+changing `SyntaxTree`, unless it reads as the edited tree: the same maps, lists and scalars, each
+scalar and key read exactly from the text written for it, each scalar whose text was not set read as
+the value it had (wherever it was moved), and each comment read as the comment of the same entry.
+It throws `YamlException` when the edited text is not valid YAML. These checks cover the edits
+of the trivia lists (`LeadingTrivia`, `TrailingTrivia`, `EndOfLineTrivia`) as well. `Serialize`,
+`WriteTo` and `ToString` write the same text without these checks.
+
+An entry cannot be added after a block scalar (`|` or `>`, but `|-` is fine) that ends the document
+without a line break (`InvalidOperationException`): the line break would become part of the
+scalar's value.
+
+### Scalars and keys
+
+- `YamlEditableScalar.Text` is **raw YAML source**, as with `WithTextChange`, with its quotes:
+  use `"\"null\""` to write the string `null`. `YamlEditableScalar.Value` is the string the
+  text is read as, without quotes and with escapes resolved; it is not the value of a schema (the
+  text `1` is the string `1`). A key or a list item without a value (`key:`, `-`) is a scalar
+  with empty text.
+- A key is found by its value, so `GetValue("name")` also finds `"name": x`; keys are compared
+  by this text value, not by the value a schema resolves (`1` and `0x1` are two keys).
+- `SetValue` writes a new key as a plain scalar and throws `ArgumentException` for a key that
+  needs quotes: add a `YamlEditableMapEntry` with the quoted text of the key instead. `AddEntry`
+  and `InsertEntry` reject a key that the mapping already has.
+
+### Scope
+
+The editable tree supports block-style mappings and sequences (also a sequence at the column of
+its key, `key:\n- a`), plain, quoted and block scalars (`|`, `>`, also with `-`), `#` comments,
+and empty mappings and sequences. An empty mapping or sequence has no block form: it is read
+from and written as `{}` or `[]` (also with spaces inside), so removing the last entry of a map
+or a list writes `{}` or `[]`, also at the root, and adding an entry to it writes it as a block again.
+
 `YamlEditableTree.Parse` throws `NotSupportedException` for flow style with content or on several
 lines, explicit keys (`?`), spaces between a key and its `:` (`a : b`), block scalars with the keep
 indicator or an indentation indicator (`|+`, `|2`, whose value depends on the lines around them),

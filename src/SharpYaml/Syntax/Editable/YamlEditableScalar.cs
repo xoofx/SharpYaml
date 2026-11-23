@@ -3,12 +3,15 @@
 // // See LICENSE.txt file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using SharpYaml.Events;
 
 namespace SharpYaml.Syntax.Editable;
 
 /// <summary>
-/// A plain or quoted scalar value, e.g. the "value" in "key: value".
+/// A plain, quoted or block scalar value, e.g. the "value" in "key: value". <see cref="Text"/> is its YAML source, with its
+/// quotes; <see cref="Value"/> is the string it is read as.
 /// </summary>
 public sealed class YamlEditableScalar : YamlEditableNode
 {
@@ -69,10 +72,11 @@ public sealed class YamlEditableScalar : YamlEditableNode
 
             _text = value;
 
-            // A comment on the line of the entry, or after a scalar at the root, would follow the last line of a
-            // block scalar.
+            // The lines of the text go under the entry, and a comment on the line of the entry, or after a scalar at the
+            // root, would follow the last line of a block scalar.
             if (Parent is not null)
             {
+                YamlEditableLayout.IndentValue(Parent);
                 YamlEditableLayout.KeepCommentsOutOfBlockScalars(Parent);
             }
             else if (Tree!.TrailingTrivia is { } trailing && YamlEditableLayout.IsBlockScalarText(value))
@@ -89,6 +93,43 @@ public sealed class YamlEditableScalar : YamlEditableNode
     }
 
     /// <summary>
+    /// Gets the value of this scalar as YAML reads it: without its quotes, with its escapes and its line folding resolved
+    /// (the text <c>"a\tb"</c> is <c>a</c>, a tab and <c>b</c>), and empty for a missing value. It is the string that the
+    /// parser reads, not the value of a schema: the text <c>1</c> is the string <c>1</c>.
+    /// </summary>
+    /// <exception cref="YamlException"><see cref="Text"/> is not valid YAML.</exception>
+    /// <exception cref="InvalidOperationException"><see cref="Text"/> is not one scalar, without a tag or an anchor.</exception>
+    public string Value => ReadValue ?? ReadText(_text);
+
+    private static string ReadText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        // The last line of a block scalar ends with the line break of its entry, which its text does not hold.
+        if (YamlEditableLayout.IsBlockScalarText(text) && text[text.Length - 1] is not ('\n' or '\r'))
+        {
+            text += "\n";
+        }
+
+        var parser = Parser.CreateParser(new StringReader(text));
+        var events = new List<ParsingEvent>();
+        while (parser.MoveNext())
+        {
+            events.Add(parser.Current!);
+        }
+
+        if (events is not [StreamStart, DocumentStart, Events.Scalar { Tag: null, Anchor: null } scalar, DocumentEnd, StreamEnd])
+        {
+            throw new InvalidOperationException("The text of the scalar is not one scalar without a tag or an anchor.");
+        }
+
+        return scalar.Value;
+    }
+
+    /// <summary>
     /// Sets the text without the checks and the moves of comments of <see cref="Text"/>, for the layout code that
     /// moves a comment to the header line.
     /// </summary>
@@ -102,7 +143,7 @@ public sealed class YamlEditableScalar : YamlEditableNode
     internal string? ReadValue { get; set; }
 
     /// <inheritdoc />
-    protected override void WriteCore(TextWriter writer)
+    private protected override void WriteCore(TextWriter writer)
     {
         (writer as YamlEditableTextWriter)?.Record(this, _text);
         writer.Write(_text);

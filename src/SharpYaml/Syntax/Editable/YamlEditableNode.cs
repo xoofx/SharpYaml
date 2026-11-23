@@ -17,10 +17,11 @@ namespace SharpYaml.Syntax.Editable;
 public abstract class YamlEditableNode
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="YamlEditableNode"/> class.
+    /// Initializes a new instance of the <see cref="YamlEditableNode"/> class. Only the node types of this namespace derive
+    /// from it.
     /// </summary>
     /// <param name="kind">The kind of this node.</param>
-    protected YamlEditableNode(YamlEditableKind kind)
+    private protected YamlEditableNode(YamlEditableKind kind)
     {
         Kind = kind;
     }
@@ -49,6 +50,24 @@ public abstract class YamlEditableNode
     /// Gets or sets the first line break of the text that a root was read from, for the line breaks of new entries.
     /// </summary>
     internal string? DocumentNewLine { get; set; }
+
+    /// <summary>
+    /// Gets or sets the trivia that an entry had before its value became a block, or that a root had before its first entry
+    /// was added, to restore when the value is written on its line again or the root is empty again.
+    /// </summary>
+    internal YamlEditableLayout.Memo? LayoutMemo { get; set; }
+
+    /// <summary>
+    /// Gets or sets the trivia after the "-" of a list item before its first entry, on the line of the "-", was removed, to
+    /// restore when an entry is inserted first again.
+    /// </summary>
+    internal YamlEditableLayout.Memo? DashMemo { get; set; }
+
+    /// <summary>
+    /// Gets or sets the column an entry was at when it was removed from a map or a list: the lines of its value move from
+    /// there when it is added again.
+    /// </summary>
+    internal int? DetachedColumn { get; set; }
 
     /// <summary>
     /// Gets comment lines and blank lines that appear before this node, in source order.
@@ -100,7 +119,7 @@ public abstract class YamlEditableNode
     /// <summary>
     /// Writes the node-specific content (without leading trivia).
     /// </summary>
-    protected abstract void WriteCore(TextWriter writer);
+    private protected abstract void WriteCore(TextWriter writer);
 
     private void WriteLeadingTrivia(TextWriter writer) => WriteTrivia(writer, LeadingTrivia);
 
@@ -140,7 +159,7 @@ public abstract class YamlEditableNode
     /// parent slot and throwing if it is already parented elsewhere. Mirrors
     /// Tomlyn.Syntax.SyntaxNode.ParentToThis.
     /// </summary>
-    protected static void ParentToThis<TNode>(ref TNode? slot, TNode? node, YamlEditableNode owner)
+    private protected static void ParentToThis<TNode>(ref TNode? slot, TNode? node, YamlEditableNode owner)
         where TNode : YamlEditableNode
     {
         if (node?.Parent != null)

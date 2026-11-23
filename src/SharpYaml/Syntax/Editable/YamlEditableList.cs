@@ -32,8 +32,9 @@ public sealed class YamlEditableList : YamlEditableNode
 
     /// <summary>
     /// Appends an already-constructed entry, reparenting it to this list. The previous last line
-    /// keeps its comment, and the new entry starts on its own line. An empty list that is a value,
-    /// written as <c>[]</c>, becomes a block on the lines after its key.
+    /// keeps its comment, and the new entry starts on its own line, at the column of the other
+    /// items; the lines of its value move with it. An empty list that is a value, written as
+    /// <c>[]</c>, becomes a block on the lines after its key.
     /// </summary>
     /// <param name="entry">The entry to append.</param>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
@@ -44,21 +45,15 @@ public sealed class YamlEditableList : YamlEditableNode
     public void AddEntry(YamlEditableListEntry entry)
     {
         ThrowIfCannotAdd(entry);
-        var previous = _items.Count > 0 ? _items[_items.Count - 1] : null;
-        YamlEditableLayout.PrepareAppend(this, previous, entry);
-        AddParsedEntry(entry);
-        YamlEditableLayout.IndentValue(entry);
-        if (previous is null)
-        {
-            YamlEditableLayout.AfterEmptinessChanged(this, removedEntry: null);
-        }
+        YamlEditableLayout.Insert(this, _items.Count, entry);
     }
 
     /// <summary>
     /// Inserts an already-constructed entry at <paramref name="index"/>, reparenting it to this
-    /// list. The new entry starts on its own line, before the comment lines of the entry that is
-    /// at <paramref name="index"/> now. If this list is a list item whose first item is on the same
-    /// line as the "-" ("- - a"), an entry inserted at index 0 takes that place.
+    /// list. The new entry starts on its own line, at the column of the other items, before the
+    /// comment lines of the entry that is at <paramref name="index"/> now; the lines of its value
+    /// move with it. If this list is a list item whose first item is on the same line as the "-"
+    /// ("- - a"), an entry inserted at index 0 takes that place.
     /// </summary>
     /// <param name="index">The index of the new entry.</param>
     /// <param name="entry">The entry to insert.</param>
@@ -82,15 +77,7 @@ public sealed class YamlEditableList : YamlEditableNode
         }
 
         ThrowIfCannotAdd(entry);
-        if (index != 0 || !YamlEditableLayout.PrepareInsertFirst(this, _items[0], entry))
-        {
-            YamlEditableLayout.AlignWith(entry, _items[index]);
-        }
-
-        YamlEditableLayout.PrepareInsert(_items[index], entry);
-        entry.Parent = this;
-        _items.Insert(index, entry);
-        YamlEditableLayout.IndentValue(entry);
+        YamlEditableLayout.Insert(this, index, entry);
     }
 
     /// <summary>
@@ -102,11 +89,24 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <summary>
     /// Appends an entry read by the parser, without changing its trivia.
     /// </summary>
-    internal void AddParsedEntry(YamlEditableListEntry entry)
+    internal void AddParsedEntry(YamlEditableListEntry entry) => InsertParsedEntry(_items.Count, entry);
+
+    /// <summary>
+    /// Inserts an entry at <paramref name="index"/>, without changing its trivia.
+    /// </summary>
+    internal void InsertParsedEntry(int index, YamlEditableListEntry entry)
     {
-        ArgumentGuard.ThrowIfNull(entry);
         entry.Parent = this;
-        _items.Add(entry);
+        _items.Insert(index, entry);
+    }
+
+    /// <summary>
+    /// Removes the entry at <paramref name="index"/>, without changing its trivia.
+    /// </summary>
+    internal void RemoveParsedEntryAt(int index)
+    {
+        _items[index].Parent = null;
+        _items.RemoveAt(index);
     }
 
     private void ThrowIfCannotAdd(YamlEditableListEntry entry)
@@ -124,31 +124,23 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <summary>
     /// Removes the entry at <paramref name="index"/>, with its comment lines and its lines.
     /// Removing the only entry of a list that is a value leaves an empty list, written as
-    /// <c>[]</c> on the line of its key or "-".
+    /// <c>[]</c> where it was before entries were added to it, or else on the line of its key or
+    /// "-". The removed entry can be added again, to this list or another one.
     /// </summary>
     /// <param name="index">The index of the entry to remove.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is less than 0, or not less than the number of entries.</exception>
     public void RemoveAt(int index)
     {
-        var entry = _items[index];
-
-        // The first item of a list that is a list item follows the "-" of that item ("- - a"): the next item takes
-        // that place.
-        if (index == 0 && _items.Count > 1)
+        if (index < 0 || index >= _items.Count)
         {
-            YamlEditableLayout.PrepareRemoveFirst(this, _items[1]);
+            throw new ArgumentOutOfRangeException(nameof(index));
         }
 
-        entry.Parent = null;
-        _items.RemoveAt(index);
-        if (_items.Count == 0)
-        {
-            YamlEditableLayout.AfterEmptinessChanged(this, entry);
-        }
+        YamlEditableLayout.Remove(this, index);
     }
 
     /// <inheritdoc />
-    protected override void WriteCore(TextWriter writer)
+    private protected override void WriteCore(TextWriter writer)
     {
         if (_items.Count == 0)
         {

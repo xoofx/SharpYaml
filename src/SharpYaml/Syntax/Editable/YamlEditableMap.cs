@@ -72,8 +72,8 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// <param name="key">The value of the key.</param>
     /// <param name="value">The new value.</param>
     /// <param name="indent">
-    /// The indentation text of a new key, or <see langword="null"/> for the column of the last existing key.
-    /// Ignored when the key exists.
+    /// The indentation text of a new key that is the first key of this mapping, or <see langword="null"/> to indent it
+    /// under the key of this mapping. Ignored when the key exists or the mapping has other keys, whose column it takes.
     /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="key"/> or <paramref name="value"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
@@ -106,15 +106,14 @@ public sealed class YamlEditableMap : YamlEditableNode
 
         // Checked before the entry is built, which parents the value.
         YamlEditableLayout.ThrowIfCannotAppend(this);
-        var resolvedIndent = indent
-            ?? (_entries.Count > 0 ? YamlEditableLayout.GetKeyColumn(_entries[_entries.Count - 1]) : string.Empty);
-        AddEntry(new YamlEditableMapEntry(key, value, resolvedIndent));
+        AddEntry(new YamlEditableMapEntry(key, value, indent ?? string.Empty));
     }
 
     /// <summary>
     /// Appends an already-constructed entry, reparenting it to this mapping. The previous last
-    /// line keeps its comment, and the new entry starts on its own line. An empty mapping that
-    /// is a value, written as <c>{}</c>, becomes a block on the lines after its key.
+    /// line keeps its comment, and the new entry starts on its own line, at the column of the other
+    /// keys; the lines of its value move with it. An empty mapping that is a value, written as
+    /// <c>{}</c>, becomes a block on the lines after its key.
     /// </summary>
     /// <param name="entry">The entry to append.</param>
     /// <exception cref="ArgumentNullException"><paramref name="entry"/> is <see langword="null"/>.</exception>
@@ -129,21 +128,15 @@ public sealed class YamlEditableMap : YamlEditableNode
     public void AddEntry(YamlEditableMapEntry entry)
     {
         ThrowIfCannotAdd(entry);
-        var previous = _entries.Count > 0 ? _entries[_entries.Count - 1] : null;
-        YamlEditableLayout.PrepareAppend(this, previous, entry);
-        AddParsedEntry(entry);
-        YamlEditableLayout.IndentValue(entry);
-        if (previous is null)
-        {
-            YamlEditableLayout.AfterEmptinessChanged(this, removedEntry: null);
-        }
+        YamlEditableLayout.Insert(this, _entries.Count, entry);
     }
 
     /// <summary>
     /// Inserts an already-constructed entry at <paramref name="index"/>, reparenting it to this
-    /// mapping. The new entry starts on its own line, before the comment lines of the entry that
-    /// is at <paramref name="index"/> now. If this mapping is a list item whose first key is on
-    /// the same line as the "-", an entry inserted at index 0 takes that place.
+    /// mapping. The new entry starts on its own line, at the column of the other keys, before the
+    /// comment lines of the entry that is at <paramref name="index"/> now; the lines of its value
+    /// move with it. If this mapping is a list item whose first key is on the same line as the "-",
+    /// an entry inserted at index 0 takes that place.
     /// </summary>
     /// <param name="index">The index of the new entry.</param>
     /// <param name="entry">The entry to insert.</param>
@@ -171,16 +164,7 @@ public sealed class YamlEditableMap : YamlEditableNode
         }
 
         ThrowIfCannotAdd(entry);
-        var next = _entries[index];
-        if (index != 0 || !YamlEditableLayout.PrepareInsertFirst(this, next, entry))
-        {
-            YamlEditableLayout.AlignWith(entry, next);
-        }
-
-        YamlEditableLayout.PrepareInsert(next, entry);
-        entry.Parent = this;
-        _entries.Insert(index, entry);
-        YamlEditableLayout.IndentValue(entry);
+        YamlEditableLayout.Insert(this, index, entry);
     }
 
     /// <summary>
@@ -191,7 +175,8 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// </summary>
     /// <remarks>
     /// Removing the only entry of a mapping that is a value leaves an empty mapping, written as
-    /// <c>{}</c> on the line of its key or "-".
+    /// <c>{}</c> where it was before entries were added to it, or else on the line of its key or "-".
+    /// The removed entry can be added again, to this mapping or another one.
     /// </remarks>
     /// <param name="key">The key of the entry to remove.</param>
     /// <returns><see langword="true"/> if the entry was removed.</returns>
@@ -205,19 +190,7 @@ public sealed class YamlEditableMap : YamlEditableNode
             return false;
         }
 
-        var existing = _entries[index];
-        if (index == 0 && _entries.Count > 1)
-        {
-            YamlEditableLayout.PrepareRemoveFirst(this, _entries[1]);
-        }
-
-        existing.Parent = null;
-        _entries.RemoveAt(index);
-        if (_entries.Count == 0)
-        {
-            YamlEditableLayout.AfterEmptinessChanged(this, existing);
-        }
-
+        YamlEditableLayout.Remove(this, index);
         return true;
     }
 
@@ -231,11 +204,24 @@ public sealed class YamlEditableMap : YamlEditableNode
     /// <summary>
     /// Appends an entry read by the parser, without changing its trivia.
     /// </summary>
-    internal void AddParsedEntry(YamlEditableMapEntry entry)
+    internal void AddParsedEntry(YamlEditableMapEntry entry) => InsertParsedEntry(_entries.Count, entry);
+
+    /// <summary>
+    /// Inserts an entry at <paramref name="index"/>, without changing its trivia.
+    /// </summary>
+    internal void InsertParsedEntry(int index, YamlEditableMapEntry entry)
     {
-        ArgumentGuard.ThrowIfNull(entry);
         entry.Parent = this;
-        _entries.Add(entry);
+        _entries.Insert(index, entry);
+    }
+
+    /// <summary>
+    /// Removes the entry at <paramref name="index"/>, without changing its trivia.
+    /// </summary>
+    internal void RemoveParsedEntryAt(int index)
+    {
+        _entries[index].Parent = null;
+        _entries.RemoveAt(index);
     }
 
     private YamlEditableMapEntry? FindEntry(string key) => _entries.Find(entry => HasKey(entry, key));
@@ -368,7 +354,7 @@ public sealed class YamlEditableMap : YamlEditableNode
     }
 
     /// <inheritdoc />
-    protected override void WriteCore(TextWriter writer)
+    private protected override void WriteCore(TextWriter writer)
     {
         if (_entries.Count == 0)
         {

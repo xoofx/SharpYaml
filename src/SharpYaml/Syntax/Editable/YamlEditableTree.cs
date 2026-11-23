@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace SharpYaml.Syntax.Editable;
 
@@ -39,6 +40,11 @@ public sealed class YamlEditableTree
         TrailingTrivia = trailingTrivia;
         _startsWithByteOrderMark = startsWithByteOrderMark;
     }
+
+    /// <summary>
+    /// Gets or sets whether the text this tree was read from ends without a line break, which the edited text keeps.
+    /// </summary>
+    internal bool EndsWithoutLineBreak { get; private set; }
 
     /// <summary>
     /// Gets the source snapshot this tree was parsed from. It does not change when the tree is edited.
@@ -82,7 +88,10 @@ public sealed class YamlEditableTree
         root.DocumentNewLine = lineBreak < 0 ? null
             : yaml[lineBreak] == '\r' && lineBreak + 1 < yaml.Length && yaml[lineBreak + 1] == '\n' ? "\r\n"
             : yaml.Substring(lineBreak, 1);
-        var tree = new YamlEditableTree(syntaxTree, root, builder.TrailingTrivia, yaml.Length > 0 && yaml[0] == ByteOrderMark);
+        var tree = new YamlEditableTree(syntaxTree, root, builder.TrailingTrivia, yaml.Length > 0 && yaml[0] == ByteOrderMark)
+        {
+            EndsWithoutLineBreak = yaml.Length > 0 && yaml[yaml.Length - 1] is not ('\n' or '\r'),
+        };
 
         // Every character that is not edited must be written back as it was read, and read back as the same tree, so a
         // document that the tree does not reproduce is not edited at all.
@@ -114,8 +123,10 @@ public sealed class YamlEditableTree
     /// <returns>A syntax tree whose text equals <see cref="Serialize"/>.</returns>
     /// <exception cref="YamlException">The edited text is not valid YAML.</exception>
     /// <exception cref="InvalidOperationException">
-    /// The edited text would not be read back as this tree: a scalar or a key would not be read where it is written, for
-    /// example a comment or a line that would become part of a block scalar. <see cref="SyntaxTree"/> is not changed.
+    /// The edited text would not be read back as this tree: a scalar or a key would not be read where it is written (for
+    /// example a comment or a line that would become part of a block scalar), a scalar whose text was not set would be read
+    /// as another value, or a comment would be read as the comment of another entry. <see cref="SyntaxTree"/> is not
+    /// changed.
     /// </exception>
     public YamlSyntaxTree ToSyntaxTree()
     {
@@ -127,14 +138,115 @@ public sealed class YamlEditableTree
         {
             // An entry moved to another map can leave the text as it was: the tree must still be what the text reads.
             writer.Verify(Root, recordValues: false);
+            VerifyComments(SyntaxTree);
             return SyntaxTree;
         }
 
-        // The text must be valid YAML, and every node must be read back as the node it was written for: the edits
-        // must not change what an untouched node is.
+        // The text must be valid YAML, every node must be read back as the node it was written for, and every comment as
+        // the comment of the entry that has it: the edits must not change what an untouched node is, or move a comment.
         var changed = ApplyTextChange(oldText, newText);
         writer.Verify(Root, recordValues: false);
+        VerifyComments(changed);
         return changed;
+    }
+
+    /// <summary>
+    /// Throws unless <paramref name="written"/>, the text written for this tree, read again as an editable tree, gives each
+    /// entry, and the document, the comments it has in this tree.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">A comment would be read as the comment of another entry.</exception>
+    private void VerifyComments(YamlSyntaxTree written)
+    {
+        List<string> read;
+        try
+        {
+            var builder = new Builder(written.Tokens);
+            var root = builder.BuildRoot();
+            read = GetComments(root, builder.TrailingTrivia);
+        }
+        catch (NotSupportedException exception)
+        {
+            throw new InvalidOperationException("The edits cannot be applied: the edited text could not be read again as an editable tree.", exception);
+        }
+
+        var expected = GetComments(Root, TrailingTrivia);
+        for (var index = 0; index < Math.Max(expected.Count, read.Count); index++)
+        {
+            if (index >= read.Count || index >= expected.Count || !string.Equals(expected[index], read[index], StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The edits cannot be applied: a comment would be read as the comment of another entry, or of the document, once the edited text is read again.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the comments of the document (before the first entry and after the last one, and of a scalar at the root),
+    /// then the comments of each entry, in the order they are written: the lines above it, on its line, and in the header
+    /// of a block scalar value. Spaces are not compared, so that two comments written on one line read as one.
+    /// </summary>
+    private static List<string> GetComments(YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia)
+    {
+        var comments = new List<string>();
+        var builder = new StringBuilder();
+        AppendComments(builder, root.LeadingTrivia);
+        if (root is YamlEditableScalar scalar)
+        {
+            AppendComments(builder, YamlEditableLayout.GetHeaderComment(scalar.Text));
+        }
+
+        AppendComments(builder, trailingTrivia);
+        comments.Add(builder.ToString());
+        AddEntryComments(comments, root);
+        return comments;
+    }
+
+    private static void AddEntryComments(List<string> comments, YamlEditableNode collection)
+    {
+        IEnumerable<YamlEditableNode> entries = collection switch
+        {
+            YamlEditableMap map => map.Entries,
+            YamlEditableList list => list.Items,
+            _ => [],
+        };
+
+        foreach (var entry in entries)
+        {
+            var value = entry is YamlEditableMapEntry mapEntry ? mapEntry.Value : ((YamlEditableListEntry)entry).Value;
+            var builder = new StringBuilder();
+            AppendComments(builder, entry.LeadingTrivia);
+            AppendComments(builder, entry.TrailingTrivia);
+            AppendComments(builder, value.LeadingTrivia);
+            if (value is YamlEditableScalar scalar)
+            {
+                AppendComments(builder, YamlEditableLayout.GetHeaderComment(scalar.Text));
+            }
+
+            AppendComments(builder, entry.EndOfLineTrivia);
+            comments.Add(builder.ToString());
+            AddEntryComments(comments, value);
+        }
+    }
+
+    private static void AppendComments(StringBuilder builder, List<YamlEditableTrivia>? trivia)
+    {
+        foreach (var item in trivia ?? [])
+        {
+            if (item.Kind != YamlEditableTriviaKind.Comment)
+            {
+                continue;
+            }
+
+            foreach (var c in item.Text)
+            {
+                if (!char.IsWhiteSpace(c))
+                {
+                    builder.Append(c);
+                }
+            }
+
+            builder.Append('\n');
+        }
     }
 
     private YamlSyntaxTree ApplyTextChange(string oldText, string newText)
@@ -198,6 +310,37 @@ public sealed class YamlEditableTree
 
     /// <inheritdoc cref="Serialize" />
     public override string ToString() => Serialize();
+
+    /// <summary>
+    /// Returns the length of the lines of <paramref name="leading"/> up to its last blank line, when a comment is among
+    /// them, or 0.
+    /// </summary>
+    internal static int GetHeaderLength(List<YamlEditableTrivia> leading)
+    {
+        var header = 0;
+        var lineHasComment = false;
+        var hasComment = false;
+        for (var index = 0; index < leading.Count; index++)
+        {
+            switch (leading[index].Kind)
+            {
+                case YamlEditableTriviaKind.Comment:
+                    lineHasComment = true;
+                    hasComment = true;
+                    break;
+                case YamlEditableTriviaKind.NewLine:
+                    if (!lineHasComment && hasComment)
+                    {
+                        header = index + 1;
+                    }
+
+                    lineHasComment = false;
+                    break;
+            }
+        }
+
+        return header;
+    }
 
     /// <summary>
     /// Builds a <see cref="YamlEditableNode"/> tree from the flat, position-sorted token stream
@@ -494,6 +637,18 @@ public sealed class YamlEditableTree
                 : null;
             var node = ParseValue(string.Empty);
             node.LeadingTrivia ??= rootLeading;
+
+            // The comment lines at the start of the document that a blank line separates from the first entry are the
+            // document's own: removing that entry keeps them.
+            if (node is YamlEditableMap { Entries.Count: > 0 } or YamlEditableList { Items.Count: > 0 })
+            {
+                var first = node is YamlEditableMap map ? (YamlEditableNode)map.Entries[0] : ((YamlEditableList)node).Items[0];
+                if (first.LeadingTrivia is { } firstLeading && GetHeaderLength(firstLeading) is var header and > 0)
+                {
+                    node.LeadingTrivia = firstLeading.GetRange(0, header);
+                    first.LeadingTrivia = header < firstLeading.Count ? firstLeading.GetRange(header, firstLeading.Count - header) : null;
+                }
+            }
             if (_position != _significant.Count)
             {
                 throw new NotSupportedException(

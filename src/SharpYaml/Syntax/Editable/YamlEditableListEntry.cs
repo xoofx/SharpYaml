@@ -15,10 +15,26 @@ public sealed class YamlEditableListEntry : YamlEditableNode
     private YamlEditableNode? _value;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="YamlEditableListEntry"/> class.
+    /// Initializes a new instance of the <see cref="YamlEditableListEntry"/> class. Added to a list, the entry is written at
+    /// the column of its other entries, or under the key or the "-" of the list when it is its first entry.
     /// </summary>
     /// <param name="value">The entry's value.</param>
-    /// <param name="indent">The indentation text written before the "-" marker.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="value"/> already has a parent, or is the root of a tree, or holds a block scalar with the keep
+    /// indicator or an indentation indicator ("|+", "|2").
+    /// </exception>
+    public YamlEditableListEntry(YamlEditableNode value)
+        : this(value, string.Empty)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="YamlEditableListEntry"/> class, with the indentation of its "-" when it is
+    /// the first entry of a list. Next to other entries, it is written at their column.
+    /// </summary>
+    /// <param name="value">The entry's value.</param>
+    /// <param name="indent">The indentation text written before the "-" when it is the first entry of a list.</param>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> or <paramref name="indent"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">
     /// <paramref name="value"/> already has a parent, or is the root of a tree, or holds a block scalar with the keep
@@ -32,7 +48,7 @@ public sealed class YamlEditableListEntry : YamlEditableNode
     }
 
     /// <summary>
-    /// Gets the indentation text written before the "-" marker.
+    /// Gets the indentation text written before the "-" marker: empty when it follows the "-" of an outer list item.
     /// </summary>
     public string Indent { get; internal set; }
 
@@ -69,7 +85,7 @@ public sealed class YamlEditableListEntry : YamlEditableNode
     }
 
     /// <inheritdoc />
-    protected override void WriteCore(TextWriter writer)
+    private protected override void WriteCore(TextWriter writer)
     {
         writer.Write(Indent);
         writer.Write('-');

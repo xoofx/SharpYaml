@@ -18,11 +18,29 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     private YamlEditableNode? _value;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="YamlEditableMapEntry"/> class.
+    /// Initializes a new instance of the <see cref="YamlEditableMapEntry"/> class. Added to a map, the entry is written at
+    /// the column of its other entries, or under the key of the map when it is its first entry.
     /// </summary>
     /// <param name="key">The entry's key text (the part before ": ").</param>
     /// <param name="value">The entry's value.</param>
-    /// <param name="indent">The indentation text written before the key on its own line.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> or <paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="value"/> already has a parent, or is the root of a tree, or holds a block scalar with the keep
+    /// indicator or an indentation indicator ("|+", "|2").
+    /// </exception>
+    /// <remarks>The key text is checked when the entry is added to a <see cref="YamlEditableMap"/>.</remarks>
+    public YamlEditableMapEntry(string key, YamlEditableNode value)
+        : this(key, value, string.Empty)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="YamlEditableMapEntry"/> class, with the indentation of its key when it
+    /// is the first entry of a map. Next to other entries, it is written at their column.
+    /// </summary>
+    /// <param name="key">The entry's key text (the part before ": ").</param>
+    /// <param name="value">The entry's value.</param>
+    /// <param name="indent">The indentation text written before the key when it is the first entry of a map.</param>
     /// <exception cref="ArgumentNullException"><paramref name="key"/>, <paramref name="value"/> or <paramref name="indent"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">
     /// <paramref name="value"/> already has a parent, or is the root of a tree, or holds a block scalar with the keep
@@ -63,7 +81,7 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     }
 
     /// <summary>
-    /// Gets the indentation text written before the key on its own line.
+    /// Gets the indentation text written before the key on its own line: empty when the key follows the "-" of a list item.
     /// </summary>
     public string Indent { get; internal set; }
 
@@ -103,7 +121,7 @@ public sealed class YamlEditableMapEntry : YamlEditableNode
     }
 
     /// <inheritdoc />
-    protected override void WriteCore(TextWriter writer)
+    private protected override void WriteCore(TextWriter writer)
     {
         writer.Write(Indent);
         (writer as YamlEditableTextWriter)?.RecordKey(this);
