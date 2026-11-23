@@ -1174,11 +1174,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
                 break;
 
             default:
-                while (!IsBreakOrZero())
-                {
-                    Skip();
-                }
-                directive = new ReservedDirective(start, CurrentPosition);
+                directive = new ReservedDirective(start, ScanReservedDirectiveParameters());
                 break;
         }
 
@@ -1237,7 +1233,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         Skip();
         Skip();
 
-        var token = isStartToken ? (Token)new DocumentStart(start, CurrentPosition) : new DocumentEnd(start, start);
+        var token = isStartToken ? (Token)new DocumentStart(start, CurrentPosition) : new DocumentEnd(start, CurrentPosition);
         tokens.Enqueue(token);
     }
 
@@ -1268,11 +1264,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         Token token;
         if (isSequenceToken)
         {
-            token = new FlowSequenceStart(start, start);
+            token = new FlowSequenceStart(start, CurrentPosition);
         }
         else
         {
-            token = new FlowMappingStart(start, start);
+            token = new FlowMappingStart(start, CurrentPosition);
         }
 
         tokens.Enqueue(token);
@@ -1317,11 +1313,11 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
         Token token;
         if (isSequenceToken)
         {
-            token = new FlowSequenceEnd(start, start);
+            token = new FlowSequenceEnd(start, CurrentPosition);
         }
         else
         {
-            token = new FlowMappingEnd(start, start);
+            token = new FlowMappingEnd(start, CurrentPosition);
         }
 
         tokens.Enqueue(token);
@@ -2890,7 +2886,7 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             throw new SyntaxErrorException(start, CurrentPosition, "The YAML version must be followed by whitespace or a line break.");
         }
 
-        return new VersionDirective(new Version(major, minor), start, start);
+        return new VersionDirective(new Version(major, minor), start, CurrentPosition);
     }
 
     /// <summary>
@@ -2928,7 +2924,37 @@ public class Scanner<TBuffer> where TBuffer : ILookAheadBuffer
             throw new SyntaxErrorException(start, CurrentPosition, "While scanning a %TAG directive, did not find expected whitespace or line break.");
         }
 
-        return new TagDirective(handle, prefix, start, start);
+        return new TagDirective(handle, prefix, start, CurrentPosition);
+    }
+
+    /// <summary>
+    /// Scan the parameters of a reserved directive and return the end of the last one, so that the token leaves out the
+    /// comment after them.
+    ///
+    /// Scope:
+    ///      %FOO    bar#baz  qux   # a comment \n
+    ///          ^^^^^^^^^^^^^^^^^^^
+    /// </summary>
+    private Mark ScanReservedDirectiveParameters()
+    {
+        var end = CurrentPosition;
+        while (true)
+        {
+            SkipWhitespaces();
+
+            // A '#' after a blank starts the comment that ends the line.
+            if (IsBreakOrZero() || Check('#'))
+            {
+                return end;
+            }
+
+            while (!IsBlankOrBreakOrZero())
+            {
+                Skip();
+            }
+
+            end = CurrentPosition;
+        }
     }
 
     /// <summary>

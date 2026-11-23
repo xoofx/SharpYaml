@@ -103,6 +103,26 @@ public class YamlSyntaxTreeTests
     }
 
     [TestMethod]
+    [DataRow("{} # c\n", YamlSyntaxKind.FlowMappingStart, "{")]
+    [DataRow("{} # c\n", YamlSyntaxKind.FlowMappingEnd, "}")]
+    [DataRow("[a] # c\n", YamlSyntaxKind.FlowSequenceStart, "[")]
+    [DataRow("[a] # c\n", YamlSyntaxKind.FlowSequenceEnd, "]")]
+    [DataRow("a\n... # c\n", YamlSyntaxKind.DocumentEnd, "...")]
+    [DataRow("%YAML 1.2 # c\n---\na\n", YamlSyntaxKind.VersionDirective, "%YAML 1.2")]
+    [DataRow("%TAG !e! tag:example.com,2026: # c\n---\n!e!a b\n", YamlSyntaxKind.TagDirective, "%TAG !e! tag:example.com,2026:")]
+    [DataRow("%FOO  bar#baz\tqux # c\n---\na\n", YamlSyntaxKind.Unknown, "%FOO  bar#baz\tqux")]
+    public void ParseGivesAnIndicatorOrADirectiveTheTextOfItsSource(string yaml, YamlSyntaxKind kind, string text)
+    {
+        var tree = YamlSyntaxTree.Parse(yaml);
+
+        var token = tree.Tokens.Single(token => token.Kind == kind);
+        Assert.AreEqual(text, token.Text);
+        Assert.AreEqual(yaml.IndexOf(text, StringComparison.Ordinal), token.Span.Start.Index);
+        Assert.AreEqual("# c", tree.Tokens.Single(token => token.Kind == YamlSyntaxKind.CommentTrivia).Text);
+        AssertTokensDescribeText(tree, yaml);
+    }
+
+    [TestMethod]
     public void ParseListsTokensInSourceOrder()
     {
         var tree = YamlSyntaxTree.Parse("a: 1\r\n# c\r\nb: 2 # d\r\n");
@@ -140,8 +160,8 @@ public class YamlSyntaxTreeTests
 
     /// <summary>
     /// Asserts that the tokens are in source order, that each holds the text of its span, that no two tokens with
-    /// text overlap (so no trivia lies inside a scalar, an anchor or a tag) and that each trivia token holds only
-    /// what its kind says.
+    /// text overlap (so no trivia lies inside a scalar, an anchor or a tag), that together they hold the whole text
+    /// of a tree parsed with trivia and that each trivia token holds only what its kind says.
     /// </summary>
     private static void AssertTokensDescribeText(YamlSyntaxTree tree, string message)
     {
@@ -156,6 +176,7 @@ public class YamlSyntaxTreeTests
             if (end > start)
             {
                 Assert.IsTrue(start >= textEnd, $"{message}: {token} overlaps the text of a previous token.");
+                AssertTextBetweenTokensIsByteOrderMarks(tree.Text, textEnd, start, message);
                 textEnd = end;
             }
 
@@ -173,6 +194,21 @@ public class YamlSyntaxTreeTests
             }
 
             previousStart = start;
+        }
+
+        AssertTextBetweenTokensIsByteOrderMarks(tree.Text, textEnd, tree.Text.Length, message);
+    }
+
+    /// <summary>
+    /// Asserts that the text from <paramref name="start"/> to <paramref name="end"/>, which no token holds, is only byte
+    /// order marks: the scanner skips them and the trivia leaves them out, while every other character is in a token.
+    /// </summary>
+    private static void AssertTextBetweenTokensIsByteOrderMarks(string text, int start, int end, string message)
+    {
+        const char ByteOrderMark = (char)0xFEFF;
+        for (var index = start; index < end; index++)
+        {
+            Assert.AreEqual(ByteOrderMark, text[index], $"{message}: the character at {index} is in no token.");
         }
     }
 

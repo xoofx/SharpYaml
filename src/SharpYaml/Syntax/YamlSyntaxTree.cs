@@ -47,8 +47,10 @@ public sealed class YamlSyntaxTree
     /// Gets parsed syntax tokens, in source order.
     /// </summary>
     /// <remarks>
-    /// Trivia tokens (whitespace, line breaks and comments) cover only the text between the other tokens: a
-    /// <c>#</c>, a space or a line break in the text of a scalar, an anchor, an alias or a tag is part of that token.
+    /// A token spans the text it was read from, such as <c>{</c>, <c>...</c> or <c>%YAML 1.2</c>; a token that only marks
+    /// structure, such as <see cref="YamlSyntaxKind.BlockEnd"/>, is empty. Trivia tokens (whitespace, line breaks and
+    /// comments) cover only the text between the other tokens: a <c>#</c>, a space or a line break in the text of a
+    /// scalar, an anchor, an alias or a tag is part of that token.
     /// </remarks>
     public IReadOnlyList<YamlSyntaxToken> Tokens { get; }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
@@ -29,6 +30,65 @@ public sealed class YamlScannerParserErrorTests
         Assert.IsTrue(ex.Start.Index >= 0);
         Assert.IsTrue(ex.End.Index >= ex.Start.Index);
         StringAssert.Contains(ex.Message, "flow sequence");
+    }
+
+    [TestMethod]
+    [DataRow("%YAML 1.2\n%YAML 1.2\n---\na\n", "%YAML 1.2", "duplicate %YAML")]
+    [DataRow("%TAG !e! tag:a,2026:\n%TAG !e! tag:b,2026:\n---\na\n", "%TAG !e! tag:b,2026:", "duplicate %TAG")]
+    [DataRow("%YAML 2.0 # c\n---\na\n", "%YAML 2.0", "incompatible")]
+    public void Parse_InvalidDirective_MarksTheTextOfTheDirective(string yaml, string text, string message)
+    {
+        var ex = Assert.Throws<SemanticErrorException>(() => YamlSyntaxTree.Parse(yaml));
+
+        var start = yaml.LastIndexOf(text, StringComparison.Ordinal);
+        Assert.AreEqual(start, ex.Start.Index);
+        Assert.AreEqual(start + text.Length, ex.End.Index);
+        StringAssert.Contains(ex.Message, message);
+    }
+
+    [TestMethod]
+    public void Parser_GivesFlowCollectionsAndDocumentEndsTheSpanOfTheirIndicators()
+    {
+        const string yaml = "{a: [b]}\n...\n";
+        var parser = Parser.CreateParser(new StringReader(yaml));
+
+        var spans = new List<string>();
+        while (parser.MoveNext())
+        {
+            var current = parser.Current!;
+            if (current is MappingStart or MappingEnd or SequenceStart or SequenceEnd or DocumentEnd)
+            {
+                spans.Add($"{current.GetType().Name} '{yaml.Substring(current.Start.Index, current.End.Index - current.Start.Index)}'");
+            }
+        }
+
+        CollectionAssert.AreEqual(
+            new[] { "MappingStart '{'", "SequenceStart '['", "SequenceEnd ']'", "MappingEnd '}'", "DocumentEnd '...'" },
+            spans);
+    }
+
+    [TestMethod]
+    [DataRow("[? ]\n", 3)]
+    [DataRow("[? : x]\n", 3)]
+    [DataRow("[? , y]\n", 3)]
+    public void Parser_PlacesAnEmptyKeyOfAFlowSequenceEntryAtTheTokenAfterIt(string yaml, int index)
+    {
+        var parser = Parser.CreateParser(new StringReader(yaml));
+
+        Scalar? key = null;
+        while (parser.MoveNext())
+        {
+            if (parser.Current is Scalar scalar)
+            {
+                key = scalar;
+                break;
+            }
+        }
+
+        Assert.IsNotNull(key);
+        Assert.AreEqual(string.Empty, key!.Value);
+        Assert.AreEqual(index, key.Start.Index);
+        Assert.AreEqual(index, key.End.Index);
     }
 
     [TestMethod]

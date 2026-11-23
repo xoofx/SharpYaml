@@ -1073,9 +1073,9 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         }
         else
         {
-            var mark = GetCurrentToken().End;
+            // As in a flow mapping, the empty key sits where the ':', ',' or ']' after it starts.
             state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_VALUE_STATE;
-            return ProcessEmptyScalar(mark);
+            return ProcessEmptyScalar(GetCurrentToken().Start);
         }
     }
 

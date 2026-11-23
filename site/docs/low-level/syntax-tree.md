@@ -197,6 +197,10 @@ Parse errors throw [`YamlException`](xref:SharpYaml.YamlException) with location
 
 The syntax tree exposes a flat list of [`YamlSyntaxToken`](xref:SharpYaml.Syntax.YamlSyntaxToken) with spans and text, in source order.
 
+A token spans the text it was read from: an indicator such as `{`, `]` or `...`, or a whole directive such as
+`%YAML 1.2` or `%TAG !e! tag:example.com,2026:`. Tokens that only mark structure, such as `BlockMappingStart`, `BlockEnd`
+or the key of `a: 1`, are empty. With trivia, the tokens hold every character of the text but a byte order mark.
+
 Trivia tokens (whitespace, line breaks and comments) cover only the text between the other tokens. A `#`, a space or a
 line break inside a scalar, an anchor, an alias or a tag is part of that token: `color: '#fff' # white` gives the
 scalar `'#fff'` and the comment `# white`. A block scalar token holds its header line, with any comment on it, and its
