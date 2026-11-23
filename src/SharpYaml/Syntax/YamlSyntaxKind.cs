@@ -133,4 +133,10 @@ public enum YamlSyntaxKind
     /// Tag directive token.
     /// </summary>
     TagDirective,
+
+    /// <summary>
+    /// Reserved directive token: a directive other than <c>%YAML</c> and <c>%TAG</c>, such as <c>%FOO bar</c>, which the
+    /// parser ignores.
+    /// </summary>
+    ReservedDirective,
 }

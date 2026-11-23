@@ -361,6 +361,7 @@ public sealed class YamlSyntaxTree
             AnchorAlias => YamlSyntaxKind.AnchorAlias,
             VersionDirective => YamlSyntaxKind.VersionDirective,
             TagDirective => YamlSyntaxKind.TagDirective,
+            ReservedDirective => YamlSyntaxKind.ReservedDirective,
             _ => YamlSyntaxKind.Unknown,
         };
     }

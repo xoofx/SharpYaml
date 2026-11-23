@@ -110,7 +110,7 @@ public class YamlSyntaxTreeTests
     [DataRow("a\n... # c\n", YamlSyntaxKind.DocumentEnd, "...")]
     [DataRow("%YAML 1.2 # c\n---\na\n", YamlSyntaxKind.VersionDirective, "%YAML 1.2")]
     [DataRow("%TAG !e! tag:example.com,2026: # c\n---\n!e!a b\n", YamlSyntaxKind.TagDirective, "%TAG !e! tag:example.com,2026:")]
-    [DataRow("%FOO  bar#baz\tqux # c\n---\na\n", YamlSyntaxKind.Unknown, "%FOO  bar#baz\tqux")]
+    [DataRow("%FOO  bar#baz\tqux # c\n---\na\n", YamlSyntaxKind.ReservedDirective, "%FOO  bar#baz\tqux")]
     public void ParseGivesAnIndicatorOrADirectiveTheTextOfItsSource(string yaml, YamlSyntaxKind kind, string text)
     {
         var tree = YamlSyntaxTree.Parse(yaml);
