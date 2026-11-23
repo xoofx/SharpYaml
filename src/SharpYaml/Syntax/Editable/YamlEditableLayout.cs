@@ -98,6 +98,14 @@ internal static class YamlEditableLayout
             AfterEmptinessChanged(collection, removedEntry: null);
         }
 
+        // A document read without a final line break keeps ending without one.
+        if (index == entries.Count && IsAtEndOfDocument(collection) && GetRoot(collection).Tree is { EndsWithoutLineBreak: true })
+        {
+            RemoveFinalLineBreak(entry);
+        }
+
+        entry.DetachedRoot = null;
+
         if (rootBefore is not null)
         {
             // Removing the entries again gives back the text of the empty root.
@@ -118,8 +126,10 @@ internal static class YamlEditableLayout
         var endsDocument = index == entries.Count - 1 && IsAtEndOfDocument(collection)
             && (FindNewLine(GetLastLineOwner(entry).EndOfLineTrivia) is null || GetRoot(collection).Tree is { EndsWithoutLineBreak: true });
 
-        // An entry added again elsewhere moves the lines of its value from this column.
+        // An entry added again elsewhere moves the lines of its value from this column, and keeps its line breaks in the
+        // same document.
         entry.DetachedColumn = GetColumn(entry).Length;
+        entry.DetachedRoot = GetRoot(collection);
         if (index == 0 && entries.Count > 1)
         {
             PrepareRemoveFirst(collection, entries[1]);
@@ -143,6 +153,12 @@ internal static class YamlEditableLayout
         if (endsDocument)
         {
             EndDocumentWithoutLineBreak(collection);
+
+            // The layout to restore when an entry is added again is the one without the line break.
+            if (entries.Count == 1 && collection.Parent is YamlEditableEntry owner && owner.LayoutMemo is { } memo)
+            {
+                memo.Produced = Fingerprint(owner.SeparatorTrivia, owner.EndOfLineTrivia);
+            }
         }
     }
 
@@ -228,7 +244,7 @@ internal static class YamlEditableLayout
                     EnsureEndsWithNewLine(entry, lineBreak);
                 }
 
-                UseNewLine(entry, lineBreak);
+                UseNewLineOf(collection, entry, lineBreak);
             }
             else if (GetEmptyFlowText(collection) is not null && collection.LeadingTrivia is { Count: > 0 } flowLeading
                 && flowLeading[flowLeading.Count - 1] is { Kind: YamlEditableTriviaKind.Whitespace } flowIndent)
@@ -249,7 +265,7 @@ internal static class YamlEditableLayout
 
             if (GetEmptyFlowText(collection) is not null)
             {
-                UseNewLine(entry, GetDocumentNewLine(collection));
+                UseNewLineOf(collection, entry, GetDocumentNewLine(collection));
 
                 // The comment on the line of a root "{} # comment" stays with the root: a comment line above its entries.
                 if (collection.Tree?.TrailingTrivia is { } rootTrailing
@@ -293,7 +309,7 @@ internal static class YamlEditableLayout
             // line without one, as the document was.
             var documentNewLine = GetDocumentNewLine(previous);
             (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, documentNewLine));
-            UseNewLine(entry, documentNewLine);
+            UseNewLineOf(collection, entry, documentNewLine);
             RemoveFinalLineBreak(entry);
         }
         else
@@ -308,7 +324,7 @@ internal static class YamlEditableLayout
                 EnsureEndsWithNewLine(entry, newLine);
             }
 
-            UseNewLine(entry, newLine.Text);
+            UseNewLineOf(collection, entry, newLine.Text);
         }
 
         KeepCommentsOutOfBlockScalars(entry);
@@ -352,7 +368,7 @@ internal static class YamlEditableLayout
     {
         var newLine = FindNewLine(GetLastLineOwner(next).EndOfLineTrivia)?.Text ?? GetDocumentNewLine(next);
         EnsureEndsWithNewLine(entry, newLine);
-        UseNewLine(entry, newLine);
+        UseNewLineOf(next, entry, newLine);
         KeepCommentsOutOfBlockScalars(entry);
     }
 
@@ -592,6 +608,18 @@ internal static class YamlEditableLayout
         }
 
         return kept;
+    }
+
+    /// <summary>
+    /// Writes the line breaks of <paramref name="entry"/>, added to <paramref name="target"/> or next to it, as
+    /// <paramref name="newLine"/>, unless the entry was removed from the same document, whose line breaks it keeps.
+    /// </summary>
+    private static void UseNewLineOf(YamlEditableNode target, YamlEditableEntry entry, string newLine)
+    {
+        if (entry.DetachedRoot is null || !ReferenceEquals(entry.DetachedRoot, GetRoot(target)))
+        {
+            UseNewLine(entry, newLine);
+        }
     }
 
     /// <summary>
@@ -926,24 +954,18 @@ internal static class YamlEditableLayout
     }
 
     /// <summary>
-    /// Returns the end of the last line of <paramref name="text"/> that is not blank: what follows it is only line breaks and
-    /// spaces.
+    /// Returns the length of <paramref name="text"/> without the line breaks at its end. A line of spaces or tabs is kept: in
+    /// a block scalar, it can be content.
     /// </summary>
     private static int GetContentEnd(string text)
     {
-        var last = text.Length - 1;
-        while (last >= 0 && text[last] is ' ' or '\t' or '\r' or '\n')
+        var end = text.Length;
+        while (end > 0 && text[end - 1] is '\r' or '\n')
         {
-            last--;
+            end--;
         }
 
-        if (last < 0)
-        {
-            return text.Length;
-        }
-
-        var lineEnd = text.IndexOfAny(['\r', '\n'], last);
-        return lineEnd < 0 ? text.Length : lineEnd;
+        return end;
     }
 
     /// <summary>

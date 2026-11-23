@@ -142,8 +142,9 @@ scalar's value.
 
 - `YamlEditableScalar.Text` is **raw YAML source**, as with `WithTextChange`, with its quotes:
   use `"\"null\""` to write the string `null`. `YamlEditableScalar.Value` is the string the
-  text is read as where the tree writes it, without quotes and with escapes resolved; it is not the
-  value of a schema (the text `1` is the string `1`). A key or a sequence entry without a value
+  scalar is read as, without quotes and with escapes resolved: the value it had when the document was
+  parsed or when `ToSyntaxTree` last succeeded, or, once its text is set, the value of that text where
+  the tree writes it. It is not the value of a schema (the text `1` is the string `1`). A key or a sequence entry without a value
   (`key:`, `-`) is a scalar with empty text.
 - `YamlEditableMappingEntry.KeyText` is the source of a key and `KeyValue` the string it is read
   as. `GetValue`, `GetEntry` and `RemoveEntry` find a key by its value, so `GetValue("name")` also

@@ -69,8 +69,9 @@ public abstract class YamlEditableEntry : YamlEditableNode
     /// <summary>
     /// Gets or sets the trivia between the ":" of the key or the "-" and the value: the spaces before a value on the line of
     /// the entry, or the comment and the line break of that line when the value starts on a later line (a mapping, a
-    /// sequence, or a value on the line after its key). <see langword="null"/> writes a space before a value on the line, or
-    /// a line break before a mapping or a sequence.
+    /// sequence, or a value on the line after its key). <see langword="null"/> writes a space before a value on the line of
+    /// the entry, including the first entry of the mapping or sequence of a sequence entry ("- key: value"), and a line break
+    /// before the mapping or sequence of a mapping entry.
     /// </summary>
     public List<YamlEditableTrivia>? SeparatorTrivia { get; set; }
 
@@ -92,4 +93,10 @@ public abstract class YamlEditableEntry : YamlEditableNode
     /// move from there when it is added again.
     /// </summary>
     internal int? DetachedColumn { get; set; }
+
+    /// <summary>
+    /// Gets or sets the root of the tree this entry was removed from: added again to the same document, it keeps its line
+    /// breaks.
+    /// </summary>
+    internal YamlEditableNode? DetachedRoot { get; set; }
 }

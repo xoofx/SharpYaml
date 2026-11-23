@@ -2037,7 +2037,7 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    public void SetValue_HashInAQuotedValueBeforeAComment_KeepsTheComment()
+    public void SetValue_QuotedValueBeforeAComment_KeepsTheComment()
     {
         var tree = YamlEditableTree.Parse("color: red # keep\n");
 
@@ -2134,5 +2134,60 @@ public class YamlEditableTreeTests
         Assert.AreEqual("c", entries[1].KeyValue);
         Assert.AreSame(entries[2], RootOf(tree).GetEntry("d"));
         Assert.IsNull(RootOf(tree).GetEntry("e"));
+    }
+    [TestMethod]
+    [DataRow("|-\n  x\n  \t", "a: |-\n  x\n  \t\n", "x\n\t")]
+    [DataRow("|-\n  x\n     ", "a: |-\n  x\n     \n", "x\n   ")]
+    [DataRow("|\n  x\n\n", "a: |\n  x\n", "x\n")]
+    public void SetValue_BlockScalarWhoseLastLineIsSpaces_KeepsThatLine(string text, string expected, string value)
+    {
+        var tree = YamlEditableTree.Parse("a: old\n");
+        Assert.AreEqual(value, new YamlEditableScalar(text).Value);
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar(text));
+
+        AssertEdited(expected, tree);
+        Assert.AreEqual(value, ((YamlEditableScalar)RootOf(YamlEditableTree.Parse(expected)).GetValue("a")!).Value);
+    }
+
+    [TestMethod]
+    public void ToSyntaxTree_HeaderOfTheDocumentReadAsTheCommentOfItsFirstEntry_Throws()
+    {
+        var tree = YamlEditableTree.Parse("# doc\n\na: 1\nb: 2\n");
+        var leading = tree.Root.LeadingTrivia!;
+
+        leading.RemoveAt(leading.Count - 1);
+
+        Assert.AreEqual("# doc\na: 1\nb: 2\n", tree.Serialize());
+        Assert.ThrowsExactly<InvalidOperationException>(() => tree.ToSyntaxTree());
+    }
+
+    [TestMethod]
+    [DataRow("-\n  a: 1")]
+    [DataRow("- a: 1\r\n  b: 2\n")]
+    [DataRow("k:\n  a: 1")]
+    public void RemoveThenInsert_FirstKey_GivesBackTheTextWithItsLineBreaks(string yaml)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        var map = tree.Root is YamlEditableSequence sequence ? (YamlEditableMapping)sequence.Items[0].Value : (YamlEditableMapping)RootOf(tree).GetValue("k")!;
+        var a = map.Entries[0];
+
+        map.RemoveEntry("a");
+        map.InsertEntry(0, a);
+
+        AssertEdited(yaml, tree);
+    }
+
+    [TestMethod]
+    public void AddEntry_MovedToAnEmptyMappingAtTheEndOfADocumentWithoutFinalLineBreak_KeepsNoFinalLineBreak()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\nb: {}");
+        var root = RootOf(tree);
+        var a = root.GetEntry("a")!;
+
+        root.RemoveEntry("a");
+        ((YamlEditableMapping)root.GetValue("b")!).AddEntry(a);
+
+        AssertEdited("b:\n  a: 1", tree);
     }
 }

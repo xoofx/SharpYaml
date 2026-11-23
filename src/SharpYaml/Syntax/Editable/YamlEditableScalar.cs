@@ -95,8 +95,10 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// <summary>
     /// Gets the value of this scalar as YAML reads it: without its quotes, with its escapes and its line folding resolved
     /// (the text <c>"a\tb"</c> is <c>a</c>, a tab and <c>b</c>), and empty for a missing value. It is the string that the
-    /// parser reads, not the value of a schema: the text <c>1</c> is the string <c>1</c>. A scalar in a tree is read where
-    /// the text of the tree has it; a scalar that is not in a tree is read as the value of a sequence entry ("- text").
+    /// parser reads, not the value of a schema: the text <c>1</c> is the string <c>1</c>. It is the value the scalar had when
+    /// the document was parsed or when <see cref="YamlEditableTree.ToSyntaxTree"/> last succeeded, until its text is set,
+    /// which ToSyntaxTree checks that the edits keep. A scalar whose text was set since is read where the text of its tree
+    /// has it, or, when it is not in a tree, as the value of a sequence entry ("- text").
     /// </summary>
     /// <exception cref="YamlException">The text, or the text of the tree, is not valid YAML.</exception>
     /// <exception cref="InvalidOperationException">

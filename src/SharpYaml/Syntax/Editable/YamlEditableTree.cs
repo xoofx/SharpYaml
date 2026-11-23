@@ -182,18 +182,27 @@ public sealed class YamlEditableTree
     private void VerifyComments(YamlSyntaxTree written)
     {
         List<string> read;
+        string readHeader;
         try
         {
             var builder = new Builder(written.Tokens);
             var root = builder.BuildRoot();
-            read = GetComments(root, builder.TrailingTrivia);
+            read = GetComments(root, builder.TrailingTrivia, out readHeader);
         }
         catch (NotSupportedException exception)
         {
             throw new InvalidOperationException("The edits cannot be applied: the edited text could not be read again as an editable tree.", exception);
         }
 
-        var expected = GetComments(Root, TrailingTrivia);
+        // The comment lines above the first entry may be read as the header of the document, but the header stays the
+        // document's.
+        var expected = GetComments(Root, TrailingTrivia, out var header);
+        if (!readHeader.StartsWith(header, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The edits cannot be applied: a comment of the header of the document would be read as the comment of its first entry once the edited text is read again.");
+        }
+
         for (var index = 0; index < Math.Max(expected.Count, read.Count); index++)
         {
             if (index >= read.Count || index >= expected.Count || !string.Equals(expected[index], read[index], StringComparison.Ordinal))
@@ -210,7 +219,7 @@ public sealed class YamlEditableTree
     /// they are written: the lines above it, on its line, and in the header of a block scalar value, and last the comments
     /// after the last entry. Spaces are not compared, so that two comments written on one line read as one.
     /// </summary>
-    private static List<string> GetComments(YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia)
+    private static List<string> GetComments(YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia, out string header)
     {
         var comments = new List<string>();
         var builder = new StringBuilder();
@@ -219,6 +228,8 @@ public sealed class YamlEditableTree
         {
             AppendComments(builder, YamlEditableLayout.GetHeaderComment(scalar.Text));
         }
+
+        header = builder.ToString();
 
         var first = root switch
         {

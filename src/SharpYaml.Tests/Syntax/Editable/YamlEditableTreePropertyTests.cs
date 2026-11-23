@@ -159,6 +159,7 @@ public class YamlEditableTreePropertyTests
             var tree = YamlEditableTree.Parse(yaml);
             var original = Owners(tree);
             FindDetachable(tree);
+            RequestedValues.Clear();
             var steps = new List<string>();
             var committed = Scalars(tree.Root).ToDictionary(scalar => scalar, scalar => scalar.Value, ReferenceEqualityComparer.Instance);
             var textSet = new HashSet<YamlEditableScalar>(ReferenceEqualityComparer.Instance);
@@ -195,10 +196,21 @@ public class YamlEditableTreePropertyTests
                     break;
                 }
 
-                // A scalar whose text was not set keeps the value it had when the edits were last applied.
+                // A new scalar is read as the value it was written for, and a scalar whose text was not set keeps the value it
+                // had when the edits were last applied.
                 foreach (var scalar in Scalars(tree.Root))
                 {
                     var value = scalar.Value;
+                    if (RequestedValues.TryGetValue(scalar, out var requested))
+                    {
+                        if (requested != value)
+                        {
+                            failures.Add($"{description}: {Escape(tree.Serialize())}: a new scalar written for {Escape(requested)} is read as {Escape(value)}");
+                        }
+
+                        RequestedValues.Remove(scalar);
+                    }
+
                     if (!textSet.Contains(scalar) && committed.TryGetValue(scalar, out var before) && before != value)
                     {
                         failures.Add($"{description}: {Escape(tree.Serialize())}: a scalar read as {Escape(before)} is now read as {Escape(value)}");
@@ -364,29 +376,42 @@ public class YamlEditableTreePropertyTests
 
     private static YamlEditableNode NewValue(int kind, int id) => kind switch
     {
-        0 => new YamlEditableScalar("v" + id),
-        1 => new YamlEditableScalar("\"q" + id + "\""),
-        2 => new YamlEditableScalar(string.Empty),
+        0 => Requested("v" + id, "v" + id),
+        1 => Requested("\"q" + id + "\"", "q" + id),
+        2 => Requested(string.Empty, string.Empty),
         3 => new YamlEditableMapping(),
         4 => new YamlEditableSequence(),
         5 => NewMap(id),
         6 => NewList(id),
-        _ => new YamlEditableScalar("|\n  b" + id + "\n"),
+        _ => Requested("|\n  b" + id + "\n", "b" + id + "\n"),
     };
+
+    // The value that each new scalar is expected to be read as, until the edits are first applied.
+    [ThreadStatic]
+    private static Dictionary<YamlEditableScalar, string>? _requested;
+
+    private static Dictionary<YamlEditableScalar, string> RequestedValues => _requested ??= new(ReferenceEqualityComparer.Instance);
+
+    private static YamlEditableScalar Requested(string text, string value)
+    {
+        var scalar = new YamlEditableScalar(text);
+        RequestedValues[scalar] = value;
+        return scalar;
+    }
 
     private static YamlEditableMapping NewMap(int id)
     {
         var map = new YamlEditableMapping();
-        map.SetValue("m" + id, new YamlEditableScalar("1"));
-        map.SetValue("n" + id, new YamlEditableScalar("2"));
+        map.SetValue("m" + id, Requested("1", "1"));
+        map.SetValue("n" + id, Requested("2", "2"));
         return map;
     }
 
     private static YamlEditableSequence NewList(int id)
     {
         var list = new YamlEditableSequence();
-        list.AddEntry(new YamlEditableSequenceEntry(new YamlEditableScalar("i" + id), string.Empty));
-        list.AddEntry(new YamlEditableSequenceEntry(new YamlEditableScalar("j" + id), string.Empty));
+        list.AddEntry(new YamlEditableSequenceEntry(Requested("i" + id, "i" + id), string.Empty));
+        list.AddEntry(new YamlEditableSequenceEntry(Requested("j" + id, "j" + id), string.Empty));
         return list;
     }
 
@@ -398,17 +423,18 @@ public class YamlEditableTreePropertyTests
         if (choice == 9 && scalars.Count > 0)
         {
             var scalar = scalars[random.Next(scalars.Count)];
-            var text = random.Next(7) switch
+            var (text, value) = random.Next(7) switch
             {
-                0 => "t" + step,
-                1 => "'t" + step + "'",
-                2 => "t" + step + "\nu" + step,
-                3 => "\"t" + step + "\n u" + step + "\"",
-                4 => "|\n t" + step + "\n",
-                5 => ">-\n  t" + step + "\n\n  u" + step,
-                _ => string.Empty,
+                0 => ("t" + step, "t" + step),
+                1 => ("'t" + step + "'", "t" + step),
+                2 => ("t" + step + "\nu" + step, "t" + step + " u" + step),
+                3 => ("\"t" + step + "\n u" + step + "\"", "t" + step + " u" + step),
+                4 => ("|\n t" + step + "\n", "t" + step + "\n"),
+                5 => (">-\n  t" + step + "\n\n  u" + step, "t" + step + "\nu" + step),
+                _ => (string.Empty, string.Empty),
             };
             scalar.Text = text;
+            RequestedValues[scalar] = value;
             textSet.Add(scalar);
             return $"text {Path(scalar)} = {Escape(text)}";
         }
