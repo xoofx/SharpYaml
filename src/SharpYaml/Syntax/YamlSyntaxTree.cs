@@ -180,7 +180,8 @@ public sealed class YamlSyntaxTree
     {
         var scanner = new Scanner<StringLookAheadBuffer>(new StringLookAheadBuffer(yaml));
         // Where the text not yet read for trivia starts: the end of the last token that has text.
-        var triviaStart = new Mark(0, 0, 0);
+        // A byte order mark at the start of the text is in no token and takes no column, as in the marks of the scanner.
+        var triviaStart = yaml.Length > 0 && yaml[0] == '\uFEFF' ? new Mark(1, 0, 0) : new Mark(0, 0, 0);
         while (scanner.MoveNext())
         {
             var token = scanner.Current;

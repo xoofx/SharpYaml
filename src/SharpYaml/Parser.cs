@@ -903,8 +903,9 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         }
         else
         {
+            // A sequence at the column of its key has no end of its own: it ends where the next token starts.
             state = states.Pop();
-            return CreateSequenceEnd(GetCurrentToken().Start, GetCurrentToken().End);
+            return CreateSequenceEnd(GetCurrentToken().Start, GetCurrentToken().Start);
         }
     }
 

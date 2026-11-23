@@ -98,6 +98,7 @@ public sealed class YamlScannerParserErrorTests
     [DataRow("{a: !t }", "StreamStart 0-0,DocumentStart 0-0,MappingStart 0-1,Scalar 1-2,Scalar 4-6,MappingEnd 7-8,DocumentEnd 8-8,StreamEnd 8-8")]
     [DataRow("[? : x]", "StreamStart 0-0,DocumentStart 0-0,SequenceStart 0-1,MappingStart 1-2,Scalar 3-3,Scalar 5-6,MappingEnd 6-6,SequenceEnd 6-7,DocumentEnd 7-7,StreamEnd 7-7")]
     [DataRow("a", "StreamStart 0-0,DocumentStart 0-0,Scalar 0-1,DocumentEnd 1-1,StreamEnd 1-1")]
+    [DataRow("a:\n- b\n? c\n: d\n", "StreamStart 0-0,DocumentStart 0-0,MappingStart 0-0,Scalar 0-1,SequenceStart 3-4,Scalar 5-6,SequenceEnd 7-7,Scalar 9-10,Scalar 13-14,MappingEnd 15-15,DocumentEnd 15-15,StreamEnd 15-15")]
     [DataRow("[: b]", "StreamStart 0-0,DocumentStart 0-0,SequenceStart 0-1,MappingStart 1-1,Scalar 1-1,Scalar 3-4,MappingEnd 4-4,SequenceEnd 4-5,DocumentEnd 5-5,StreamEnd 5-5")]
     public void Parser_GivesEachEventTheTextItWasReadFrom(string yaml, string expected)
     {
@@ -112,6 +113,20 @@ public sealed class YamlScannerParserErrorTests
         }
 
         Assert.AreEqual(expected, string.Join(",", spans));
+    }
+
+    [TestMethod]
+    public void Parse_ByteOrderMarkBeforeSpaces_TakesNoColumn()
+    {
+        var tree = YamlSyntaxTree.Parse("\uFEFF a\n");
+
+        var whitespace = tree.Tokens.First(token => token.Kind == YamlSyntaxKind.WhitespaceTrivia);
+        var scalar = tree.Tokens.First(token => token.Kind == YamlSyntaxKind.Scalar);
+        Assert.AreEqual(1, whitespace.Span.Start.Index);
+        Assert.AreEqual(0, whitespace.Span.Start.Column);
+        Assert.AreEqual(scalar.Span.Start.Index, whitespace.Span.End.Index);
+        Assert.AreEqual(scalar.Span.Start.Column, whitespace.Span.End.Column);
+        Assert.AreEqual(1, scalar.Span.Start.Column);
     }
 
     [TestMethod]

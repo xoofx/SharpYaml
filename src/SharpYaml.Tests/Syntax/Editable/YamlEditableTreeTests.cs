@@ -2367,4 +2367,40 @@ public class YamlEditableTreeTests
 
         AssertEdited("a: 1  \n", tree);
     }
+
+    [TestMethod]
+    public void RemoveEntry_InADocumentWhoseEntryWasMovedToAnother_DoesNotChangeTheOther()
+    {
+        var source = YamlEditableTree.Parse("{}  \n");
+        var target = YamlEditableTree.Parse("z: 9\n");
+        var a = new YamlEditableMappingEntry("a", new YamlEditableScalar("1"));
+        RootOf(source).AddEntry(a);
+        RootOf(source).SetValue("b", new YamlEditableScalar("2"));
+        RootOf(source).RemoveEntry("a");
+        RootOf(target).AddEntry(a);
+        var moved = target.Serialize();
+
+        RootOf(source).RemoveEntry("b");
+
+        Assert.AreEqual(moved, target.Serialize());
+        AssertEdited("{}  \n", source);
+    }
+
+    [TestMethod]
+    public void AddRemoveAdd_EntryThatTookTheSpacesOfTheRootBeforeItsValueBecameAMap_KeepsTheSpacesOnce()
+    {
+        var tree = YamlEditableTree.Parse("{}  \n");
+        var a = new YamlEditableMappingEntry("a", new YamlEditableScalar("1"));
+        var nested = new YamlEditableMapping();
+        nested.SetValue("x", new YamlEditableScalar("1"));
+
+        RootOf(tree).AddEntry(a);
+        RootOf(tree).SetValue("a", nested);
+        RootOf(tree).RemoveEntry("a");
+        AssertEdited("{}  \n", tree);
+        RootOf(tree).AddEntry(a);
+
+        Assert.AreEqual(1, tree.Serialize().Split("  \n").Length - 1, tree.Serialize());
+        tree.ToSyntaxTree();
+    }
 }

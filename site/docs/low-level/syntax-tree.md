@@ -196,9 +196,10 @@ Parse errors throw [`YamlException`](xref:SharpYaml.YamlException) with location
 
 A parser event spans the text it was read from, with the anchor and the tag before its node: a scalar, an alias, the
 indicator that starts or ends a flow collection (`[`, `}`), a `---` or a `...`; an empty scalar with an anchor spans
-the anchor (`&a` in `[&a]`). An event that no text stands for is empty, at the start of the next token: an implicit
-document start, the start and the end of a block collection, the end of the mapping of a flow sequence entry
-(`[a: b]`), and an empty scalar without an anchor or a tag.
+the anchor (`&a` in `[&a]`), and a sequence at the column of its key (`key:\n- a`) starts with its first `-`. An
+event that no text stands for is empty, at the start of the next token: an implicit document start, the start of any
+other block collection, the end of a block collection, the end of the mapping of a flow sequence entry (`[a: b]`), and
+an empty scalar without an anchor or a tag.
 
 ## Tokens
 
