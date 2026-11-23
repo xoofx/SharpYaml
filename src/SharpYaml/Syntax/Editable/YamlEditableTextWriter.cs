@@ -19,8 +19,8 @@ internal sealed class YamlEditableTextWriter : StringWriter
 {
     // The nodes do not override Equals: they are compared by reference.
     private readonly Dictionary<YamlEditableNode, Span> _spans = [];
-    private readonly Dictionary<YamlEditableMapEntry, Span> _keys = [];
-    private bool _recordValues;
+    private readonly Dictionary<YamlEditableMappingEntry, Span> _keys = [];
+    private readonly Dictionary<YamlEditableScalar, string> _values = [];
 
     /// <summary>
     /// Records that <paramref name="text"/>, the text of <paramref name="node"/> (a scalar, or an empty map or list in
@@ -37,9 +37,9 @@ internal sealed class YamlEditableTextWriter : StringWriter
     /// <summary>
     /// Records that the key of <paramref name="entry"/> is written next.
     /// </summary>
-    public void RecordKey(YamlEditableMapEntry entry)
+    public void RecordKey(YamlEditableMappingEntry entry)
     {
-        if (CreateSpan(entry.Key) is { } span)
+        if (CreateSpan(entry.KeyText) is { } span)
         {
             _keys[entry] = span;
         }
@@ -73,15 +73,14 @@ internal sealed class YamlEditableTextWriter : StringWriter
 
     /// <summary>
     /// Parses the text written for <paramref name="root"/> and throws unless it reads back as the same tree: the same
-    /// maps, lists and scalars, nested the same way, each scalar and key read exactly from the text written for it,
-    /// without a tag or an anchor, and each scalar whose text was not set read as the value it was read as by
-    /// <see cref="YamlEditableTree.Parse"/>. With <paramref name="recordValues"/>, for the parsed document, records these
-    /// values instead.
+    /// mappings, sequences and scalars, nested the same way, each scalar and key read exactly from the text written for it,
+    /// without a tag or an anchor, a missing value read as nothing, and each scalar with a recorded value read as that
+    /// value. Returns the value each scalar is read as.
     /// </summary>
     /// <exception cref="InvalidOperationException">The text does not read back as the tree.</exception>
-    public void Verify(YamlEditableNode root, bool recordValues)
+    public Dictionary<YamlEditableScalar, string> Verify(YamlEditableNode root)
     {
-        _recordValues = recordValues;
+        _values.Clear();
         var events = new List<ParsingEvent>();
         var parser = Parser.CreateParser(new StringReader(ToString()));
         while (parser.MoveNext())
@@ -91,17 +90,18 @@ internal sealed class YamlEditableTextWriter : StringWriter
 
         var reader = new EventReader(events, ToString());
         reader.Expect<StreamStart>();
-        if (root is YamlEditableMap { Entries.Count: 0, EmptyFlowText: null })
+        if (root is YamlEditableMapping { Entries.Count: 0, EmptyFlowText: null })
         {
             // A document without content.
             reader.Expect<StreamEnd>();
-            return;
+            return _values;
         }
 
         reader.Expect<DocumentStart>();
         ExpectNode(reader, root);
         reader.Expect<DocumentEnd>();
         reader.Expect<StreamEnd>();
+        return _values;
     }
 
     private void ExpectNode(EventReader reader, YamlEditableNode node)
@@ -114,11 +114,7 @@ internal sealed class YamlEditableTextWriter : StringWriter
                 var value = _spans.TryGetValue(scalar, out var span)
                     ? ((Scalar)reader.ExpectWritten(span, asScalar: true)).Value
                     : reader.ExpectEmptyScalar();
-                if (_recordValues)
-                {
-                    scalar.ReadValue = value;
-                }
-                else if (scalar.ReadValue is not null && !string.Equals(scalar.ReadValue, value, StringComparison.Ordinal))
+                if (scalar.ReadValue is not null && !string.Equals(scalar.ReadValue, value, StringComparison.Ordinal))
                 {
                     // An untouched scalar keeps its value: a line break, a blank line or a column that changes around it
                     // can change the value of a block scalar.
@@ -126,14 +122,15 @@ internal sealed class YamlEditableTextWriter : StringWriter
                         "The edits cannot be applied: they would change the value of a scalar whose text was not changed.");
                 }
 
+                _values[scalar] = value;
                 break;
-            case YamlEditableMap { Entries.Count: 0 } map:
+            case YamlEditableMapping { Entries.Count: 0 } map:
                 reader.ExpectWritten(_spans[map], asScalar: false);
                 break;
-            case YamlEditableList { Items.Count: 0 } list:
+            case YamlEditableSequence { Items.Count: 0 } list:
                 reader.ExpectWritten(_spans[list], asScalar: false);
                 break;
-            case YamlEditableMap map:
+            case YamlEditableMapping map:
                 reader.Expect<MappingStart>();
                 foreach (var entry in map.Entries)
                 {
@@ -151,7 +148,7 @@ internal sealed class YamlEditableTextWriter : StringWriter
 
                 reader.Expect<MappingEnd>();
                 break;
-            case YamlEditableList list:
+            case YamlEditableSequence list:
                 reader.Expect<SequenceStart>();
                 foreach (var item in list.Items)
                 {
@@ -185,7 +182,9 @@ internal sealed class YamlEditableTextWriter : StringWriter
 
         public string ExpectEmptyScalar()
         {
-            if (Next() is not Scalar { Value.Length: 0, Tag: null, Anchor: null } scalar)
+            // A missing value has no text: "" or '' is an empty string, not a missing value.
+            if (Next() is not Scalar { Value.Length: 0, Tag: null, Anchor: null, Style: ScalarStyle.Plain } scalar
+                || scalar.Start.Index != scalar.End.Index)
             {
                 throw Mismatch(_events[_index - 1].Start);
             }

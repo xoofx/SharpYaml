@@ -9,10 +9,9 @@ using System.IO;
 namespace SharpYaml.Syntax.Editable;
 
 /// <summary>
-/// Base class for a node in an editable YAML tree. Mirrors the design of
-/// Tomlyn.Syntax.SyntaxNode: comments and blank lines are kept as trivia
-/// attached to nodes, children are set through typed properties that reparent the child, and
-/// <see cref="WriteTo(TextWriter)"/> reproduces the original text unless a node was edited.
+/// Base class of a node of an editable YAML tree: a mapping, a sequence, an entry or a scalar. Comments and blank lines are
+/// kept as trivia attached to the nodes, children are set through typed properties that reparent them, and
+/// <see cref="WriteTo(TextWriter)"/> writes the text the node was read from unless it was edited.
 /// </summary>
 public abstract class YamlEditableNode
 {
@@ -58,43 +57,10 @@ public abstract class YamlEditableNode
     internal YamlEditableLayout.Memo? LayoutMemo { get; set; }
 
     /// <summary>
-    /// Gets or sets the trivia after the "-" of a list item before its first entry, on the line of the "-", was removed, to
-    /// restore when an entry is inserted first again.
-    /// </summary>
-    internal YamlEditableLayout.Memo? DashMemo { get; set; }
-
-    /// <summary>
-    /// Gets or sets the column an entry was at when it was removed from a map or a list: the lines of its value move from
-    /// there when it is added again.
-    /// </summary>
-    internal int? DetachedColumn { get; set; }
-
-    /// <summary>
-    /// Gets comment lines and blank lines that appear before this node, in source order.
-    /// Might be <see langword="null"/> if there is no leading trivia.
+    /// Gets or sets the comment lines and blank lines before this node, in source order, with the line break of each line:
+    /// those above an entry, or above the first entry or the scalar of a document. <see langword="null"/> if there are none.
     /// </summary>
     public List<YamlEditableTrivia>? LeadingTrivia { get; set; }
-
-    /// <summary>
-    /// Gets trivia attached after this node's own marker and before its child value: for a
-    /// <see cref="YamlEditableMapEntry"/>, whatever appears between "key:" and the value (a
-    /// single space, or a same-line comment followed by a newline and the child's indentation
-    /// when the value is a nested map/list on its own line); for a
-    /// <see cref="YamlEditableListEntry"/>, the equivalent text after "-". Not used by
-    /// <see cref="YamlEditableScalar"/>, <see cref="YamlEditableMap"/> or
-    /// <see cref="YamlEditableList"/>. Might be <see langword="null"/> if there is none.
-    /// </summary>
-    public List<YamlEditableTrivia>? TrailingTrivia { get; set; }
-
-    /// <summary>
-    /// Gets trivia written after the scalar value of a <see cref="YamlEditableMapEntry"/> or a
-    /// <see cref="YamlEditableListEntry"/>, up to and including the line break: a same-line
-    /// comment and the newline that ends the entry's line. When the value is a nested map or list,
-    /// the line break after "key:" or "-" is in <see cref="TrailingTrivia"/> instead, and each line
-    /// of the nested block ends in its own entries. Might be <see langword="null"/>, for example on
-    /// the last line of a document without a final line break.
-    /// </summary>
-    public List<YamlEditableTrivia>? EndOfLineTrivia { get; set; }
 
     /// <inheritdoc />
     public override string ToString()

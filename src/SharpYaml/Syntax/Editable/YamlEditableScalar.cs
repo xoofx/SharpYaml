@@ -66,7 +66,7 @@ public sealed class YamlEditableScalar : YamlEditableNode
             if (YamlEditableLayout.GetHeaderComment(_text) is { } headerComment
                 && !YamlEditableLayout.HasSameHeaderComment(headerComment, value))
             {
-                var target = Parent is not null ? Parent.EndOfLineTrivia ??= [] : Tree!.TrailingTrivia ??= [];
+                var target = Parent is YamlEditableEntry owner ? owner.EndOfLineTrivia ??= [] : Tree!.TrailingTrivia ??= [];
                 target.InsertRange(0, headerComment);
             }
 
@@ -74,10 +74,10 @@ public sealed class YamlEditableScalar : YamlEditableNode
 
             // The lines of the text go under the entry, and a comment on the line of the entry, or after a scalar at the
             // root, would follow the last line of a block scalar.
-            if (Parent is not null)
+            if (Parent is YamlEditableEntry entry)
             {
-                YamlEditableLayout.IndentValue(Parent);
-                YamlEditableLayout.KeepCommentsOutOfBlockScalars(Parent);
+                YamlEditableLayout.IndentValue(entry);
+                YamlEditableLayout.KeepCommentsOutOfBlockScalars(entry);
             }
             else if (Tree!.TrailingTrivia is { } trailing && YamlEditableLayout.IsBlockScalarText(value))
             {
@@ -95,15 +95,35 @@ public sealed class YamlEditableScalar : YamlEditableNode
     /// <summary>
     /// Gets the value of this scalar as YAML reads it: without its quotes, with its escapes and its line folding resolved
     /// (the text <c>"a\tb"</c> is <c>a</c>, a tab and <c>b</c>), and empty for a missing value. It is the string that the
-    /// parser reads, not the value of a schema: the text <c>1</c> is the string <c>1</c>.
+    /// parser reads, not the value of a schema: the text <c>1</c> is the string <c>1</c>. A scalar in a tree is read where
+    /// the text of the tree has it; a scalar that is not in a tree is read as the value of a sequence entry ("- text").
     /// </summary>
-    /// <exception cref="YamlException"><see cref="Text"/> is not valid YAML.</exception>
-    /// <exception cref="InvalidOperationException"><see cref="Text"/> is not one scalar, without a tag or an anchor.</exception>
-    public string Value => ReadValue ?? ReadText(_text);
+    /// <exception cref="YamlException">The text, or the text of the tree, is not valid YAML.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The text is not one scalar without a tag or an anchor, or the text of the tree would not be read as the tree.
+    /// </exception>
+    public string Value
+    {
+        get
+        {
+            if (ReadValue is { } value)
+            {
+                return value;
+            }
+
+            YamlEditableNode root = this;
+            while (root.Parent is not null)
+            {
+                root = root.Parent;
+            }
+
+            return root.Tree is { } tree ? tree.ReadValueOf(this) : ReadText(_text);
+        }
+    }
 
     private static string ReadText(string text)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        if (text.Length == 0)
         {
             return string.Empty;
         }
@@ -114,14 +134,14 @@ public sealed class YamlEditableScalar : YamlEditableNode
             text += "\n";
         }
 
-        var parser = Parser.CreateParser(new StringReader(text));
+        var parser = Parser.CreateParser(new StringReader("- " + text));
         var events = new List<ParsingEvent>();
         while (parser.MoveNext())
         {
             events.Add(parser.Current!);
         }
 
-        if (events is not [StreamStart, DocumentStart, Events.Scalar { Tag: null, Anchor: null } scalar, DocumentEnd, StreamEnd])
+        if (events is not [StreamStart, DocumentStart, SequenceStart, Events.Scalar { Tag: null, Anchor: null } scalar, SequenceEnd, DocumentEnd, StreamEnd])
         {
             throw new InvalidOperationException("The text of the scalar is not one scalar without a tag or an anchor.");
         }
@@ -136,9 +156,9 @@ public sealed class YamlEditableScalar : YamlEditableNode
     internal void SetTextUnchecked(string text) => _text = text;
 
     /// <summary>
-    /// Gets or sets the value this scalar was read as when the document was parsed, or <see langword="null"/> once its
-    /// text is set: <see cref="YamlEditableTree.ToSyntaxTree"/> checks that a scalar whose text was not set keeps it,
-    /// wherever it is moved and whatever changes around it.
+    /// Gets or sets the value this scalar was read as when the document was parsed or when the edits were last applied by
+    /// <see cref="YamlEditableTree.ToSyntaxTree"/>, or <see langword="null"/> once its text is set: ToSyntaxTree checks that
+    /// a scalar whose text was not set keeps it, wherever it is moved and whatever changes around it.
     /// </summary>
     internal string? ReadValue { get; set; }
 

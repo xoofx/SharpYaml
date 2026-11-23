@@ -10,27 +10,27 @@ namespace SharpYaml.Syntax.Editable;
 public enum YamlEditableKind
 {
     /// <summary>
-    /// A block mapping ("key: value" pairs sharing the same indentation).
+    /// A block mapping: "key: value" entries at the same column (<see cref="YamlEditableMapping"/>).
     /// </summary>
-    Map,
+    Mapping,
 
     /// <summary>
-    /// A single "key: value" entry of a <see cref="YamlEditableMap"/>.
+    /// A "key: value" entry of a mapping (<see cref="YamlEditableMappingEntry"/>).
     /// </summary>
-    MapEntry,
+    MappingEntry,
 
     /// <summary>
-    /// A block sequence ("- item" entries sharing the same indentation).
+    /// A block sequence: "- value" entries at the same column (<see cref="YamlEditableSequence"/>).
     /// </summary>
-    List,
+    Sequence,
 
     /// <summary>
-    /// A single "- item" entry of a <see cref="YamlEditableList"/>.
+    /// A "- value" entry of a sequence (<see cref="YamlEditableSequenceEntry"/>).
     /// </summary>
-    ListEntry,
+    SequenceEntry,
 
     /// <summary>
-    /// A plain, quoted, or block scalar value.
+    /// A plain, quoted or block scalar (<see cref="YamlEditableScalar"/>).
     /// </summary>
     Scalar,
 }

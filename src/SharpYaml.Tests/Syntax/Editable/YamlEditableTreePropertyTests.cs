@@ -160,13 +160,15 @@ public class YamlEditableTreePropertyTests
             var original = Owners(tree);
             FindDetachable(tree);
             var steps = new List<string>();
+            var committed = Scalars(tree.Root).ToDictionary(scalar => scalar, scalar => scalar.Value, ReferenceEqualityComparer.Instance);
+            var textSet = new HashSet<YamlEditableScalar>(ReferenceEqualityComparer.Instance);
             var operations = 1 + random.Next(4);
             for (var step = 0; step < operations; step++)
             {
                 string operation;
                 try
                 {
-                    operation = ApplyRandomEdit(tree, random, step);
+                    operation = ApplyRandomEdit(tree, random, step, textSet);
                 }
                 catch (Exception exception) when (exception is not AssertFailedException)
                 {
@@ -193,6 +195,19 @@ public class YamlEditableTreePropertyTests
                     break;
                 }
 
+                // A scalar whose text was not set keeps the value it had when the edits were last applied.
+                foreach (var scalar in Scalars(tree.Root))
+                {
+                    var value = scalar.Value;
+                    if (!textSet.Contains(scalar) && committed.TryGetValue(scalar, out var before) && before != value)
+                    {
+                        failures.Add($"{description}: {Escape(tree.Serialize())}: a scalar read as {Escape(before)} is now read as {Escape(value)}");
+                    }
+
+                    committed[scalar] = value;
+                }
+
+                textSet.Clear();
                 applied++;
             }
         }
@@ -313,12 +328,11 @@ public class YamlEditableTreePropertyTests
             var expected = IsAttached(owner, tree) ? map[owner] : null;
             actual.TryGetValue(id, out var actualOwner);
 
-            // The comment lines that a blank line separates from an entry of the root become the header of the document when
-            // the entry is first, and go back to it when an entry is inserted before it.
-            if (Detachable.TryGetValue(id, out var giver) && (ReferenceEquals(actualOwner, reopened)
-                || (IsAttached(giver, tree) && ReferenceEquals(actualOwner, map[giver]))))
+            // The comment lines that a blank line separates from the first entry of the document are read again as its
+            // header: the text does not tell them apart.
+            var isFirst = owner is YamlEditableNode node && Entries(tree.Root).FirstOrDefault() is { } first && ReferenceEquals(first, node);
+            if (isFirst && Detachable.ContainsKey(id) && ReferenceEquals(actualOwner, reopened))
             {
-                moved.Add((id, ReferenceEquals(actualOwner, reopened) ? tree : giver));
                 continue;
             }
 
@@ -353,30 +367,30 @@ public class YamlEditableTreePropertyTests
         0 => new YamlEditableScalar("v" + id),
         1 => new YamlEditableScalar("\"q" + id + "\""),
         2 => new YamlEditableScalar(string.Empty),
-        3 => new YamlEditableMap(),
-        4 => new YamlEditableList(),
+        3 => new YamlEditableMapping(),
+        4 => new YamlEditableSequence(),
         5 => NewMap(id),
         6 => NewList(id),
         _ => new YamlEditableScalar("|\n  b" + id + "\n"),
     };
 
-    private static YamlEditableMap NewMap(int id)
+    private static YamlEditableMapping NewMap(int id)
     {
-        var map = new YamlEditableMap();
+        var map = new YamlEditableMapping();
         map.SetValue("m" + id, new YamlEditableScalar("1"));
         map.SetValue("n" + id, new YamlEditableScalar("2"));
         return map;
     }
 
-    private static YamlEditableList NewList(int id)
+    private static YamlEditableSequence NewList(int id)
     {
-        var list = new YamlEditableList();
-        list.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("i" + id), string.Empty));
-        list.AddEntry(new YamlEditableListEntry(new YamlEditableScalar("j" + id), string.Empty));
+        var list = new YamlEditableSequence();
+        list.AddEntry(new YamlEditableSequenceEntry(new YamlEditableScalar("i" + id), string.Empty));
+        list.AddEntry(new YamlEditableSequenceEntry(new YamlEditableScalar("j" + id), string.Empty));
         return list;
     }
 
-    private static string ApplyRandomEdit(YamlEditableTree tree, Random random, int step)
+    private static string ApplyRandomEdit(YamlEditableTree tree, Random random, int step, HashSet<YamlEditableScalar> textSet)
     {
         var collections = Collections(tree);
         var scalars = Scalars(tree.Root);
@@ -395,6 +409,7 @@ public class YamlEditableTreePropertyTests
                 _ => string.Empty,
             };
             scalar.Text = text;
+            textSet.Add(scalar);
             return $"text {Path(scalar)} = {Escape(text)}";
         }
 
@@ -420,7 +435,7 @@ public class YamlEditableTreePropertyTests
                 }
 
                 var target = targets[random.Next(targets.Count)];
-                if (entry is YamlEditableMapEntry keyed && ((YamlEditableMap)target).Entries.Any(other => other.Key == keyed.Key))
+                if (entry is YamlEditableMappingEntry keyed && ((YamlEditableMapping)target).Entries.Any(other => other.KeyText == keyed.KeyText))
                 {
                     return string.Empty;
                 }
@@ -444,10 +459,10 @@ public class YamlEditableTreePropertyTests
                 var value = NewValue(kind, step);
                 switch (entry)
                 {
-                    case YamlEditableMapEntry mapEntry:
+                    case YamlEditableMappingEntry mapEntry:
                         mapEntry.Value = value;
                         break;
-                    case YamlEditableListEntry listEntry:
+                    case YamlEditableSequenceEntry listEntry:
                         listEntry.Value = value;
                         break;
                 }
@@ -477,11 +492,11 @@ public class YamlEditableTreePropertyTests
     {
         switch (collection)
         {
-            case YamlEditableMap map:
-                map.InsertEntry(index, new YamlEditableMapEntry(key, value, string.Empty));
+            case YamlEditableMapping map:
+                map.InsertEntry(index, new YamlEditableMappingEntry(key, value, string.Empty));
                 break;
-            case YamlEditableList list:
-                list.InsertEntry(index, new YamlEditableListEntry(value, string.Empty));
+            case YamlEditableSequence list:
+                list.InsertEntry(index, new YamlEditableSequenceEntry(value, string.Empty));
                 break;
         }
     }
@@ -490,11 +505,11 @@ public class YamlEditableTreePropertyTests
     {
         switch (collection)
         {
-            case YamlEditableMap map:
-                map.InsertEntry(index, (YamlEditableMapEntry)entry);
+            case YamlEditableMapping map:
+                map.InsertEntry(index, (YamlEditableMappingEntry)entry);
                 break;
-            case YamlEditableList list:
-                list.InsertEntry(index, (YamlEditableListEntry)entry);
+            case YamlEditableSequence list:
+                list.InsertEntry(index, (YamlEditableSequenceEntry)entry);
                 break;
         }
     }
@@ -503,10 +518,10 @@ public class YamlEditableTreePropertyTests
     {
         switch (collection)
         {
-            case YamlEditableMap map:
-                Assert.IsTrue(map.RemoveEntry(key ?? ((YamlEditableMapEntry)EntryAt(map, index)).Key.Trim('"', '\'')));
+            case YamlEditableMapping map:
+                Assert.IsTrue(map.RemoveEntry(key ?? ((YamlEditableMappingEntry)EntryAt(map, index)).KeyText.Trim('"', '\'')));
                 break;
-            case YamlEditableList list:
+            case YamlEditableSequence list:
                 list.RemoveAt(index);
                 break;
         }
@@ -514,15 +529,15 @@ public class YamlEditableTreePropertyTests
 
     private static YamlEditableNode EntryAt(YamlEditableNode collection, int index) => collection switch
     {
-        YamlEditableMap map => map.Entries[index],
-        YamlEditableList list => list.Items[index],
+        YamlEditableMapping map => map.Entries[index],
+        YamlEditableSequence list => list.Items[index],
         _ => throw new InvalidOperationException(),
     };
 
     private static int EntryCount(YamlEditableNode collection) => collection switch
     {
-        YamlEditableMap map => map.Entries.Count,
-        YamlEditableList list => list.Items.Count,
+        YamlEditableMapping map => map.Entries.Count,
+        YamlEditableSequence list => list.Items.Count,
         _ => 0,
     };
 
@@ -531,7 +546,7 @@ public class YamlEditableTreePropertyTests
         var result = new List<YamlEditableNode>();
         void Visit(YamlEditableNode node)
         {
-            if (node is YamlEditableMap or YamlEditableList)
+            if (node is YamlEditableMapping or YamlEditableSequence)
             {
                 result.Add(node);
             }
@@ -564,15 +579,15 @@ public class YamlEditableTreePropertyTests
 
     private static IEnumerable<YamlEditableNode> Entries(YamlEditableNode node) => node switch
     {
-        YamlEditableMap map => map.Entries,
-        YamlEditableList list => list.Items,
+        YamlEditableMapping map => map.Entries,
+        YamlEditableSequence list => list.Items,
         _ => [],
     };
 
     private static YamlEditableNode ValueOf(YamlEditableNode entry) => entry switch
     {
-        YamlEditableMapEntry mapEntry => mapEntry.Value,
-        YamlEditableListEntry listEntry => listEntry.Value,
+        YamlEditableMappingEntry mapEntry => mapEntry.Value,
+        YamlEditableSequenceEntry listEntry => listEntry.Value,
         _ => throw new InvalidOperationException(),
     };
 
@@ -597,7 +612,7 @@ public class YamlEditableTreePropertyTests
         for (var index = 0; index < leftEntries.Count; index++)
         {
             map[leftEntries[index]] = rightEntries[index];
-            if (leftEntries[index] is YamlEditableMapEntry leftKey && ((YamlEditableMapEntry)rightEntries[index]).Key != leftKey.Key)
+            if (leftEntries[index] is YamlEditableMappingEntry leftKey && ((YamlEditableMappingEntry)rightEntries[index]).KeyText != leftKey.KeyText)
             {
                 return false;
             }
@@ -643,8 +658,11 @@ public class YamlEditableTreePropertyTests
         void AddNode(YamlEditableNode node, object owner)
         {
             Add(node.LeadingTrivia, owner);
-            Add(node.TrailingTrivia, owner);
-            Add(node.EndOfLineTrivia, owner);
+            if (node is YamlEditableEntry entry)
+            {
+                Add(entry.SeparatorTrivia, owner);
+                Add(entry.EndOfLineTrivia, owner);
+            }
             if (node is YamlEditableScalar scalar)
             {
                 AddText(scalar.Text, owner);
@@ -713,8 +731,8 @@ public class YamlEditableTreePropertyTests
         {
             parts.Add(entry switch
             {
-                YamlEditableMapEntry mapEntry => mapEntry.Key,
-                YamlEditableListEntry listEntry when listEntry.Parent is YamlEditableList list => "[" + list.Items.ToList().IndexOf(listEntry) + "]",
+                YamlEditableMappingEntry mapEntry => mapEntry.KeyText,
+                YamlEditableSequenceEntry listEntry when listEntry.Parent is YamlEditableSequence list => "[" + list.Items.ToList().IndexOf(listEntry) + "]",
                 _ => "?",
             });
 
@@ -734,8 +752,8 @@ public class YamlEditableTreePropertyTests
     {
         null => "nothing (lost)",
         YamlEditableTree => "the document",
-        YamlEditableMapEntry entry => "key " + entry.Key,
-        YamlEditableListEntry entry => "item " + Escape(entry.ToString()),
+        YamlEditableMappingEntry entry => "key " + entry.KeyText,
+        YamlEditableSequenceEntry entry => "item " + Escape(entry.ToString()),
         _ => owner.ToString() ?? "?",
     };
 

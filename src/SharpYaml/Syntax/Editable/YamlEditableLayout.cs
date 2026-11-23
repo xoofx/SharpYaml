@@ -12,8 +12,8 @@ namespace SharpYaml.Syntax.Editable;
 /// Keeps line breaks consistent when entries are added, inserted, removed or given a new value.
 /// </summary>
 /// <remarks>
-/// Each line ends in the <see cref="YamlEditableNode.EndOfLineTrivia"/> of the entry whose scalar
-/// value is on that line, or in the <see cref="YamlEditableNode.TrailingTrivia"/> of an entry
+/// Each line ends in the <see cref="YamlEditableEntry.EndOfLineTrivia"/> of the entry whose scalar
+/// value is on that line, or in the <see cref="YamlEditableEntry.SeparatorTrivia"/> of an entry
 /// whose value is a nested block ("key:" or "-" followed by a line break). The leading trivia of
 /// an entry only holds whole lines (comments, blank lines) above it.
 /// </remarks>
@@ -26,7 +26,7 @@ internal static class YamlEditableLayout
     /// "key:" or "-". An empty map or list is written on the same line, as "{}" or "[]".
     /// </summary>
     public static bool IsBlock(YamlEditableNode? node) =>
-        node is YamlEditableMap { Entries.Count: > 0 } or YamlEditableList { Items.Count: > 0 };
+        node is YamlEditableMapping { Entries.Count: > 0 } or YamlEditableSequence { Items.Count: > 0 };
 
     /// <summary>
     /// Returns <see langword="true"/> if <paramref name="node"/> is a missing value ("key:" or "-" with
@@ -40,7 +40,7 @@ internal static class YamlEditableLayout
     /// a map or a list. The entry goes on lines of its own, at the column of the other entries, and the lines of its value
     /// move with it; an empty map or list that is a value becomes a block.
     /// </summary>
-    public static void Insert(YamlEditableNode collection, int index, YamlEditableNode entry)
+    public static void Insert(YamlEditableNode collection, int index, YamlEditableEntry entry)
     {
         var entries = GetEntries(collection);
         var oldColumn = entry.DetachedColumn ?? GetIndent(entry).Length;
@@ -59,16 +59,6 @@ internal static class YamlEditableLayout
         else
         {
             var next = entries[index];
-            if (index == 0 && collection.Parent is null && collection.DashMemo is { First: { } moved } header
-                && ReferenceEquals(header.Owner, next) && header.Matches(collection.LeadingTrivia, null))
-            {
-                // The lines that the first entry gave to the header of the document when the entry before it was removed go
-                // back to it.
-                collection.LeadingTrivia!.RemoveRange(collection.LeadingTrivia.Count - moved.Count, moved.Count);
-                next.LeadingTrivia = [.. moved, .. next.LeadingTrivia ?? []];
-                collection.DashMemo = null;
-            }
-
             if (index != 0 || !PrepareInsertFirst(collection, next, entry))
             {
                 column = GetColumn(next);
@@ -85,11 +75,11 @@ internal static class YamlEditableLayout
 
         switch (collection)
         {
-            case YamlEditableMap map:
-                map.InsertParsedEntry(index, (YamlEditableMapEntry)entry);
+            case YamlEditableMapping map:
+                map.InsertParsedEntry(index, (YamlEditableMappingEntry)entry);
                 break;
-            case YamlEditableList list:
-                list.InsertParsedEntry(index, (YamlEditableListEntry)entry);
+            case YamlEditableSequence list:
+                list.InsertParsedEntry(index, (YamlEditableSequenceEntry)entry);
                 break;
         }
 
@@ -106,11 +96,6 @@ internal static class YamlEditableLayout
         if (entries.Count == 0)
         {
             AfterEmptinessChanged(collection, removedEntry: null);
-        }
-
-        if (index == 0 && collection.Parent is null)
-        {
-            MoveHeaderToDocument(collection, entry);
         }
 
         if (rootBefore is not null)
@@ -142,10 +127,10 @@ internal static class YamlEditableLayout
 
         switch (collection)
         {
-            case YamlEditableMap map:
+            case YamlEditableMapping map:
                 map.RemoveParsedEntryAt(index);
                 break;
-            case YamlEditableList list:
+            case YamlEditableSequence list:
                 list.RemoveParsedEntryAt(index);
                 break;
         }
@@ -153,12 +138,6 @@ internal static class YamlEditableLayout
         if (entries.Count == 1)
         {
             AfterEmptinessChanged(collection, entry);
-        }
-        else if (index == 0 && collection.Parent is null)
-        {
-            // The comment lines above the new first entry of the document that a blank line separates from it are the
-            // header of the document now, as they are when the text is read again.
-            MoveHeaderToDocument(collection, entries[1]);
         }
 
         if (endsDocument)
@@ -168,21 +147,18 @@ internal static class YamlEditableLayout
     }
 
     /// <summary>
-    /// Moves the comment lines above <paramref name="first"/>, the first entry of <paramref name="root"/>, that a blank line
-    /// separates from it to the header of the document, as they are read when the text is read again. An entry inserted
-    /// before <paramref name="first"/> gives them back.
+    /// Removes the line break that ends the last line of <paramref name="entry"/>, which becomes the last line of a document
+    /// without a final line break, unless it is the last line of a block scalar that keeps its final line break ("|", ">"),
+    /// whose value it is part of.
     /// </summary>
-    private static void MoveHeaderToDocument(YamlEditableNode root, YamlEditableNode first)
+    private static void RemoveFinalLineBreak(YamlEditableEntry entry)
     {
-        if (first.LeadingTrivia is not { } leading || YamlEditableTree.GetHeaderLength(leading) is not (var header and > 0))
+        var owner = GetLastLineOwner(entry);
+        if (owner.EndOfLineTrivia is { Count: > 0 } endOfLine && endOfLine[endOfLine.Count - 1].Kind == YamlEditableTriviaKind.NewLine
+            && !(owner.Value is YamlEditableScalar scalar && KeepsFinalLineBreak(scalar.Text)))
         {
-            return;
+            endOfLine.RemoveAt(endOfLine.Count - 1);
         }
-
-        var moved = leading.GetRange(0, header);
-        (root.LeadingTrivia ??= []).AddRange(moved);
-        first.LeadingTrivia = header < leading.Count ? leading.GetRange(header, leading.Count - header) : null;
-        root.DashMemo = new Memo(moved, null, null) { Produced = Fingerprint(root.LeadingTrivia, null), Owner = first };
     }
 
     /// <summary>
@@ -233,7 +209,7 @@ internal static class YamlEditableLayout
     /// Prepares <paramref name="entry"/> to be appended to <paramref name="collection"/>, after
     /// <paramref name="previous"/>, its last entry if it has one.
     /// </summary>
-    public static void PrepareAppend(YamlEditableNode collection, YamlEditableNode? previous, YamlEditableNode entry)
+    public static void PrepareAppend(YamlEditableNode collection, YamlEditableEntry? previous, YamlEditableEntry entry)
     {
         if (previous is null)
         {
@@ -318,11 +294,16 @@ internal static class YamlEditableLayout
             var documentNewLine = GetDocumentNewLine(previous);
             (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, documentNewLine));
             UseNewLine(entry, documentNewLine);
+            RemoveFinalLineBreak(entry);
         }
         else
         {
             // A document read without a final line break keeps ending without one.
-            if (!(IsAtEndOfDocument(collection) && GetRoot(collection).Tree is { EndsWithoutLineBreak: true }))
+            if (IsAtEndOfDocument(collection) && GetRoot(collection).Tree is { EndsWithoutLineBreak: true })
+            {
+                RemoveFinalLineBreak(entry);
+            }
+            else
             {
                 EnsureEndsWithNewLine(entry, newLine);
             }
@@ -367,7 +348,7 @@ internal static class YamlEditableLayout
     /// <summary>
     /// Prepares <paramref name="entry"/> to be inserted before <paramref name="next"/>.
     /// </summary>
-    public static void PrepareInsert(YamlEditableNode next, YamlEditableNode entry)
+    public static void PrepareInsert(YamlEditableEntry next, YamlEditableEntry entry)
     {
         var newLine = FindNewLine(GetLastLineOwner(next).EndOfLineTrivia)?.Text ?? GetDocumentNewLine(next);
         EnsureEndsWithNewLine(entry, newLine);
@@ -379,7 +360,7 @@ internal static class YamlEditableLayout
     /// Moves the line break of an entry after its value changed from <paramref name="oldValue"/>
     /// to <paramref name="entry"/>'s current value.
     /// </summary>
-    public static void AfterValueChanged(YamlEditableNode entry, YamlEditableNode oldValue)
+    public static void AfterValueChanged(YamlEditableEntry entry, YamlEditableNode oldValue)
     {
         MoveHeaderComment(entry, oldValue);
         AfterLayoutChanged(entry, IsBlock(oldValue), GetLastEntry(oldValue));
@@ -391,12 +372,12 @@ internal static class YamlEditableLayout
     /// first entry or lost its last one, <paramref name="removedEntry"/>: an empty map or list is written as "{}" or
     /// "[]" on the line of "key:" or "-", and a map or list with entries as a block.
     /// </summary>
-    public static void AfterEmptinessChanged(YamlEditableNode collection, YamlEditableNode? removedEntry)
+    public static void AfterEmptinessChanged(YamlEditableNode collection, YamlEditableEntry? removedEntry)
     {
-        if (collection.Parent is YamlEditableMapEntry or YamlEditableListEntry)
+        if (collection.Parent is YamlEditableEntry owner)
         {
-            AfterLayoutChanged(collection.Parent, wasBlock: removedEntry is not null, removedEntry);
-            IndentValue(collection.Parent);
+            AfterLayoutChanged(owner, wasBlock: removedEntry is not null, removedEntry);
+            IndentValue(owner);
         }
         else if (collection.Parent is null && removedEntry is not null && collection.LayoutMemo is { } memo
             && memo.Matches(collection.LeadingTrivia, collection.Tree?.TrailingTrivia))
@@ -410,10 +391,10 @@ internal static class YamlEditableLayout
 
             switch (collection)
             {
-                case YamlEditableMap map:
+                case YamlEditableMapping map:
                     map.EmptyFlowText = memo.Text;
                     break;
-                case YamlEditableList list:
+                case YamlEditableSequence list:
                     list.EmptyFlowText = memo.Text;
                     break;
             }
@@ -432,10 +413,10 @@ internal static class YamlEditableLayout
             var lineBreak = FindNewLine(GetLastLineOwner(removedEntry).EndOfLineTrivia)?.Text;
             switch (collection)
             {
-                case YamlEditableMap { EmptyFlowText: null } map:
+                case YamlEditableMapping { EmptyFlowText: null } map:
                     map.EmptyFlowText = "{}" + lineBreak;
                     break;
-                case YamlEditableList { EmptyFlowText: null } list:
+                case YamlEditableSequence { EmptyFlowText: null } list:
                     list.EmptyFlowText = "[]" + lineBreak;
                     break;
             }
@@ -449,8 +430,8 @@ internal static class YamlEditableLayout
 
     private static string? GetEmptyFlowText(YamlEditableNode collection) => collection switch
     {
-        YamlEditableMap map => map.EmptyFlowText,
-        YamlEditableList list => list.EmptyFlowText,
+        YamlEditableMapping map => map.EmptyFlowText,
+        YamlEditableSequence list => list.EmptyFlowText,
         _ => null,
     };
 
@@ -461,27 +442,29 @@ internal static class YamlEditableLayout
     /// the text is read again. A value that is written on the line of the entry again, after it was a block, gets back the
     /// trivia it had there.
     /// </summary>
-    private static void AfterLayoutChanged(YamlEditableNode entry, bool wasBlock, YamlEditableNode? oldLastEntry)
+    private static void AfterLayoutChanged(YamlEditableEntry entry, bool wasBlock, YamlEditableEntry? oldLastEntry)
     {
         var value = GetValue(entry);
         var isBlock = IsBlock(value);
         var oldOwner = oldLastEntry is null ? entry : GetLastLineOwner(oldLastEntry);
         var newLine = FindNewLine(oldOwner.EndOfLineTrivia);
-        var inline = !wasBlock && isBlock ? new Memo(Clone(entry.TrailingTrivia), Clone(entry.EndOfLineTrivia), null) : null;
+        var before = wasBlock != isBlock ? new Memo(Clone(entry.SeparatorTrivia), Clone(entry.EndOfLineTrivia), null) { RestoresBlock = wasBlock } : null;
 
-        if (wasBlock && !isBlock && entry.LayoutMemo is { } memo && memo.Matches(entry.TrailingTrivia, entry.EndOfLineTrivia))
+        if (wasBlock != isBlock && entry.LayoutMemo is { } memo && memo.RestoresBlock == isBlock
+            && memo.Matches(entry.SeparatorTrivia, entry.EndOfLineTrivia))
         {
-            entry.TrailingTrivia = Clone(memo.First);
+            // The value is written as it was before the last change of layout of the entry: its trivia come back.
+            entry.SeparatorTrivia = Clone(memo.First);
             entry.EndOfLineTrivia = Clone(memo.Second);
         }
-        else if (entry is YamlEditableMapEntry && !wasBlock && isBlock)
+        else if (entry is YamlEditableMappingEntry && !wasBlock && isBlock)
         {
             var oldEndOfLine = entry.EndOfLineTrivia;
             entry.EndOfLineTrivia = null;
-            if (FindNewLine(entry.TrailingTrivia) is not null)
+            if (FindNewLine(entry.SeparatorTrivia) is not null)
             {
                 // "key: # comment\n  # more\n  {} # last": the block starts after the line of the key.
-                entry.TrailingTrivia = KeepFirstLine(entry.TrailingTrivia!, oldEndOfLine);
+                entry.SeparatorTrivia = KeepFirstLine(entry.SeparatorTrivia!, oldEndOfLine);
             }
             else
             {
@@ -492,23 +475,23 @@ internal static class YamlEditableLayout
                     separator.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? GetDocumentNewLine(entry)));
                 }
 
-                entry.TrailingTrivia = separator;
+                entry.SeparatorTrivia = separator;
             }
         }
-        else if (entry is YamlEditableMapEntry && wasBlock && !isBlock)
+        else if (entry is YamlEditableMappingEntry && wasBlock && !isBlock)
         {
             // "key: # comment\n" followed by a nested block becomes "key: value # comment\n".
-            entry.EndOfLineTrivia = entry.TrailingTrivia is { } separator && FindNewLine(separator) is not null ? separator : null;
-            entry.TrailingTrivia = null;
+            entry.EndOfLineTrivia = entry.SeparatorTrivia is { } separator && FindNewLine(separator) is not null ? separator : null;
+            entry.SeparatorTrivia = null;
         }
-        else if (entry is YamlEditableListEntry && wasBlock && !isBlock && entry.TrailingTrivia is { } dashSeparator
+        else if (entry is YamlEditableSequenceEntry && wasBlock && !isBlock && entry.SeparatorTrivia is { } dashSeparator
             && FindNewLine(dashSeparator) is not null)
         {
             if (dashSeparator.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) == dashSeparator.Count - 1)
             {
                 // "- # comment\n" followed by a block becomes "- value # comment\n".
                 entry.EndOfLineTrivia = dashSeparator;
-                entry.TrailingTrivia = null;
+                entry.SeparatorTrivia = null;
             }
             else if (dashSeparator[dashSeparator.Count - 1].Kind == YamlEditableTriviaKind.NewLine)
             {
@@ -517,15 +500,15 @@ internal static class YamlEditableLayout
                 dashSeparator.Add(new YamlEditableTrivia(YamlEditableTriviaKind.Whitespace, new string(' ', GetColumn(entry).Length + 2)));
             }
         }
-        else if (entry is YamlEditableListEntry && !wasBlock && isBlock)
+        else if (entry is YamlEditableSequenceEntry && !wasBlock && isBlock)
         {
             var first = GetEntries(value!)[0];
-            if (FindNewLine(entry.TrailingTrivia) is not null || HasComment(entry.EndOfLineTrivia) || first.LeadingTrivia is { Count: > 0 })
+            if (FindNewLine(entry.SeparatorTrivia) is not null || HasComment(entry.EndOfLineTrivia) || first.LeadingTrivia is { Count: > 0 })
             {
                 // "- {} # comment", "- value # comment" or "-\n  # comment\n  {}": the block starts on the line after the
                 // "-", which keeps the comments of the item; so it does when its first entry has comment lines above it.
-                entry.TrailingTrivia = FindNewLine(entry.TrailingTrivia) is not null
-                    ? KeepFirstLine(entry.TrailingTrivia!, entry.EndOfLineTrivia)
+                entry.SeparatorTrivia = FindNewLine(entry.SeparatorTrivia) is not null
+                    ? KeepFirstLine(entry.SeparatorTrivia!, entry.EndOfLineTrivia)
                     : KeepFirstLine([new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine?.Text ?? GetDocumentNewLine(entry))], entry.EndOfLineTrivia);
                 entry.EndOfLineTrivia = null;
             }
@@ -552,14 +535,10 @@ internal static class YamlEditableLayout
             }
         }
 
-        if (inline is not null)
+        if (before is not null)
         {
-            inline.Produced = Fingerprint(entry.TrailingTrivia, entry.EndOfLineTrivia);
-            entry.LayoutMemo = inline;
-        }
-        else if (wasBlock != isBlock)
-        {
-            entry.LayoutMemo = null;
+            before.Produced = Fingerprint(entry.SeparatorTrivia, entry.EndOfLineTrivia);
+            entry.LayoutMemo = before;
         }
     }
 
@@ -623,12 +602,15 @@ internal static class YamlEditableLayout
     private static void UseNewLine(YamlEditableNode node, string newLine)
     {
         UseNewLine(node.LeadingTrivia, newLine);
-        UseNewLine(node.TrailingTrivia, newLine);
-        UseNewLine(node.EndOfLineTrivia, newLine);
-
-        if (node is YamlEditableMapEntry { TrailingTrivia: null } mapEntry && IsBlock(mapEntry.Value))
+        if (node is YamlEditableEntry entry)
         {
-            mapEntry.TrailingTrivia = [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine)];
+            UseNewLine(entry.SeparatorTrivia, newLine);
+            UseNewLine(entry.EndOfLineTrivia, newLine);
+        }
+
+        if (node is YamlEditableMappingEntry { SeparatorTrivia: null } mapEntry && IsBlock(mapEntry.Value))
+        {
+            mapEntry.SeparatorTrivia = [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine)];
         }
 
         if (GetValue(node) is { } value)
@@ -662,23 +644,23 @@ internal static class YamlEditableLayout
     /// Returns the indentation of <paramref name="entry"/>, a map or a list entry, as a column, also when it shares its
     /// line with the "-" of a list entry ("- key: value", "- - item") and so has no indentation text of its own.
     /// </summary>
-    private static string GetColumn(YamlEditableNode entry)
+    private static string GetColumn(YamlEditableEntry entry)
     {
         var indent = GetIndent(entry);
-        if (indent.Length > 0 || entry.Parent?.Parent is not YamlEditableListEntry listEntry)
+        if (indent.Length > 0 || entry.Parent?.Parent is not YamlEditableSequenceEntry listEntry)
         {
             return indent;
         }
 
         var width = GetColumn(listEntry).Length + 1;
-        if (listEntry.TrailingTrivia is null)
+        if (listEntry.SeparatorTrivia is null)
         {
             width++;
         }
         else
         {
             // The key follows the "-" on its line, or starts the line after a comment ("- # comment\n  key: value").
-            foreach (var trivia in listEntry.TrailingTrivia)
+            foreach (var trivia in listEntry.SeparatorTrivia)
             {
                 width = trivia.Kind == YamlEditableTriviaKind.NewLine ? 0 : width + trivia.Text.Length;
             }
@@ -692,7 +674,7 @@ internal static class YamlEditableLayout
     /// that entry follows the "-" of the item: the next entry, <paramref name="next"/>, takes its place on the line of the
     /// "-", or, when comment lines or blank lines are above it, the "-" stays alone on its line and they stay with it.
     /// </summary>
-    public static void PrepareRemoveFirst(YamlEditableNode collection, YamlEditableNode next)
+    public static void PrepareRemoveFirst(YamlEditableNode collection, YamlEditableEntry next)
     {
         if (!SharesLineWithDash(collection))
         {
@@ -705,15 +687,15 @@ internal static class YamlEditableLayout
             return;
         }
 
-        var dashEntry = collection.Parent!;
-        var separator = dashEntry.TrailingTrivia;
+        var dashEntry = (YamlEditableEntry)collection.Parent!;
+        var separator = dashEntry.SeparatorTrivia;
         var lineBreak = separator?.FindLastIndex(t => t.Kind == YamlEditableTriviaKind.NewLine) ?? -1;
-        dashEntry.TrailingTrivia = lineBreak >= 0
+        dashEntry.SeparatorTrivia = lineBreak >= 0
             ? separator!.GetRange(0, lineBreak + 1)
             : [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection))];
 
         // An entry inserted first again takes the line of the "-" back.
-        dashEntry.DashMemo = new Memo(Clone(separator), null, null) { Produced = Fingerprint(dashEntry.TrailingTrivia, null) };
+        dashEntry.DashMemo = new Memo(Clone(separator), null, null) { Produced = Fingerprint(dashEntry.SeparatorTrivia, null) };
     }
 
     /// <summary>
@@ -721,14 +703,14 @@ internal static class YamlEditableLayout
     /// <paramref name="next"/>: if <paramref name="next"/> follows the "-" of a list item ("- key: value",
     /// "- - item"), <paramref name="entry"/> takes its place there and <paramref name="next"/> goes to the column it had.
     /// </summary>
-    public static bool PrepareInsertFirst(YamlEditableNode collection, YamlEditableNode next, YamlEditableNode entry)
+    public static bool PrepareInsertFirst(YamlEditableNode collection, YamlEditableEntry next, YamlEditableEntry entry)
     {
         if (SharesLineWithDash(collection) && entry.LeadingTrivia is { Count: > 0 })
         {
             // The comment lines above the entry cannot be between the "-" and its first line: the "-" goes alone on its
             // line, and the entries below it, at their column.
             var dashColumn = GetColumn(next);
-            collection.Parent!.TrailingTrivia = [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection))];
+            ((YamlEditableEntry)collection.Parent!).SeparatorTrivia = [new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection))];
             SetIndent(next, dashColumn);
             SetIndent(entry, dashColumn);
             return true;
@@ -736,14 +718,14 @@ internal static class YamlEditableLayout
 
         if (!SharesLineWithDash(collection))
         {
-            if (collection.Parent is not YamlEditableListEntry dashEntry || dashEntry.DashMemo is not { } memo
-                || !memo.Matches(dashEntry.TrailingTrivia, null) || entry.LeadingTrivia is { Count: > 0 })
+            if (collection.Parent is not YamlEditableSequenceEntry dashEntry || dashEntry.DashMemo is not { } memo
+                || !memo.Matches(dashEntry.SeparatorTrivia, null) || entry.LeadingTrivia is { Count: > 0 })
             {
                 return false;
             }
 
             // The first entry was removed and the "-" was left alone on its line: the new first entry takes it back.
-            dashEntry.TrailingTrivia = Clone(memo.First);
+            dashEntry.SeparatorTrivia = Clone(memo.First);
             dashEntry.DashMemo = null;
             SetIndent(entry, string.Empty);
             return true;
@@ -752,13 +734,13 @@ internal static class YamlEditableLayout
         var column = GetColumn(next);
         switch (next)
         {
-            case YamlEditableMapEntry mapEntry:
+            case YamlEditableMappingEntry mapEntry:
                 mapEntry.Indent = column;
-                ((YamlEditableMapEntry)entry).Indent = string.Empty;
+                ((YamlEditableMappingEntry)entry).Indent = string.Empty;
                 break;
-            case YamlEditableListEntry listEntry:
+            case YamlEditableSequenceEntry listEntry:
                 listEntry.Indent = column;
-                ((YamlEditableListEntry)entry).Indent = string.Empty;
+                ((YamlEditableSequenceEntry)entry).Indent = string.Empty;
                 break;
         }
 
@@ -770,7 +752,7 @@ internal static class YamlEditableLayout
     /// list item, follows the "-" of that item, without indentation of its own.
     /// </summary>
     private static bool SharesLineWithDash(YamlEditableNode collection) =>
-        collection.Parent is YamlEditableListEntry dashEntry && FindNewLine(dashEntry.TrailingTrivia) is null
+        collection.Parent is YamlEditableSequenceEntry dashEntry && FindNewLine(dashEntry.SeparatorTrivia) is null
         && GetEntries(collection) is { Count: > 0 } entries && GetIndent(entries[0]).Length == 0;
 
     /// <summary>
@@ -779,7 +761,7 @@ internal static class YamlEditableLayout
     /// list built in memory does not know its depth: without this, "c:" followed by a new map with
     /// "x: 1" at column 0 would make "x" a key of the outer map. A valid layout is never changed.
     /// </summary>
-    public static void IndentValue(YamlEditableNode entry)
+    public static void IndentValue(YamlEditableEntry entry)
     {
         var value = GetValue(entry);
         if (value is YamlEditableScalar scalar)
@@ -793,7 +775,15 @@ internal static class YamlEditableLayout
             return;
         }
 
-        if (entry is YamlEditableListEntry && FindNewLine(entry.TrailingTrivia) is null)
+        if (entry is YamlEditableSequenceEntry && FindNewLine(entry.SeparatorTrivia) is null && GetEntries(value!)[0].LeadingTrivia is { Count: > 0 })
+        {
+            // The comment lines above the first entry cannot be between the "-" and its first line: the block starts on the
+            // line after the "-".
+            entry.SeparatorTrivia = KeepFirstLine([new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(entry))], entry.EndOfLineTrivia);
+            entry.EndOfLineTrivia = null;
+        }
+
+        if (entry is YamlEditableSequenceEntry && FindNewLine(entry.SeparatorTrivia) is null)
         {
             // The first entry of a list item is written right after the "-" and its trivia, which give its column:
             // indentation of its own would move it past the column of the other entries.
@@ -833,7 +823,7 @@ internal static class YamlEditableLayout
                 var column = GetColumn(entry).Length;
 
                 // A nested block is indented past its key or its "-"; a sequence may also be at the column of a key.
-                var isValid = entry is YamlEditableMapEntry && value is YamlEditableList ? current >= column : current > column;
+                var isValid = entry is YamlEditableMappingEntry && value is YamlEditableSequence ? current >= column : current > column;
                 target = isValid ? current : column + 2;
             }
 
@@ -855,10 +845,10 @@ internal static class YamlEditableLayout
     /// of the entry if they are not, and leaves the line breaks at the end of its text to the line of the entry: a scalar
     /// built in memory does not know its depth. Indenting more every line of a supported scalar never changes its value.
     /// </summary>
-    private static void IndentScalar(YamlEditableNode entry, YamlEditableScalar scalar)
+    private static void IndentScalar(YamlEditableEntry entry, YamlEditableScalar scalar)
     {
         var text = scalar.Text;
-        if (text.Length == 0 && entry.TrailingTrivia is { } separator)
+        if (text.Length == 0 && entry.SeparatorTrivia is { } separator)
         {
             // A missing value is written right after "key:" or "-": the spaces and the line break that led to the old value
             // would leave a blank line, or a comment of the entry on a line of its own. The comments go on the line of the
@@ -875,7 +865,7 @@ internal static class YamlEditableLayout
                 entry.EndOfLineTrivia = line;
             }
 
-            entry.TrailingTrivia = null;
+            entry.SeparatorTrivia = null;
             return;
         }
 
@@ -883,11 +873,17 @@ internal static class YamlEditableLayout
         if (end < text.Length)
         {
             scalar.SetTextUnchecked(text.Substring(0, end));
+        }
 
-            // The value of "|" or ">" ends with the line break of its last line, which the line of the entry now gives.
-            if (KeepsFinalLineBreak(text))
+        if (scalar.ReadValue is null)
+        {
+            // A new text takes the line break of the document, which does not change its value, and the value of "|" or ">"
+            // ends with the line break of its last line, which the line of the entry gives.
+            var newLine = GetDocumentNewLine(entry);
+            scalar.SetTextUnchecked(UseNewLine(scalar.Text, newLine));
+            if (KeepsFinalLineBreak(scalar.Text))
             {
-                EnsureEndsWithNewLine(entry, GetDocumentNewLine(entry));
+                EnsureEndsWithNewLine(entry, newLine);
             }
         }
 
@@ -897,6 +893,36 @@ internal static class YamlEditableLayout
         {
             scalar.SetTextUnchecked(ReindentLines(scalar.Text, column + 2 - indent));
         }
+    }
+
+    /// <summary>
+    /// Returns <paramref name="text"/> with each of its line breaks written as <paramref name="newLine"/>.
+    /// </summary>
+    private static string UseNewLine(string text, string newLine)
+    {
+        if (text.IndexOfAny(['\r', '\n']) < 0)
+        {
+            return text;
+        }
+
+        var builder = new System.Text.StringBuilder(text.Length + 8);
+        for (var index = 0; index < text.Length; index++)
+        {
+            if (text[index] is '\r' or '\n')
+            {
+                builder.Append(newLine);
+                if (text[index] == '\r' && index + 1 < text.Length && text[index + 1] == '\n')
+                {
+                    index++;
+                }
+
+                continue;
+            }
+
+            builder.Append(text[index]);
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>
@@ -940,7 +966,7 @@ internal static class YamlEditableLayout
                 index++;
             }
 
-            if (index < text.Length && text[index] is not ('\r' or '\n' or '\t'))
+            if (index < text.Length && text[index] is not ('\r' or '\n'))
             {
                 result = result < 0 ? index - start : Math.Min(result, index - start);
             }
@@ -956,11 +982,11 @@ internal static class YamlEditableLayout
     /// value on the line after its key or its "-", the entries of its nested block, at every depth, and the lines of its
     /// scalars on several lines. The layouts that the entry remembers no longer apply at the new column.
     /// </summary>
-    private static void ShiftValue(YamlEditableNode entry, int delta)
+    private static void ShiftValue(YamlEditableEntry entry, int delta)
     {
         entry.LayoutMemo = null;
         entry.DashMemo = null;
-        if (entry.TrailingTrivia is { } separator)
+        if (entry.SeparatorTrivia is { } separator)
         {
             for (var index = 1; index < separator.Count; index++)
             {
@@ -1062,25 +1088,21 @@ internal static class YamlEditableLayout
         public string? Produced { get; set; }
 
         /// <summary>
-        /// Gets or sets the entry that gave its comment lines to the header of the document.
+        /// Gets or sets whether the memo restores the layout of an entry whose value is a block, rather than a value on its
+        /// line.
         /// </summary>
-        public YamlEditableNode? Owner { get; set; }
+        public bool RestoresBlock { get; set; }
 
         public bool Matches(List<YamlEditableTrivia>? first, List<YamlEditableTrivia>? second) =>
             Produced is not null && string.Equals(Produced, Fingerprint(first, second), StringComparison.Ordinal);
     }
 
-    private static YamlEditableNode? GetValue(YamlEditableNode entry) => entry switch
-    {
-        YamlEditableMapEntry mapEntry => mapEntry.Value,
-        YamlEditableListEntry listEntry => listEntry.Value,
-        _ => null,
-    };
+    private static YamlEditableNode? GetValue(YamlEditableNode node) => node is YamlEditableEntry entry ? entry.Value : null;
 
-    private static List<YamlEditableNode> GetEntries(YamlEditableNode value) => value switch
+    private static List<YamlEditableEntry> GetEntries(YamlEditableNode value) => value switch
     {
-        YamlEditableMap map => new List<YamlEditableNode>(map.Entries),
-        YamlEditableList list => new List<YamlEditableNode>(list.Items),
+        YamlEditableMapping map => new List<YamlEditableEntry>(map.Entries),
+        YamlEditableSequence list => new List<YamlEditableEntry>(list.Items),
         _ => [],
     };
 
@@ -1088,7 +1110,7 @@ internal static class YamlEditableLayout
     /// Returns the entries of <paramref name="value"/> that start their own line: all of them, except
     /// the first key or item of a list item, which is on the line of the "-".
     /// </summary>
-    private static List<YamlEditableNode> GetOwnLineEntries(YamlEditableNode value)
+    private static List<YamlEditableEntry> GetOwnLineEntries(YamlEditableNode value)
     {
         var entries = GetEntries(value);
         if (SharesLineWithDash(value))
@@ -1099,10 +1121,10 @@ internal static class YamlEditableLayout
         return entries;
     }
 
-    private static string GetIndent(YamlEditableNode entry) => entry switch
+    private static string GetIndent(YamlEditableEntry entry) => entry switch
     {
-        YamlEditableMapEntry mapEntry => mapEntry.Indent,
-        YamlEditableListEntry listEntry => listEntry.Indent,
+        YamlEditableMappingEntry mapEntry => mapEntry.Indent,
+        YamlEditableSequenceEntry listEntry => listEntry.Indent,
         _ => string.Empty,
     };
 
@@ -1178,7 +1200,7 @@ internal static class YamlEditableLayout
         return builder.ToString();
     }
 
-    private static void EnsureEndsWithNewLine(YamlEditableNode entry, YamlEditableTrivia newLine)
+    private static void EnsureEndsWithNewLine(YamlEditableEntry entry, YamlEditableTrivia newLine)
     {
         var owner = GetLastLineOwner(entry);
         if (FindNewLine(owner.EndOfLineTrivia) is null)
@@ -1187,20 +1209,20 @@ internal static class YamlEditableLayout
         }
     }
 
-    private static void EnsureEndsWithNewLine(YamlEditableNode entry, string newLine) =>
+    private static void EnsureEndsWithNewLine(YamlEditableEntry entry, string newLine) =>
         EnsureEndsWithNewLine(entry, new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine));
 
     private static YamlEditableTrivia? FindNewLine(List<YamlEditableTrivia>? trivia) =>
         trivia?.Find(t => t.Kind == YamlEditableTriviaKind.NewLine);
 
-    private static void SetIndent(YamlEditableNode entry, string indent)
+    private static void SetIndent(YamlEditableEntry entry, string indent)
     {
         switch (entry)
         {
-            case YamlEditableMapEntry mapEntry:
+            case YamlEditableMappingEntry mapEntry:
                 mapEntry.Indent = indent;
                 break;
-            case YamlEditableListEntry listEntry:
+            case YamlEditableSequenceEntry listEntry:
                 listEntry.Indent = indent;
                 break;
         }
@@ -1310,7 +1332,7 @@ internal static class YamlEditableLayout
     /// the scalar's value, to the header line of the scalar ("| # comment"), for <paramref name="entry"/> and the entries
     /// below it.
     /// </summary>
-    public static void KeepCommentsOutOfBlockScalars(YamlEditableNode entry)
+    public static void KeepCommentsOutOfBlockScalars(YamlEditableEntry entry)
     {
         var owner = GetLastLineOwner(entry);
         if (GetValue(owner) is YamlEditableScalar scalar && IsBlockScalar(scalar.Text))
@@ -1355,7 +1377,7 @@ internal static class YamlEditableLayout
     /// Moves the comment of the header line of <paramref name="oldValue"/>, a block scalar replaced as the value of
     /// <paramref name="entry"/>, to the end of the line of the entry ("key: | # comment" becomes "key: new # comment").
     /// </summary>
-    private static void MoveHeaderComment(YamlEditableNode entry, YamlEditableNode oldValue)
+    private static void MoveHeaderComment(YamlEditableEntry entry, YamlEditableNode oldValue)
     {
         if (oldValue is YamlEditableScalar scalar && GetHeaderComment(scalar.Text) is { } comment
             && !(GetValue(entry) is YamlEditableScalar newScalar && HasSameHeaderComment(comment, newScalar.Text)))
@@ -1441,7 +1463,8 @@ internal static class YamlEditableLayout
 
     private static YamlEditableTrivia? FindNewLineInTree(YamlEditableNode node)
     {
-        var newLine = FindNewLine(node.LeadingTrivia) ?? FindNewLine(node.TrailingTrivia) ?? FindNewLine(node.EndOfLineTrivia);
+        var newLine = FindNewLine(node.LeadingTrivia)
+            ?? (node is YamlEditableEntry entry ? FindNewLine(entry.SeparatorTrivia) ?? FindNewLine(entry.EndOfLineTrivia) : null);
         if (newLine is null && node is YamlEditableScalar scalar && scalar.Text.IndexOfAny(['\r', '\n']) is var index and >= 0)
         {
             // A quoted or block scalar on several lines holds its line breaks in its text.
@@ -1463,25 +1486,25 @@ internal static class YamlEditableLayout
         return newLine;
     }
 
-    private static YamlEditableNode? GetLastEntry(YamlEditableNode? value) => value switch
+    private static YamlEditableEntry? GetLastEntry(YamlEditableNode? value) => value switch
     {
-        YamlEditableMap map when map.Entries.Count > 0 => map.Entries[map.Entries.Count - 1],
-        YamlEditableList list when list.Items.Count > 0 => list.Items[list.Items.Count - 1],
+        YamlEditableMapping map when map.Entries.Count > 0 => map.Entries[map.Entries.Count - 1],
+        YamlEditableSequence list when list.Items.Count > 0 => list.Items[list.Items.Count - 1],
         _ => null,
     };
 
     /// <summary>
-    /// Returns the entry whose <see cref="YamlEditableNode.EndOfLineTrivia"/> ends the last line
+    /// Returns the entry whose <see cref="YamlEditableEntry.EndOfLineTrivia"/> ends the last line
     /// of <paramref name="entry"/>: the entry itself, or the last entry of its nested blocks.
     /// </summary>
-    private static YamlEditableNode GetLastLineOwner(YamlEditableNode entry)
+    private static YamlEditableEntry GetLastLineOwner(YamlEditableEntry entry)
     {
         while (true)
         {
             var value = entry switch
             {
-                YamlEditableMapEntry mapEntry => mapEntry.Value,
-                YamlEditableListEntry listEntry => listEntry.Value,
+                YamlEditableMappingEntry mapEntry => mapEntry.Value,
+                YamlEditableSequenceEntry listEntry => listEntry.Value,
                 _ => null,
             };
 

@@ -52,16 +52,17 @@ public sealed class YamlEditableTree
     public YamlSyntaxTree SyntaxTree { get; }
 
     /// <summary>
-    /// Gets the root node (a <see cref="YamlEditableMap"/> for the common case of a document
+    /// Gets the root node (a <see cref="YamlEditableMapping"/> for the common case of a document
     /// whose top level is a mapping).
     /// </summary>
     public YamlEditableNode Root { get; }
 
     /// <summary>
-    /// Gets trivia (typically the final newline, or trailing comments/blank lines) that follows
-    /// the last significant token of the document. Might be <see langword="null"/>.
+    /// Gets or sets the trivia after the last line of the document's content: the comment lines and blank lines after its
+    /// last entry, or the comment and the line break after a scalar or an empty mapping or sequence at the root.
+    /// <see langword="null"/> if there are none.
     /// </summary>
-    public List<YamlEditableTrivia>? TrailingTrivia { get; internal set; }
+    public List<YamlEditableTrivia>? TrailingTrivia { get; set; }
 
     /// <summary>
     /// Parses YAML text into an editable tree.
@@ -104,7 +105,7 @@ public sealed class YamlEditableTree
 
         try
         {
-            writer.Verify(root, recordValues: true);
+            RecordValues(writer.Verify(root));
         }
         catch (InvalidOperationException exception)
         {
@@ -136,18 +137,41 @@ public sealed class YamlEditableTree
         var newText = writer.ToString();
         if (string.Equals(oldText, newText, StringComparison.Ordinal))
         {
-            // An entry moved to another map can leave the text as it was: the tree must still be what the text reads.
-            writer.Verify(Root, recordValues: false);
+            // An entry moved to another mapping can leave the text as it was: the tree must still be what the text reads.
+            var values = writer.Verify(Root);
             VerifyComments(SyntaxTree);
+            RecordValues(values);
             return SyntaxTree;
         }
 
         // The text must be valid YAML, every node must be read back as the node it was written for, and every comment as
         // the comment of the entry that has it: the edits must not change what an untouched node is, or move a comment.
+        // The values of the scalars are then recorded: later edits must not change them either.
         var changed = ApplyTextChange(oldText, newText);
-        writer.Verify(Root, recordValues: false);
+        var read = writer.Verify(Root);
         VerifyComments(changed);
+        RecordValues(read);
         return changed;
+    }
+
+    private static void RecordValues(Dictionary<YamlEditableScalar, string> values)
+    {
+        foreach (var pair in values)
+        {
+            pair.Key.ReadValue = pair.Value;
+        }
+    }
+
+    /// <summary>
+    /// Returns the value that <paramref name="scalar"/>, a node of this tree, is read as in the text written for the tree.
+    /// </summary>
+    /// <exception cref="YamlException">The text of the tree is not valid YAML.</exception>
+    /// <exception cref="InvalidOperationException">The text of the tree does not read back as the tree.</exception>
+    internal string ReadValueOf(YamlEditableScalar scalar)
+    {
+        using var writer = new YamlEditableTextWriter();
+        WriteTo(writer);
+        return writer.Verify(Root)[scalar];
     }
 
     /// <summary>
@@ -181,9 +205,10 @@ public sealed class YamlEditableTree
     }
 
     /// <summary>
-    /// Returns the comments of the document (before the first entry and after the last one, and of a scalar at the root),
-    /// then the comments of each entry, in the order they are written: the lines above it, on its line, and in the header
-    /// of a block scalar value. Spaces are not compared, so that two comments written on one line read as one.
+    /// Returns the comments of the start of the document (its header and the comment lines above its first entry, which
+    /// the text alone does not tell apart when a blank line separates them), then the comments of each entry, in the order
+    /// they are written: the lines above it, on its line, and in the header of a block scalar value, and last the comments
+    /// after the last entry. Spaces are not compared, so that two comments written on one line read as one.
     /// </summary>
     private static List<string> GetComments(YamlEditableNode root, List<YamlEditableTrivia>? trailingTrivia)
     {
@@ -195,27 +220,41 @@ public sealed class YamlEditableTree
             AppendComments(builder, YamlEditableLayout.GetHeaderComment(scalar.Text));
         }
 
+        var first = root switch
+        {
+            YamlEditableMapping { Entries.Count: > 0 } mapping => (YamlEditableEntry)mapping.Entries[0],
+            YamlEditableSequence { Items.Count: > 0 } sequence => sequence.Items[0],
+            _ => null,
+        };
+        AppendComments(builder, first?.LeadingTrivia);
+        comments.Add(builder.ToString());
+        AddEntryComments(comments, root, first);
+
+        builder.Clear();
         AppendComments(builder, trailingTrivia);
         comments.Add(builder.ToString());
-        AddEntryComments(comments, root);
         return comments;
     }
 
-    private static void AddEntryComments(List<string> comments, YamlEditableNode collection)
+    private static void AddEntryComments(List<string> comments, YamlEditableNode collection, YamlEditableEntry? first = null)
     {
-        IEnumerable<YamlEditableNode> entries = collection switch
+        IEnumerable<YamlEditableEntry> entries = collection switch
         {
-            YamlEditableMap map => map.Entries,
-            YamlEditableList list => list.Items,
+            YamlEditableMapping map => map.Entries,
+            YamlEditableSequence list => list.Items,
             _ => [],
         };
 
         foreach (var entry in entries)
         {
-            var value = entry is YamlEditableMapEntry mapEntry ? mapEntry.Value : ((YamlEditableListEntry)entry).Value;
+            var value = entry.Value;
             var builder = new StringBuilder();
-            AppendComments(builder, entry.LeadingTrivia);
-            AppendComments(builder, entry.TrailingTrivia);
+            if (!ReferenceEquals(entry, first))
+            {
+                AppendComments(builder, entry.LeadingTrivia);
+            }
+
+            AppendComments(builder, entry.SeparatorTrivia);
             AppendComments(builder, value.LeadingTrivia);
             if (value is YamlEditableScalar scalar)
             {
@@ -624,7 +663,7 @@ public sealed class YamlEditableTree
             if (_significant.Count == 0)
             {
                 // A document without content: its comments and blank lines go before the first entry added to it.
-                var empty = new YamlEditableMap { LeadingTrivia = TrailingTrivia };
+                var empty = new YamlEditableMapping { LeadingTrivia = TrailingTrivia };
                 TrailingTrivia = null;
                 return empty;
             }
@@ -640,9 +679,9 @@ public sealed class YamlEditableTree
 
             // The comment lines at the start of the document that a blank line separates from the first entry are the
             // document's own: removing that entry keeps them.
-            if (node is YamlEditableMap { Entries.Count: > 0 } or YamlEditableList { Items.Count: > 0 })
+            if (node is YamlEditableMapping { Entries.Count: > 0 } or YamlEditableSequence { Items.Count: > 0 })
             {
-                var first = node is YamlEditableMap map ? (YamlEditableNode)map.Entries[0] : ((YamlEditableList)node).Items[0];
+                var first = node is YamlEditableMapping map ? (YamlEditableNode)map.Entries[0] : ((YamlEditableSequence)node).Items[0];
                 if (first.LeadingTrivia is { } firstLeading && GetHeaderLength(firstLeading) is var header and > 0)
                 {
                     node.LeadingTrivia = firstLeading.GetRange(0, header);
@@ -690,12 +729,12 @@ public sealed class YamlEditableTree
 
             if (Current.Kind == YamlSyntaxKind.FlowSequenceStart)
             {
-                return new YamlEditableList { EmptyFlowText = Take().Text };
+                return new YamlEditableSequence { EmptyFlowText = Take().Text };
             }
 
             if (Current.Kind == YamlSyntaxKind.FlowMappingStart)
             {
-                return new YamlEditableMap { EmptyFlowText = Take().Text };
+                return new YamlEditableMapping { EmptyFlowText = Take().Text };
             }
 
             if (Current.Kind == YamlSyntaxKind.Scalar && IsMapKeyAhead())
@@ -720,9 +759,9 @@ public sealed class YamlEditableTree
         private bool IsMapKeyAhead() =>
             _position + 1 < _significant.Count && _significant[_position + 1].Kind == YamlSyntaxKind.Value;
 
-        private YamlEditableMap ParseMap(string parentIndent)
+        private YamlEditableMapping ParseMap(string parentIndent)
         {
-            var map = new YamlEditableMap();
+            var map = new YamlEditableMapping();
             // null = "not yet committed": true until a key with an EXPLICIT indent (its own
             // newline) is seen. A key with no explicit indent shares its line with whatever
             // introduces this map (e.g. "- Name: x" — "Name" follows "-" on the same line, no
@@ -799,7 +838,7 @@ public sealed class YamlEditableTree
                 }
 
                 // A key with no explicit indent (indentOrNull is null) shares its line with the
-                // construct that introduces this map (e.g. the "-" of a YamlEditableListEntry,
+                // construct that introduces this map (e.g. the "-" of a YamlEditableSequenceEntry,
                 // whose own WriteCore already writes "- "). WriteCore below unconditionally
                 // writes Entry.Indent before the key, so this entry's stored Indent must be ""
                 // in that case — using the inherited "indent" (parentIndent) here would duplicate
@@ -807,10 +846,10 @@ public sealed class YamlEditableTree
                 // round-trip test: "- Name: x" became "-   Name: x", invalid YAML once the extra
                 // indent stacked with the ListEntry's own separator).
                 var entryIndent = indentOrNull ?? string.Empty;
-                var entry = new YamlEditableMapEntry(keyScalarToken.Text, valueNode, entryIndent)
+                var entry = new YamlEditableMappingEntry(keyScalarToken.Text, valueNode, entryIndent)
                 {
                     LeadingTrivia = keyLeading,
-                    TrailingTrivia = separatorTrivia,
+                    SeparatorTrivia = separatorTrivia,
                     EndOfLineTrivia = endOfLine,
                 };
                 map.AddParsedEntry(entry);
@@ -825,7 +864,7 @@ public sealed class YamlEditableTree
             return map;
         }
 
-        private YamlEditableList ParseList(string parentIndent)
+        private YamlEditableSequence ParseList(string parentIndent)
         {
             // The whitespace before "BlockSequenceStart" (a zero-width marker sharing the first
             // entry's position) carries the list's indentation; capture it before Expect
@@ -836,7 +875,7 @@ public sealed class YamlEditableTree
             {
                 Take();
             }
-            var list = new YamlEditableList();
+            var list = new YamlEditableSequence();
             var isFirstEntry = true;
 
             // Every "-" of a sequence is at the column of its first "-". A "-" at another column (the
@@ -884,10 +923,10 @@ public sealed class YamlEditableTree
 
                 // An entry with no indentation of its own shares its line with the "-" of an outer list ("- - a"),
                 // which already writes the whitespace before it.
-                var entry = new YamlEditableListEntry(itemNode, indentOrNull ?? string.Empty)
+                var entry = new YamlEditableSequenceEntry(itemNode, indentOrNull ?? string.Empty)
                 {
                     LeadingTrivia = entryLeading,
-                    TrailingTrivia = itemLeading,
+                    SeparatorTrivia = itemLeading,
                     EndOfLineTrivia = endOfLine,
                 };
                 list.AddParsedEntry(entry);
@@ -944,7 +983,7 @@ public sealed class YamlEditableTree
         /// run of whitespace immediately before it, after the last newline; and (b) the
         /// remaining trivia with that trailing indentation run removed, suitable for a node's
         /// <see cref="YamlEditableNode.LeadingTrivia"/> — indentation is instead reproduced by
-        /// the owning <see cref="YamlEditableMapEntry.Indent"/>/<see cref="YamlEditableListEntry.Indent"/>
+        /// the owning <see cref="YamlEditableEntry.Indent"/>/<see cref="YamlEditableEntry.Indent"/>
         /// in <c>WriteCore</c>, so writing both would duplicate it. Returns
         /// (<see langword="null"/>, the trivia unchanged) if the token does not start a line
         /// (e.g. a key on the same line as "-" has no indentation of its own).

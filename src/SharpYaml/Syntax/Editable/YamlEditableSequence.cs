@@ -12,15 +12,15 @@ namespace SharpYaml.Syntax.Editable;
 /// <summary>
 /// A block sequence: an ordered list of "- item" entries sharing the same indentation.
 /// </summary>
-public sealed class YamlEditableList : YamlEditableNode
+public sealed class YamlEditableSequence : YamlEditableNode
 {
-    private readonly List<YamlEditableListEntry> _items = [];
-    private readonly ReadOnlyCollection<YamlEditableListEntry> _itemsView;
+    private readonly List<YamlEditableSequenceEntry> _items = [];
+    private readonly ReadOnlyCollection<YamlEditableSequenceEntry> _itemsView;
 
     /// <summary>
-    /// Initializes a new, empty instance of the <see cref="YamlEditableList"/> class.
+    /// Initializes a new, empty instance of the <see cref="YamlEditableSequence"/> class.
     /// </summary>
-    public YamlEditableList() : base(YamlEditableKind.List)
+    public YamlEditableSequence() : base(YamlEditableKind.Sequence)
     {
         _itemsView = _items.AsReadOnly();
     }
@@ -28,7 +28,7 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <summary>
     /// Gets the entries of this sequence, in source order.
     /// </summary>
-    public IReadOnlyList<YamlEditableListEntry> Items => _itemsView;
+    public IReadOnlyList<YamlEditableSequenceEntry> Items => _itemsView;
 
     /// <summary>
     /// Appends an already-constructed entry, reparenting it to this list. The previous last line
@@ -42,7 +42,7 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <paramref name="entry"/> already has a parent or contains this list, or the line before it is the last line of a
     /// block scalar that ends the document without a line break (adding one would change its value).
     /// </exception>
-    public void AddEntry(YamlEditableListEntry entry)
+    public void AddEntry(YamlEditableSequenceEntry entry)
     {
         ThrowIfCannotAdd(entry);
         YamlEditableLayout.Insert(this, _items.Count, entry);
@@ -63,7 +63,7 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <paramref name="entry"/> already has a parent or contains this list, or <paramref name="index"/> is the number of
     /// entries and the entry cannot be added there (see <see cref="AddEntry"/>).
     /// </exception>
-    public void InsertEntry(int index, YamlEditableListEntry entry)
+    public void InsertEntry(int index, YamlEditableSequenceEntry entry)
     {
         if (index < 0 || index > _items.Count)
         {
@@ -89,12 +89,12 @@ public sealed class YamlEditableList : YamlEditableNode
     /// <summary>
     /// Appends an entry read by the parser, without changing its trivia.
     /// </summary>
-    internal void AddParsedEntry(YamlEditableListEntry entry) => InsertParsedEntry(_items.Count, entry);
+    internal void AddParsedEntry(YamlEditableSequenceEntry entry) => InsertParsedEntry(_items.Count, entry);
 
     /// <summary>
     /// Inserts an entry at <paramref name="index"/>, without changing its trivia.
     /// </summary>
-    internal void InsertParsedEntry(int index, YamlEditableListEntry entry)
+    internal void InsertParsedEntry(int index, YamlEditableSequenceEntry entry)
     {
         entry.Parent = this;
         _items.Insert(index, entry);
@@ -109,7 +109,7 @@ public sealed class YamlEditableList : YamlEditableNode
         _items.RemoveAt(index);
     }
 
-    private void ThrowIfCannotAdd(YamlEditableListEntry entry)
+    private void ThrowIfCannotAdd(YamlEditableSequenceEntry entry)
     {
         ArgumentGuard.ThrowIfNull(entry);
         if (entry.Parent != null)
