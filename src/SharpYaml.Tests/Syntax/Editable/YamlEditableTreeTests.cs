@@ -1097,12 +1097,26 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    [DataRow("k: \"a#b\"  # keep\n")]
-    [DataRow("color: '#fff' # white\n")]
     [DataRow("a : b\n")]
     public void Parse_DocumentThatTheTreeWouldNotWriteBackExactly_ThrowsNotSupportedException(string yaml)
     {
         Assert.ThrowsExactly<NotSupportedException>(() => YamlEditableTree.Parse(yaml));
+    }
+
+    [TestMethod]
+    [DataRow("k: \"a#b\"  # keep\nnext: 1\n", "k", "a#b", "k: x  # keep\nnext: 1\n")]
+    [DataRow("color: '#fff' # white\nnext: 1\n", "color", "#fff", "color: x # white\nnext: 1\n")]
+    [DataRow("url: https://example.com/#frag # keep\nnext: 1\n", "url", "https://example.com/#frag", "url: x # keep\nnext: 1\n")]
+    [DataRow("text: | # keep\n  a # b\nnext: 1\n", "text", "a # b\n", "text: x # keep\nnext: 1\n")]
+    public void SetValue_ScalarWithAHash_KeepsTheCommentAfterIt(string yaml, string key, string value, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+        Assert.AreEqual(yaml, tree.Serialize());
+        Assert.AreEqual(value, ((YamlEditableScalar)RootOf(tree).GetValue(key)!).Value);
+
+        RootOf(tree).SetValue(key, new YamlEditableScalar("x"));
+
+        AssertEdited(expected, tree);
     }
 
     [TestMethod]
@@ -2037,13 +2051,14 @@ public class YamlEditableTreeTests
     }
 
     [TestMethod]
-    public void SetValue_QuotedValueBeforeAComment_KeepsTheComment()
+    public void SetValue_QuotedValueWithAHashBeforeAComment_KeepsTheComment()
     {
         var tree = YamlEditableTree.Parse("color: red # keep\n");
 
-        RootOf(tree).SetValue("color", new YamlEditableScalar("'fff'"));
+        RootOf(tree).SetValue("color", new YamlEditableScalar("'#fff'"));
 
-        AssertEdited("color: 'fff' # keep\n", tree);
+        AssertEdited("color: '#fff' # keep\n", tree);
+        Assert.AreEqual("#fff", ((YamlEditableScalar)RootOf(tree).GetValue("color")!).Value);
     }
 
     [TestMethod]

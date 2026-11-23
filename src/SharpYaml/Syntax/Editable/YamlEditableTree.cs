@@ -393,19 +393,11 @@ public sealed class YamlEditableTree
     }
 
     /// <summary>
-    /// Builds a <see cref="YamlEditableNode"/> tree from the flat, position-sorted token stream
-    /// produced by <see cref="YamlSyntaxTree.Parse"/>.
-    ///
-    /// The stream is NOT a clean, strictly-nested sequence: zero-width structural markers
-    /// (<see cref="YamlSyntaxKind.Key"/>, <see cref="YamlSyntaxKind.BlockMappingStart"/>,
-    /// <see cref="YamlSyntaxKind.BlockEnd"/>) can appear in either order at the same source
-    /// position (e.g. "Key" before or after "BlockMappingStart" depending on parser lookahead),
-    /// and trivia is scanned independently of scalar boundaries, so a quoted scalar spanning a
-    /// newline produces a spurious NewLineTrivia token nested inside the scalar's own span. This
-    /// builder therefore does not assume a fixed token order: it treats the zero-width markers as
-    /// structural noise consumed opportunistically, and derives shape from the tokens that do
-    /// carry real text (Scalar, Value ":", BlockEntry "-", BlockSequenceStart) together with
-    /// indentation recovered from trivia.
+    /// Builds a <see cref="YamlEditableNode"/> tree from the token stream produced by <see cref="YamlSyntaxTree.Parse"/>, in
+    /// source order, where trivia is only between the other tokens. The empty markers of structure
+    /// (<see cref="YamlSyntaxKind.Key"/>, <see cref="YamlSyntaxKind.BlockMappingStart"/>, <see cref="YamlSyntaxKind.BlockEnd"/>)
+    /// are dropped: the builder derives the shape from the tokens that carry text (Scalar, Value ":", BlockEntry "-",
+    /// BlockSequenceStart) and from the indentation that the trivia holds.
     /// </summary>
     private sealed class Builder
     {
@@ -434,21 +426,11 @@ public sealed class YamlEditableTree
             _endOfLineByTokenIndex = [];
 
             var pendingTrivia = new List<YamlEditableTrivia>();
-            var containingScalarEnd = -1;
             var openFlowCollection = false;
             foreach (var token in tokens)
             {
                 if (IsTrivia(token.Kind))
                 {
-                    if (token.Span.Start.Index < containingScalarEnd)
-                    {
-                        // Trivia scanned independently of scalar boundaries can fall inside a
-                        // quoted/block scalar that already contains this text verbatim (e.g. a
-                        // newline inside a double-quoted scalar). Skip it: the owning Scalar
-                        // token's Text already carries it.
-                        continue;
-                    }
-
                     pendingTrivia.Add(ToTrivia(token));
                     continue;
                 }
@@ -472,11 +454,7 @@ public sealed class YamlEditableTree
                 if (token.Kind is YamlSyntaxKind.StreamStart or YamlSyntaxKind.StreamEnd
                     or YamlSyntaxKind.Key or YamlSyntaxKind.BlockMappingStart or YamlSyntaxKind.BlockEnd)
                 {
-                    // Zero-width structural noise: not represented as nodes in the editable tree.
-                    // Map/list nesting is instead recovered from indentation (see IndentOf) and
-                    // from Value/BlockEntry/BlockSequenceStart, which do carry reliable shape.
-                    // Their position relative to neighboring trivia is not fixed (see class
-                    // remarks), so they are dropped rather than consumed in an assumed order.
+                    // Empty markers of structure, which the tree has no node for (see the remarks of the class).
                     continue;
                 }
 
@@ -493,13 +471,11 @@ public sealed class YamlEditableTree
                         throw UnsupportedFlowCollection(start.Kind);
                     }
 
-                    // The start token stands for the whole "[]" or "{}", with the spaces between them. The tokens of
-                    // the flow indicators have no text of their own.
-                    var isSequence = start.Kind == YamlSyntaxKind.FlowSequenceStart;
+                    // The start token stands for the whole "[]" or "{}", with the spaces between them.
                     _significant[_significant.Count - 1] = new YamlSyntaxToken(
                         start.Kind,
                         new YamlSourceSpan(start.Span.Start, token.Span.End),
-                        (isSequence ? "[" : "{") + string.Concat(pendingTrivia.Select(t => t.Text)) + (isSequence ? "]" : "}"));
+                        start.Text + string.Concat(pendingTrivia.Select(t => t.Text)) + token.Text);
                     pendingTrivia = [];
                     openFlowCollection = false;
                     continue;
@@ -520,10 +496,6 @@ public sealed class YamlEditableTree
                 pendingTrivia = [];
 
                 _significant.Add(token);
-                if (token.Kind == YamlSyntaxKind.Scalar)
-                {
-                    containingScalarEnd = Math.Max(containingScalarEnd, token.Span.End.Index);
-                }
             }
 
             if (openFlowCollection)

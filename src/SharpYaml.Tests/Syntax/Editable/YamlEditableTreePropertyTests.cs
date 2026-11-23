@@ -50,6 +50,7 @@ public class YamlEditableTreePropertyTests
         "- # c1 dash\n  a: 1\n  b: 2\n- #c2\n  - x\n",
         "a: #c1\n  b: 1 #c2\nc: #c3\n  - 1\n",
         "-     {} #c1\n- tail\n",
+        "url: \"https://example.com/#frag\" #c1\ncolor: '#fff'\nplain: a#b #c2\ntext: | #c3\n  x # y\n",
     ];
 
     private static readonly Regex CommentId = new(@"#c\d+|# c\d+", RegexOptions.Compiled);
