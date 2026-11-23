@@ -2,6 +2,7 @@ using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Schemas;
 using SharpYaml.Events;
+using SharpYaml.Serialization;
 
 namespace SharpYaml.Tests.Serialization;
 
@@ -53,6 +54,26 @@ public sealed class Yaml122SchemaTests
         foreach (var useSchema in new[] { false, true })
         {
             Assert.AreEqual(expected, YamlSerializer.Deserialize<decimal>(text, new YamlSerializerOptions { UseSchema = useSchema }));
+        }
+    }
+
+    [TestMethod]
+    [DataRow("1e30")]
+    [DataRow("-1e30")]
+    [DataRow("7.9228162514264337593543950336e28")]
+    [DataRow("!!float 1e30")]
+    public void DecimalOutOfRangeFailsTheSameWayInBothPaths(string yaml)
+    {
+        var expected = Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<decimal>(yaml)).Message;
+        foreach (var schema in new[] { YamlSchemaKind.Core, YamlSchemaKind.Json, YamlSchemaKind.Extended })
+        {
+            var options = new YamlSerializerOptions { Schema = schema, UseSchema = true };
+            Assert.AreEqual(expected, Assert.Throws<YamlException>(() => YamlSerializer.Deserialize<decimal>(yaml, options)).Message);
+
+            var reader = YamlReader.Create(yaml, options);
+            Assert.IsTrue(reader.Read());
+            Assert.AreEqual(YamlTokenType.Scalar, reader.TokenType);
+            Assert.IsFalse(YamlScalar.TryParseDecimal(reader, out _));
         }
     }
 

@@ -19,6 +19,10 @@ public static class YamlScalar
     private static readonly FailsafeSchema s_failsafeSchema = new();
     private static readonly JsonSchema s_jsonSchema = new();
 
+    // decimal.MaxValue (2^96 - 1) rounds up to 2^96 as a double: a double in the decimal range is strictly between these bounds.
+    private const double DecimalMinValueAsDouble = (double)decimal.MinValue;
+    private const double DecimalMaxValueAsDouble = (double)decimal.MaxValue;
+
     /// <summary>
     /// Determines whether a scalar represents YAML null (for example <c>null</c> or <c>~</c>).
     /// </summary>
@@ -891,10 +895,11 @@ public static class YamlScalar
             case ulong ulongValue:
                 result = ulongValue;
                 return true;
-            case float floatValue when !float.IsNaN(floatValue) && !float.IsInfinity(floatValue):
+            // NaN and infinities fail the range check too.
+            case float floatValue when floatValue > DecimalMinValueAsDouble && floatValue < DecimalMaxValueAsDouble:
                 result = (decimal)floatValue;
                 return true;
-            case double doubleValue when !double.IsNaN(doubleValue) && !double.IsInfinity(doubleValue):
+            case double doubleValue when doubleValue > DecimalMinValueAsDouble && doubleValue < DecimalMaxValueAsDouble:
                 result = (decimal)doubleValue;
                 return true;
             case decimal decimalValue:
