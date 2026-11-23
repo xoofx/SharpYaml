@@ -2259,4 +2259,53 @@ public class YamlEditableTreeTests
 
         AssertEdited("  b: 2\n", tree);
     }
+    [TestMethod]
+    [DataRow("{}  \n", "1", "a: 1  \n")]
+    [DataRow("{}  \n", "|-\n  x", "a: |-  \n  x\n")]
+    [DataRow("{}  ", "1", "a: 1  ")]
+    public void SetValue_RootEmptyMappingWithSpacesAfterIt_KeepsTheSpacesOnTheLineOfTheEntry(string yaml, string text, string expected)
+    {
+        var tree = YamlEditableTree.Parse(yaml);
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar(text));
+
+        AssertEdited(expected, tree);
+    }
+
+    [TestMethod]
+    public void AddEntry_EntryOfAnotherTreeAddedToARootEmptyMappingWithSpaces_KeepsOneLineBreak()
+    {
+        var source = YamlEditableTree.Parse("a: 1\n");
+        var target = YamlEditableTree.Parse("{}  \n");
+        var a = RootOf(source).GetEntry("a")!;
+
+        RootOf(source).RemoveEntry("a");
+        RootOf(target).AddEntry(a);
+
+        AssertEdited("a: 1  \n", target);
+    }
+
+    [TestMethod]
+    public void Text_RootScalarWithSpacesAfterItBecomesBlockScalar_PutsTheSpacesOnItsHeaderLine()
+    {
+        var tree = YamlEditableTree.Parse("old  \n");
+
+        ((YamlEditableScalar)tree.Root).Text = "|-\n  x";
+
+        AssertEdited("|-  \n  x\n", tree);
+    }
+
+    [TestMethod]
+    public void RemoveThenInsertFirst_EntryThatWasTheLastLine_GetsBackItsLineBreak()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\r\nb: 2\nc: 3");
+        var root = RootOf(tree);
+        var b = root.GetEntry("b")!;
+
+        root.RemoveEntry("c");
+        root.RemoveEntry("b");
+        root.InsertEntry(0, b);
+
+        AssertEdited("b: 2\na: 1", tree);
+    }
 }

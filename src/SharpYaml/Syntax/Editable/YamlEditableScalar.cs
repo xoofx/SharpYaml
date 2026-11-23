@@ -88,6 +88,9 @@ public sealed class YamlEditableScalar : YamlEditableNode
                 {
                     YamlEditableLayout.MoveCommentToHeader(trailing, this);
                 }
+
+                // The spaces at the end of the line would follow the last line of the block scalar.
+                YamlEditableLayout.MoveSpacesToHeader(trailing, this);
             }
         }
     }

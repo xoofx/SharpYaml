@@ -296,11 +296,31 @@ internal static class YamlEditableLayout
                     rootLeading.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection)));
                 }
 
-                // The line break of the line of "{}" or "[]" ends the line of the entry, which keeps its own if it has one.
-                if (collection.Tree?.TrailingTrivia is [{ Kind: YamlEditableTriviaKind.NewLine } flowEnd, ..] flowTrailing)
+                // The spaces and the line break after "{}" or "[]" end the line of the entry, which keeps its own line break
+                // if it has one.
+                if (collection.Tree?.TrailingTrivia is { } flowTrailing)
                 {
-                    flowTrailing.RemoveAt(0);
-                    EnsureEndsWithNewLine(entry, flowEnd);
+                    var spaces = 0;
+                    while (spaces < flowTrailing.Count && flowTrailing[spaces].Kind == YamlEditableTriviaKind.Whitespace)
+                    {
+                        spaces++;
+                    }
+
+                    var flowEnd = spaces < flowTrailing.Count && flowTrailing[spaces].Kind == YamlEditableTriviaKind.NewLine ? flowTrailing[spaces] : null;
+                    if (spaces > 0 || flowEnd is not null)
+                    {
+                        var moved = flowTrailing.GetRange(0, spaces);
+                        flowTrailing.RemoveRange(0, flowEnd is null ? spaces : spaces + 1);
+                        if (flowEnd is not null)
+                        {
+                            EnsureEndsWithNewLine(entry, flowEnd);
+                        }
+
+                        var lastLine = GetLastLineOwner(entry);
+                        var endOfLine = lastLine.EndOfLineTrivia ??= [];
+                        var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
+                        endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, moved);
+                    }
                 }
             }
 
@@ -1283,11 +1303,14 @@ internal static class YamlEditableLayout
 
     private static void EnsureEndsWithNewLine(YamlEditableEntry entry, YamlEditableTrivia newLine)
     {
+        // A line that lost its line break when it became the last line of the document gets it back.
         var owner = GetLastLineOwner(entry);
         if (FindNewLine(owner.EndOfLineTrivia) is null)
         {
-            (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, newLine.Text));
+            (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, owner.RemovedLineBreak ?? newLine.Text));
         }
+
+        owner.RemovedLineBreak = null;
     }
 
     private static void EnsureEndsWithNewLine(YamlEditableEntry entry, string newLine) =>
@@ -1439,7 +1462,7 @@ internal static class YamlEditableLayout
     /// Moves the spaces before the line break of <paramref name="trivia"/>, which would be written after the last line of the
     /// block scalar <paramref name="scalar"/> and could be part of its value, to the end of its header line.
     /// </summary>
-    private static void MoveSpacesToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)
+    internal static void MoveSpacesToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)
     {
         var count = 0;
         while (trivia is not null && count < trivia.Count && trivia[count].Kind == YamlEditableTriviaKind.Whitespace)
