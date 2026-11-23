@@ -203,8 +203,6 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
         return scalar;
     }
 
-    private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style)
-        => CreateMappingStart(anchor, tag, isImplicit, style, Mark.Empty, Mark.Empty);
 
     private Event CreateMappingStart(string? anchor, string? tag, bool isImplicit, YamlStyle style, in Mark start, in Mark end)
     {
@@ -490,7 +488,8 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
             state = ParserState.YAML_PARSE_BLOCK_NODE_STATE;
 
-            return new Events.DocumentStart(null, directives, true, GetCurrentToken().Start, GetCurrentToken().End);
+            // An implicit document has no text of its own: it starts where its first token starts.
+            return new Events.DocumentStart(null, directives, true, GetCurrentToken().Start, GetCurrentToken().Start);
         }
 
         // Parse an explicit document.
@@ -673,6 +672,8 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
 
         var start = GetCurrentToken().Start;
 
+        // The end of the last property: an empty node with properties ends there.
+        var end = start;
         Anchor? anchor = null;
         Tag? tag = null;
 
@@ -682,11 +683,13 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             if (anchor == null && CurrentKind == TokenKind.Anchor)
             {
                 anchor = (Anchor)GetCurrentToken();
+                end = anchor.End;
                 Skip();
             }
             else if (tag == null && CurrentKind == TokenKind.Tag)
             {
                 tag = (Tag)GetCurrentToken();
+                end = tag.End;
                 Skip();
             }
             else
@@ -787,7 +790,7 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             if (anchorName != null || tag != null)
             {
                 state = states.Pop();
-                return CreateScalar(anchorName, tagName, string.Empty, ScalarStyle.Plain, isImplicit, false, start, GetCurrentToken().End);
+                return CreateScalar(anchorName, tagName, string.Empty, ScalarStyle.Plain, isImplicit, false, start, end);
             }
 
             var current = GetCurrentToken();
@@ -1034,15 +1037,18 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
                 }
             }
 
+            // The mapping of a flow sequence entry ("[a: b]", "[? a]") starts at its key, or where its value starts when its
+            // key is empty ("[: b]").
             if (CurrentKind == TokenKind.Value)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_KEY_STATE;
-                return CreateMappingStart(null, null, true, YamlStyle.Flow);
+                return CreateMappingStart(null, null, true, YamlStyle.Flow, GetCurrentToken().Start, GetCurrentToken().Start);
             }
             if (CurrentKind == TokenKind.Key)
             {
                 state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_MAPPING_KEY_STATE;
-                evt = CreateMappingStart(null, null, true, YamlStyle.Flow);
+                var key = GetCurrentToken();
+                evt = CreateMappingStart(null, null, true, YamlStyle.Flow, key.Start, key.End);
                 Skip();
                 return evt;
             }
@@ -1106,8 +1112,10 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
     /// </summary>
     private Event ParseFlowSequenceEntryMappingEnd()
     {
+        // The mapping of a flow sequence entry ("[a: b]") has no closing indicator of its own: it ends where the next token
+        // starts.
         state = ParserState.YAML_PARSE_FLOW_SEQUENCE_ENTRY_STATE;
-        return CreateMappingEnd(GetCurrentToken().Start, GetCurrentToken().End);
+        return CreateMappingEnd(GetCurrentToken().Start, GetCurrentToken().Start);
     }
 
     /// <summary>

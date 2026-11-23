@@ -327,6 +327,7 @@ internal static class YamlEditableLayout
                         var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
                         endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, moved);
                         collection.MovedSpaces = moved;
+                        collection.MovedSpacesHolder = lastLine;
                     }
                 }
             }
@@ -446,12 +447,14 @@ internal static class YamlEditableLayout
         {
             // The root is empty again, as it was before its entries were added, and the spaces after it that its first entry
             // took are the root's again.
-            if (collection.MovedSpaces is { } spaces && GetLastLineOwner(removedEntry).EndOfLineTrivia is { } removedEnd)
+            // The entry whose line took them is no longer in the root, which is empty: it was removed, now or before.
+            if (collection.MovedSpaces is { } spaces && collection.MovedSpacesHolder?.EndOfLineTrivia is { } holderEnd)
             {
-                removedEnd.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
+                holderEnd.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
             }
 
             collection.MovedSpaces = null;
+            collection.MovedSpacesHolder = null;
             collection.LeadingTrivia = Clone(memo.First);
             if (collection.Tree is { } tree)
             {

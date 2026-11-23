@@ -63,6 +63,11 @@ public abstract class YamlEditableNode
     internal List<YamlEditableTrivia>? MovedSpaces { get; set; }
 
     /// <summary>
+    /// Gets or sets the entry whose line took <see cref="MovedSpaces"/>.
+    /// </summary>
+    internal YamlEditableEntry? MovedSpacesHolder { get; set; }
+
+    /// <summary>
     /// Gets or sets the comment lines and blank lines before this node, in source order, with the line break of each line:
     /// those above an entry, or above the first entry or the scalar of a document. <see langword="null"/> if there are none.
     /// </summary>

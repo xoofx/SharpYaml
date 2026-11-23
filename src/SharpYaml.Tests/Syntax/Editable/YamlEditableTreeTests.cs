@@ -2351,4 +2351,20 @@ public class YamlEditableTreeTests
 
         AssertEdited("a: 1\r\n", target);
     }
+
+    [TestMethod]
+    public void AddRemoveAdd_EntryThatTookTheSpacesOfTheRootRemovedFirst_KeepsTheSpacesOnce()
+    {
+        var tree = YamlEditableTree.Parse("{}  \n");
+        var a = new YamlEditableMappingEntry("a", new YamlEditableScalar("1"));
+
+        RootOf(tree).AddEntry(a);
+        RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+        RootOf(tree).RemoveEntry("a");
+        RootOf(tree).RemoveEntry("b");
+        AssertEdited("{}  \n", tree);
+        RootOf(tree).AddEntry(a);
+
+        AssertEdited("a: 1  \n", tree);
+    }
 }

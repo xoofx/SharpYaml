@@ -330,6 +330,12 @@ public sealed class YamlSyntaxTree
                 continue;
             }
 
+            // As in the marks of the scanner, a byte order mark at the start of the text takes no column.
+            if (cursor == 0 && ch == '\uFEFF')
+            {
+                continue;
+            }
+
             column++;
         }
 

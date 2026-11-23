@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SharpYaml.Events;
 using SharpYaml.Syntax;
@@ -89,6 +90,39 @@ public sealed class YamlScannerParserErrorTests
         Assert.AreEqual(string.Empty, key!.Value);
         Assert.AreEqual(index, key.Start.Index);
         Assert.AreEqual(index, key.End.Index);
+    }
+
+    [TestMethod]
+    [DataRow("[a: b]", "StreamStart 0-0,DocumentStart 0-0,SequenceStart 0-1,MappingStart 1-1,Scalar 1-2,Scalar 4-5,MappingEnd 5-5,SequenceEnd 5-6,DocumentEnd 6-6,StreamEnd 6-6")]
+    [DataRow("[&a]", "StreamStart 0-0,DocumentStart 0-0,SequenceStart 0-1,Scalar 1-3,SequenceEnd 3-4,DocumentEnd 4-4,StreamEnd 4-4")]
+    [DataRow("{a: !t }", "StreamStart 0-0,DocumentStart 0-0,MappingStart 0-1,Scalar 1-2,Scalar 4-6,MappingEnd 7-8,DocumentEnd 8-8,StreamEnd 8-8")]
+    [DataRow("[? : x]", "StreamStart 0-0,DocumentStart 0-0,SequenceStart 0-1,MappingStart 1-2,Scalar 3-3,Scalar 5-6,MappingEnd 6-6,SequenceEnd 6-7,DocumentEnd 7-7,StreamEnd 7-7")]
+    [DataRow("a", "StreamStart 0-0,DocumentStart 0-0,Scalar 0-1,DocumentEnd 1-1,StreamEnd 1-1")]
+    [DataRow("[: b]", "StreamStart 0-0,DocumentStart 0-0,SequenceStart 0-1,MappingStart 1-1,Scalar 1-1,Scalar 3-4,MappingEnd 4-4,SequenceEnd 4-5,DocumentEnd 5-5,StreamEnd 5-5")]
+    public void Parser_GivesEachEventTheTextItWasReadFrom(string yaml, string expected)
+    {
+        // An event that only marks structure, such as the end of the mapping of "[a: b]", is empty: it does not take the
+        // indicator of the node around it.
+        var parser = Parser.CreateParser(new StringReader(yaml));
+        var spans = new List<string>();
+        while (parser.MoveNext())
+        {
+            var current = parser.Current!;
+            spans.Add($"{current.GetType().Name} {current.Start.Index}-{current.End.Index}");
+        }
+
+        Assert.AreEqual(expected, string.Join(",", spans));
+    }
+
+    [TestMethod]
+    public void Parse_ByteOrderMark_TakesNoColumnInAnyMark()
+    {
+        var tree = YamlSyntaxTree.Parse("\uFEFFa ");
+
+        var whitespace = tree.Tokens.First(token => token.Kind == YamlSyntaxKind.WhitespaceTrivia);
+        Assert.AreEqual(3, whitespace.Span.End.Index);
+        Assert.AreEqual(whitespace.Span.End.Column, tree.Root.FullSpan.End.Column);
+        Assert.AreEqual(2, tree.Root.FullSpan.End.Column);
     }
 
     [TestMethod]

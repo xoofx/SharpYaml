@@ -188,10 +188,17 @@ back exactly (a byte order mark is kept), so a document that uses them is never 
 
 SharpYaml uses source locations for errors and editor integrations.
 
-- [`Mark`](xref:SharpYaml.Mark) captures index, line, and column.
+- [`Mark`](xref:SharpYaml.Mark) captures index, line, and column. A byte order mark at the start of the text counts
+  in the index, not in the column.
 - [`YamlSourceSpan`](xref:SharpYaml.Syntax.YamlSourceSpan) captures a start/end mark.
 
 Parse errors throw [`YamlException`](xref:SharpYaml.YamlException) with location information.
+
+A parser event spans the text it was read from, with the anchor and the tag before its node: a scalar, an alias, the
+indicator that starts or ends a flow collection (`[`, `}`), a `---` or a `...`; an empty scalar with an anchor spans
+the anchor (`&a` in `[&a]`). An event that no text stands for is empty, at the start of the next token: an implicit
+document start, the start and the end of a block collection, the end of the mapping of a flow sequence entry
+(`[a: b]`), and an empty scalar without an anchor or a tag.
 
 ## Tokens
 
