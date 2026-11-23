@@ -372,7 +372,7 @@ public class YamlEditableTreePropertyTests
         return Outcome.Applied;
     }
 
-    private const int ValueKinds = 8;
+    private const int ValueKinds = 9;
 
     private static YamlEditableNode NewValue(int kind, int id) => kind switch
     {
@@ -383,7 +383,8 @@ public class YamlEditableTreePropertyTests
         4 => new YamlEditableSequence(),
         5 => NewMap(id),
         6 => NewList(id),
-        _ => Requested("|\n  b" + id + "\n", "b" + id + "\n"),
+        7 => Requested("|\n  b" + id + "\n", "b" + id + "\n"),
+        _ => Requested("|-\n  x" + id + "\n    y" + id, "x" + id + "\n  y" + id),
     };
 
     // The value that each new scalar is expected to be read as, until the edits are first applied.
@@ -508,21 +509,23 @@ public class YamlEditableTreePropertyTests
             default:
             {
                 var index = random.Next(count + 1);
-                Insert(collection, index, NewValue(kind, step), "k" + step);
-                return $"insert {Path(collection)}[{index}] kind {kind}";
+                // An indentation given to a new entry is used only for the first entry of a mapping or a sequence.
+                var indent = random.Next(3) == 0 ? "    " : string.Empty;
+                Insert(collection, index, NewValue(kind, step), "k" + step, indent);
+                return $"insert {Path(collection)}[{index}] kind {kind} indent {indent.Length}";
             }
         }
     }
 
-    private static void Insert(YamlEditableNode collection, int index, YamlEditableNode value, string key)
+    private static void Insert(YamlEditableNode collection, int index, YamlEditableNode value, string key, string indent = "")
     {
         switch (collection)
         {
             case YamlEditableMapping map:
-                map.InsertEntry(index, new YamlEditableMappingEntry(key, value, string.Empty));
+                map.InsertEntry(index, new YamlEditableMappingEntry(key, value, indent));
                 break;
             case YamlEditableSequence list:
-                list.InsertEntry(index, new YamlEditableSequenceEntry(value, string.Empty));
+                list.InsertEntry(index, new YamlEditableSequenceEntry(value, indent));
                 break;
         }
     }

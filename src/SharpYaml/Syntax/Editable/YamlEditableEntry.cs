@@ -71,7 +71,7 @@ public abstract class YamlEditableEntry : YamlEditableNode
     /// the entry, or the comment and the line break of that line when the value starts on a later line (a mapping, a
     /// sequence, or a value on the line after its key). <see langword="null"/> writes a space before a value on the line of
     /// the entry, including the first entry of the mapping or sequence of a sequence entry ("- key: value"), and a line break
-    /// before the mapping or sequence of a mapping entry.
+    /// before the mapping or sequence with entries of a mapping entry (an empty one is written "{}" or "[]" on the line).
     /// </summary>
     public List<YamlEditableTrivia>? SeparatorTrivia { get; set; }
 
@@ -99,4 +99,10 @@ public abstract class YamlEditableEntry : YamlEditableNode
     /// breaks.
     /// </summary>
     internal YamlEditableNode? DetachedRoot { get; set; }
+
+    /// <summary>
+    /// Gets or sets the line break removed from the last line of this entry when it became the last line of a document
+    /// without a final line break, to end the line with it again when an entry is added after it.
+    /// </summary>
+    internal string? RemovedLineBreak { get; set; }
 }

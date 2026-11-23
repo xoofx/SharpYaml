@@ -87,6 +87,13 @@ internal static class YamlEditableLayout
         // the entry.
         entry.DetachedColumn = null;
         var delta = GetColumn(entry).Length - oldColumn;
+        if (delta < 0)
+        {
+            // Every line moves by the same number of columns, so that the lines keep their indentation relative to each
+            // other: a value whose lines are not indented as much as the column the entry had is moved less.
+            delta = Math.Max(delta, -GetSmallestIndent(entry));
+        }
+
         if (delta != 0)
         {
             ShiftValue(entry, delta);
@@ -173,6 +180,7 @@ internal static class YamlEditableLayout
         if (owner.EndOfLineTrivia is { Count: > 0 } endOfLine && endOfLine[endOfLine.Count - 1].Kind == YamlEditableTriviaKind.NewLine
             && !(owner.Value is YamlEditableScalar scalar && KeepsFinalLineBreak(scalar.Text)))
         {
+            owner.RemovedLineBreak = endOfLine[endOfLine.Count - 1].Text;
             endOfLine.RemoveAt(endOfLine.Count - 1);
         }
     }
@@ -218,6 +226,7 @@ internal static class YamlEditableLayout
             return;
         }
 
+        owner.RemovedLineBreak = endOfLine[endOfLine.Count - 1].Text;
         endOfLine.RemoveAt(endOfLine.Count - 1);
     }
 
@@ -257,7 +266,8 @@ internal static class YamlEditableLayout
                     SetIndent(entry, flowIndent.Text);
                 }
             }
-            else if (collection.Parent is null && GetEmptyFlowText(collection) is { } flowText && GetEndLineBreak(flowText) is { } flowLineBreak)
+
+            if (collection.Parent is null && GetEmptyFlowText(collection) is { } flowText && GetEndLineBreak(flowText) is { } flowLineBreak)
             {
                 // A root whose entries were all removed was written "{}" with the line break of its last line.
                 EnsureEndsWithNewLine(entry, flowLineBreak);
@@ -285,6 +295,13 @@ internal static class YamlEditableLayout
                     rootLeading.Add(comment);
                     rootLeading.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection)));
                 }
+
+                // The line break of the line of "{}" or "[]" ends the line of the entry, which keeps its own if it has one.
+                if (collection.Tree?.TrailingTrivia is [{ Kind: YamlEditableTriviaKind.NewLine } flowEnd, ..] flowTrailing)
+                {
+                    flowTrailing.RemoveAt(0);
+                    EnsureEndsWithNewLine(entry, flowEnd);
+                }
             }
 
             // The comment lines at the start of the document stay its own, not the first entry's: a blank line separates
@@ -307,7 +324,9 @@ internal static class YamlEditableLayout
         {
             // The document has no final line break: end the previous line, and leave the new last
             // line without one, as the document was.
-            var documentNewLine = GetDocumentNewLine(previous);
+            // The line ends with the line break it had before it became the last line, if it had one.
+            var documentNewLine = owner.RemovedLineBreak ?? GetDocumentNewLine(previous);
+            owner.RemovedLineBreak = null;
             (owner.EndOfLineTrivia ??= []).Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, documentNewLine));
             UseNewLineOf(collection, entry, documentNewLine);
             RemoveFinalLineBreak(entry);
@@ -1031,6 +1050,46 @@ internal static class YamlEditableLayout
     }
 
     /// <summary>
+    /// Returns the smallest indentation of the lines of the value of <paramref name="entry"/> after its first line, at every
+    /// depth, or <see cref="int.MaxValue"/> if it has none.
+    /// </summary>
+    private static int GetSmallestIndent(YamlEditableEntry entry)
+    {
+        var smallest = int.MaxValue;
+        if (entry.SeparatorTrivia is { } separator)
+        {
+            for (var index = 1; index < separator.Count; index++)
+            {
+                if (separator[index - 1].Kind == YamlEditableTriviaKind.NewLine && separator[index].Kind == YamlEditableTriviaKind.Whitespace)
+                {
+                    smallest = Math.Min(smallest, separator[index].Text.Length);
+                }
+            }
+        }
+
+        switch (entry.Value)
+        {
+            case YamlEditableScalar scalar when GetContinuationIndent(scalar.Text) is var indent and >= 0:
+                smallest = Math.Min(smallest, indent);
+                break;
+            case { } value when IsBlock(value):
+                foreach (var child in GetOwnLineEntries(value))
+                {
+                    smallest = Math.Min(smallest, child.Indent.Length);
+                }
+
+                foreach (var child in GetEntries(value))
+                {
+                    smallest = Math.Min(smallest, GetSmallestIndent(child));
+                }
+
+                break;
+        }
+
+        return smallest;
+    }
+
+    /// <summary>
     /// Captures the trivia of the root <paramref name="root"/> before its first entry is added, for <see cref="AfterEmptinessChanged"/>
     /// to restore them when its entries are removed again.
     /// </summary>
@@ -1360,6 +1419,7 @@ internal static class YamlEditableLayout
         if (GetValue(owner) is YamlEditableScalar scalar && IsBlockScalar(scalar.Text))
         {
             MoveCommentToHeader(owner.EndOfLineTrivia, scalar);
+            MoveSpacesToHeader(owner.EndOfLineTrivia, scalar);
             if (!ReferenceEquals(owner, entry) && FindNewLine(owner.EndOfLineTrivia) is null)
             {
                 MoveCommentToHeader(entry.EndOfLineTrivia, scalar);
@@ -1373,6 +1433,29 @@ internal static class YamlEditableLayout
                 KeepCommentsOutOfBlockScalars(child);
             }
         }
+    }
+
+    /// <summary>
+    /// Moves the spaces before the line break of <paramref name="trivia"/>, which would be written after the last line of the
+    /// block scalar <paramref name="scalar"/> and could be part of its value, to the end of its header line.
+    /// </summary>
+    private static void MoveSpacesToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)
+    {
+        var count = 0;
+        while (trivia is not null && count < trivia.Count && trivia[count].Kind == YamlEditableTriviaKind.Whitespace)
+        {
+            count++;
+        }
+
+        if (count == 0)
+        {
+            return;
+        }
+
+        var spaces = string.Concat(trivia!.GetRange(0, count).Select(t => t.Text));
+        trivia.RemoveRange(0, count);
+        var headerEnd = scalar.Text.IndexOfAny(['\r', '\n'], Math.Max(0, GetIndicatorIndex(scalar.Text)));
+        scalar.SetTextUnchecked(scalar.Text.Insert(headerEnd < 0 ? scalar.Text.Length : headerEnd, spaces));
     }
 
     internal static void MoveCommentToHeader(List<YamlEditableTrivia>? trivia, YamlEditableScalar scalar)

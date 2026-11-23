@@ -2190,4 +2190,73 @@ public class YamlEditableTreeTests
 
         AssertEdited("b:\n  a: 1", tree);
     }
+    [TestMethod]
+    public void SetValue_NewKeyWithAnIndentationAndABlockScalar_KeepsTheIndentationOfItsLines()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\n");
+
+        RootOf(tree).SetValue("b", new YamlEditableScalar("|-\n  x\n    y"), "    ");
+
+        AssertEdited("a: 1\nb: |-\n  x\n    y\n", tree);
+        Assert.AreEqual("x\n  y", ((YamlEditableScalar)RootOf(tree).GetValue("b")!).Value);
+    }
+
+    [TestMethod]
+    public void AddEntry_SequenceEntryWithAnIndentationAndABlockScalar_KeepsTheIndentationOfItsLines()
+    {
+        var tree = YamlEditableTree.Parse("- 1\n");
+        var scalar = new YamlEditableScalar("|-\n  x\n    y");
+
+        ((YamlEditableSequence)tree.Root).AddEntry(new YamlEditableSequenceEntry(scalar, "    "));
+
+        AssertEdited("- 1\n- |-\n  x\n    y\n", tree);
+        Assert.AreEqual("x\n  y", scalar.Value);
+    }
+
+    [TestMethod]
+    public void SetValue_BlockScalarOnALineWithTrailingSpaces_PutsTheSpacesOnItsHeaderLine()
+    {
+        var tree = YamlEditableTree.Parse("a: old  \nb: 2\n");
+
+        RootOf(tree).SetValue("a", new YamlEditableScalar("|-\n  x"));
+
+        AssertEdited("a: |-  \n  x\nb: 2\n", tree);
+        Assert.AreEqual("x", ((YamlEditableScalar)RootOf(tree).GetValue("a")!).Value);
+    }
+
+    [TestMethod]
+    public void RemoveThenInsert_LastKeyOfDocumentWithMixedLineBreaks_GivesBackTheText()
+    {
+        var tree = YamlEditableTree.Parse("a: 1\r\nb: 2\nc: 3");
+        var c = RootOf(tree).GetEntry("c")!;
+
+        RootOf(tree).RemoveEntry("c");
+        RootOf(tree).InsertEntry(2, c);
+
+        AssertEdited("a: 1\r\nb: 2\nc: 3", tree);
+    }
+
+    [TestMethod]
+    public void AddEntry_EntryOfAnotherTreeAddedToARootEmptyMapping_EndsWithOneLineBreak()
+    {
+        var source = YamlEditableTree.Parse("a: 1\n");
+        var target = YamlEditableTree.Parse("{}\n");
+        var a = RootOf(source).GetEntry("a")!;
+
+        RootOf(source).RemoveEntry("a");
+        RootOf(target).AddEntry(a);
+
+        AssertEdited("a: 1\n", target);
+    }
+
+    [TestMethod]
+    public void RemoveThenSetValue_OnlyKeyOfIndentedRoot_KeepsTheIndentationAndTheLineBreak()
+    {
+        var tree = YamlEditableTree.Parse("  a: 1\n");
+
+        RootOf(tree).RemoveEntry("a");
+        RootOf(tree).SetValue("b", new YamlEditableScalar("2"));
+
+        AssertEdited("  b: 2\n", tree);
+    }
 }
