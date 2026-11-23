@@ -44,8 +44,12 @@ public sealed class YamlSyntaxTree
     public YamlSyntaxNode Root { get; }
 
     /// <summary>
-    /// Gets parsed syntax tokens.
+    /// Gets parsed syntax tokens, in source order.
     /// </summary>
+    /// <remarks>
+    /// Trivia tokens (whitespace, line breaks and comments) cover only the text between the other tokens: a
+    /// <c>#</c>, a space or a line break in the text of a scalar, an anchor, an alias or a tag is part of that token.
+    /// </remarks>
     public IReadOnlyList<YamlSyntaxToken> Tokens { get; }
 
     /// <summary>
@@ -64,22 +68,7 @@ public sealed class YamlSyntaxTree
         ValidateYaml(yaml);
 
         var tokens = new List<YamlSyntaxToken>();
-        if (options.IncludeTrivia)
-        {
-            AddTriviaTokens(yaml, tokens);
-        }
-
-        AddScannerTokens(yaml, tokens);
-        tokens.Sort(static (left, right) =>
-        {
-            var position = left.Span.Start.Index.CompareTo(right.Span.Start.Index);
-            if (position != 0)
-            {
-                return position;
-            }
-
-            return left.Span.End.Index.CompareTo(right.Span.End.Index);
-        });
+        AddTokens(yaml, tokens, options.IncludeTrivia);
 
         var endMark = CreateMark(yaml, yaml.Length);
         var fullSpan = new YamlSourceSpan(new Mark(0, 0, 0), endMark);
@@ -180,21 +169,40 @@ public sealed class YamlSyntaxTree
         return fallback;
     }
 
-    private static void AddScannerTokens(string yaml, ICollection<YamlSyntaxToken> target)
+    /// <summary>
+    /// Adds the tokens of the scanner in their source order and, when <paramref name="includeTrivia"/> is set, the
+    /// trivia in the text between them. The text of a token is never trivia, even where it holds a <c>#</c>, a space
+    /// or a line break, as in a quoted or block scalar, a plain scalar such as <c>http://x/#frag</c> or an anchor.
+    /// </summary>
+    private static void AddTokens(string yaml, List<YamlSyntaxToken> target, bool includeTrivia)
     {
         var scanner = new Scanner<StringLookAheadBuffer>(new StringLookAheadBuffer(yaml));
+        // Where the text not yet read for trivia starts: the end of the last token that has text.
+        var triviaStart = new Mark(0, 0, 0);
         while (scanner.MoveNext())
         {
             var token = scanner.Current;
-            var start = token.Start;
-            var end = token.End;
-            var safeStart = Clamp(start.Index, 0, yaml.Length);
-            var safeEnd = Clamp(end.Index, safeStart, yaml.Length);
-            var text = safeEnd > safeStart ? yaml.Substring(safeStart, safeEnd - safeStart) : string.Empty;
+            var start = Clamp(token.Start.Index, 0, yaml.Length);
+            var end = Clamp(token.End.Index, start, yaml.Length);
+            if (includeTrivia && start > triviaStart.Index)
+            {
+                AddTriviaTokens(yaml, triviaStart, start, target);
+            }
+
+            var text = end > start ? yaml.Substring(start, end - start) : string.Empty;
             target.Add(new YamlSyntaxToken(
                 MapTokenKind(token),
-                new YamlSourceSpan(start, end),
+                new YamlSourceSpan(token.Start, token.End),
                 text));
+            if (end > triviaStart.Index)
+            {
+                triviaStart = token.End;
+            }
+        }
+
+        if (includeTrivia && yaml.Length > triviaStart.Index)
+        {
+            AddTriviaTokens(yaml, triviaStart, yaml.Length, target);
         }
     }
 
@@ -205,22 +213,28 @@ public sealed class YamlSyntaxTree
         return value;
     }
 
-    private static void AddTriviaTokens(string yaml, ICollection<YamlSyntaxToken> target)
+    /// <summary>
+    /// Adds the trivia of the text from <paramref name="from"/> to <paramref name="endIndex"/>, which lies between two
+    /// tokens of the scanner.
+    /// </summary>
+    private static void AddTriviaTokens(string yaml, Mark from, int endIndex, List<YamlSyntaxToken> target)
     {
-        var index = 0;
-        var line = 0;
-        var column = 0;
+        var index = from.Index;
+        var line = from.Line;
+        var column = from.Column;
 
-        while (index < yaml.Length)
+        while (index < endIndex)
         {
             var start = new Mark(index, line, column);
             var current = yaml[index];
+            // Outside the text of the tokens, a '#' always starts a comment: the scanner checked that it follows a
+            // blank or starts a line.
             if (current == '#')
             {
                 var cursor = index + 1;
                 var endLine = line;
                 var endColumn = column + 1;
-                while (cursor < yaml.Length && yaml[cursor] != '\r' && yaml[cursor] != '\n')
+                while (cursor < endIndex && yaml[cursor] != '\r' && yaml[cursor] != '\n')
                 {
                     cursor++;
                     endColumn++;
@@ -241,7 +255,7 @@ public sealed class YamlSyntaxTree
             if (current == '\r' || current == '\n')
             {
                 var cursor = index;
-                if (current == '\r' && cursor + 1 < yaml.Length && yaml[cursor + 1] == '\n')
+                if (current == '\r' && cursor + 1 < endIndex && yaml[cursor + 1] == '\n')
                 {
                     cursor += 2;
                 }
@@ -266,7 +280,7 @@ public sealed class YamlSyntaxTree
             {
                 var cursor = index + 1;
                 var endColumn = column + 1;
-                while (cursor < yaml.Length && (yaml[cursor] == ' ' || yaml[cursor] == '\t'))
+                while (cursor < endIndex && (yaml[cursor] == ' ' || yaml[cursor] == '\t'))
                 {
                     cursor++;
                     endColumn++;

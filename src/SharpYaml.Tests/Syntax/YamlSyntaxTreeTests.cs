@@ -66,6 +66,117 @@ public class YamlSyntaxTreeTests
     }
 
     [TestMethod]
+    [DataRow("k: \"a#b\"  # keep\n", "\"a#b\"", "# keep")]
+    [DataRow("color: '#fff' # white\n", "'#fff'", "# white")]
+    [DataRow("url: http://x/#frag # c\n", "http://x/#frag", "# c")]
+    public void ParseReadsTheCommentAfterAScalarThatHoldsAHash(string yaml, string scalarText, string commentText)
+    {
+        var tree = YamlSyntaxTree.Parse(yaml);
+
+        var scalar = tree.Tokens.Single(token => token.Kind == YamlSyntaxKind.Scalar && token.Text == scalarText);
+        var comment = tree.Tokens.Single(token => token.Kind == YamlSyntaxKind.CommentTrivia);
+        var index = yaml.LastIndexOf(commentText, StringComparison.Ordinal);
+        Assert.AreEqual(commentText, comment.Text);
+        Assert.AreEqual(new Mark(index, 0, index), comment.Span.Start);
+        Assert.AreEqual(new Mark(index + commentText.Length, 0, index + commentText.Length), comment.Span.End);
+        Assert.IsTrue(comment.Span.Start.Index > scalar.Span.End.Index);
+        AssertTokensDescribeText(tree, yaml);
+    }
+
+    [TestMethod]
+    [DataRow("quoted: \"line one\n  line two\" # c\n")]
+    [DataRow("plain: a b\n  c d # c\n")]
+    [DataRow("key: |\n  text # not a comment\n\n# c\nnext: 1\n")]
+    [DataRow("node: &a#b value # c\nalias: *a#b # c\n")]
+    [DataRow("[a, \"b#c\" , 'd#e'] # c\n")]
+    public void ParseReadsNoTriviaInsideTheTextOfOtherTokens(string yaml)
+    {
+        var tree = YamlSyntaxTree.Parse(yaml);
+
+        AssertTokensDescribeText(tree, yaml);
+        var comments = tree.Tokens.Where(token => token.Kind == YamlSyntaxKind.CommentTrivia).ToArray();
+        Assert.IsTrue(comments.Length > 0);
+        foreach (var comment in comments)
+        {
+            Assert.AreEqual("# c", comment.Text);
+        }
+    }
+
+    [TestMethod]
+    public void ParseListsTokensInSourceOrder()
+    {
+        var tree = YamlSyntaxTree.Parse("a: 1\r\n# c\r\nb: 2 # d\r\n");
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                YamlSyntaxKind.StreamStart, YamlSyntaxKind.BlockMappingStart, YamlSyntaxKind.Key, YamlSyntaxKind.Scalar,
+                YamlSyntaxKind.Value, YamlSyntaxKind.WhitespaceTrivia, YamlSyntaxKind.Scalar, YamlSyntaxKind.NewLineTrivia,
+                YamlSyntaxKind.CommentTrivia, YamlSyntaxKind.NewLineTrivia, YamlSyntaxKind.Key, YamlSyntaxKind.Scalar,
+                YamlSyntaxKind.Value, YamlSyntaxKind.WhitespaceTrivia, YamlSyntaxKind.Scalar, YamlSyntaxKind.WhitespaceTrivia,
+                YamlSyntaxKind.CommentTrivia, YamlSyntaxKind.NewLineTrivia, YamlSyntaxKind.BlockEnd, YamlSyntaxKind.StreamEnd,
+            },
+            tree.Tokens.Select(token => token.Kind).ToArray());
+        AssertTokensDescribeText(tree, tree.Text);
+    }
+
+    public static IEnumerable<object[]> ValidSuiteCases()
+    {
+        foreach (var data in YamlTestSuiteTests.Cases())
+        {
+            if (!(bool)data[2])
+            {
+                yield return [data[0], data[1]];
+            }
+        }
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(ValidSuiteCases))]
+    public void ParseTokensOfOfficialCasesDescribeTheirText(string id, string yaml)
+    {
+        AssertTokensDescribeText(YamlSyntaxTree.Parse(yaml), id);
+    }
+
+    /// <summary>
+    /// Asserts that the tokens are in source order, that each holds the text of its span, that no two tokens with
+    /// text overlap (so no trivia lies inside a scalar, an anchor or a tag) and that each trivia token holds only
+    /// what its kind says.
+    /// </summary>
+    private static void AssertTokensDescribeText(YamlSyntaxTree tree, string message)
+    {
+        var previousStart = 0;
+        var textEnd = 0;
+        foreach (var token in tree.Tokens)
+        {
+            var start = token.Span.Start.Index;
+            var end = token.Span.End.Index;
+            Assert.IsTrue(start >= previousStart, $"{message}: {token} is out of order.");
+            Assert.AreEqual(tree.Text.Substring(start, end - start), token.Text, $"{message}: {token}");
+            if (end > start)
+            {
+                Assert.IsTrue(start >= textEnd, $"{message}: {token} overlaps the text of a previous token.");
+                textEnd = end;
+            }
+
+            switch (token.Kind)
+            {
+                case YamlSyntaxKind.CommentTrivia:
+                    Assert.IsTrue(token.Text.StartsWith('#') && token.Text.IndexOfAny(['\r', '\n']) < 0, $"{message}: {token}");
+                    break;
+                case YamlSyntaxKind.WhitespaceTrivia:
+                    Assert.IsTrue(token.Text.Length > 0 && token.Text.Trim(' ', '\t').Length == 0, $"{message}: {token}");
+                    break;
+                case YamlSyntaxKind.NewLineTrivia:
+                    Assert.IsTrue(token.Text is "\n" or "\r\n" or "\r", $"{message}: {token}");
+                    break;
+            }
+
+            previousStart = start;
+        }
+    }
+
+    [TestMethod]
     public void ParseIncludesTriviaByDefault()
     {
         const string yaml = "a: 1\n# c\n";
