@@ -57,6 +57,12 @@ public abstract class YamlEditableNode
     internal YamlEditableLayout.Memo? LayoutMemo { get; set; }
 
     /// <summary>
+    /// Gets or sets the spaces after a root "{}" or "[]" that its first entry took at the end of its line, which are the
+    /// root's again when it is empty again.
+    /// </summary>
+    internal List<YamlEditableTrivia>? MovedSpaces { get; set; }
+
+    /// <summary>
     /// Gets or sets the comment lines and blank lines before this node, in source order, with the line break of each line:
     /// those above an entry, or above the first entry or the scalar of a document. <see langword="null"/> if there are none.
     /// </summary>

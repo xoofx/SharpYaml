@@ -2308,4 +2308,32 @@ public class YamlEditableTreeTests
 
         AssertEdited("b: 2\na: 1", tree);
     }
+    [TestMethod]
+    public void AddRemoveAdd_SameEntryInRootEmptyMappingWithSpaces_KeepsTheSpacesOnce()
+    {
+        var tree = YamlEditableTree.Parse("{}  \n");
+        var a = new YamlEditableMappingEntry("a", new YamlEditableScalar("1"));
+
+        RootOf(tree).AddEntry(a);
+        AssertEdited("a: 1  \n", tree);
+        RootOf(tree).RemoveEntry("a");
+        AssertEdited("{}  \n", tree);
+        RootOf(tree).AddEntry(a);
+
+        AssertEdited("a: 1  \n", tree);
+    }
+
+    [TestMethod]
+    public void AddEntry_EntryThatLostItsLineBreakMovedToAnotherDocument_TakesTheLineBreakOfThatDocument()
+    {
+        var source = YamlEditableTree.Parse("a: 1\nb: 2");
+        var target = YamlEditableTree.Parse("{}\r\n");
+        var a = RootOf(source).GetEntry("a")!;
+
+        RootOf(source).RemoveEntry("b");
+        RootOf(source).RemoveEntry("a");
+        RootOf(target).AddEntry(a);
+
+        AssertEdited("a: 1\r\n", target);
+    }
 }

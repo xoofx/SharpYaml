@@ -44,6 +44,12 @@ internal static class YamlEditableLayout
     {
         var entries = GetEntries(collection);
         var oldColumn = entry.DetachedColumn ?? GetIndent(entry).Length;
+        if (entry.DetachedRoot is not null && !ReferenceEquals(entry.DetachedRoot, GetRoot(collection)))
+        {
+            // The line break that the entry had in another document does not apply in this one.
+            GetLastLineOwner(entry).RemovedLineBreak = null;
+        }
+
         var rootBefore = entries.Count == 0 && collection.Parent is null ? CaptureRoot(collection) : null;
         string? column = null;
         if (index == entries.Count)
@@ -320,6 +326,7 @@ internal static class YamlEditableLayout
                         var endOfLine = lastLine.EndOfLineTrivia ??= [];
                         var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
                         endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, moved);
+                        collection.MovedSpaces = moved;
                     }
                 }
             }
@@ -437,7 +444,14 @@ internal static class YamlEditableLayout
         else if (collection.Parent is null && removedEntry is not null && collection.LayoutMemo is { } memo
             && memo.Matches(collection.LeadingTrivia, collection.Tree?.TrailingTrivia))
         {
-            // The root is empty again, as it was before its entries were added.
+            // The root is empty again, as it was before its entries were added, and the spaces after it that its first entry
+            // took are the root's again.
+            if (collection.MovedSpaces is { } spaces && GetLastLineOwner(removedEntry).EndOfLineTrivia is { } removedEnd)
+            {
+                removedEnd.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
+            }
+
+            collection.MovedSpaces = null;
             collection.LeadingTrivia = Clone(memo.First);
             if (collection.Tree is { } tree)
             {
