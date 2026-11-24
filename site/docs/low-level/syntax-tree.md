@@ -199,7 +199,8 @@ indicator that starts or ends a flow collection (`[`, `}`), a `---` or a `...`; 
 the anchor (`&a` in `[&a]`), and a sequence at the column of its key (`key:\n- a`) starts with its first `-`. An
 event that no text stands for is empty, at the start of the next token: an implicit document start, the start of any
 other block collection, the end of a block collection, the end of the mapping of a flow sequence entry (`[a: b]`), and
-the empty scalar of an empty document. The empty scalar of a missing value is right after its `:` or `-` (`a:`).
+the empty scalar of an empty document. The empty scalar of a missing value is right after its `:` or `-` in a block
+(`a:`), and where the next token starts in a flow collection (`{a: }`).
 
 ## Tokens
 
