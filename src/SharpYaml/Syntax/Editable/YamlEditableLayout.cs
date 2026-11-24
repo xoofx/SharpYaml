@@ -143,7 +143,6 @@ internal static class YamlEditableLayout
         // same document.
         entry.DetachedColumn = GetColumn(entry).Length;
         entry.DetachedRoot = GetRoot(collection);
-        ReturnMovedSpaces(collection, entry);
         if (index == 0 && entries.Count > 1)
         {
             PrepareRemoveFirst(collection, entries[1]);
@@ -172,31 +171,6 @@ internal static class YamlEditableLayout
             if (entries.Count == 1 && collection.Parent is YamlEditableEntry owner && owner.LayoutMemo is { } memo)
             {
                 memo.Produced = Fingerprint(owner.SeparatorTrivia, owner.EndOfLineTrivia);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Takes back the spaces after a root "{}" or "[]" that the line of <paramref name="removed"/>, or of one of its entries,
-    /// took when it was the first entry of <paramref name="collection"/>: the root restores them when it is empty again.
-    /// The root then no longer refers to the entry.
-    /// </summary>
-    private static void ReturnMovedSpaces(YamlEditableNode collection, YamlEditableEntry removed)
-    {
-        if (collection.MovedSpaces is not { } spaces || collection.MovedSpacesHolder is not { } holder)
-        {
-            return;
-        }
-
-        for (YamlEditableNode? node = holder; node is not null; node = node.Parent)
-        {
-            if (ReferenceEquals(node, removed))
-            {
-                holder.EndOfLineTrivia?.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
-                holder.SeparatorTrivia?.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
-                collection.MovedSpaces = null;
-                collection.MovedSpacesHolder = null;
-                return;
             }
         }
     }
@@ -328,8 +302,8 @@ internal static class YamlEditableLayout
                     rootLeading.Add(new YamlEditableTrivia(YamlEditableTriviaKind.NewLine, GetDocumentNewLine(collection)));
                 }
 
-                // The spaces and the line break after "{}" or "[]" end the line of the entry, which keeps its own line break
-                // if it has one.
+                // The spaces after "{}" or "[]" are left out, and its line break ends the line of the entry, which keeps its
+                // own line break if it has one. The root gets them back when it is empty again.
                 if (collection.Tree?.TrailingTrivia is { } flowTrailing)
                 {
                     var spaces = 0;
@@ -339,25 +313,10 @@ internal static class YamlEditableLayout
                     }
 
                     var flowEnd = spaces < flowTrailing.Count && flowTrailing[spaces].Kind == YamlEditableTriviaKind.NewLine ? flowTrailing[spaces] : null;
-                    if (spaces > 0 || flowEnd is not null)
+                    flowTrailing.RemoveRange(0, flowEnd is null ? spaces : spaces + 1);
+                    if (flowEnd is not null)
                     {
-                        var moved = flowTrailing.GetRange(0, spaces);
-                        flowTrailing.RemoveRange(0, flowEnd is null ? spaces : spaces + 1);
-                        if (flowEnd is not null)
-                        {
-                            EnsureEndsWithNewLine(entry, flowEnd);
-                        }
-
-                        // After the last line of a block scalar, the spaces would be part of its value: they are left out.
-                        var lastLine = GetLastLineOwner(entry);
-                        if (!(lastLine.Value is YamlEditableScalar scalar && IsBlockScalar(scalar.Text)))
-                        {
-                            var endOfLine = lastLine.EndOfLineTrivia ??= [];
-                            var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
-                            endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, moved);
-                            collection.MovedSpaces = moved;
-                            collection.MovedSpacesHolder = lastLine;
-                        }
+                        EnsureEndsWithNewLine(entry, flowEnd);
                     }
                 }
             }

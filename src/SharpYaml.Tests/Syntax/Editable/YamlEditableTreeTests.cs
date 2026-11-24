@@ -2275,17 +2275,18 @@ public class YamlEditableTreeTests
         AssertEdited("  b: 2\n", tree);
     }
     [TestMethod]
-    [DataRow("{}  \n", "1", "a: 1  \n")]
-    // After the last line of a block scalar, the spaces would be part of its value: they are left out.
+    [DataRow("{}  \n", "1", "a: 1\n")]
     [DataRow("{}  \n", "|-\n  x", "a: |-\n  x\n")]
-    [DataRow("{}  ", "1", "a: 1  ")]
-    public void SetValue_RootEmptyMappingWithSpacesAfterIt_KeepsTheSpacesOnTheLineOfTheEntry(string yaml, string text, string expected)
+    [DataRow("{}  ", "1", "a: 1")]
+    public void SetValue_RootEmptyMappingWithSpacesAfterIt_LeavesTheSpacesOutUntilItIsEmptyAgain(string yaml, string text, string expected)
     {
         var tree = YamlEditableTree.Parse(yaml);
 
         RootOf(tree).SetValue("a", new YamlEditableScalar(text));
-
         AssertEdited(expected, tree);
+
+        RootOf(tree).RemoveEntry("a");
+        AssertEdited(yaml, tree);
     }
 
     [TestMethod]
@@ -2298,7 +2299,7 @@ public class YamlEditableTreeTests
         RootOf(source).RemoveEntry("a");
         RootOf(target).AddEntry(a);
 
-        AssertEdited("a: 1  \n", target);
+        AssertEdited("a: 1\n", target);
     }
 
     [TestMethod]
@@ -2331,12 +2332,12 @@ public class YamlEditableTreeTests
         var a = new YamlEditableMappingEntry("a", new YamlEditableScalar("1"));
 
         RootOf(tree).AddEntry(a);
-        AssertEdited("a: 1  \n", tree);
+        AssertEdited("a: 1\n", tree);
         RootOf(tree).RemoveEntry("a");
         AssertEdited("{}  \n", tree);
         RootOf(tree).AddEntry(a);
 
-        AssertEdited("a: 1  \n", tree);
+        AssertEdited("a: 1\n", tree);
     }
 
     [TestMethod]
@@ -2366,7 +2367,7 @@ public class YamlEditableTreeTests
         AssertEdited("{}  \n", tree);
         RootOf(tree).AddEntry(a);
 
-        AssertEdited("a: 1  \n", tree);
+        AssertEdited("a: 1\n", tree);
     }
 
     [TestMethod]
@@ -2401,8 +2402,7 @@ public class YamlEditableTreeTests
         AssertEdited("{}  \n", tree);
         RootOf(tree).AddEntry(a);
 
-        Assert.AreEqual(1, tree.Serialize().Split("  \n").Length - 1, tree.Serialize());
-        tree.ToSyntaxTree();
+        AssertEdited("a:\n  x: 1\n", tree);
     }
 
     [TestMethod]
@@ -2444,5 +2444,50 @@ public class YamlEditableTreeTests
 
         AssertEdited(added, tree);
         Assert.AreEqual("x", ((YamlEditableScalar)a.Value).Value);
+    }
+
+    [TestMethod]
+    public void AddEntry_NestedEntryMovedToAnotherDocument_IsNotKeptByTheFirstDocument()
+    {
+        var source = YamlEditableTree.Parse("{}  \n");
+        var target = MoveNestedEntryTo(source);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        Assert.IsFalse(target.TryGetTarget(out _));
+        GC.KeepAlive(source);
+
+        static WeakReference<YamlEditableTree> MoveNestedEntryTo(YamlEditableTree source)
+        {
+            var target = YamlEditableTree.Parse("z: 9\n");
+            var nested = new YamlEditableMapping();
+            nested.SetValue("x", new YamlEditableScalar("1"));
+            RootOf(source).SetValue("a", nested);
+            var x = nested.GetEntry("x")!;
+            nested.RemoveEntry("x");
+            RootOf(target).AddEntry(x);
+            RootOf(source).RemoveEntry("a");
+            return new WeakReference<YamlEditableTree>(target);
+        }
+    }
+
+    [TestMethod]
+    public void AddRemoveAdd_ItemOfRootEmptySequenceWithSpacesThatBecameAMapping_KeepsNoSpaces()
+    {
+        var tree = YamlEditableTree.Parse("[]  \n");
+        var item = new YamlEditableSequenceEntry(new YamlEditableScalar("v"));
+        var map = new YamlEditableMapping();
+        map.SetValue("x", new YamlEditableScalar("1"));
+
+        ((YamlEditableSequence)tree.Root).AddEntry(item);
+        item.Value = map;
+        AssertEdited("- x: 1\n", tree);
+        ((YamlEditableSequence)tree.Root).RemoveAt(0);
+        AssertEdited("[]  \n", tree);
+        ((YamlEditableSequence)tree.Root).AddEntry(item);
+
+        AssertEdited("- x: 1\n", tree);
     }
 }

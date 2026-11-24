@@ -72,7 +72,7 @@ public sealed class YamlSyntaxTree
         var tokens = new List<YamlSyntaxToken>();
         AddTokens(yaml, tokens, options.IncludeTrivia);
 
-        var endMark = CreateMark(yaml, yaml.Length);
+        var endMark = GetEndMark(yaml, tokens);
         var fullSpan = new YamlSourceSpan(new Mark(0, 0, 0), endMark);
         var span = BuildNodeSpan(tokens, fullSpan);
         return new YamlSyntaxTree(yaml, new RootSyntaxNode(span, fullSpan), tokens, options.IncludeTrivia);
@@ -312,6 +312,45 @@ public sealed class YamlSyntaxTree
         }
     }
 
+    /// <summary>
+    /// Returns the mark of the end of <paramref name="yaml"/>: from the end of its last token, through the text after it,
+    /// where a byte order mark at the start of a line is one that the scanner skipped and takes no column, as in its marks.
+    /// </summary>
+    private static Mark GetEndMark(string yaml, List<YamlSyntaxToken> tokens)
+    {
+        var mark = new Mark(0, 0, 0);
+        foreach (var token in tokens)
+        {
+            if (token.Kind != YamlSyntaxKind.StreamEnd && token.Span.End.Index > mark.Index && token.Span.End.Index <= yaml.Length)
+            {
+                mark = token.Span.End;
+            }
+        }
+
+        var line = mark.Line;
+        var column = mark.Column;
+        for (var index = mark.Index; index < yaml.Length; index++)
+        {
+            var ch = yaml[index];
+            if (ch == '\r' && index + 1 < yaml.Length && yaml[index + 1] == '\n')
+            {
+                continue;
+            }
+
+            if (ch is '\r' or '\n')
+            {
+                line++;
+                column = 0;
+            }
+            else if (!(ch == '\uFEFF' && column == 0))
+            {
+                column++;
+            }
+        }
+
+        return new Mark(yaml.Length, line, column);
+    }
+
     private static Mark CreateMark(string yaml, int index)
     {
         var line = 0;
@@ -335,12 +374,6 @@ public sealed class YamlSyntaxTree
             {
                 line++;
                 column = 0;
-                continue;
-            }
-
-            // As in the marks of the scanner, a byte order mark at the start of a line takes no column.
-            if (column == 0 && ch == '\uFEFF')
-            {
                 continue;
             }
 

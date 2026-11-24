@@ -142,6 +142,17 @@ public sealed class YamlScannerParserErrorTests
     }
 
     [TestMethod]
+    public void Parse_ByteOrderMarkCharacterInAQuotedScalar_TakesAColumn()
+    {
+        var tree = YamlSyntaxTree.Parse("\"a\n\uFEFFb\" ");
+
+        var whitespace = tree.Tokens.Last(token => token.Kind == YamlSyntaxKind.WhitespaceTrivia);
+        Assert.AreEqual(7, whitespace.Span.End.Index);
+        Assert.AreEqual(4, whitespace.Span.End.Column);
+        Assert.AreEqual(4, tree.Root.FullSpan.End.Column);
+    }
+
+    [TestMethod]
     public void Parse_ByteOrderMark_TakesNoColumnInAnyMark()
     {
         var tree = YamlSyntaxTree.Parse("\uFEFFa ");
