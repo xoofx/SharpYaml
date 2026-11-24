@@ -153,6 +153,23 @@ public sealed class YamlScannerParserErrorTests
     }
 
     [TestMethod]
+    [DataRow("a: 1 ", 0, 5)]
+    [DataRow("a: 1\n", 1, 0)]
+    [DataRow("- a\n  # c\n", 2, 0)]
+    [DataRow("\uFEFFa", 0, 1)]
+    public void Parse_EndOfTheText_IsTheSameWithAndWithoutTrivia(string yaml, int line, int column)
+    {
+        foreach (var includeTrivia in new[] { true, false })
+        {
+            var end = YamlSyntaxTree.Parse(yaml, new YamlSyntaxOptions { IncludeTrivia = includeTrivia }).Root.FullSpan.End;
+
+            Assert.AreEqual(yaml.Length, end.Index);
+            Assert.AreEqual(line, end.Line, $"trivia: {includeTrivia}");
+            Assert.AreEqual(column, end.Column, $"trivia: {includeTrivia}");
+        }
+    }
+
+    [TestMethod]
     public void Parse_ByteOrderMark_TakesNoColumnInAnyMark()
     {
         var tree = YamlSyntaxTree.Parse("\uFEFFa ");

@@ -313,7 +313,8 @@ public sealed class YamlSyntaxTree
     }
 
     /// <summary>
-    /// Returns the mark of the end of <paramref name="yaml"/>: from the end of its last token, through the text after it,
+    /// Returns the mark of the end of <paramref name="yaml"/>: from the end of its last token with text (the scanner puts
+    /// the end of a block on the line after its last one), through the text after it,
     /// where a byte order mark at the start of a line is one that the scanner skipped and takes no column, as in its marks.
     /// </summary>
     private static Mark GetEndMark(string yaml, List<YamlSyntaxToken> tokens)
@@ -321,7 +322,7 @@ public sealed class YamlSyntaxTree
         var mark = new Mark(0, 0, 0);
         foreach (var token in tokens)
         {
-            if (token.Kind != YamlSyntaxKind.StreamEnd && token.Span.End.Index > mark.Index && token.Span.End.Index <= yaml.Length)
+            if (token.Text.Length > 0 && token.Span.End.Index > mark.Index && token.Span.End.Index <= yaml.Length)
             {
                 mark = token.Span.End;
             }
