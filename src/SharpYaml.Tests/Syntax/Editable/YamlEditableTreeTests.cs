@@ -2276,7 +2276,8 @@ public class YamlEditableTreeTests
     }
     [TestMethod]
     [DataRow("{}  \n", "1", "a: 1  \n")]
-    [DataRow("{}  \n", "|-\n  x", "a: |-  \n  x\n")]
+    // After the last line of a block scalar, the spaces would be part of its value: they are left out.
+    [DataRow("{}  \n", "|-\n  x", "a: |-\n  x\n")]
     [DataRow("{}  ", "1", "a: 1  ")]
     public void SetValue_RootEmptyMappingWithSpacesAfterIt_KeepsTheSpacesOnTheLineOfTheEntry(string yaml, string text, string expected)
     {
@@ -2402,5 +2403,46 @@ public class YamlEditableTreeTests
 
         Assert.AreEqual(1, tree.Serialize().Split("  \n").Length - 1, tree.Serialize());
         tree.ToSyntaxTree();
+    }
+
+    [TestMethod]
+    public void AddEntry_FirstEntryMovedToAnotherDocument_IsNotKeptByTheFirstDocument()
+    {
+        var source = YamlEditableTree.Parse("{}  \n");
+        var target = MoveFirstEntryTo(source);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        Assert.IsFalse(target.TryGetTarget(out _));
+        GC.KeepAlive(source);
+
+        static WeakReference<YamlEditableTree> MoveFirstEntryTo(YamlEditableTree source)
+        {
+            var target = YamlEditableTree.Parse("z: 9\n");
+            var a = new YamlEditableMappingEntry("a", new YamlEditableScalar("1"));
+            RootOf(source).AddEntry(a);
+            RootOf(source).SetValue("b", new YamlEditableScalar("2"));
+            RootOf(source).RemoveEntry("a");
+            RootOf(target).AddEntry(a);
+            return new WeakReference<YamlEditableTree>(target);
+        }
+    }
+
+    [TestMethod]
+    public void AddRemoveAdd_BlockScalarInRootEmptyMappingWithSpaces_DoesNotAddTheSpacesToItsHeader()
+    {
+        var tree = YamlEditableTree.Parse("{}  \n");
+        var a = new YamlEditableMappingEntry("a", new YamlEditableScalar("|-\n  x"));
+
+        RootOf(tree).AddEntry(a);
+        var added = tree.ToSyntaxTree().ToFullString();
+        RootOf(tree).RemoveEntry("a");
+        AssertEdited("{}  \n", tree);
+        RootOf(tree).AddEntry(a);
+
+        AssertEdited(added, tree);
+        Assert.AreEqual("x", ((YamlEditableScalar)a.Value).Value);
     }
 }

@@ -614,8 +614,9 @@ public class Parser<TBuffer> : IParser, Events.IReusedEventSource where TBuffer 
             CurrentKind == TokenKind.StreamEnd
         )
         {
+            // The empty node of an empty document is where the next token starts, as in libyaml.
             state = states.Pop();
-            return ProcessEmptyScalar(scanner.CurrentPosition);
+            return ProcessEmptyScalar(GetCurrentToken().Start);
         }
         else
         {

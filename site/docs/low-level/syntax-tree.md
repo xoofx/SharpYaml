@@ -188,8 +188,8 @@ back exactly (a byte order mark is kept), so a document that uses them is never 
 
 SharpYaml uses source locations for errors and editor integrations.
 
-- [`Mark`](xref:SharpYaml.Mark) captures index, line, and column. A byte order mark at the start of the text counts
-  in the index, not in the column.
+- [`Mark`](xref:SharpYaml.Mark) captures index, line, and column. A byte order mark at the start of a line, as YAML
+  allows before a document, counts in the index, not in the column.
 - [`YamlSourceSpan`](xref:SharpYaml.Syntax.YamlSourceSpan) captures a start/end mark.
 
 Parse errors throw [`YamlException`](xref:SharpYaml.YamlException) with location information.

@@ -180,8 +180,7 @@ public sealed class YamlSyntaxTree
     {
         var scanner = new Scanner<StringLookAheadBuffer>(new StringLookAheadBuffer(yaml));
         // Where the text not yet read for trivia starts: the end of the last token that has text.
-        // A byte order mark at the start of the text is in no token and takes no column, as in the marks of the scanner.
-        var triviaStart = yaml.Length > 0 && yaml[0] == '\uFEFF' ? new Mark(1, 0, 0) : new Mark(0, 0, 0);
+        var triviaStart = new Mark(0, 0, 0);
         while (scanner.MoveNext())
         {
             var token = scanner.Current;
@@ -230,6 +229,14 @@ public sealed class YamlSyntaxTree
         {
             var start = new Mark(index, line, column);
             var current = yaml[index];
+
+            // As in the marks of the scanner, a byte order mark at the start of a line is in no token and takes no column.
+            if (current == '\uFEFF' && column == 0)
+            {
+                index++;
+                continue;
+            }
+
             // Outside the text of the tokens, a '#' always starts a comment: the scanner checked that it follows a
             // blank or starts a line.
             if (current == '#')
@@ -331,8 +338,8 @@ public sealed class YamlSyntaxTree
                 continue;
             }
 
-            // As in the marks of the scanner, a byte order mark at the start of the text takes no column.
-            if (cursor == 0 && ch == '\uFEFF')
+            // As in the marks of the scanner, a byte order mark at the start of a line takes no column.
+            if (column == 0 && ch == '\uFEFF')
             {
                 continue;
             }

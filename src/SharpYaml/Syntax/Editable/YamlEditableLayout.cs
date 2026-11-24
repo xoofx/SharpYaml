@@ -143,6 +143,7 @@ internal static class YamlEditableLayout
         // same document.
         entry.DetachedColumn = GetColumn(entry).Length;
         entry.DetachedRoot = GetRoot(collection);
+        ReturnMovedSpaces(collection, entry);
         if (index == 0 && entries.Count > 1)
         {
             PrepareRemoveFirst(collection, entries[1]);
@@ -171,6 +172,31 @@ internal static class YamlEditableLayout
             if (entries.Count == 1 && collection.Parent is YamlEditableEntry owner && owner.LayoutMemo is { } memo)
             {
                 memo.Produced = Fingerprint(owner.SeparatorTrivia, owner.EndOfLineTrivia);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Takes back the spaces after a root "{}" or "[]" that the line of <paramref name="removed"/>, or of one of its entries,
+    /// took when it was the first entry of <paramref name="collection"/>: the root restores them when it is empty again.
+    /// The root then no longer refers to the entry.
+    /// </summary>
+    private static void ReturnMovedSpaces(YamlEditableNode collection, YamlEditableEntry removed)
+    {
+        if (collection.MovedSpaces is not { } spaces || collection.MovedSpacesHolder is not { } holder)
+        {
+            return;
+        }
+
+        for (YamlEditableNode? node = holder; node is not null; node = node.Parent)
+        {
+            if (ReferenceEquals(node, removed))
+            {
+                holder.EndOfLineTrivia?.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
+                holder.SeparatorTrivia?.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
+                collection.MovedSpaces = null;
+                collection.MovedSpacesHolder = null;
+                return;
             }
         }
     }
@@ -322,12 +348,16 @@ internal static class YamlEditableLayout
                             EnsureEndsWithNewLine(entry, flowEnd);
                         }
 
+                        // After the last line of a block scalar, the spaces would be part of its value: they are left out.
                         var lastLine = GetLastLineOwner(entry);
-                        var endOfLine = lastLine.EndOfLineTrivia ??= [];
-                        var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
-                        endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, moved);
-                        collection.MovedSpaces = moved;
-                        collection.MovedSpacesHolder = lastLine;
+                        if (!(lastLine.Value is YamlEditableScalar scalar && IsBlockScalar(scalar.Text)))
+                        {
+                            var endOfLine = lastLine.EndOfLineTrivia ??= [];
+                            var lineBreak = endOfLine.FindIndex(t => t.Kind == YamlEditableTriviaKind.NewLine);
+                            endOfLine.InsertRange(lineBreak < 0 ? endOfLine.Count : lineBreak, moved);
+                            collection.MovedSpaces = moved;
+                            collection.MovedSpacesHolder = lastLine;
+                        }
                     }
                 }
             }
@@ -445,18 +475,7 @@ internal static class YamlEditableLayout
         else if (collection.Parent is null && removedEntry is not null && collection.LayoutMemo is { } memo
             && memo.Matches(collection.LeadingTrivia, collection.Tree?.TrailingTrivia))
         {
-            // The root is empty again, as it was before its entries were added, and the spaces after it that its first entry
-            // took are the root's again.
-            // The entry whose line took them is no longer in the root, which is empty: it was removed, now or before. It gives
-            // them back unless it is in another document now, which an edit of this one does not change.
-            if (collection.MovedSpaces is { } spaces && collection.MovedSpacesHolder is { } holder && GetRoot(holder).Tree is null)
-            {
-                holder.EndOfLineTrivia?.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
-                holder.SeparatorTrivia?.RemoveAll(trivia => spaces.Exists(space => ReferenceEquals(space, trivia)));
-            }
-
-            collection.MovedSpaces = null;
-            collection.MovedSpacesHolder = null;
+            // The root is empty again, as it was before its entries were added.
             collection.LeadingTrivia = Clone(memo.First);
             if (collection.Tree is { } tree)
             {
