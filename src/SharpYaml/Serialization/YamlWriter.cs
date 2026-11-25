@@ -1660,6 +1660,12 @@ public sealed class YamlWriter : YamlReaderWriterBase
             return false;
         }
 
+        // A plain << key is a merge key when read back.
+        if (isKey && value.SequenceEqual("<<".AsSpan()))
+        {
+            return false;
+        }
+
         // These are document delimiters at the root, not scalar text.
         if (value.Length >= 3 && (value[..3].SequenceEqual("---".AsSpan()) || value[..3].SequenceEqual("...".AsSpan()))
             && (value.Length == 3 || char.IsWhiteSpace(value[3])))

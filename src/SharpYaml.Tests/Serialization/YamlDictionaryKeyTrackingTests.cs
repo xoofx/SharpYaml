@@ -222,6 +222,43 @@ public sealed class YamlDictionaryKeyTrackingTests
             Assert.AreEqual(i * 2, list[i]["shared"]);
         }
     }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void QuotedMergeKeyIsAnOrdinaryKey(bool generated)
+    {
+        // Only a plain << is a merge key: '<<' and "<<" are the text <<.
+        foreach (var key in new[] { "'<<'", "\"<<\"" })
+        {
+            var dictionary = Deserialize<Dictionary<string, string>>($"{key}: v\na: 1\n", options: null, generated)!;
+            Assert.AreEqual("v", dictionary["<<"], key);
+            Assert.AreEqual("1", dictionary["a"], key);
+
+            var objects = Deserialize<Dictionary<string, object>>($"{key}: v\n", options: null, generated)!;
+            Assert.AreEqual("v", objects["<<"], key);
+
+            var member = Deserialize<DictionaryKeyTrackingHolder>($"Map:\n  {key}: 5\n", options: null, generated)!;
+            Assert.AreEqual(5, member.Map["<<"], key);
+
+            var holder = Deserialize<DictionaryKeyTrackingHolder>($"{key}: v\nMap: {{c: 3}}\n", options: null, generated)!;
+            Assert.AreEqual(3, holder.Map["c"], key);
+
+            var merged = Deserialize<DictionaryKeyTrackingHolder>($"<<: {{{key}: v, Map: {{c: 3}}}}\n", options: null, generated)!;
+            Assert.AreEqual(3, merged.Map["c"], key);
+        }
+    }
+
+    [TestMethod]
+    [DynamicData(nameof(Modes))]
+    public void KeyThatIsTheTextOfTheMergeKeyRoundTrips(bool generated)
+    {
+        var source = new Dictionary<string, string> { ["<<"] = "v", ["a"] = "b" };
+
+        var yaml = generated ? YamlSerializer.Serialize(source, DictionaryKeyTrackingContext.Default) : YamlSerializer.Serialize(source);
+        var back = Deserialize<Dictionary<string, string>>(yaml, options: null, generated)!;
+
+        CollectionAssert.AreEquivalent(source, back, yaml);
+    }
 }
 
 public sealed class DictionaryKeyTrackingHolder

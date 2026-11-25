@@ -257,9 +257,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyStart = reader.Start;
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
                 ReadAndApplyMergeToInstance(reader, instance, contract, explicitKeys, requiredSeen);
@@ -476,9 +477,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyStart = reader.Start;
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 explicitKeys ??= CreateExplicitKeys(reader, contract, seenBits, seenMore, unmatchedKey);
                 ReadAndApplyMergeToPopulatedInstance(reader, instance, contract, explicitKeys, requiredSeen);
@@ -649,9 +651,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyStart = reader.Start;
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 ReadAndApplyMergeToConstructorBuffers(reader, contract, constructor, args, paramSeen, memberValues, extensionEntries, explicitKeys!, requiredSeen);
                 continue;
@@ -982,9 +985,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyStart = reader.Start;
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 ReadAndApplyMergeToInstance(reader, instance, contract, explicitKeys, requiredSeen);
                 continue;
@@ -1086,9 +1090,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyStart = reader.Start;
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 ReadAndApplyMergeToPopulatedInstance(reader, instance, contract, explicitKeys, requiredSeen);
                 continue;
@@ -1372,9 +1377,10 @@ internal sealed class YamlObjectConverter<T> : YamlConverter<T?>
             var keyStart = reader.Start;
             var keyEnd = reader.End;
             var key = reader.ScalarValue ?? string.Empty;
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (IsMergeKeyEnabled(reader.Options) && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 ReadAndApplyMergeToConstructorBuffers(reader, contract, constructor, args, paramSeen, memberValues, extensionEntries, explicitKeys, requiredSeen);
                 continue;
