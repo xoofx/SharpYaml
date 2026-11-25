@@ -616,8 +616,9 @@ public sealed class YamlReader : YamlReaderWriterBase
             }
 
             var mergeKey = ScalarValue ?? string.Empty;
+            var mergeKeyIsPlain = ScalarStyle == ScalarStyle.Plain;
             Read();
-            if (string.Equals(mergeKey, "<<", StringComparison.Ordinal))
+            if (mergeKeyIsPlain && string.Equals(mergeKey, "<<", StringComparison.Ordinal))
             {
                 foreach (var nestedKey in ReadMergeKeys(mergeEnabled: true, explicitKeys))
                 {

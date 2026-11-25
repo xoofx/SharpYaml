@@ -71,9 +71,11 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
             }
 
             var key = reader.ScalarValue ?? string.Empty;
+
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 if (keysInDictionary)
                 {
@@ -262,9 +264,11 @@ internal sealed class YamlDictionaryObjectConverter : YamlConverter<Dictionary<s
             }
 
             var key = reader.ScalarValue ?? string.Empty;
+
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 if (options.InvalidValueHandling != YamlInvalidValueHandling.FailFast)
                 {

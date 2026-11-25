@@ -239,9 +239,11 @@ internal static class YamlDictionaryConverterHelper
             }
 
             var key = reader.ScalarValue ?? string.Empty;
+
+            var keyIsPlain = reader.ScalarStyle == ScalarStyle.Plain;
             reader.Read();
 
-            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal))
+            if (mergeEnabled && string.Equals(key, "<<", StringComparison.Ordinal) && keyIsPlain)
             {
                 if (keysInDictionary)
                 {

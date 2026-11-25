@@ -2594,9 +2594,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            var keyStart = reader.Start;");
         builder.AppendLine("            var keyEnd = reader.End;");
         builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
+        builder.AppendLine("            var keyIsPlain = reader.ScalarStyle == global::SharpYaml.ScalarStyle.Plain;");
         builder.AppendLine("            reader.Read();");
         builder.AppendLine();
-        builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
+        builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal) && keyIsPlain)");
         builder.AppendLine("            {");
         builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys ??= CreateExplicitKeys()))");
         builder.AppendLine("                {");
@@ -3054,9 +3055,10 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
         builder.AppendLine("            var keyStart = reader.Start;");
         builder.AppendLine("            var keyEnd = reader.End;");
         builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
+        builder.AppendLine("            var keyIsPlain = reader.ScalarStyle == global::SharpYaml.ScalarStyle.Plain;");
         builder.AppendLine("            reader.Read();");
         builder.AppendLine();
-        builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
+        builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal) && keyIsPlain)");
         builder.AppendLine("            {");
         builder.AppendLine("                foreach (var mergeKey in reader.ReadMergeKeys(mergeEnabled, explicitKeys ??= CreateExplicitKeys()))");
         builder.AppendLine("                {");
@@ -3814,6 +3816,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
                 builder.AppendLine("            var key = reader.ScalarValue ?? string.Empty;");
+                builder.AppendLine("            var keyIsPlain = reader.ScalarStyle == global::SharpYaml.ScalarStyle.Plain;");
                 builder.AppendLine("            reader.Read();");
             }
             else
@@ -3839,7 +3842,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
-                builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal))");
+                builder.AppendLine("            if (mergeEnabled && global::System.String.Equals(key, \"<<\", global::System.StringComparison.Ordinal) && keyIsPlain)");
                 builder.AppendLine("            {");
                 if (keysInDictionary)
                 {
@@ -5536,6 +5539,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
                 builder.AppendLine("                            throw global::SharpYaml.Serialization.YamlThrowHelper.ThrowExpectedScalarKey(reader);");
                 builder.AppendLine("                        }");
                 builder.AppendLine("                        var entryKey = reader.ScalarValue ?? string.Empty;");
+                builder.AppendLine("                        var entryKeyIsPlain = reader.ScalarStyle == global::SharpYaml.ScalarStyle.Plain;");
                 builder.AppendLine("                        reader.Read();");
             }
             else
@@ -5549,7 +5553,7 @@ public sealed class YamlSerializerContextGenerator : IIncrementalGenerator
 
             if (dictionaryKeyType.SpecialType == SpecialType.System_String)
             {
-                builder.AppendLine("                        if (dictionaryMergeEnabled && global::System.String.Equals(entryKey, \"<<\", global::System.StringComparison.Ordinal))");
+                builder.AppendLine("                        if (dictionaryMergeEnabled && global::System.String.Equals(entryKey, \"<<\", global::System.StringComparison.Ordinal) && entryKeyIsPlain)");
                 builder.AppendLine("                        {");
                 builder.AppendLine("                            if (reader.Options.InvalidValueHandling != global::SharpYaml.YamlInvalidValueHandling.FailFast)");
                 builder.AppendLine("                            {");
